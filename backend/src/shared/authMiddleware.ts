@@ -251,12 +251,35 @@ export const provisionGuard = async (
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile?.is_superadmin) {
-      return res
-        .status(403)
-        .json({ error: "Forbidden: SuperAdmin privileges required" });
+    // Superadmins can provision to any workspace
+    if (!profileError && profile?.is_superadmin) {
+      req.user.is_superadmin = true;
+      return next();
     }
 
+    // Use the same workspace lookup strategy as authenticate middleware (first row, limit 1)
+    // then verify the user has ADMIN or WORKSPACE_OWNER role in that workspace
+    const { data: membership } = await supabaseAdmin
+      .from("workspace_members")
+      .select("role, workspace_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (!membership) {
+      return res
+        .status(403)
+        .json({ error: "Forbidden: No workspace membership found" });
+    }
+
+    if (!["ADMIN", "WORKSPACE_OWNER"].includes(membership.role)) {
+      return res
+        .status(403)
+        .json({ error: "Forbidden: Admin or Workspace Owner privileges required" });
+    }
+
+    req.user.workspace_id = membership.workspace_id;
+    req.user.role = membership.role;
     next();
   } catch (err) {
     next(err);

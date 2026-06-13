@@ -416,7 +416,7 @@ export default function NewCampaignPage() {
     <div className="min-h-screen bg-card flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-border">
-        <button onClick={() => router.push("/campaigns")} className="p-2 hover:bg-surface-hover rounded-lg transition-colors text-foreground-muted hover:text-white">
+        <button onClick={() => router.push("/campaigns")} className="p-2 hover:bg-surface-hover rounded-lg transition-colors text-foreground-muted hover:text-foreground">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-1">

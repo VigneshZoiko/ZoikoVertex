@@ -30,7 +30,7 @@ function MicrosoftIcon() {
 }
 
 const inputCls =
-  "w-full rounded-xl border border-[#1E2F55] bg-[#0C1529] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
+  "w-full rounded-[9px] border border-white/10 bg-[#111D2E] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
 
 function LoginForm() {
   const router = useRouter();
@@ -61,6 +61,8 @@ function LoginForm() {
     if (searchParams.get("error") === "org_deleted") {
       setError("Your organization has been permanently deleted. Please contact support.");
     }
+    const emailParam = searchParams.get("email");
+    if (emailParam) setEmail(emailParam);
   }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -110,7 +112,7 @@ function LoginForm() {
   );
 
   return (
-    <AuthLayout footer={footer} noCard>
+    <AuthLayout footer={footer}>
       <div className="w-full">
         <div className="mb-8">
           <h1 className="text-[1.75rem] font-bold text-white mb-1.5">Sign in to ZoikoVertex</h1>
@@ -175,7 +177,7 @@ function LoginForm() {
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="h-4 w-4 rounded border-[#1E2F55] bg-[#0C1529] accent-[#20E7F2]"
+              className="h-4 w-4 rounded-[2.5px] border border-[#767676] bg-white accent-[#20E7F2]"
             />
             <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/40">
               Keep me signed in on this device
@@ -186,7 +188,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#20E7F2] py-3.5 text-sm font-bold text-[#080E1A] transition hover:bg-[#20E7F2]/90 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2.5 rounded-[9px] bg-[#20E7F2] py-3.5 text-sm font-bold text-[#080E1A] transition hover:bg-[#20E7F2]/90 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ArrowRight className="h-4 w-4" /> Sign in</>}
           </button>
@@ -205,7 +207,7 @@ function LoginForm() {
             type="button"
             onClick={() => handleOAuth("google")}
             disabled={loading}
-            className="flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60"
+            className="flex items-center justify-center gap-2.5 rounded-[9px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-60"
           >
             <GoogleIcon /> Google
           </button>
@@ -213,7 +215,7 @@ function LoginForm() {
             type="button"
             onClick={() => handleOAuth("azure")}
             disabled={loading}
-            className="flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60"
+            className="flex items-center justify-center gap-2.5 rounded-[9px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-60"
           >
             <MicrosoftIcon /> Microsoft
           </button>

@@ -493,20 +493,6 @@ export async function listChainAnchors(req: AuthRequest, res: Response, next: Ne
   } catch (error) { next(error); }
 }
 
-export async function confirmChainAnchor(req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    const anchorId = req.params.anchorId as string;
-    const workspaceId = req.user?.workspace_id;
-    if (!workspaceId) return res.status(400).json({ success: false, error: 'Workspace ID required' });
-
-    const auth = buildAuthContext(req.user);
-    const result = await vaultService.confirmChainAnchor(anchorId, workspaceId, auth);
-    if (!result) return res.status(404).json({ success: false, error: 'Chain anchor not found' });
-
-    res.json({ success: true, data: result });
-  } catch (error) { next(error); }
-}
-
 export async function verifyChainAnchor(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const anchorId = req.params.anchorId as string;

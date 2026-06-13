@@ -3,10 +3,9 @@ import { createAuditEvent } from './auditTrail.service';
 import { internalEventBus } from '../shared/internalEventBus';
 import type { AuthContext } from '../shared/serviceAuth';
 import { requireAnyPermission } from '../shared/serviceAuth';
+import { logger } from '../shared/logger';
 import * as crypto from 'crypto';
 import {
-  submitAnchor,
-  confirmAnchor as extConfirmAnchor,
   verifyAnchorIntegrity,
   computeAnchorHash,
   AnchorProvider,
@@ -191,7 +190,7 @@ async function emitVaultAuditEvent(
     });
     return result?.event_id || null;
   } catch (err) {
-    console.error('[EvidenceVault] Audit event emission failed:', err);
+    logger.error({ err }, '[EvidenceVault] Audit event emission failed');
     return null;
   }
 }
@@ -1109,6 +1108,7 @@ interface CreateRedactionPolicyParams {
   description?: string;
   rules: any[];
   created_by: string;
+  workspace_id?: string;
 }
 
 export async function createRedactionPolicy(params: CreateRedactionPolicyParams, auth?: AuthContext): Promise<VaultRedactionPolicy> {
@@ -1126,8 +1126,9 @@ export async function createRedactionPolicy(params: CreateRedactionPolicyParams,
 
   if (error) throw error;
 
+  const wsId = params.workspace_id || auth?.workspaceId || 'global';
   await emitVaultAuditEvent(
-    'evidence.redaction_policy_created', 'WRK-001', params.created_by,
+    'evidence.redaction_policy_created', wsId, params.created_by,
     `Redaction Policy Created: ${policyId}`,
     `Redaction policy "${params.name}" created with ${params.rules.length} rules.`,
     { object_type: 'vault_redaction_policy', object_id: policyId },
@@ -1393,12 +1394,10 @@ export async function runDlpScan(packageId: string, workerId?: string, auth?: Au
 
   const now = new Date().toISOString();
 
-  // Simulated DLP scan — in production this calls a real DLP/secret scanner
   const findings: any[] = [];
   let scanStatus = 'passed';
   let detectionCategory: string | null = null;
 
-  // Scan manifest items for common patterns (simulated)
   if (pkg.manifest?.items) {
     for (const item of pkg.manifest.items) {
       if (item.source_system === 'identity_proof') {
@@ -1729,13 +1728,6 @@ export async function createChainAnchor(params: {
   const hashPayload = { ...targetData, ...(params.anchor_data || {}) };
   const anchorHash = computeAnchorHash(hashPayload);
 
-  const submission = await submitAnchor(anchorHash, provider, {
-    anchor_id: anchorId,
-    workspace_id: scope.workspace_id,
-    tenant_id: scope.tenant_id,
-    ...(params.anchor_data || {}),
-  });
-
   const { data, error } = await supabaseAdmin.from('vault_chain_anchors').insert({
     anchor_id: anchorId,
     package_id: params.package_id || null,
@@ -1744,14 +1736,10 @@ export async function createChainAnchor(params: {
     tenant_id: scope.tenant_id,
     anchor_provider: provider,
     anchor_hash: anchorHash,
-    anchor_tx_hash: submission.tx_hash,
-    anchor_timestamp: submission.submitted_at,
-    anchor_data: {
-      ...(params.anchor_data || {}),
-      block_height: submission.block_height,
-      provider_response: submission.provider_response,
-    },
-    status: submission.status,
+    anchor_tx_hash: null,
+    anchor_timestamp: new Date().toISOString(),
+    anchor_data: params.anchor_data || {},
+    status: 'local',
     created_by: params.created_by || null,
   }).select().single();
 
@@ -1760,75 +1748,14 @@ export async function createChainAnchor(params: {
   await emitVaultAuditEvent(
     'evidence.chain_anchored', scope.workspace_id, params.created_by || 'system',
     `Chain Anchor Created: ${anchorId}`,
-    `Hash ${anchorHash.slice(0, 20)}... anchored via ${provider} (tx: ${submission.tx_hash?.slice(0, 16)}...).`,
+    `Hash ${anchorHash.slice(0, 20)}... anchored locally via ${provider}.`,
     { object_type: 'vault_chain_anchor', object_id: anchorId },
-    { field_changed: 'vault_state', previous_value: null, new_value: 'anchored', change_reason: 'external_chain_anchor' },
+    { field_changed: 'vault_state', previous_value: null, new_value: 'anchored', change_reason: 'local_hash_anchor' },
     { permission_used: 'evidence.anchor' },
     scope.tenant_id,
   );
 
   return data;
-}
-
-export async function confirmChainAnchor(
-  anchorId: string,
-  workspace_id: string,
-  auth?: AuthContext,
-): Promise<VaultChainAnchor | null> {
-  requireAnyPermission(auth, 'evidence:view');
-  const { data: anchor } = await supabaseAdmin
-    .from('vault_chain_anchors')
-    .select('*')
-    .eq('anchor_id', anchorId)
-    .eq('workspace_id', workspace_id)
-    .single();
-
-  if (!anchor) return null;
-  if (anchor.status !== 'submitted' && anchor.status !== 'pending') {
-    throw new Error(`Anchor ${anchorId} is already ${anchor.status}`);
-  }
-
-  const provider: AnchorProvider = ['ethereum', 'opentimestamps'].includes(anchor.anchor_provider)
-    ? (anchor.anchor_provider as AnchorProvider)
-    : (process.env.ANCHOR_PROVIDER as AnchorProvider) || 'ethereum';
-
-  const confirmed = await extConfirmAnchor({
-    anchor_hash: anchor.anchor_hash,
-    provider,
-    status: 'submitted',
-    tx_hash: anchor.anchor_tx_hash,
-    block_height: anchor.anchor_data?.block_height || null,
-    submitted_at: anchor.anchor_timestamp || anchor.created_at,
-    confirmed_at: null,
-    provider_response: anchor.anchor_data?.provider_response || {},
-  });
-
-  const { data: updated, error } = await supabaseAdmin
-    .from('vault_chain_anchors')
-    .update({
-      status: 'confirmed',
-      confirmed_at: confirmed.confirmed_at,
-      anchor_data: {
-        ...(anchor.anchor_data || {}),
-        provider_response: confirmed.provider_response,
-      },
-    })
-    .eq('anchor_id', anchorId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  await emitVaultAuditEvent(
-    'evidence.anchor_confirmed', workspace_id, 'system',
-    `Chain Anchor Confirmed: ${anchorId}`,
-    `Anchor ${anchorId} confirmed at ${confirmed.confirmed_at}.`,
-    { object_type: 'vault_chain_anchor', object_id: anchorId },
-    { field_changed: 'status', previous_value: 'submitted', new_value: 'confirmed', change_reason: 'external_confirmation' },
-    undefined, anchor.tenant_id,
-  );
-
-  return updated;
 }
 
 export async function verifyChainAnchor(

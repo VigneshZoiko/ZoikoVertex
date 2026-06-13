@@ -173,13 +173,10 @@ export default function ForensicHubPage() {
 
       {/* Metric Strip */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
-          <StatCard label="Open Cases" value={stats.open_cases} color="text-foreground" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <StatCard label="Open" value={stats.open_cases} color="text-foreground" />
           <StatCard label="Critical" value={stats.critical_cases} color="text-error-text" />
           <StatCard label="Legal Hold" value={stats.legal_hold_cases} color="text-warning-text" />
-          <StatCard label="Awaiting Info" value={stats.awaiting_info} color="text-info-text" />
-          <StatCard label="Legal Review" value={stats.legal_review} color="text-info-text" />
-          <StatCard label="Closed This.." value={stats.closed_cases} color="text-success-text" />
           <StatCard label="Total" value={stats.total_cases} color="text-foreground-muted" />
         </div>
       )}
@@ -316,7 +313,12 @@ export default function ForensicHubPage() {
                     className="text-sm text-foreground hover:bg-surface-hover cursor-pointer"
                   >
                     <td className="py-3 px-4">
-                      <div className="font-medium text-foreground">{c.title}</div>
+                      <div className="font-medium text-foreground flex items-center gap-1.5">
+                        {c.title}
+                        {c.source === 'ai_agent' && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 font-mono">AI</span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-foreground-muted font-mono">{c.case_id}</div>
                     </td>
                     <td className="py-3 px-4 text-xs">{TYPE_LABELS[c.case_type] || c.case_type}</td>

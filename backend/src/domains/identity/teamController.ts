@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -190,6 +190,68 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
     });
 
     res.json({ success: true, message: `Request ${status.toLowerCase()}.` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMemberRole = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const actorId = req.user?.id;
+    if (!actorId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
+
+    if (!isSuperAdmin && !workspaceId) {
+      return res.status(403).json({ error: 'Workspace context missing' });
+    }
+
+    const { id: userId } = req.params;
+    const { role } = req.body;
+
+    if (!role) return res.status(400).json({ error: 'Role is required' });
+
+    if (userId === actorId) {
+      return res.status(400).json({ error: 'You cannot change your own role' });
+    }
+
+    let memberQuery = supabaseAdmin
+      .from('workspace_members')
+      .select('role, workspace_id')
+      .eq('user_id', userId);
+
+    if (!isSuperAdmin) memberQuery = memberQuery.eq('workspace_id', workspaceId!);
+
+    const { data: memberData, error: memberError } = await memberQuery.maybeSingle();
+
+    if (memberError || !memberData) {
+      return res.status(404).json({ error: 'Member not found in workspace' });
+    }
+
+    if (memberData.role === 'WORKSPACE_OWNER') {
+      return res.status(400).json({ error: 'Cannot change the role of a Workspace Owner' });
+    }
+
+    let updateQuery = supabaseAdmin
+      .from('workspace_members')
+      .update({ role })
+      .eq('user_id', userId);
+
+    if (!isSuperAdmin) updateQuery = updateQuery.eq('workspace_id', workspaceId!);
+
+    const { error: updateError } = await updateQuery;
+    if (updateError) throw updateError;
+
+    await logAuditEvent({
+      workspaceId: workspaceId || (memberData as any).workspace_id,
+      actorId,
+      module: 'Team',
+      action: `Changed role of user ${userId} from ${memberData.role} to ${role}`,
+      metadata: { user_id: userId, old_role: memberData.role, new_role: role }
+    });
+
+    res.json({ success: true, message: `Role updated to ${role}.` });
   } catch (error) {
     next(error);
   }

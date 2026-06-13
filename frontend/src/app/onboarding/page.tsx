@@ -301,7 +301,21 @@ export default function OnboardingPage() {
 
   /* ── Auth + workspace guard ─────────────────────────────────────────────── */
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
+    const checkAuth = async () => {
+      // Check if this is an OTP-only user (email in URL + verified cookie)
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get("email");
+      const hasOtpCookie = document.cookie.includes("zv_otp_verified=1");
+
+      if (emailParam && hasOtpCookie) {
+        setUserName(emailParam.split("@")[0]);
+        setUserEmail(emailParam);
+        setChecking(false);
+        return;
+      }
+
+      // Check for existing Supabase session (OAuth path)
+      const { data } = await supabase.auth.getUser();
       const user = data?.user;
       if (!user) { router.replace("/login"); return; }
 
@@ -320,7 +334,9 @@ export default function OnboardingPage() {
       } else {
         setChecking(false);
       }
-    });
+    };
+
+    checkAuth();
   }, [router]);
 
   /* ── Auto-suggest workspace name ────────────────────────────────────────── */
@@ -392,14 +408,53 @@ export default function OnboardingPage() {
     setError("");
 
     try {
-      const res = await api.post("/api/v1/onboarding/setup", {
-        company_name:   companyName.trim(),
-        workspace_name: workspaceName.trim(),
-      });
+      const isOtpUser = document.cookie.includes("zv_otp_verified=1") && !document.cookie.includes("zv_auth=1");
 
-      if (!res.success) {
-        setError(res.data?.error || res.error || "Something went wrong. Please try again.");
-        return;
+      if (isOtpUser) {
+        // OTP-only path: create auth user + org + workspace together
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+        const response = await fetch(`${backendUrl}/api/v1/onboarding/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: userEmail,
+            fullName: userName,
+            company_name: companyName.trim(),
+            workspace_name: workspaceName.trim(),
+          }),
+        });
+        const res = await response.json().catch(() => ({}));
+        if (!response.ok || !res.success) {
+          setError(res.error || res.message || "Failed to set up workspace. Please try again.");
+          return;
+        }
+
+        // Sign in with the temp password
+        const tempPwd = res.data?.temp_password;
+        if (tempPwd) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: userEmail,
+            password: tempPwd,
+          });
+          if (signInError) {
+            setError("Workspace created but sign-in failed. Please try logging in.");
+            return;
+          }
+          // Set auth cookie (supabase.ts listener should handle this, but ensure it's set)
+          document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
+        }
+      } else {
+        // Authenticated path (OAuth): use existing endpoint
+        const res = await api.post("/api/v1/onboarding/setup", {
+          company_name:   companyName.trim(),
+          workspace_name: workspaceName.trim(),
+        });
+
+        if (!res.success) {
+          const errMsg = typeof res.data?.error === 'object' ? res.data.error.message : res.data?.error;
+          setError(errMsg || res.error || "Something went wrong. Please try again.");
+          return;
+        }
       }
 
       try { localStorage.removeItem("zv_role_cache"); } catch {}

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { listAuditEvents, verifyChainIntegrity, createAuditEvent, applyFieldAccess } from '../services/auditTrail.service';
+import { logger } from '../shared/logger';
 import { createHash } from 'crypto';
 
 interface ExportJob {
@@ -116,13 +117,13 @@ export function initAuditExportWorker() {
         .limit(5);
 
       if (jobs && jobs.length > 0) {
-        console.log(`[audit-export-worker] Processing ${jobs.length} export job(s)`);
+        logger.info({ jobCount: jobs.length }, '[audit-export-worker] Processing export jobs');
         for (const job of jobs) {
           await processExportJob(job as ExportJob);
         }
       }
     } catch (err) {
-      console.error('[audit-export-worker] Poll error:', err);
+      logger.error({ err }, '[audit-export-worker] Poll error');
     } finally {
       running = false;
     }
@@ -130,5 +131,5 @@ export function initAuditExportWorker() {
 
   poll();
   setInterval(poll, POLL_INTERVAL);
-  console.log('[audit-export-worker] Started (poll every 30s)');
+  logger.info('[audit-export-worker] Started (poll every 30s)');
 }

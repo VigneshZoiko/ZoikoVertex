@@ -12,13 +12,13 @@ const TRUST_BULLETS = [
   { icon: Lock,        text: "GDPR-compatible · SOC 2 readiness in progress" },
 ];
 
-export default function AuthLayout({ children, footer, noCard }: { children: React.ReactNode; footer?: React.ReactNode; noCard?: boolean }) {
+export default function AuthLayout({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0B1120] flex flex-col">
+    <div className="h-screen bg-[#0C1422] flex flex-col overflow-y-auto">
       <Navbar />
       <div className="flex flex-1 pt-[68px]">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0B1120] w-[48%] shrink-0">
+      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] w-[48%] shrink-0">
         <div className="max-w-[380px]">
           {/* Logo */}
           <Image
@@ -61,19 +61,12 @@ export default function AuthLayout({ children, footer, noCard }: { children: Rea
       </div>
 
       {/* Right form panel */}
-      {noCard ? (
-        <div className="flex flex-1 flex-col justify-center px-16 xl:px-20 py-12 bg-[#0B1120] gap-6">
-          <div className="w-full max-w-[480px]">{children}</div>
-          {footer && <div className="w-full max-w-[480px]">{footer}</div>}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#0C1422] gap-6">
+        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-6 sm:px-[50px] pt-10 sm:pt-[68px] pb-10 sm:pb-[54px] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
+          {children}
         </div>
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-[#0B1120] gap-6">
-          <div className="w-full max-w-[440px] rounded-2xl border border-[#1E2F55]/60 bg-[#0D1628] px-10 py-10 shadow-[0_0_60px_rgba(0,0,0,0.5)]">
-            {children}
-          </div>
-          {footer && <div className="w-full max-w-[440px]">{footer}</div>}
-        </div>
-      )}
+        {footer && <div className="w-full max-w-[480px] text-center">{footer}</div>}
+      </div>
       </div>
     </div>
   );

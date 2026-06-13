@@ -2,9 +2,8 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  // Silence "multiple lockfiles" workspace root warning
   turbopack: {
-    root: path.resolve(__dirname),
+    root: path.resolve(process.cwd()),
   },
   images: {
     remotePatterns: [
@@ -87,6 +86,11 @@ const nextConfig: NextConfig = {
       {
         source: '/queue',
         destination: '/review-queue',
+        permanent: true,
+      },
+      {
+        source: '/security',
+        destination: 'https://www.zoikovertex.com/security',
         permanent: true,
       },
     ];

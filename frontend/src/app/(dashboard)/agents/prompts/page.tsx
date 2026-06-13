@@ -152,7 +152,7 @@ const RISK_META: Record<RiskTier, { label: string; color: string; bg: string; bo
 };
 
 const STATUS_META: Record<LifecycleStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  DRAFT: { label: "Draft", color: "text-slate-400", bg: "bg-slate-800", icon: CircleDot },
+  DRAFT: { label: "Draft", color: "text-foreground-muted", bg: "bg-surface", icon: CircleDot },
   INTERNAL_TEST: { label: "Internal Test", color: "text-blue-400", bg: "bg-blue-500/10", icon: FlaskConical },
   REVIEW_REQUESTED: { label: "Review Requested", color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock },
   APPROVED_STAGING: { label: "Approved — Staging", color: "text-teal-400", bg: "bg-teal-500/10", icon: CheckCircle2 },
@@ -160,7 +160,7 @@ const STATUS_META: Record<LifecycleStatus, { label: string; color: string; bg: s
   PRODUCTION_ACTIVE: { label: "Production Active", color: "text-emerald-400", bg: "bg-emerald-500/10", icon: Zap },
   PAUSED: { label: "Paused", color: "text-orange-400", bg: "bg-orange-500/10", icon: PauseCircle },
   RETIRED: { label: "Retired", color: "text-rose-400", bg: "bg-rose-500/10", icon: XCircle },
-  ARCHIVED: { label: "Archived", color: "text-slate-500", bg: "bg-slate-900", icon: Archive },
+  ARCHIVED: { label: "Archived", color: "text-foreground-muted", bg: "bg-surface", icon: Archive },
 };
 
 const LIFECYCLE_STAGES: LifecycleStatus[] = [
@@ -214,7 +214,7 @@ function StatusBadge({ status }: { status: LifecycleStatus | string }) {
   const meta = STATUS_META[normalizeStatus(status)];
   const Icon = meta.icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border border-white/5`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border border-border`}>
       <Icon className="w-3 h-3" />
       {meta.label}
     </span>
@@ -232,10 +232,10 @@ function RiskBadge({ tier }: { tier: RiskTier | string }) {
 }
 
 function TestBadge({ result }: { result: TestResult | null }) {
-  if (!result) return <span className="text-[10px] text-slate-600 italic">No test run</span>;
-  const colors = result.pass_fail === "PASS" ? "text-emerald-400 bg-emerald-500/10" : result.pass_fail === "FAIL" ? "text-rose-400 bg-rose-500/10" : "text-slate-400 bg-slate-800";
+  if (!result) return <span className="text-[10px] text-foreground-muted italic">No test run</span>;
+  const colors = result.pass_fail === "PASS" ? "text-emerald-400 bg-emerald-500/10" : result.pass_fail === "FAIL" ? "text-rose-400 bg-rose-500/10" : "text-foreground-muted bg-surface";
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${colors} border border-white/5`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${colors} border border-border`}>
       {result.pass_fail === "PASS" ? <CheckCircle2 className="w-3 h-3" /> : result.pass_fail === "FAIL" ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
       {result.pass_fail} · {result.score}%
     </span>
@@ -249,10 +249,10 @@ function ApprovalChain({ approvals, riskTier }: { approvals: ApprovalRecord[]; r
     <div className="flex items-center gap-1">
       {Array.from({ length: Math.max(required, approvals.length) }).map((_, i) => {
         const a = approvals[i];
-        const color = !a ? "bg-slate-800" : a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : a.decision === "PENDING" ? "bg-amber-500/40 border border-amber-500" : "bg-slate-700";
+        const color = !a ? "bg-surface" : a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : a.decision === "PENDING" ? "bg-amber-500/40 border border-amber-500" : "bg-surface";
         return <div key={i} className={`w-2.5 h-2.5 rounded-full ${color}`} title={a ? `${a.reviewer_role}: ${a.decision}` : "Required"} />;
       })}
-      <span className="text-[10px] text-slate-500 ml-1">{completed}/{required}</span>
+      <span className="text-[10px] text-foreground-muted ml-1">{completed}/{required}</span>
     </div>
   );
 }
@@ -279,7 +279,7 @@ function SimplifiedStatusBadge({ p }: { p: PromptRecord }) {
   const isBlocked = isFailed || (p.metadata?.block_count || 0) > 0;
   if (["RETIRED", "ARCHIVED"].includes(s)) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-white/5">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-border">
         <XCircle className="w-3 h-3" />
         Retired
       </span>
@@ -297,7 +297,7 @@ function SimplifiedStatusBadge({ p }: { p: PromptRecord }) {
     }
     // Active but idle: deployed and ready, not currently processing.
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-white/5">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-border">
         <Zap className="w-3 h-3" />
         Active
       </span>
@@ -305,14 +305,14 @@ function SimplifiedStatusBadge({ p }: { p: PromptRecord }) {
   }
   if (isBlocked) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 border border-white/5">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 border border-border">
         <AlertTriangle className="w-3 h-3" />
         Blocked/Failed
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-800 border border-white/5">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-foreground-muted bg-surface border border-border">
       <CircleDot className="w-3 h-3" />
       Draft
     </span>
@@ -385,7 +385,7 @@ function RegistryTab({
             <col style={{ width: "8%" }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-slate-900 bg-slate-950/60">
+            <tr className="border-b border-border bg-card/60">
               {[
                 { label: "Prompt Name", width: "13%" },
                 { label: "Purpose", width: "14%" },
@@ -398,69 +398,69 @@ function RegistryTab({
                 { label: "Failed/Blocked", width: "6%" },
                 { label: "Actions", width: "8%" }
               ].map((h) => (
-                <th key={h.label} style={{ width: h.width }} className="py-4 px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">{h.label}</th>
+                <th key={h.label} style={{ width: h.width }} className="py-4 px-3 text-[10px] font-black text-foreground-muted uppercase tracking-widest text-center">{h.label}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className="divide-y divide-border/60">
             {prompts.map((p) => {
               const s = normalizeStatus(p.status);
               const retired = ["RETIRED", "ARCHIVED"].includes(s);
               return (
-              <tr key={p.id} className="hover:bg-slate-900/40 transition-colors">
+              <tr key={p.id} className="hover:bg-surface/40 transition-colors">
                 <td className="py-4 px-3">
-                  <div className="text-sm font-bold text-white whitespace-normal break-words line-clamp-2" title={p.name}>{p.name}</div>
+                  <div className="text-sm font-bold text-foreground whitespace-normal break-words line-clamp-2" title={p.name}>{p.name}</div>
                 </td>
                 <td className="py-4 px-3">
-                  <span className="text-xs text-slate-400 leading-relaxed line-clamp-2">{purposeFor(p)}</span>
+                  <span className="text-xs text-foreground-muted leading-relaxed line-clamp-2">{purposeFor(p)}</span>
                 </td>
                 <td className="py-4 px-3 text-center">
-                  <span className="text-xs text-slate-400 truncate block max-w-[120px] mx-auto">{p.linked_workflow !== "—" && p.linked_workflow !== "" ? p.linked_workflow : <span className="italic text-slate-600">Pending workflow</span>}</span>
+                  <span className="text-xs text-foreground-muted truncate block max-w-[120px] mx-auto">{p.linked_workflow !== "—" && p.linked_workflow !== "" ? p.linked_workflow : <span className="italic text-foreground-muted">Pending workflow</span>}</span>
                 </td>
                 <td className="py-4 px-3 text-center">
-                  <span className="text-xs text-slate-400 truncate block max-w-[120px] mx-auto">{p.linked_agent !== "—" && p.linked_agent !== "" ? p.linked_agent : <span className="italic text-slate-600">Not linked</span>}</span>
+                  <span className="text-xs text-foreground-muted truncate block max-w-[120px] mx-auto">{p.linked_agent !== "—" && p.linked_agent !== "" ? p.linked_agent : <span className="italic text-foreground-muted">Not linked</span>}</span>
                 </td>
                 <td className="py-4 px-3 text-center">
                   {(() => {
                     const kb = kbSourceFor(p);
-                    if (!kb) return <span className="text-xs italic text-slate-600">—</span>;
+                    if (!kb) return <span className="text-xs italic text-foreground-muted">—</span>;
                     return (
-                      <span className="text-xs text-slate-400 truncate block max-w-[130px] mx-auto" title={kb.label}>
+                      <span className="text-xs text-foreground-muted truncate block max-w-[130px] mx-auto" title={kb.label}>
                         {kb.label}
-                        {kb.extra > 0 && <span className="text-slate-600"> +{kb.extra}</span>}
+                        {kb.extra > 0 && <span className="text-foreground-muted"> +{kb.extra}</span>}
                       </span>
                     );
                   })()}
                 </td>
                 <td className="py-4 px-3 text-center">
-                  <span className="text-[11px] text-slate-500 whitespace-nowrap">{formatDateTime(p.metadata?.last_used_at) || formatDateTime(p.last_deployed) || "—"}</span>
+                  <span className="text-[11px] text-foreground-muted whitespace-nowrap">{formatDateTime(p.metadata?.last_used_at) || formatDateTime(p.last_deployed) || "—"}</span>
                 </td>
                 <td className="py-4 px-3 text-center"><SimplifiedStatusBadge p={p} /></td>
                 <td className="py-4 px-3 text-center"><TestBadge result={p.last_test} /></td>
                 <td className="py-4 px-3 text-center">
-                  <span className="text-xs text-slate-400">{failedBlockedCount(p) > 0 ? failedBlockedCount(p) : "—"}</span>
+                  <span className="text-xs text-foreground-muted">{failedBlockedCount(p) > 0 ? failedBlockedCount(p) : "—"}</span>
                 </td>
                 <td className="py-4 px-3 text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <button title="View" onClick={() => onViewPrompt(p)} className="flex items-center justify-center w-7 h-7 bg-black border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all">
+                    <button title="View" onClick={() => onViewPrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all">
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     {canManage && s === "PRODUCTION_ACTIVE" && (
-                      <button title="Pause" onClick={() => onPausePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-black border border-slate-800 rounded-lg text-slate-400 hover:text-orange-400 hover:border-orange-500/30 transition-all">
+                      <button title="Pause" onClick={() => onPausePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-foreground-muted hover:text-orange-400 hover:border-orange-500/30 transition-all">
                         <PauseCircle className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {canManage && s === "PAUSED" && (
-                      <button title="Play (resume)" onClick={() => onResumePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-black border border-slate-800 rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all">
+                      <button title="Play (resume)" onClick={() => onResumePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all">
                         <Play className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {canManage && retired ? (
-                      <button title="Activate (bring back)" onClick={() => onActivatePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-black border border-slate-800 rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all">
+                      <button title="Activate (bring back)" onClick={() => onActivatePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all">
                         <RotateCcw className="w-3.5 h-3.5" />
                       </button>
                     ) : canManage && !["PRODUCTION_ACTIVE", "PAUSED"].includes(s) ? (
-                      <button title="Retire" onClick={() => onRetirePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-black border border-slate-800 rounded-lg text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-all">
+                      <button title="Retire" onClick={() => onRetirePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-foreground-muted hover:text-rose-400 hover:border-rose-500/30 transition-all">
                         <Archive className="w-3.5 h-3.5" />
                       </button>
                     ) : null}
@@ -471,7 +471,7 @@ function RegistryTab({
             })}
             {prompts.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-20 text-center text-sm text-slate-600">No system prompts available.</td>
+                <td colSpan={10} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
               </tr>
             )}
           </tbody>
@@ -542,11 +542,11 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
           { label: "Pending Reviews", value: pending.length, color: "text-amber-400" },
           { label: "Approved Today", value: approvedToday, color: "text-emerald-400" },
           { label: "Rejected Today", value: rejectedToday, color: "text-rose-400" },
-          { label: "Average Review Time", value: "—", color: "text-slate-500" },
+          { label: "Average Review Time", value: "—", color: "text-foreground-muted" },
         ].map((k) => (
-          <div key={k.label} className="bg-black border border-slate-900 rounded-2xl p-5 text-center">
+          <div key={k.label} className="bg-background border border-border rounded-2xl p-5 text-center">
             <div className={`text-3xl font-black ${k.color}`}>{k.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{k.label}</div>
+            <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest mt-1">{k.label}</div>
           </div>
         ))}
       </div>
@@ -554,39 +554,39 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
       {/* B. Review Queue Table */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-white uppercase tracking-widest">Review Queue</h3>
+          <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Review Queue</h3>
           <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full font-black">
             {approvalStats?.counts?.total_pending ?? pending.length} Awaiting Action
           </span>
         </div>
         {pending.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No pending reviews available.</div>
+          <div className="p-8 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No pending reviews available.</div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-2xl border border-slate-900">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-900 bg-slate-950/60">
+                  <tr className="border-b border-border bg-card/60">
                     {["Prompt", "Submitted By", "Risk Tier", "Review Stage", "Submitted Date", "Status", "Actions"].map((h) => (
-                      <th key={h} className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                      <th key={h} className="py-3 px-5 text-[10px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-900">
+                <tbody className="divide-y divide-border">
                   {pending.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                      <td className="py-4 px-5"><span className="text-sm font-bold text-white max-w-[200px] truncate block">{p.name}</span></td>
-                      <td className="py-4 px-5"><span className="text-[11px] text-slate-300">{p.owner}</span></td>
+                    <tr key={p.id} className="hover:bg-surface/30 transition-colors">
+                      <td className="py-4 px-5"><span className="text-sm font-bold text-foreground max-w-[200px] truncate block">{p.name}</span></td>
+                      <td className="py-4 px-5"><span className="text-[11px] text-foreground">{p.owner}</span></td>
                       <td className="py-4 px-5"><RiskBadge tier={p.risk_tier} /></td>
-                      <td className="py-4 px-5"><span className="text-[10px] text-slate-400">{reviewStageLabel(normalizeStatus(p.status))}</span></td>
-                      <td className="py-4 px-5"><span className="text-[10px] text-slate-400 whitespace-nowrap">{p.updated_at ? new Date(p.updated_at).toLocaleDateString() : "—"}</span></td>
+                      <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted">{reviewStageLabel(normalizeStatus(p.status))}</span></td>
+                      <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted whitespace-nowrap">{p.updated_at ? new Date(p.updated_at).toLocaleDateString() : "—"}</span></td>
                       <td className="py-4 px-5"><StatusBadge status={p.status} /></td>
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-1">
                           <button
                             title="View Details"
                             onClick={() => setDetailPrompt(detailPrompt?.id === p.id ? null : p)}
-                            className="p-2 bg-black border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+                            className="p-2 bg-background border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -602,7 +602,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                               });
                             }}
                             disabled={!p.active_version_id}
-                            className="p-2 bg-black border border-slate-800 rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all disabled:opacity-40"
+                            className="p-2 bg-background border border-border rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all disabled:opacity-40"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                           </button>
@@ -610,7 +610,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                             title="Reject"
                             onClick={() => { if (p.active_version_id) setRejectionModal({ versionId: p.active_version_id, promptName: p.name, title: `Reject "${p.name}"` }); }}
                             disabled={!p.active_version_id}
-                            className="p-2 bg-black border border-slate-800 rounded-lg text-rose-400 hover:text-rose-300 hover:border-rose-500/30 transition-all disabled:opacity-40"
+                            className="p-2 bg-background border border-border rounded-lg text-rose-400 hover:text-rose-300 hover:border-rose-500/30 transition-all disabled:opacity-40"
                           >
                             <XCircle className="w-3.5 h-3.5" />
                           </button>
@@ -624,16 +624,16 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
 
             {/* C. Review Detail Panel */}
             {detailPrompt && (
-              <div className="bg-slate-950 border border-indigo-500/20 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-indigo-500/5">
+              <div className="bg-card border border-indigo-500/20 rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-indigo-500/5">
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-white">{detailPrompt.name}</span>
+                    <span className="text-sm font-bold text-foreground">{detailPrompt.name}</span>
                     <RiskBadge tier={detailPrompt.risk_tier} />
                     <StatusBadge status={detailPrompt.status} />
                   </div>
                   <button
                     onClick={() => setDetailPrompt(null)}
-                    className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+                    className="p-1.5 rounded-lg border border-border text-foreground-muted hover:text-foreground hover:border-border transition-all"
                   >
                     <XCircle className="w-4 h-4" />
                   </button>
@@ -645,33 +645,33 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                       { label: "Owner", value: detailPrompt.owner },
                       { label: "Review Stage", value: reviewStageLabel(normalizeStatus(detailPrompt.status)) },
                     ].map((f) => (
-                      <div key={f.label} className="p-3 bg-black border border-slate-900 rounded-xl">
-                        <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
+                      <div key={f.label} className="p-3 bg-background border border-border rounded-xl">
+                        <div className="text-[9px] text-foreground-muted uppercase tracking-widest">{f.label}</div>
                         <div className="text-[11px] text-white font-bold mt-1">{f.value}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="text-[10px] text-slate-400 leading-relaxed">{detailPrompt.description || "—"}</div>
+                  <div className="text-[10px] text-foreground-muted leading-relaxed">{detailPrompt.description || "—"}</div>
 
                   {/* Approval Chain */}
                   <div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Approval Chain</div>
+                    <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Approval Chain</div>
                     <div className="flex items-center gap-4 flex-wrap">
                       <ApprovalChain approvals={detailPrompt.approvals} riskTier={detailPrompt.risk_tier} />
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {detailPrompt.approvals.length === 0 && (
-                        <span className="text-[10px] text-slate-600 italic">No decisions recorded yet.</span>
+                        <span className="text-[10px] text-foreground-muted italic">No decisions recorded yet.</span>
                       )}
                       {detailPrompt.approvals.map((a, i) => (
-                        <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-black border border-slate-900 rounded-lg">
+                        <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-lg">
                           <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : "bg-amber-500/40 border border-amber-500"}`} />
-                          <span className="text-[10px] text-slate-400">{a.reviewer_role}</span>
+                          <span className="text-[10px] text-foreground-muted">{a.reviewer_role}</span>
                           <span className={`text-[10px] font-bold ${a.decision === "APPROVED" ? "text-emerald-400" : a.decision === "REJECTED" ? "text-rose-400" : "text-amber-400"}`}>
                             {a.decision === "APPROVED" ? "Approved" : a.decision === "REJECTED" ? "Rejected" : a.decision === "PENDING" ? "Pending" : a.decision}
                           </span>
-                          {a.notes && <span className="text-[9px] text-slate-500 italic">— {a.notes}</span>}
+                          {a.notes && <span className="text-[9px] text-foreground-muted italic">— {a.notes}</span>}
                         </div>
                       ))}
                     </div>
@@ -679,31 +679,31 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
 
                   {/* Decision History */}
                   <div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Decision History</div>
+                    <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Decision History</div>
                     {detailPrompt.approvals.length === 0 ? (
-                      <p className="text-[10px] text-slate-600 italic">No review history yet.</p>
+                      <p className="text-[10px] text-foreground-muted italic">No review history yet.</p>
                     ) : (
-                      <div className="overflow-x-auto rounded-xl border border-slate-900">
+                      <div className="overflow-x-auto rounded-xl border border-border">
                         <table className="w-full text-left border-collapse">
                           <thead>
-                            <tr className="border-b border-slate-900 bg-slate-950/60">
+                            <tr className="border-b border-border bg-card/60">
                               {["Reviewer", "Decision", "Date", "Notes"].map((h) => (
-                                <th key={h} className="py-2.5 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                                <th key={h} className="py-2.5 px-4 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-900">
+                          <tbody className="divide-y divide-border">
                             {detailPrompt.approvals.map((a, i) => (
                               <tr key={i}>
-                                <td className="py-3 px-4 text-[11px] text-slate-300">{a.reviewer_role}</td>
+                                <td className="py-3 px-4 text-[11px] text-foreground">{a.reviewer_role}</td>
                                 <td className="py-3 px-4">
                                   <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${a.decision === "APPROVED" ? "text-emerald-400" : a.decision === "REJECTED" ? "text-rose-400" : "text-amber-400"}`}>
                                     {a.decision === "APPROVED" ? <CheckCircle2 className="w-3 h-3" /> : a.decision === "REJECTED" ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                                     {a.decision}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4 text-[10px] text-slate-500 whitespace-nowrap">{a.timestamp ? new Date(a.timestamp).toLocaleString() : "—"}</td>
-                                <td className="py-3 px-4 text-[10px] text-slate-400 max-w-[200px] truncate">{a.notes || "—"}</td>
+                                <td className="py-3 px-4 text-[10px] text-foreground-muted whitespace-nowrap">{a.timestamp ? new Date(a.timestamp).toLocaleString() : "—"}</td>
+                                <td className="py-3 px-4 text-[10px] text-foreground-muted max-w-[200px] truncate">{a.notes || "—"}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -713,7 +713,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                   </div>
 
                   {/* D. Actions */}
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                     <button
                       onClick={() => {
                         if (!detailPrompt.active_version_id) return;
@@ -748,7 +748,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                     {onExportPromptEvidence && (
                       <button
                         onClick={() => onExportPromptEvidence(detailPrompt, "reviews")}
-                        className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5"
+                        className="px-4 py-2 bg-surface border border-border text-foreground-muted text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-foreground hover:border-border transition-all flex items-center gap-1.5"
                       ><Download className="w-3 h-3" /> View Evidence</button>
                     )}
                   </div>
@@ -760,11 +760,11 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
       </div>
 
       {/* Approval Matrix — reference material, collapsed under Advanced */}
-      <div className="space-y-3 border-t border-slate-900 pt-4">
+      <div className="space-y-3 border-t border-border pt-4">
         <button
           type="button"
           onClick={() => setMatrixOpen((v) => !v)}
-          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-all"
+          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground-muted hover:text-foreground transition-all"
         >
           <Wrench className="w-3.5 h-3.5" />
           Advanced — Risk-Based Approval Matrix
@@ -774,18 +774,18 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
           <>
             <div className="space-y-2">
               {APPROVAL_MATRIX.map((row) => (
-                <div key={row.tier} className="flex items-start gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
+                <div key={row.tier} className="flex items-start gap-4 p-4 bg-background border border-border rounded-2xl">
                   <span className={`text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${row.color} min-w-[140px]`}>{row.tier}</span>
-                  <span className="text-[10px] text-slate-400 flex-1">{row.requirements}</span>
+                  <span className="text-[10px] text-foreground-muted flex-1">{row.requirements}</span>
                   <div className="flex gap-1.5 flex-wrap justify-end">
                     {row.roles.map((r) => (
-                      <span key={r} className="text-[9px] font-black text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">{r}</span>
+                      <span key={r} className="text-[9px] font-black text-foreground-muted bg-surface border border-border px-2 py-0.5 rounded">{r}</span>
                     ))}
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-slate-600 leading-relaxed">
+            <p className="text-[10px] text-foreground-muted leading-relaxed">
               Users may not approve their own prompt for production when the risk tier requires independent review. Every override must capture approver, reason, policy basis, expiration, and affected scope. Approval status is invalidated when risk-impacting sections change after approval.
             </p>
           </>
@@ -888,18 +888,18 @@ function EvidenceTab({
           {/* KPI summary strip — 2×4 grid */}
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: "Total Decisions", value: totalDecisions, color: "text-white" },
+              { label: "Total Decisions", value: totalDecisions, color: "text-foreground" },
               { label: "Approvals", value: approvedCount, color: "text-emerald-400" },
               { label: "Reviews", value: reviewedCount, color: "text-blue-400" },
               { label: "Blocks", value: blockedCount, color: "text-rose-400" },
               { label: "Evidence Receipts", value: evidenceReceiptsCount, color: "text-indigo-400" },
               { label: "Governance Events", value: governanceEventsCount, color: "text-amber-400" },
               { label: "Runtime Evidence", value: runtimeEvidenceCount, color: "text-cyan-400" },
-              { label: "Audit Entries", value: auditEntriesCount, color: "text-white" },
+              { label: "Audit Entries", value: auditEntriesCount, color: "text-foreground" },
             ].map((k) => (
-              <div key={k.label} className="bg-black border border-slate-900 rounded-2xl p-3 text-center">
+              <div key={k.label} className="bg-background border border-border rounded-2xl p-3 text-center">
                 <div className={`text-xl font-black ${k.color}`}>{k.value}</div>
-                <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{k.label}</div>
+                <div className="text-[8px] font-black text-foreground-muted uppercase tracking-widest mt-0.5">{k.label}</div>
               </div>
             ))}
           </div>
@@ -908,33 +908,33 @@ function EvidenceTab({
           {section === "decisions" && (
             <div className="space-y-3">
               {decisions.length === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No governance decisions recorded yet.</div>
+                <div className="p-8 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No governance decisions recorded yet.</div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-900">
+                <div className="overflow-x-auto rounded-2xl border border-border">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950/60">
+                      <tr className="border-b border-border bg-card/60">
                         {["Decision", "Actor / Reviewer", "Role", "Timestamp", "Reason / Notes", "Result"].map((h) => (
-                          <th key={h} className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                          <th key={h} className="py-3 px-4 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-900">
+                    <tbody className="divide-y divide-border">
                       {decisions.map((d) => {
                         const meta = EVIDENCE_DECISION_META[d.result] || EVIDENCE_DECISION_META.REVIEWED;
                         const DIcon = meta.icon;
                         return (
-                          <tr key={d.id} className="hover:bg-slate-900/30 transition-colors">
+                          <tr key={d.id} className="hover:bg-surface/30 transition-colors">
                             <td className="py-3 px-4 whitespace-nowrap">
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border ${meta.border}`}>
                                 <DIcon className="w-3 h-3" />
                                 {d.type}
                               </span>
                             </td>
-                            <td className="py-3 px-4"><span className="text-[11px] text-slate-300">{d.actor}</span></td>
-                            <td className="py-3 px-4"><span className="text-[10px] text-slate-400">{d.role}</span></td>
-                            <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-slate-500">{d.timestamp ? new Date(d.timestamp).toLocaleString() : "—"}</span></td>
-                            <td className="py-3 px-4"><span className="text-[10px] text-slate-400 max-w-[220px] truncate block" title={d.reason}>{d.reason}</span></td>
+                            <td className="py-3 px-4"><span className="text-[11px] text-foreground">{d.actor}</span></td>
+                            <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted">{d.role}</span></td>
+                            <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-foreground-muted">{d.timestamp ? new Date(d.timestamp).toLocaleString() : "—"}</span></td>
+                            <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted max-w-[220px] truncate block" title={d.reason}>{d.reason}</span></td>
                             <td className="py-3 px-4">
                               <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${meta.color}`}>{meta.label}</span>
                             </td>
@@ -952,32 +952,32 @@ function EvidenceTab({
           {section === "runtime" && (
             <div className="space-y-3">
               {runtimeEvidenceCount === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No runtime evidence available yet.</div>
+                <div className="p-8 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No runtime evidence available yet.</div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-900">
+                <div className="overflow-x-auto rounded-2xl border border-border">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950/60">
+                      <tr className="border-b border-border bg-card/60">
                         {["Prompt Version", "Model Used", "Knowledge Retrieved", "Tool Calls", "Policy Result", "Output Status", "Timestamp", "Evidence ID"].map((h) => (
-                          <th key={h} className="py-3 px-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                          <th key={h} className="py-3 px-3 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-900">
+                    <tbody className="divide-y divide-border">
                       {deployedPrompts.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                          <td className="py-3 px-3"><span className="text-xs font-bold text-white max-w-[140px] truncate block" title={p.name}>{p.name}</span></td>
-                          <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.metadata?.model || "claude-sonnet-4-20250514"}</span></td>
-                          <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.knowledge_sources.length > 0 ? `${p.knowledge_sources.length} source(s)` : "—"}</span></td>
-                          <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.tools_permitted.length > 0 ? `${p.tools_permitted.length} tool(s)` : "—"}</span></td>
+                        <tr key={p.id} className="hover:bg-surface/30 transition-colors">
+                          <td className="py-3 px-3"><span className="text-xs font-bold text-foreground max-w-[140px] truncate block" title={p.name}>{p.name}</span></td>
+                          <td className="py-3 px-3"><span className="text-[10px] text-foreground-muted">{p.metadata?.model || "claude-sonnet-4-20250514"}</span></td>
+                          <td className="py-3 px-3"><span className="text-[10px] text-foreground-muted">{p.knowledge_sources.length > 0 ? `${p.knowledge_sources.length} source(s)` : "—"}</span></td>
+                          <td className="py-3 px-3"><span className="text-[10px] text-foreground-muted">{p.tools_permitted.length > 0 ? `${p.tools_permitted.length} tool(s)` : "—"}</span></td>
                           <td className="py-3 px-3"><StatusBadge status={p.status} /></td>
-                          <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.status === "PRODUCTION_ACTIVE" ? "Active" : p.status === "PAUSED" ? "Paused" : p.status === "RETIRED" ? "Retired" : "—"}</span></td>
-                          <td className="py-3 px-3 whitespace-nowrap"><span className="text-[10px] text-slate-500">{p.last_deployed ? new Date(p.last_deployed).toLocaleString() : "—"}</span></td>
+                          <td className="py-3 px-3"><span className="text-[10px] text-foreground-muted">{p.status === "PRODUCTION_ACTIVE" ? "Active" : p.status === "PAUSED" ? "Paused" : p.status === "RETIRED" ? "Retired" : "—"}</span></td>
+                          <td className="py-3 px-3 whitespace-nowrap"><span className="text-[10px] text-foreground-muted">{p.last_deployed ? new Date(p.last_deployed).toLocaleString() : "—"}</span></td>
                           <td className="py-3 px-3">
-                            <span className="text-[9px] font-mono text-slate-600">—</span>
+                            <span className="text-[9px] font-mono text-foreground-muted">—</span>
                             <button
                               onClick={() => onExportPromptEvidence(p, "evidence_tab")}
-                              className="ml-2 p-1 bg-black border border-slate-800 rounded text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+                              className="ml-2 p-1 bg-background border border-border rounded text-foreground-muted hover:text-foreground hover:border-border transition-all"
                               title="Export evidence"
                             >
                               <Download className="w-3 h-3" />
@@ -996,26 +996,26 @@ function EvidenceTab({
           {section === "receipts" && (
             <div className="space-y-3">
               {evidenceReceiptsCount === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No evidence receipts available yet.</div>
+                <div className="p-8 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No evidence receipts available yet.</div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-900">
+                <div className="overflow-x-auto rounded-2xl border border-border">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950/60">
+                      <tr className="border-b border-border bg-card/60">
                         {["Evidence ID", "Receipt Type", "Evidence Hash", "Created At", "Environment", "Scope"].map((h) => (
-                          <th key={h} className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                          <th key={h} className="py-3 px-4 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-900">
+                    <tbody className="divide-y divide-border">
                       {productionPrompts.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                          <td className="py-3 px-4"><span className="text-[10px] font-mono text-slate-500">—</span></td>
-                          <td className="py-3 px-4"><span className="text-[10px] text-slate-400">Governance Receipt</span></td>
-                          <td className="py-3 px-4"><span className="text-[10px] font-mono text-slate-500">—</span></td>
-                          <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-slate-500">{p.last_deployed ? new Date(p.last_deployed).toLocaleString() : "—"}</span></td>
-                          <td className="py-3 px-4"><span className="text-[10px] text-slate-400">{p.status === "PRODUCTION_ACTIVE" ? "Production" : "Staging"}</span></td>
-                          <td className="py-3 px-4"><span className="text-[10px] text-slate-400">Prompt: {p.name}</span></td>
+                        <tr key={p.id} className="hover:bg-surface/30 transition-colors">
+                          <td className="py-3 px-4"><span className="text-[10px] font-mono text-foreground-muted">—</span></td>
+                          <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted">Governance Receipt</span></td>
+                          <td className="py-3 px-4"><span className="text-[10px] font-mono text-foreground-muted">—</span></td>
+                          <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-foreground-muted">{p.last_deployed ? new Date(p.last_deployed).toLocaleString() : "—"}</span></td>
+                          <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted">{p.status === "PRODUCTION_ACTIVE" ? "Production" : "Staging"}</span></td>
+                          <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted">Prompt: {p.name}</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -1029,34 +1029,34 @@ function EvidenceTab({
           {section === "audit" && (
             <div className="space-y-3">
               {auditEntriesCount === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No audit entries available yet.</div>
+                <div className="p-8 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No audit entries available yet.</div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-900">
+                <div className="overflow-x-auto rounded-2xl border border-border">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950/60">
+                      <tr className="border-b border-border bg-card/60">
                         {["Event Type", "Actor", "Timestamp", "Affected Object", "Summary"].map((h) => (
-                          <th key={h} className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                          <th key={h} className="py-3 px-4 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-900">
+                    <tbody className="divide-y divide-border">
                       {allApprovals.map((a, i) => {
                         const meta = EVIDENCE_DECISION_META[a.decision] || EVIDENCE_DECISION_META.REVIEWED;
                         const AIcon = meta.icon;
                         const affected = prompts.find((p) => p.approvals.includes(a));
                         return (
-                          <tr key={i} className="hover:bg-slate-900/30 transition-colors">
+                          <tr key={i} className="hover:bg-surface/30 transition-colors">
                             <td className="py-3 px-4 whitespace-nowrap">
                               <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${meta.color}`}>
                                 <AIcon className="w-3 h-3" />
                                 {a.decision}
                               </span>
                             </td>
-                            <td className="py-3 px-4"><span className="text-[11px] text-slate-300">{a.reviewer_role}</span></td>
-                            <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-slate-500">{a.timestamp ? new Date(a.timestamp).toLocaleString() : "—"}</span></td>
-                            <td className="py-3 px-4"><span className="text-[10px] text-slate-400 max-w-[160px] truncate block">{affected?.name || "—"}</span></td>
-                            <td className="py-3 px-4"><span className="text-[10px] text-slate-400 max-w-[200px] truncate block" title={a.notes}>{a.notes || "—"}</span></td>
+                            <td className="py-3 px-4"><span className="text-[11px] text-foreground">{a.reviewer_role}</span></td>
+                            <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-foreground-muted">{a.timestamp ? new Date(a.timestamp).toLocaleString() : "—"}</span></td>
+                            <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted max-w-[160px] truncate block">{affected?.name || "—"}</span></td>
+                            <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted max-w-[200px] truncate block" title={a.notes}>{a.notes || "—"}</span></td>
                           </tr>
                         );
                       })}
@@ -1070,9 +1070,9 @@ function EvidenceTab({
       ) : (
         /* Empty state */
         <div className="text-center py-16">
-          <ShieldCheck className="w-10 h-10 text-slate-600 mx-auto mb-4" />
-          <div className="text-base font-bold text-white">No Evidence Recorded</div>
-          <p className="text-[12px] text-slate-500 mt-2 max-w-sm mx-auto">This prompt has not generated governance evidence yet. Evidence will appear after approvals, reviews, runtime checks, audit events, or governed executions.</p>
+          <ShieldCheck className="w-10 h-10 text-foreground-muted mx-auto mb-4" />
+          <div className="text-base font-bold text-foreground">No Evidence Recorded</div>
+          <p className="text-[12px] text-foreground-muted mt-2 max-w-sm mx-auto">This prompt has not generated governance evidence yet. Evidence will appear after approvals, reviews, runtime checks, audit events, or governed executions.</p>
         </div>
       )}
     </div>
@@ -1109,8 +1109,8 @@ const RULE_CATEGORY_META: Record<GovernanceRuleCategory, { label: string; color:
 
 const RULE_STATUS_META: Record<GovernanceRuleStatus, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
   active: { label: "Active", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25", icon: CheckCircle2 },
-  inactive: { label: "Inactive", color: "text-slate-400", bg: "bg-slate-800", border: "border-slate-700", icon: XCircle },
-  retired: { label: "Retired", color: "text-slate-500", bg: "bg-slate-900", border: "border-slate-800", icon: Archive },
+  inactive: { label: "Inactive", color: "text-foreground-muted", bg: "bg-surface", border: "border-slate-700", icon: XCircle },
+  retired: { label: "Retired", color: "text-foreground-muted", bg: "bg-surface", border: "border-border", icon: Archive },
 };
 
 const MATCH_ACTION_META: Record<GovernanceMatchAction, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
@@ -1206,6 +1206,7 @@ function GuardrailGovernanceTab({
       })
       .catch(() => setError("Failed to load guardrails."))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptId, versionId]);
 
   const saveRules = async (updated: GovernanceRule[]) => {
@@ -1254,9 +1255,9 @@ function GuardrailGovernanceTab({
   if (!versionId) {
     return (
       <div className="text-center py-10">
-        <ShieldCheck className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-        <div className="text-sm font-bold text-white">No Guardrails Configured</div>
-        <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto">This prompt currently has no active governance rules. Add governance policies from Policy Center to enable safety, compliance, brand, and knowledge enforcement.</p>
+        <ShieldCheck className="w-8 h-8 text-foreground-muted mx-auto mb-3" />
+        <div className="text-sm font-bold text-foreground">No Guardrails Configured</div>
+        <p className="text-[11px] text-foreground-muted mt-2 max-w-md mx-auto">This prompt currently has no active governance rules. Add governance policies from Policy Center to enable safety, compliance, brand, and knowledge enforcement.</p>
       </div>
     );
   }
@@ -1266,14 +1267,14 @@ function GuardrailGovernanceTab({
       {/* KPI strip */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "Total Rules", value: totalRules, color: "text-white" },
+          { label: "Total Rules", value: totalRules, color: "text-foreground" },
           { label: "Active Rules", value: activeRules, color: "text-emerald-400" },
           { label: "Review Rules", value: reviewRules, color: "text-amber-400" },
           { label: "Block Rules", value: blockRules, color: "text-rose-400" },
         ].map((k) => (
-          <div key={k.label} className="bg-black border border-slate-900 rounded-2xl p-4 text-center">
+          <div key={k.label} className="bg-background border border-border rounded-2xl p-4 text-center">
             <div className={`text-2xl font-black ${k.color}`}>{k.value}</div>
-            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{k.label}</div>
+            <div className="text-[9px] font-black text-foreground-muted uppercase tracking-widest mt-0.5">{k.label}</div>
           </div>
         ))}
       </div>
@@ -1287,24 +1288,24 @@ function GuardrailGovernanceTab({
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center gap-2 py-8 text-slate-500 justify-center"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading guardrails…</span></div>
+        <div className="flex items-center gap-2 py-8 text-foreground-muted justify-center"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading guardrails…</span></div>
       ) : rules.length === 0 ? (
         <div className="text-center py-10">
-          <ShieldCheck className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-          <div className="text-sm font-bold text-white">No Guardrails Configured</div>
-          <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto">This prompt currently has no active governance rules. Add governance policies from Policy Center to enable safety, compliance, brand, and knowledge enforcement.</p>
+          <ShieldCheck className="w-8 h-8 text-foreground-muted mx-auto mb-3" />
+          <div className="text-sm font-bold text-foreground">No Guardrails Configured</div>
+          <p className="text-[11px] text-foreground-muted mt-2 max-w-md mx-auto">This prompt currently has no active governance rules. Add governance policies from Policy Center to enable safety, compliance, brand, and knowledge enforcement.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-900">
+        <div className="overflow-x-auto rounded-2xl border border-border">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-900 bg-slate-950/60">
+              <tr className="border-b border-border bg-card/60">
                 {["Rule Name", "Category", "Status", "Match Action", "Last Updated"].map((h) => (
-                  <th key={h} className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="py-3 px-4 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900">
+            <tbody className="divide-y divide-border">
               {rules.map((r) => {
                 const catMeta = RULE_CATEGORY_META[r.category];
                 const statMeta = RULE_STATUS_META[r.status];
@@ -1312,11 +1313,11 @@ function GuardrailGovernanceTab({
                 const StatIcon = statMeta.icon;
                 const ActIcon = actMeta.icon;
                 return (
-                  <tr key={r.id} className="hover:bg-slate-900/30 transition-colors">
+                  <tr key={r.id} className="hover:bg-surface/30 transition-colors">
                     <td className="py-3 px-4">
-                      <div className="text-xs font-bold text-white max-w-[200px] truncate" title={r.name}>{r.name}</div>
+                      <div className="text-xs font-bold text-foreground max-w-[200px] truncate" title={r.name}>{r.name}</div>
                       {(r.ruleSource || r.policySource) && (
-                        <div className="text-[9px] text-slate-600 mt-0.5">
+                        <div className="text-[9px] text-foreground-muted mt-0.5">
                           {r.ruleSource && <span>Source: {r.ruleSource}</span>}
                           {r.policySource && <span>{r.ruleSource ? " · " : ""}Policy: {r.policySource}{r.policyVersion ? ` v${r.policyVersion}` : ""}</span>}
                         </div>
@@ -1332,7 +1333,7 @@ function GuardrailGovernanceTab({
                         <select
                           value={r.status}
                           onChange={(e) => handleStatusChange(r.id, e.target.value as GovernanceRuleStatus)}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 outline-none focus:border-indigo-500"
+                          className="bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] text-foreground outline-none focus:border-indigo-500"
                           disabled={saving}
                         >
                           {RULE_STATUS_LIST.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
@@ -1349,7 +1350,7 @@ function GuardrailGovernanceTab({
                         <select
                           value={r.matchAction}
                           onChange={(e) => handleActionChange(r.id, e.target.value as GovernanceMatchAction)}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 outline-none focus:border-indigo-500"
+                          className="bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] text-foreground outline-none focus:border-indigo-500"
                           disabled={saving}
                         >
                           {MATCH_ACTION_LIST.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
@@ -1362,8 +1363,8 @@ function GuardrailGovernanceTab({
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="text-[10px] text-slate-500 whitespace-nowrap">{r.lastUpdated ? new Date(r.lastUpdated).toLocaleDateString() : "—"}</span>
-                      {r.lastModifiedBy && <div className="text-[9px] text-slate-600">{r.lastModifiedBy}</div>}
+                      <span className="text-[10px] text-foreground-muted whitespace-nowrap">{r.lastUpdated ? new Date(r.lastUpdated).toLocaleDateString() : "—"}</span>
+                      {r.lastModifiedBy && <div className="text-[9px] text-foreground-muted">{r.lastModifiedBy}</div>}
                     </td>
                   </tr>
                 );
@@ -1405,7 +1406,7 @@ interface GovernanceKnowledgeSource {
 
 const KNOWN_SOURCE_STATUS_META: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
   active: { label: "Active", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25", icon: CheckCircle2 },
-  retired: { label: "Retired", color: "text-slate-500", bg: "bg-slate-900", border: "border-slate-800", icon: Archive },
+  retired: { label: "Retired", color: "text-foreground-muted", bg: "bg-surface", border: "border-border", icon: Archive },
 };
 
 const SOURCE_MATCH_ACTION_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -1482,59 +1483,59 @@ function KnowledgeSourcesTab({ prompt }: { prompt: PromptRecord }) {
       {/* KPI summary strip */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "Source Count", value: sourceCount, color: "text-white" },
+          { label: "Source Count", value: sourceCount, color: "text-foreground" },
           { label: "Active Sources", value: activeSources, color: "text-emerald-400" },
-          { label: "Retired Sources", value: retiredSources, color: "text-slate-500" },
+          { label: "Retired Sources", value: retiredSources, color: "text-foreground-muted" },
           { label: "Citation Required", value: citationRequiredCount, color: "text-amber-400" },
         ].map((k) => (
-          <div key={k.label} className="bg-black border border-slate-900 rounded-2xl p-4 text-center">
+          <div key={k.label} className="bg-background border border-border rounded-2xl p-4 text-center">
             <div className={`text-2xl font-black ${k.color}`}>{k.value}</div>
-            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{k.label}</div>
+            <div className="text-[9px] font-black text-foreground-muted uppercase tracking-widest mt-0.5">{k.label}</div>
           </div>
         ))}
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center gap-2 py-8 text-slate-500 justify-center"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading knowledge sources…</span></div>
+        <div className="flex items-center gap-2 py-8 text-foreground-muted justify-center"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading knowledge sources…</span></div>
       ) : displaySources.length === 0 ? (
         <div className="text-center py-10">
-          <BookOpen className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-          <div className="text-sm font-bold text-white">No Knowledge Sources Connected</div>
-          <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto">This prompt currently has no governed Knowledge Base sources connected. Connect approved sources from Knowledge Base to enable grounded, citation-aware prompt execution.</p>
+          <BookOpen className="w-8 h-8 text-foreground-muted mx-auto mb-3" />
+          <div className="text-sm font-bold text-foreground">No Knowledge Sources Connected</div>
+          <p className="text-[11px] text-foreground-muted mt-2 max-w-md mx-auto">This prompt currently has no governed Knowledge Base sources connected. Connect approved sources from Knowledge Base to enable grounded, citation-aware prompt execution.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-900">
+        <div className="overflow-x-auto rounded-2xl border border-border">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-900 bg-slate-950/60">
+              <tr className="border-b border-border bg-card/60">
                 {["Source Name", "Category", "Status", "Match Action", "Retrieval Mode", "Citation", "Freshness Rule"].map((h) => (
-                  <th key={h} className="py-3 px-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="py-3 px-3 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900">
+            <tbody className="divide-y divide-border">
               {displaySources.map((s) => {
                 const statMeta = KNOWN_SOURCE_STATUS_META[s.status] || KNOWN_SOURCE_STATUS_META.active;
                 const actMeta = SOURCE_MATCH_ACTION_META[s.matchAction] || SOURCE_MATCH_ACTION_META.review;
                 const retMeta = RETRIEVAL_MODE_META[s.retrievalMode] || RETRIEVAL_MODE_META.optional;
                 const StatIcon = statMeta.icon;
                 return (
-                  <tr key={s.id} className="hover:bg-slate-900/30 transition-colors">
+                  <tr key={s.id} className="hover:bg-surface/30 transition-colors">
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-2">
                         <BookOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <span className="text-xs font-bold text-white max-w-[180px] truncate" title={s.name}>{s.name}</span>
+                        <span className="text-xs font-bold text-foreground max-w-[180px] truncate" title={s.name}>{s.name}</span>
                       </div>
                       {(s.collectionName || s.documentType) && (
-                        <div className="text-[9px] text-slate-600 mt-0.5 ml-5.5">
+                        <div className="text-[9px] text-foreground-muted mt-0.5 ml-5.5">
                           {s.collectionName && <span>Collection: {s.collectionName}</span>}
                           {s.documentType && <span>{s.collectionName ? " · " : ""}{s.documentType}</span>}
                         </div>
                       )}
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      <span className="text-[10px] text-slate-400 font-bold">{s.category}</span>
+                      <span className="text-[10px] text-foreground-muted font-bold">{s.category}</span>
                       {s.restrictedSource && (
                         <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 uppercase tracking-widest">Restricted</span>
                       )}
@@ -1556,15 +1557,15 @@ function KnowledgeSourcesTab({ prompt }: { prompt: PromptRecord }) {
                       </span>
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${s.citationRequired ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/25" : "text-slate-500 bg-slate-900 border border-slate-800"}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${s.citationRequired ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/25" : "text-foreground-muted bg-surface border border-border"}`}>
                         {s.citationRequired ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {s.citationRequired ? "Required" : "Not Required"}
                       </span>
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      <span className="text-[10px] text-slate-500">{s.freshnessRule !== "—" ? s.freshnessRule : "—"}</span>
+                      <span className="text-[10px] text-foreground-muted">{s.freshnessRule !== "—" ? s.freshnessRule : "—"}</span>
                       {(s.lastUpdated || s.sourceOwner) && (
-                        <div className="text-[9px] text-slate-600 mt-0.5">
+                        <div className="text-[9px] text-foreground-muted mt-0.5">
                           {s.sourceOwner && <span>Owner: {s.sourceOwner}</span>}
                           {s.lastUpdated && <span>{s.sourceOwner ? " · " : ""}{new Date(s.lastUpdated).toLocaleDateString()}</span>}
                         </div>
@@ -1594,9 +1595,9 @@ const ACTIVITY_EVENT_META: Record<string, { label: string; color: string; icon: 
   waived: { label: "Waived", color: "text-amber-400", icon: ShieldCheck },
   paused: { label: "Paused", color: "text-orange-400", icon: PauseCircle },
   resumed: { label: "Resumed", color: "text-emerald-400", icon: Play },
-  retired: { label: "Retired", color: "text-slate-400", icon: Archive },
+  retired: { label: "Retired", color: "text-foreground-muted", icon: Archive },
   source_added: { label: "Source Added", color: "text-emerald-400", icon: BookOpen },
-  source_retired: { label: "Source Retired", color: "text-slate-400", icon: BookOpen },
+  source_retired: { label: "Source Retired", color: "text-foreground-muted", icon: BookOpen },
   guardrail_updated: { label: "Guardrail Updated", color: "text-rose-400", icon: ShieldCheck },
   workflow_binding_updated: { label: "Workflow Binding Updated", color: "text-indigo-400", icon: GitBranch },
   agent_binding_updated: { label: "Agent Binding Updated", color: "text-cyan-400", icon: Cpu },
@@ -1718,44 +1719,44 @@ function GovernanceActivityLog({
       {loading ? (
         <div className="flex items-center justify-center py-10 gap-2">
           <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-          <span className="text-xs text-slate-500">Loading governance history…</span>
+          <span className="text-xs text-foreground-muted">Loading governance history…</span>
         </div>
       ) : allEvents.length === 0 ? (
         <div className="text-center py-10">
-          <History className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-          <div className="text-sm font-bold text-white">No Governance Activity Yet</div>
-          <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto">Governance lifecycle events will appear here after reviews, approvals, source changes, guardrail updates, runtime violations, pauses, resumes, or evidence exports.</p>
+          <History className="w-8 h-8 text-foreground-muted mx-auto mb-3" />
+          <div className="text-sm font-bold text-foreground">No Governance Activity Yet</div>
+          <p className="text-[11px] text-foreground-muted mt-2 max-w-md mx-auto">Governance lifecycle events will appear here after reviews, approvals, source changes, guardrail updates, runtime violations, pauses, resumes, or evidence exports.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-900">
+        <div className="overflow-x-auto rounded-2xl border border-border">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-900 bg-slate-950/60">
+              <tr className="border-b border-border bg-card/60">
                 {["Event Type", "Actor", "Role", "Timestamp", "Summary", "Result / Status", "Evidence ID"].map((h) => (
-                  <th key={h} className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                  <th key={h} className="py-3 px-4 text-[9px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900">
+            <tbody className="divide-y divide-border">
               {allEvents.map((ev) => {
                 const meta = ACTIVITY_EVENT_META[ev.type] || ACTIVITY_EVENT_META.created;
                 const AIcon = meta.icon;
                 return (
-                  <tr key={ev.id} className="hover:bg-slate-900/30 transition-colors">
+                  <tr key={ev.id} className="hover:bg-surface/30 transition-colors">
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${meta.color}`}>
                         <AIcon className="w-3.5 h-3.5" />
                         {meta.label}
                       </span>
                     </td>
-                    <td className="py-3 px-4"><span className="text-[11px] text-slate-300">{ev.actor}</span></td>
-                    <td className="py-3 px-4"><span className="text-[10px] text-slate-400">{ev.role}</span></td>
-                    <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-slate-500">{ev.timestamp ? new Date(ev.timestamp).toLocaleString() : "—"}</span></td>
-                    <td className="py-3 px-4"><span className="text-[10px] text-slate-400 max-w-[220px] truncate block" title={ev.summary}>{ev.summary}</span></td>
+                    <td className="py-3 px-4"><span className="text-[11px] text-foreground">{ev.actor}</span></td>
+                    <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted">{ev.role}</span></td>
+                    <td className="py-3 px-4 whitespace-nowrap"><span className="text-[10px] text-foreground-muted">{ev.timestamp ? new Date(ev.timestamp).toLocaleString() : "—"}</span></td>
+                    <td className="py-3 px-4"><span className="text-[10px] text-foreground-muted max-w-[220px] truncate block" title={ev.summary}>{ev.summary}</span></td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-black border border-slate-800 text-slate-300">{ev.result}</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-background border border-border text-foreground">{ev.result}</span>
                     </td>
-                    <td className="py-3 px-4"><span className="text-[9px] font-mono text-slate-600">{ev.relatedEvidenceId || "—"}</span></td>
+                    <td className="py-3 px-4"><span className="text-[9px] font-mono text-foreground-muted">{ev.relatedEvidenceId || "—"}</span></td>
                   </tr>
                 );
               })}
@@ -1827,8 +1828,8 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
     <div className={`rounded-2xl border p-4 space-y-2 ${hasBlocking ? "border-rose-500/20 bg-rose-500/5" : "border-emerald-500/15 bg-emerald-500/5"}`}>
       <div className="flex items-center gap-2">
         <ShieldCheck className={`w-3.5 h-3.5 ${hasBlocking ? "text-rose-400" : "text-emerald-400"}`} />
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Pre-Submit Validation</span>
-        {loading && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
+        <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Pre-Submit Validation</span>
+        {loading && <Loader2 className="w-3 h-3 animate-spin text-foreground-muted" />}
         <span className={`ml-auto text-[10px] font-black uppercase tracking-widest ${hasBlocking ? "text-rose-400" : "text-emerald-400"}`}>{hasBlocking ? "Blocked" : "Ready"}</span>
       </div>
       <div className="space-y-1.5">
@@ -1838,8 +1839,8 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
             <div key={c.key} className="flex items-start gap-2">
               <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${cls}`} />
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-300">{c.label}</span>
-                <span className="text-[10px] text-slate-500"> — {c.detail}</span>
+                <span className="text-[11px] font-bold text-foreground">{c.label}</span>
+                <span className="text-[10px] text-foreground-muted"> — {c.detail}</span>
               </div>
             </div>
           );
@@ -1849,7 +1850,7 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
       <button
         type="button"
         onClick={() => setAdvChecksOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-all"
+        className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-foreground-muted hover:text-foreground transition-all"
       >
         {advChecksOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         Advanced checks
@@ -1863,8 +1864,8 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
               <div key={c.key} className="flex items-start gap-2">
                 <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${cls}`} />
                 <div className="min-w-0">
-                  <span className="text-[11px] font-bold text-slate-300">{c.label}</span>
-                  <span className="text-[10px] text-slate-500"> — {c.detail}</span>
+                  <span className="text-[11px] font-bold text-foreground">{c.label}</span>
+                  <span className="text-[10px] text-foreground-muted"> — {c.detail}</span>
                 </div>
               </div>
             );
@@ -1910,42 +1911,42 @@ function DeploymentConfirmation({ data, prompt, onClose }: {
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-emerald-500/25 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-emerald-500/5">
+      <div className="bg-card border border-emerald-500/25 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between bg-emerald-500/5">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-lg font-bold text-white">Deployment Confirmed</h3>
+            <h3 className="text-lg font-bold text-foreground">Deployment Confirmed</h3>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-foreground-muted hover:text-foreground transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white">{prompt.name}</span>
+            <span className="text-sm font-bold text-foreground">{prompt.name}</span>
             <RiskBadge tier={prompt.risk_tier} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             {rows.map((r) => (
-              <div key={r.label} className="p-3 bg-black border border-slate-900 rounded-xl">
-                <div className="text-[9px] text-slate-600 uppercase tracking-widest">{r.label}</div>
+              <div key={r.label} className="p-3 bg-background border border-border rounded-xl">
+                <div className="text-[9px] text-foreground-muted uppercase tracking-widest">{r.label}</div>
                 <div className="text-[11px] text-white font-bold mt-1 break-words">{r.value}</div>
               </div>
             ))}
           </div>
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Agents</div>
+            <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Affected Agents</div>
             {agents.length ? (
-              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-indigo-400" />{a}</span>)}</div>
-            ) : <p className="text-[10px] text-slate-600 italic">No agents directly bound to this prompt.</p>}
+              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-foreground bg-background border border-border px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-indigo-400" />{a}</span>)}</div>
+            ) : <p className="text-[10px] text-foreground-muted italic">No agents directly bound to this prompt.</p>}
           </div>
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Workflows</div>
+            <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Affected Workflows</div>
             {workflows.length ? (
-              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-amber-400" />{w}</span>)}</div>
-            ) : <p className="text-[10px] text-slate-600 italic">No workflows directly bound to this prompt.</p>}
+              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-foreground bg-background border border-border px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-amber-400" />{w}</span>)}</div>
+            ) : <p className="text-[10px] text-foreground-muted italic">No workflows directly bound to this prompt.</p>}
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             {data.evidence_id && (
-              <a href={`/evidence/evidence-vault/items/${data.evidence_id}`} className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all">
+              <a href={`/evidence/evidence-vault/items/${data.evidence_id}`} className="flex items-center gap-1.5 px-4 py-2 bg-surface border border-border text-foreground-muted text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-foreground hover:border-border transition-all">
                 <ArrowRight className="w-3 h-3" /> Evidence Vault
               </a>
             )}
@@ -1981,26 +1982,26 @@ function RejectionModal({ title, promptName, onConfirm, onCancel }: {
   const valid = category && notes.trim().length >= 4;
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-rose-500/25 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-base font-bold text-white">{title}</h3>
-          <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+      <div className="bg-card border border-rose-500/25 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <h3 className="text-base font-bold text-foreground">{title}</h3>
+          <button onClick={onCancel} className="text-foreground-muted hover:text-foreground transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-[11px] text-slate-500">{promptName}</p>
+          <p className="text-[11px] text-foreground-muted">{promptName}</p>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason Category *</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-rose-500 transition-all text-xs">
+            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Reason Category *</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-3 text-white outline-none focus:border-rose-500 transition-all text-xs">
               <option value="">Select a category…</option>
               {REJECTION_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Actionable Notes *</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-rose-500 transition-all h-24 resize-none text-sm" />
+            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Actionable Notes *</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-rose-500 transition-all h-24 resize-none text-sm" />
           </div>
           <div className="flex gap-2">
-            <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-900 transition-all">Cancel</button>
+            <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-border text-foreground font-semibold text-sm hover:bg-surface transition-all">Cancel</button>
             <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-500 disabled:opacity-50 transition-all">Submit</button>
           </div>
         </div>
@@ -2067,9 +2068,9 @@ function PromptDetailDrawer({
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div ref={drawerRef} className="w-full max-w-2xl bg-slate-950 border-l border-slate-800 overflow-y-auto flex flex-col">
+      <div ref={drawerRef} className="w-full max-w-2xl bg-card border-l border-border overflow-y-auto flex flex-col">
         {/* Drawer header */}
-        <div className="p-6 border-b border-slate-800 space-y-4 sticky top-0 bg-slate-950 z-10">
+        <div className="p-6 border-b border-border space-y-4 sticky top-0 bg-card z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="text-lg font-black text-white">{prompt.name}</div>
@@ -2078,13 +2079,13 @@ function PromptDetailDrawer({
                 <RiskBadge tier={prompt.risk_tier} />
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:border-slate-600 transition-all">
+            <button onClick={onClose} className="p-2 rounded-xl border border-border text-foreground-muted hover:text-foreground hover:border-border transition-all">
               <XCircle className="w-4 h-4" />
             </button>
           </div>
           <div className="flex flex-wrap gap-1">
             {PRIMARY_DRAWER_TABS.map((t) => (
-              <button key={t.id} onClick={() => setDrawerTab(t.id)} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t.id ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-slate-500 hover:text-white"}`}>
+              <button key={t.id} onClick={() => setDrawerTab(t.id)} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t.id ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-foreground-muted hover:text-foreground"}`}>
                 {t.label}
               </button>
             ))}
@@ -2095,8 +2096,8 @@ function PromptDetailDrawer({
           {drawerTab === "overview" && (
             <>
               <div className="space-y-1">
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Purpose</div>
-                <div className="text-sm text-slate-300 leading-relaxed">{prompt.description || "—"}</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black">Purpose</div>
+                <div className="text-sm text-foreground leading-relaxed">{prompt.description || "—"}</div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {[
@@ -2111,14 +2112,14 @@ function PromptDetailDrawer({
                   { label: "Last Governance Check", value: prompt.last_test ? `${prompt.last_test.pass_fail} · ${new Date(prompt.last_test.run_at).toLocaleDateString()}` : "Not yet checked" },
                   { label: "Last Used", value: prompt.metadata?.last_used_at ? new Date(prompt.metadata.last_used_at).toLocaleString() : (prompt.last_deployed ? new Date(prompt.last_deployed).toLocaleString() : "—") },
                 ].map((f) => (
-                  <div key={f.label} className="p-3 bg-black border border-slate-900 rounded-xl">
-                    <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
+                  <div key={f.label} className="p-3 bg-background border border-border rounded-xl">
+                    <div className="text-[9px] text-foreground-muted uppercase tracking-widest">{f.label}</div>
                     <div className="text-xs text-white font-bold mt-1">{f.value}</div>
                   </div>
                 ))}
-                <div className="p-3 bg-black border border-slate-900 rounded-xl col-span-3 flex items-center justify-between">
+                <div className="p-3 bg-background border border-border rounded-xl col-span-3 flex items-center justify-between">
                   <div>
-                    <div className="text-[9px] text-slate-600 uppercase tracking-widest">Runtime Status</div>
+                    <div className="text-[9px] text-foreground-muted uppercase tracking-widest">Runtime Status</div>
                     <div className="text-xs text-white font-bold mt-1">{
                       prompt.status === "PRODUCTION_ACTIVE" ? "Active" :
                       prompt.status === "PAUSED" ? "Paused" :
@@ -2152,7 +2153,7 @@ function PromptDetailDrawer({
         </div>
 
         {/* Lifecycle actions */}
-        <div className="p-6 border-t border-slate-800 space-y-3 sticky bottom-0 bg-slate-950">
+        <div className="p-6 border-t border-border space-y-3 sticky bottom-0 bg-card">
           {showPreSubmit && <PreSubmitValidation prompt={prompt} onResult={setSubmitBlocked} />}
           <div className="flex flex-wrap gap-2">
             {prompt.status === "DRAFT" && (
@@ -2213,10 +2214,10 @@ function GovernanceTestCenterTab({
   const passRate = withTests.length > 0 ? Math.round((passed / withTests.length) * 100) : 0;
 
   const KPI_CARDS = [
-    { label: "Total Tests", value: withTests.length, color: "text-white" },
+    { label: "Total Tests", value: withTests.length, color: "text-foreground" },
     { label: "Pass Rate", value: `${passRate}%`, color: "text-emerald-400" },
     { label: "Failed Tests", value: failed, color: "text-rose-400" },
-    { label: "Drift Alerts", value: "0", color: "text-slate-500" },
+    { label: "Drift Alerts", value: "0", color: "text-foreground-muted" },
   ];
 
   return (
@@ -2225,13 +2226,13 @@ function GovernanceTestCenterTab({
       {section === "overview" && (
         <div className="grid grid-cols-4 gap-4">
           {KPI_CARDS.map((k) => (
-            <div key={k.label} className="bg-black border border-slate-900 rounded-2xl p-5 text-center">
+            <div key={k.label} className="bg-background border border-border rounded-2xl p-5 text-center">
               <div className={`text-3xl font-black ${k.color}`}>{k.value}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{k.label}</div>
+              <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest mt-1">{k.label}</div>
             </div>
           ))}
           {withTests.length === 0 && (
-            <div className="col-span-4 p-8 text-center text-sm text-slate-600 bg-slate-950 border border-slate-900 rounded-2xl">
+            <div className="col-span-4 p-8 text-center text-sm text-foreground-muted bg-card border border-border rounded-2xl">
               No governance test data available yet.
             </div>
           )}
@@ -2242,32 +2243,32 @@ function GovernanceTestCenterTab({
       {section === "test_runs" && (
         <div className="space-y-3">
           {prompts.filter((p) => p.last_test).length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-600 bg-slate-950 border border-slate-900 rounded-2xl">
+            <div className="p-8 text-center text-sm text-foreground-muted bg-card border border-border rounded-2xl">
               No governance test data available yet.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-slate-900">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-900 bg-slate-950/60">
+                  <tr className="border-b border-border bg-card/60">
                     {["Prompt", "Test Type", "Status", "Score", "Last Run", "Action"].map((h) => (
-                      <th key={h} className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                      <th key={h} className="py-3 px-5 text-[10px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-900">
+                <tbody className="divide-y divide-border">
                   {prompts.filter((p) => p.last_test).map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                      <td className="py-4 px-5"><span className="text-sm font-bold text-white max-w-[200px] truncate block">{p.name}</span></td>
-                      <td className="py-4 px-5"><span className="text-[10px] text-slate-400">{p.last_test?.suite_name ?? "Standard"}</span></td>
+                    <tr key={p.id} className="hover:bg-surface/30 transition-colors">
+                      <td className="py-4 px-5"><span className="text-sm font-bold text-foreground max-w-[200px] truncate block">{p.name}</span></td>
+                      <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted">{p.last_test?.suite_name ?? "Standard"}</span></td>
                       <td className="py-4 px-5"><TestBadge result={p.last_test} /></td>
-                      <td className="py-4 px-5"><span className="text-[11px] font-bold text-white">{p.last_test?.score ?? "—"}%</span></td>
-                      <td className="py-4 px-5"><span className="text-[10px] text-slate-400 whitespace-nowrap">{p.last_test?.run_at ? new Date(p.last_test.run_at).toLocaleDateString() : "—"}</span></td>
+                      <td className="py-4 px-5"><span className="text-[11px] font-bold text-foreground">{p.last_test?.score ?? "—"}%</span></td>
+                      <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted whitespace-nowrap">{p.last_test?.run_at ? new Date(p.last_test.run_at).toLocaleDateString() : "—"}</span></td>
                       <td className="py-4 px-5">
                         <button
                           onClick={() => p.active_version_id && onRunTests(p.active_version_id)}
                           disabled={!p.active_version_id}
-                          className="p-2 bg-black border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="p-2 bg-background border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           title="Run Tests"
                         >
                           <Play className="w-3.5 h-3.5" />
@@ -2333,32 +2334,32 @@ function PolicySimulationSection({ prompts }: { prompts: PromptRecord[] }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Input */}
-      <div className="bg-slate-950 border border-slate-900 rounded-3xl p-6 space-y-4">
-        <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Post description</label>
+      <div className="bg-card border border-border rounded-3xl p-6 space-y-4">
+        <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-foreground-muted">Post description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={8}
           placeholder="e.g. Our new supplement cures diabetes in 30 days, clinically proven by 200 studies…"
-          className="w-full bg-black border border-slate-800 rounded-2xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50 resize-none"
+          className="w-full bg-background border border-border rounded-2xl px-4 py-3 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-indigo-500/50 resize-none"
         />
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Platform</label>
+            <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-foreground-muted mb-2">Platform</label>
             <select
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
-              className="w-full bg-black border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50 capitalize"
+              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-indigo-500/50 capitalize"
             >
               {TEST_PLATFORMS.map((p) => <option key={p} value={p} className="capitalize">{p}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Linked prompt (optional)</label>
+            <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-foreground-muted mb-2">Linked prompt (optional)</label>
             <select
               value={promptId}
               onChange={(e) => setPromptId(e.target.value)}
-              className="w-full bg-black border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-indigo-500/50"
             >
               <option value="">— none —</option>
               {prompts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -2381,9 +2382,9 @@ function PolicySimulationSection({ prompts }: { prompts: PromptRecord[] }) {
       </div>
 
       {/* Result */}
-      <div className="bg-slate-950 border border-slate-900 rounded-3xl p-6">
+      <div className="bg-card border border-border rounded-3xl p-6">
         {!result ? (
-          <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center gap-3 text-slate-600">
+          <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center gap-3 text-foreground-muted">
             <FlaskConical className="w-10 h-10" />
             <p className="text-xs max-w-xs">Run a test to see the governance decision, the matched possibility, knowledge-base evidence, and the step-by-step reasoning.</p>
           </div>
@@ -2393,29 +2394,29 @@ function PolicySimulationSection({ prompts }: { prompts: PromptRecord[] }) {
               <DecisionIcon className={`w-8 h-8 shrink-0 ${decisionMeta!.color}`} />
               <div className="space-y-1">
                 <div className={`text-2xl font-black tracking-tight ${decisionMeta!.color}`}>{decisionMeta!.label}</div>
-                <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                <div className="text-[11px] font-black uppercase tracking-widest text-foreground-muted">
                   Possibility {result.possibility.id} — {result.possibility.label}
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed pt-1">{result.reason}</p>
+                <p className="text-xs text-foreground-muted leading-relaxed pt-1">{result.reason}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-black border border-slate-900 rounded-xl p-4">
-                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 mb-1.5">Triggered Policy</div>
-                <div className="text-xs text-slate-200 font-bold">{result.governed_prompt.label}</div>
+              <div className="bg-background border border-border rounded-xl p-4">
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted mb-1.5">Triggered Policy</div>
+                <div className="text-xs text-foreground font-bold">{result.governed_prompt.label}</div>
               </div>
-              <div className="bg-black border border-slate-900 rounded-xl p-4">
-                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 mb-1.5">Expected Action</div>
-                <div className="text-xs text-slate-200 font-bold">{decisionMeta!.label}</div>
+              <div className="bg-background border border-border rounded-xl p-4">
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted mb-1.5">Expected Action</div>
+                <div className="text-xs text-foreground font-bold">{decisionMeta!.label}</div>
               </div>
-              <div className="bg-black border border-slate-900 rounded-xl p-4">
-                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 mb-1.5">Actual Action</div>
-                <div className="text-xs text-slate-200 font-bold">{result.risk.level} · {Math.round(result.risk.score)}/100</div>
+              <div className="bg-background border border-border rounded-xl p-4">
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted mb-1.5">Actual Action</div>
+                <div className="text-xs text-foreground font-bold">{result.risk.level} · {Math.round(result.risk.score)}/100</div>
               </div>
-              <div className="bg-black border border-slate-900 rounded-xl p-4">
-                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 mb-1.5">Result</div>
-                <div className="text-xs text-slate-200 font-bold">{result.decision}</div>
+              <div className="bg-background border border-border rounded-xl p-4">
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted mb-1.5">Result</div>
+                <div className="text-xs text-foreground font-bold">{result.decision}</div>
               </div>
             </div>
 
@@ -2428,43 +2429,43 @@ function PolicySimulationSection({ prompts }: { prompts: PromptRecord[] }) {
             )}
 
             {result.knowledge.checked && (
-              <div className="bg-black border border-slate-900 rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">
+              <div className="bg-background border border-border rounded-xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted">
                   <BookOpen className="w-3.5 h-3.5" /> Knowledge Base — {result.knowledge.status}
                 </div>
                 {result.knowledge.matches?.length > 0 ? (
                   <ul className="space-y-1.5">
                     {result.knowledge.matches.map((m: any) => (
-                      <li key={m.id} className="text-xs text-slate-300 flex items-start gap-2">
+                      <li key={m.id} className="text-xs text-foreground flex items-start gap-2">
                         <FileCheck className="w-3.5 h-3.5 mt-0.5 text-emerald-400 shrink-0" />
                         <span>
                           {m.title}
-                          {m.citation_reference && <span className="text-slate-500"> — {m.citation_reference}</span>}
+                          {m.citation_reference && <span className="text-foreground-muted"> — {m.citation_reference}</span>}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-slate-500">No supporting knowledge source found for this claim.</p>
+                  <p className="text-xs text-foreground-muted">No supporting knowledge source found for this claim.</p>
                 )}
               </div>
             )}
 
             <div className="space-y-1.5">
-              <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">Decision trace</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted">Decision trace</div>
               {result.steps.map((s: any, i: number) => (
                 <div key={i} className="flex items-center gap-3 text-[11px]">
-                  <span className="w-5 h-5 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 font-black text-[9px] shrink-0">{s.step}</span>
-                  <span className="text-slate-400">{s.name}</span>
-                  <ArrowRight className="w-3 h-3 text-slate-700" />
-                  <span className="text-slate-300 font-bold">{s.result}</span>
+                  <span className="w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center text-foreground-muted font-black text-[9px] shrink-0">{s.step}</span>
+                  <span className="text-foreground-muted">{s.name}</span>
+                  <ArrowRight className="w-3 h-3 text-foreground-muted" />
+                  <span className="text-foreground font-bold">{s.result}</span>
                 </div>
               ))}
             </div>
 
             {result.evidence_event_id && (
-              <div className="flex items-center gap-2 text-[10px] text-slate-600 pt-1 border-t border-slate-900">
-                <History className="w-3.5 h-3.5" /> Evidence event recorded: <span className="font-mono text-slate-500">{String(result.evidence_event_id).slice(0, 18)}…</span>
+              <div className="flex items-center gap-2 text-[10px] text-foreground-muted pt-1 border-t border-border">
+                <History className="w-3.5 h-3.5" /> Evidence event recorded: <span className="font-mono text-foreground-muted">{String(result.evidence_event_id).slice(0, 18)}…</span>
               </div>
             )}
           </div>
@@ -2795,10 +2796,10 @@ export default function PromptsPage() {
   ];
 
   return (
-    <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-black min-h-screen">
+    <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-background min-h-screen">
 
       {/* Header */}
-      <div className="relative overflow-hidden bg-slate-950 border border-indigo-500/20 rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
+      <div className="relative overflow-hidden bg-card border border-indigo-500/20 rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/8 blur-[150px] rounded-full -mr-60 -mt-60" />
         <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
@@ -2806,29 +2807,29 @@ export default function PromptsPage() {
               <Lock className="w-3.5 h-3.5" />
               Prompt Governance Center — Layer 1 Authority Control
             </div>
-            <h1 className="text-5xl xl:text-6xl font-black text-white tracking-tighter leading-none">
+            <h1 className="text-5xl xl:text-6xl font-black text-foreground tracking-tighter leading-none">
               Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-rose-500 italic">Governance.</span>
             </h1>
-            <p className="text-base text-slate-400 leading-relaxed font-medium">
+            <p className="text-base text-foreground-muted leading-relaxed font-medium">
               Governance state, rules, knowledge sources, evidence, and audit history for every governed prompt used by agents, workflows, tools, and knowledge-grounded tasks inside ZoikoVertex.
             </p>
           </div>
           <div className="flex items-center gap-3">
             {activeTab === "registry" && (
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
                 <input
                   type="text"
                   placeholder="Search prompts…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-56 bg-black border border-slate-800 rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+                  className="w-56 bg-background border border-border rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
                 />
               </div>
             )}
             <button
               onClick={handleAuditExport}
-              className="px-6 py-3 bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-300 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-surface border border-border hover:border-slate-600 text-foreground hover:text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export Evidence
@@ -2848,7 +2849,7 @@ export default function PromptsPage() {
       {/* Health summary strip — four headline metrics; clicking filters the registry */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {([
-          { label: "Total Prompts", value: systemPrompts.length, icon: MessageSquareCode, color: "text-white" },
+          { label: "Total Prompts", value: systemPrompts.length, icon: MessageSquareCode, color: "text-foreground" },
           { label: "Active Prompts", value: productionCount, icon: Zap, color: "text-emerald-400" },
           { label: "Pending Review", value: draftsPending, icon: Clock, color: "text-amber-400" },
           { label: "Blocked / Failed Tests", value: failedTests, icon: AlertTriangle, color: "text-rose-400" },
@@ -2859,13 +2860,13 @@ export default function PromptsPage() {
               key={stat.label}
               type="button"
               onClick={() => setActiveTab("registry")}
-              className="text-left bg-slate-950 border border-slate-900 rounded-2xl p-5 hover:border-indigo-500/30 transition-all cursor-pointer focus:outline-none focus:border-indigo-500/50"
+              className="text-left bg-card border border-border rounded-2xl p-5 hover:border-indigo-500/30 transition-all cursor-pointer focus:outline-none focus:border-indigo-500/50"
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon className={`w-4 h-4 ${stat.color}`} />
                 <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
               </div>
-              <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">{stat.label}</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted">{stat.label}</div>
             </button>
           );
         })}
@@ -2882,7 +2883,7 @@ export default function PromptsPage() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
                 activeTab === tab.id
                   ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+                  : "text-foreground-muted hover:text-foreground hover:bg-surface"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -2893,7 +2894,7 @@ export default function PromptsPage() {
       </div>
 
       {/* Tab content */}
-      <div className="bg-[#050505] border border-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
         {activeTab === "registry" && (
           <RegistryTab
             prompts={systemPrompts}

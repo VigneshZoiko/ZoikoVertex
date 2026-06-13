@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';

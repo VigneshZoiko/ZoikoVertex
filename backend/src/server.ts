@@ -135,7 +135,6 @@ import {
   getAsyncJob,
   createChainAnchor,
   listChainAnchors,
-  confirmChainAnchor,
   verifyChainAnchor,
   createTemplateVersion,
   listTemplateVersions,
@@ -208,7 +207,7 @@ import { getUserContext } from './domains/identity/userController';
 import { changePlan } from './domains/identity/planController';
 import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
-import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
+import { listMembers, listRequests, createRequest, updateRequest, deleteMember, updateMemberRole } from './domains/identity/teamController';
 import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
 import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction,   addQaNote, addQaEvidence, generateSample, retryQaCallback, retryQaCallbackByItem, exportQaFindings, exportQaEvidence, getAuditDefects, getAuditCorrectiveActions, getAuditNotes, getAuditEvidence } from './domains/governance/qaController';
 import {
@@ -239,7 +238,8 @@ import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemet
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
-import { setupWorkspace } from './domains/identity/onboardingController';
+import { setupWorkspace, completeOnboarding } from './domains/identity/onboardingController';
+import { sendOtpCode, verifyOtpCode, resendOtpCode } from './modules/auth/otpController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
@@ -423,7 +423,11 @@ app.get('/api/v1/health', (req, res) => {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
+app.post('/api/v1/auth/otp/send', sendOtpCode);
+app.post('/api/v1/auth/otp/verify', verifyOtpCode);
+app.post('/api/v1/auth/otp/resend', resendOtpCode);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
+app.post('/api/v1/onboarding/complete', completeOnboarding);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 
@@ -634,7 +638,6 @@ app.get('/api/evidence-vault/jobs', authenticate, scopeGuard('read:governance', 
 app.get('/api/evidence-vault/jobs/:id', authenticate, scopeGuard('read:governance', '*'), getAsyncJob);
 app.post('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('write:governance', '*'), createChainAnchor);
 app.get('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), listChainAnchors);
-app.post('/api/evidence-vault/chain-anchors/:anchorId/confirm', authenticate, govGuard, scopeGuard('write:governance', '*'), confirmChainAnchor);
 app.get('/api/evidence-vault/chain-anchors/:anchorId/verify', authenticate, scopeGuard('read:governance', '*'), verifyChainAnchor);
 app.post('/api/evidence-vault/templates', authenticate, scopeGuard('write:governance', '*'), createTemplateVersion);
 app.get('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), listTemplateVersions);
@@ -856,6 +859,7 @@ app.get('/api/v1/analytics/platform-reach', authenticate, getPlatformReach);
 
 // Protected Team Routes
 app.get('/api/v1/team/members', authenticate, listMembers);
+app.patch('/api/v1/team/members/:id/role', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateMemberRole);
 app.delete('/api/v1/team/members/:id', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), deleteMember);
 app.get('/api/v1/team/requests', authenticate, listRequests);
 app.post('/api/v1/team/requests', authenticate, createRequest);
@@ -1381,9 +1385,6 @@ app.post('/api/v1/prompts/versions/:versionId/runtime-governance', authenticate,
 // ─── Prompt Defensibility Index / PDI (Phase 3) ──────────────────────
 app.get('/api/v1/prompts/:id/pdi', authenticate, govView, PromptController.computePDI);
 
-// ─── Cross-Model Comparison (Phase 3) ────────────────────────────────
-app.post('/api/v1/prompts/versions/:versionId/cross-model/compare', authenticate, govView, PromptController.compareCrossModel);
-app.post('/api/v1/prompts/versions/:versionId/cross-model/parity-check', authenticate, govView, PromptController.runCrossModelParityCheck);
 // Phase 6.3 — Real cross-model evaluation (4 providers, 6 metrics)
 app.post('/api/v1/prompts/versions/:versionId/cross-model/real', authenticate, govView, PromptController.runRealCrossModelComparison);
 
@@ -1571,6 +1572,8 @@ import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
+import { startSlaBreachWorker } from './workers/slaBreachWorker';
+import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1592,6 +1595,8 @@ try {
     initDlpScanWorker();
     startCampaignWorker();
     initOrgInactivityWorker();
+    startSlaBreachWorker();
+    initEvidenceIntelligenceWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {

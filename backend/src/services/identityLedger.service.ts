@@ -1530,7 +1530,7 @@ export async function preserveToVault(params: {
     .from('vault_evidence_items')
     .insert({
       item_id: itemId, schema_version: '1.0',
-      tenant_id: params.tenant_id || entry.tenant_id || 'default',
+      tenant_id: params.tenant_id || entry.tenant_id || params.workspace_id,
       workspace_id: params.workspace_id,
       data_residency: entry.data_residency || 'auto',
       source_type: 'identity_ledger', source_id: entry.ledger_entry_id,

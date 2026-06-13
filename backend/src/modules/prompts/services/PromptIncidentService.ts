@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import * as crypto from 'crypto';
 import { supabaseAdmin } from '../../../shared/supabase';
 import { PromptEvidenceService } from '../PromptEvidenceService';

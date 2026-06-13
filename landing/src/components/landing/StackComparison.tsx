@@ -49,9 +49,9 @@ export default function StackComparison() {
             measurable in capital efficiency and executive confidence.
           </p>
         </div>
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.08)" }}
+        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="min-w-[480px]"
+          style={{ background: "#111827" }}
         >
           <div
             className="grid grid-cols-3 px-8 py-4"
@@ -89,6 +89,7 @@ export default function StackComparison() {
               </span>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </section>

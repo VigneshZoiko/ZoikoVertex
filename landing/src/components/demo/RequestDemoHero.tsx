@@ -85,8 +85,8 @@ export default function RequestDemoHero() {
   };
 
   return (
-    <section className="bg-[#080E1A] min-h-screen pt-28 pb-16 px-6">
-      <div ref={ref} className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-start">
+    <section className="bg-[#080E1A] min-h-screen pt-16 sm:pt-20 lg:pt-28 pb-16 px-4 sm:px-6">
+      <div ref={ref} className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-start">
 
         {/* ── LEFT ── */}
         <div
@@ -99,7 +99,7 @@ export default function RequestDemoHero() {
             <span>✦</span> REQUEST A DEMO
           </p>
 
-          <h1 className="text-5xl lg:text-6xl font-black text-white leading-tight mb-6">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-white leading-tight mb-6">
             AI marketing without an audit trail is not automation.{" "}
             <span className="text-cyan-400">It is exposure.</span>
           </h1>
@@ -155,7 +155,7 @@ export default function RequestDemoHero() {
               <div className="flex flex-col gap-6">
 
                 {/* Row 1 — Full name + Email */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <div className={errors.fullName ? inputErr : inputNormal}>
                       {getIcon("user")}
@@ -185,7 +185,7 @@ export default function RequestDemoHero() {
                 </div>
 
                 {/* Row 2 — Company + Role */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <div className={errors.company ? inputErr : inputNormal}>
                       {getIcon("building")}
@@ -221,7 +221,7 @@ export default function RequestDemoHero() {
                 </div>
 
                 {/* Row 3 — Company Size + Primary Interest */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <div className={errors.companySize ? inputErr : inputNormal}>
                       {getIcon("size")}
@@ -261,7 +261,7 @@ export default function RequestDemoHero() {
                 </div>
 
                 {/* Row 4 — Phone + Country */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className={inputNormal}>
                     {getIcon("phone")}
                     <input

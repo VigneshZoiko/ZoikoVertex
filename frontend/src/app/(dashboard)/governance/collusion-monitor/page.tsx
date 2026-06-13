@@ -63,7 +63,7 @@ export default function CollusionMonitorPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-12 pb-32">
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-slate-950 border border-error-border rounded-[3rem] p-12 shadow-[0_0_80px_rgba(244,63,94,0.1)]">
+      <div className="relative overflow-hidden bg-card border border-error-border rounded-[3rem] p-12 shadow-[0_0_80px_rgba(244,63,94,0.1)]">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-error-text/10 blur-[150px] rounded-full -mr-40 -mt-40 animate-pulse" />
         
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
@@ -75,7 +75,7 @@ export default function CollusionMonitorPage() {
             <h1 className="text-6xl font-black text-foreground tracking-tighter leading-[0.85]">
               Collusion &amp; <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-500 italic">Insider Risk.</span>
             </h1>
-            <p className="text-lg text-slate-400 leading-relaxed font-medium tracking-tight">
+            <p className="text-lg text-foreground-muted leading-relaxed font-medium tracking-tight">
               Real-time heuristic analysis auditing approval behaviors and rubber-stamp triggers. Detects segregation of duties violations, negligent review speeds, and un-remediated high-risk bypasses.
             </p>
           </div>
@@ -84,7 +84,7 @@ export default function CollusionMonitorPage() {
             <button 
               onClick={fetchMetrics} 
               disabled={refreshing}
-              className="bg-black hover:bg-slate-900 border border-slate-800 text-xs font-bold text-slate-400 py-3 px-6 rounded-2xl flex items-center gap-2 hover:text-white transition-all shadow-xl"
+              className="bg-black hover:bg-surface border border-border text-xs font-bold text-foreground-muted py-3 px-6 rounded-2xl flex items-center gap-2 hover:text-white transition-all shadow-xl"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-error-text" : ""}`} />
               Re-Scan Workspace
@@ -113,7 +113,7 @@ export default function CollusionMonitorPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Risk Index Dial */}
             <div className="lg:col-span-4 bg-[#050505] border border-slate-900 rounded-[3rem] p-10 shadow-2xl flex flex-col items-center text-center space-y-6">
-              <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Workspace Collusion Index</h3>
+              <h3 className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest">Workspace Collusion Index</h3>
               
               <div className="relative w-48 h-48 flex items-center justify-center">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
@@ -138,7 +138,7 @@ export default function CollusionMonitorPage() {
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center">
                   <span className="text-5xl font-black text-foreground tracking-tighter">{data?.collusion_index}%</span>
-                  <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Threat Level</span>
+                  <span className="text-[8px] font-bold text-foreground-muted uppercase tracking-widest mt-1">Threat Level</span>
                 </div>
               </div>
 
@@ -156,15 +156,15 @@ export default function CollusionMonitorPage() {
               ].map((card, i) => (
                 <div key={i} className="bg-[#050505] border border-slate-900 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group hover:border-error-border transition-all flex flex-col justify-between">
                   <div className="space-y-6">
-                    <div className="p-3 w-12 h-12 rounded-xl bg-black border border-slate-800 flex items-center justify-center shadow-inner">
+                    <div className="p-3 w-12 h-12 rounded-xl bg-black border border-border flex items-center justify-center shadow-inner">
                       <card.icon className={`w-5 h-5 ${card.color}`} />
                     </div>
                     <div>
                       <div className="text-4xl font-black text-foreground tracking-tighter">{card.value}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{card.label}</div>
+                      <div className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mt-2">{card.label}</div>
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-6 leading-relaxed">{card.desc}</p>
+                  <p className="text-[11px] text-foreground-muted mt-6 leading-relaxed">{card.desc}</p>
                 </div>
               ))}
             </div>
@@ -189,14 +189,14 @@ export default function CollusionMonitorPage() {
                 </div>
                 <div>
                   <p className="text-foreground font-bold text-sm">No Insider Risk Incidents Found</p>
-                  <p className="text-slate-500 text-xs mt-1">All humans and agents are complying with defined HITL control boundaries.</p>
+                  <p className="text-foreground-muted text-xs mt-1">All humans and agents are complying with defined HITL control boundaries.</p>
                 </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-900 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <tr className="border-b border-slate-900 text-[10px] font-bold uppercase tracking-widest text-foreground-muted">
                       <th className="py-4 px-6">Incident Type</th>
                       <th className="py-4 px-6">Calculated Severity</th>
                       <th className="py-4 px-6">Details / Description</th>
@@ -205,7 +205,7 @@ export default function CollusionMonitorPage() {
                   </thead>
                   <tbody>
                     {data.incidents.map((incident) => (
-                      <tr key={incident.id} className="border-b border-slate-900/50 hover:bg-slate-950/40 transition-colors">
+                      <tr key={incident.id} className="border-b border-slate-900/50 hover:bg-card/40 transition-colors">
                         <td className="py-5 px-6 font-bold text-foreground flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                             incident.severity === 'CRITICAL' ? 'bg-error-bg text-error-text' :
@@ -224,10 +224,10 @@ export default function CollusionMonitorPage() {
                             {incident.severity}
                           </span>
                         </td>
-                        <td className="py-5 px-6 text-slate-300 text-xs font-medium max-w-md">
+                        <td className="py-5 px-6 text-foreground text-xs font-medium max-w-md">
                           {incident.details}
                         </td>
-                        <td className="py-5 px-6 text-right text-[11px] text-slate-500 font-bold">
+                        <td className="py-5 px-6 text-right text-[11px] text-foreground-muted font-bold">
                           {incident.timestamp ? formatDateTime(incident.timestamp) : 'Just Now'}
                         </td>
                       </tr>
@@ -239,10 +239,10 @@ export default function CollusionMonitorPage() {
           </div>
 
           {/* Section: Operational Mitigation controls */}
-          <div className="bg-slate-950 border border-error-border rounded-[3rem] p-10 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="bg-card border border-error-border rounded-[3rem] p-10 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-2 max-w-xl">
               <h3 className="text-lg font-black text-foreground uppercase tracking-tighter">Emergency Autonomy Lock</h3>
-              <p className="text-xs text-slate-400 leading-relaxed font-medium">
+              <p className="text-xs text-foreground-muted leading-relaxed font-medium">
                 In the event that the collusion index exceeds safe bounds (70%+), click here to trigger a global Level 3 lock suspending all autonomous model publication pipelines across the workspace.
               </p>
             </div>
