@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/navbar/Navbar";
+import Footer from "@/components/Footer";
 import {
   Users, CheckSquare, FileText, Lock, Bot,
   ShieldCheck, GitBranch, AlertTriangle,
@@ -163,29 +163,6 @@ const FAQS = [
   },
 ];
 
-/* ── Footer columns ────────────────────────────────────────────── */
-const FOOTER_COLS = [
-  {
-    heading: "PRODUCT",
-    links: ["Platform Overview", "Agentic Architecture", "Executive Command Center", "AI Workflow Orchestration", "Approval Workflows", "ROI Engine", "Integrations"],
-  },
-  {
-    heading: "SOLUTIONS",
-    links: ["Enterprise Retail", "FinTech", "Healthcare", "B2B SaaS", "Logistics", "Telecom", "Agencies & Multi-Brand Teams"],
-  },
-  {
-    heading: "RESOURCES",
-    links: ["Resource Center", "Use Cases", "Demo Library", "ROI & Governance Audit", "Buyer Guides", "Product Updates", "FAQs"],
-  },
-  {
-    heading: "COMPANY",
-    links: ["About ZoikoVertex", "About Zoiko Group", "Leadership", "Vision & Mission", "Press & Media", "Competitor Benchmark", "Careers"],
-  },
-  {
-    heading: "TRUST & LEGAL",
-    links: ["Security", "Privacy Policy", "Terms of Service", "Cookie Preferences", "Compliance & Governance", "Responsible AI", "Auditability", "Data Processing Addendum"],
-  },
-];
 
 /* ── Cell helper ───────────────────────────────────────────────── */
 function Cell({ val }: { val: boolean | string }) {
@@ -644,71 +621,7 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ────────────────────────────────────────────────── */}
-      <footer className="bg-[#06090f] border-t border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 pt-16 pb-10">
-          {/* Top row */}
-          <div className="grid grid-cols-2 lg:grid-cols-7 gap-10 mb-14">
-            {/* Brand */}
-            <div className="col-span-2 lg:col-span-2">
-              <Image src="/images/zoikovertexlogo.png" alt="ZoikoVertex" width={160} height={30} className="h-7 w-auto mb-4" />
-              <p className="text-[13px] text-white/45 leading-relaxed max-w-[220px] mb-6">
-                The governed autonomous digital marketing operating system <span className="text-white/65 font-medium">where marketing becomes measurable infrastructure.</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {["SOC 2 Type II", "ISO 27001", "GDPR", "Responsible AI", "Audit-Ready"].map((badge) => (
-                  <span key={badge} className="px-2 py-0.5 rounded border border-white/10 text-[9px] font-bold uppercase tracking-wider text-white/35">• {badge}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Columns */}
-            {FOOTER_COLS.map((col) => (
-              <div key={col.heading} className="col-span-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40 mb-4">{col.heading}</p>
-                <ul className="space-y-2.5">
-                  {col.links.map((l) => (
-                    <li key={l}>
-                      <a href="#" className="text-[13px] text-white/50 hover:text-white transition-colors">{l}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          {/* Locations */}
-          <div className="border-t border-white/[0.06] pt-10 mb-10">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mb-5">Contact & Locations</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="space-y-2">
-                {["Contact Sales", "Support", "Partnerships"].map((l) => (
-                  <a key={l} href="#" className="block text-[13px] text-white/50 hover:text-white transition-colors">{l}</a>
-                ))}
-              </div>
-              <div className="md:border-l md:border-white/[0.06] md:pl-8">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[#20E7F2] mb-2">• Headquarters</p>
-                <p className="text-[13px] text-white/50 leading-relaxed">1401 21st Street, Suite R, Sacramento,<br />CA 95811, USA</p>
-              </div>
-              <div className="md:border-l md:border-white/[0.06] md:pl-8">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[#20E7F2] mb-2">• EU Headquarters</p>
-                <p className="text-[13px] text-white/50 leading-relaxed">67–69 Great Portland Street, 5th Floor,<br />London W1W 5PF, UK</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom bar */}
-          <div className="border-t border-white/[0.06] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[12px] text-white/25">2026 ZoikoVertex | All rights reserved | ZoikoVertex is a platform operated by Zoiko Tech Inc.</p>
-            <div className="flex items-center gap-6 text-[12px] text-white/35">
-              <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
-              <Link href="/terms"   className="hover:text-white/60 transition-colors">Terms of Service</Link>
-              <a href="#"           className="hover:text-white/60 transition-colors">Cookie Preferences</a>
-              <Link href="/security" className="hover:text-white/60 transition-colors">Security</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
