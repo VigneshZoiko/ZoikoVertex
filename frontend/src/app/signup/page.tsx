@@ -1,10 +1,10 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Mail, ArrowRight, ArrowLeft, Loader2,
   Eye, EyeOff, Lock, User, Building2,
-  CheckCircle2, LayoutDashboard,
+
 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
@@ -48,6 +48,54 @@ function StepDots({ current, total }: { current: number; total: number }) {
   );
 }
 
+/* ΓöÇΓöÇ OTP input boxes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleKey = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !value[idx] && idx > 0) {
+      refs.current[idx - 1]?.focus();
+    }
+  };
+
+  const handleChange = (idx: number, char: string) => {
+    const digit = char.replace(/\D/g, "").slice(-1);
+    const next = [...value];
+    next[idx] = digit;
+    onChange(next);
+    if (digit && idx < 5) refs.current[idx + 1]?.focus();
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6).split("");
+    const next = [...value];
+    digits.forEach((d, i) => { next[i] = d; });
+    onChange(next);
+    const lastFilled = Math.min(digits.length, 5);
+    refs.current[lastFilled]?.focus();
+  };
+
+  return (
+    <div className="flex gap-2 justify-center">
+      {[0, 1, 2, 3, 4, 5].map((idx) => (
+        <input
+          key={idx}
+          ref={(el) => { refs.current[idx] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[idx]}
+          onChange={(e) => handleChange(idx, e.target.value)}
+          onKeyDown={(e) => handleKey(idx, e)}
+          onPaste={idx === 0 ? handlePaste : undefined}
+          className="w-[44px] h-[50px] bg-[rgba(255,255,255,0.06)] border text-center text-[20px] font-semibold text-[#f1f5f9] rounded-[10px] outline-none transition-colors"
+          style={{ borderColor: value[idx] ? "rgba(32,231,242,0.6)" : "rgba(255,255,255,0.1)", caretColor: "#20E7F2" }}
+        />
+      ))}
+    </div>
+  );
+}
 
 /* ΓöÇΓöÇ Main component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 export default function SignupPage() {
@@ -71,9 +119,11 @@ export default function SignupPage() {
   const strength                    = calcStrength(password);
 
   /* Step 3 */
+  const [otp, setOtp]               = useState(["", "", "", "", "", ""]);
   const [resendTimer, setResendTimer] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
+  const verified = false;
 
   /* Resend countdown */
   useEffect(() => {
@@ -82,7 +132,7 @@ export default function SignupPage() {
     return () => clearTimeout(t);
   }, [resendTimer]);
 
-  /* ΓöÇΓöÇ OAuth ΓöÇΓöÇ */
+  /* OAuth */
   const handleOAuth = async (provider: "google" | "azure") => {
     setLoading(true);
     setError("");
@@ -93,14 +143,12 @@ export default function SignupPage() {
     if (error) { setError(error.message); setLoading(false); }
   };
 
-  /* ΓöÇΓöÇ Step 1 ΓåÆ 2 ΓöÇΓöÇ */
   const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setStep(2);
   };
 
-  /* ΓöÇΓöÇ Step 2 ΓåÆ 3 (call backend) ΓöÇΓöÇ */
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -111,24 +159,21 @@ export default function SignupPage() {
     try {
       // Public endpoint ΓÇö no auth token required, use raw fetch
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
-      const response = await fetch(`${backendUrl}/api/v1/auth/signup-enterprise`, {
+      const response = await fetch(`${backendUrl}/api/v1/auth/otp/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: `${firstName} ${lastName}`.trim(),
-          workEmail: email,
-          companyName: company,
-          workspaceName: company,
-          password,
-        }),
+        body: JSON.stringify({ email: email.trim() }),
       });
       const res = await response.json().catch(() => ({}));
+      if (response.status === 409 && res.exists) {
+        router.push(`/login?email=${encodeURIComponent(email.trim())}`);
+        return;
+      }
       if (response.ok && res.success) {
         setStep(3);
         setResendTimer(60);
       } else {
-        const msg = res.error || res.message || `Signup failed (${response.status}). Please try again.`;
-        setError(msg);
+        setError(res.error || `Failed to send code (${response.status})`);
       }
     } catch (err: any) {
       setError(err.message || "Network error. Please check your connection and try again.");
@@ -137,37 +182,38 @@ export default function SignupPage() {
     }
   };
 
-  /* ΓöÇΓöÇ Step 3 ΓåÆ 4 (sign in to check if email is verified) ΓöÇΓöÇ */
-  const handleVerifyFromEmail = async () => {
+  /* Step 3 -> 4 (verify OTP, create account, sign in) */
+  const handleVerifyOtp = async () => {
+    const code = otp.join("");
+    if (code.length !== 6) { setVerifyError("Enter the full 6-digit code"); return; }
     setVerifying(true);
     setVerifyError("");
     setLoading(true);
     try {
-      // Try to sign in with email/password - if email is verified, this will succeed
-      const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+      const response = await fetch(`${backendUrl}/api/v1/auth/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          code,
+          fullName: `${firstName} ${lastName}`.trim(),
+          companyName: company,
+        }),
       });
-
-      if (signInError) throw signInError;
-
-      if (session) {
-        // Sign in successful - email is verified
-        document.cookie = "zv_auth=1; path=/; SameSite=Strict; max-age=3600";
-        setStep(4);
-      } else {
-        // This shouldn't happen if there's no error, but handle just in case
-        setVerifyError("Unexpected verification state. Please try again.");
+      const res = await response.json().catch(() => ({}));
+      if (response.status === 409 && res.exists) {
+        router.push(`/login?email=${encodeURIComponent(email.trim())}`);
+        return;
       }
-    } catch (err: any) {
-      const msg = err.message || "Unknown error";
-      if (msg.includes("Email not confirmed")) {
-        setVerifyError("Please check your inbox and click the verification link before continuing.");
-      } else if (msg.includes("Invalid login credentials")) {
-        setVerifyError("Invalid email or password. Please try again.");
+      if (response.ok && res.success) {
+        document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
+        window.location.href = `/onboarding?email=${encodeURIComponent(email.trim())}`;
       } else {
-        setVerifyError(msg);
+        setVerifyError(res.error || "Verification failed. Please try again.");
       }
+    } catch {
+      setVerifyError("Network error. Please check your connection.");
     } finally {
       setVerifying(false);
       setLoading(false);
@@ -177,30 +223,25 @@ export default function SignupPage() {
   const handleResend = async () => {
     try {
       setLoading(true);
-      // Public endpoint ΓÇö no auth token required, use raw fetch
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
-      const response = await fetch(`${backendUrl}/api/v1/users/resend-verification`, {
+      const response = await fetch(`${backendUrl}/api/v1/auth/otp/resend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email,
-        }),
+        body: JSON.stringify({ email: email.trim() }),
       });
       const res = await response.json().catch(() => ({}));
       if (response.ok && res.success) {
         setResendTimer(60);
+        setOtp(["", "", "", "", "", ""]);
       } else {
-        const msg = res.error || res.message || `Failed to resend verification email (${response.status})`;
-        setError(msg);
+        setError(res.error || "Failed to resend code");
       }
-    } catch (err: any) {
-      setError(err.message || "Network error. Please check your connection and try again.");
+    } catch {
+      setError("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
   };
-
-  /* ΓöÇΓöÇ Input class ΓöÇΓöÇ */
   const inputCls = "w-full rounded-xl border border-[#1E2F55] bg-[#0C1529] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
   const cyanBtn  = "w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#20E7F2] py-3.5 text-sm font-bold text-[#080E1A] transition hover:bg-[#20E7F2]/90 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed";
   const darkBtn  = "w-full flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] py-3.5 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]";
@@ -223,7 +264,7 @@ export default function SignupPage() {
             </div>
 
             {/* Name row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">First Name</label>
                 <div className="relative">
@@ -289,15 +330,15 @@ export default function SignupPage() {
                 className="flex items-center justify-center gap-2 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60">
                 <svg className="h-4 w-4" viewBox="0 0 21 21">
                   <path fill="#f25022" d="M1 1h9v9H1z"/>
-                  <path fill="#00a4ef" d="M1 11h9v9H1z"/>
-                  <path fill="#7fba00" d="M11 1h9v9h-9z"/>
-                  <path fill="#ffb900" d="M11 11h9v9h-9z"/>
+                  <path fill="#00a4ef" d="M11 1h9v9h-9z"/>
+                  <path fill="#ffb900" d="M1 11h9v9H1z"/>
+                  <path fill="#7cbb00" d="M11 11h9v9h-9z"/>
                 </svg>
                 Microsoft
               </button>
             </div>
 
-            <StepDots current={1} total={3} />
+            <StepDots current={1} total={4} />
 
             <p className="text-center text-[13px] text-white/40 mt-4">
               Already have an account?{" "}
@@ -375,7 +416,7 @@ export default function SignupPage() {
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
 
-            <StepDots current={2} total={3} />
+            <StepDots current={2} total={4} />
 
             <p className="text-center text-[13px] text-white/40 mt-4">
               Already have an account?{" "}
@@ -384,112 +425,171 @@ export default function SignupPage() {
           </form>
         )}
 
-        {/* ΓöÇΓöÇ STEP 3: Verify email ΓöÇΓöÇ */}
+
+        {/* STEP 3: OTP verification ── */}
         {step === 3 && (
-          <div className="text-center space-y-6">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-900/40 border border-blue-500/30">
-              <Mail className="h-9 w-9 text-blue-400" />
+          <div className="flex flex-col items-center text-center">
+            {/* Email icon bubble */}
+            <div style={{
+              width: "52px",
+              height: "52px",
+              borderRadius: "50%",
+              background: "rgba(16, 80, 60, 0.7)",
+              border: "1.5px solid rgba(34, 211, 197, 0.35)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "22px",
+            }}>
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <rect x="2" y="5" width="18" height="13" rx="2.5" stroke="#20E7F2" strokeWidth="1.5"/>
+                <path d="M2 8l9 6 9-6" stroke="#20E7F2" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
             </div>
 
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <div className="h-px w-5 bg-[#20E7F2]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">Email Verification</span>
-                <div className="h-px w-5 bg-[#20E7F2]" />
-              </div>
-              <h2 className="text-[1.75rem] font-black text-white/90 mb-2">Check your inbox</h2>
-              <p className="text-[14px] text-white/45">
-                We&apos;ve sent a verification link to<br />
-                <span className="text-white/70 font-semibold block">{email}</span>
-                <span className="text-[12px] text-white/40 block mt-1">
-                  Click the link in the email to verify your account, then click below
-                </span>
-              </p>
+            {/* Label */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginBottom: "10px",
+            }}>
+              <div style={{ width: "20px", height: "1px", background: "#20E7F2" }} />
+              <span style={{
+                fontSize: "10px",
+                fontWeight: "600",
+                letterSpacing: "2px",
+                color: "#20E7F2",
+                textTransform: "uppercase",
+              }}>
+                Verify your email
+              </span>
+              <div style={{ width: "20px", height: "1px", background: "#20E7F2" }} />
+            </div>
 
-              {/* Verification error */}
-              {verifyError && (
-                <div className="mb-4 p-4 bg-rose-900/30 rounded-xl border border-rose-500/30">
-                  <p className="text-rose-400">{verifyError}</p>
+            {/* Title */}
+            <h2 style={{
+              fontSize: "26px",
+              fontWeight: "700",
+              color: "#f1f5f9",
+              margin: "0 0 14px",
+              letterSpacing: "-0.3px",
+            }}>
+              {verified ? "Email verified!" : "Check your inbox"}
+            </h2>
+
+            {/* Subtitle */}
+            <p style={{
+              fontSize: "12.5px",
+              color: "#64748b",
+              textAlign: "center",
+              lineHeight: "1.6",
+              margin: "0 0 26px",
+            }}>
+              {verified
+                ? "You're all set. Redirecting you now…"
+                : <>We sent a 6-digit verification code to<br /><span style={{ color: "#cbd5e1", fontWeight: "500" }}>{email}</span></>}
+            </p>
+
+            {!verified && (
+              <>
+                {/* OTP inputs */}
+                <div className="mb-[22px]">
+                  <OtpInput value={otp} onChange={setOtp} />
                 </div>
-              )}
 
-              <div className="mt-6 space-y-4">
-                <button
-                  onClick={handleVerifyFromEmail}
-                  disabled={verifying}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]"
-                >
-                  {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> I&apos;ve Verified My Email</>}
-                </button>
+                {verifyError && (
+                  <div style={{
+                    marginBottom: "16px",
+                    padding: "12px 16px",
+                    background: "rgba(190,18,60,0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(244,63,94,0.3)",
+                    width: "100%",
+                  }}>
+                    <p style={{ color: "#fb7185", fontSize: "12.5px", margin: "0" }}>{verifyError}</p>
+                  </div>
+                )}
 
-                <button
-                  onClick={handleResend}
-                  disabled={verifying || resendTimer > 0}
-                  className="w-full flex items-center justify-center gap-2 text-[13px] font-semibold uppercase tracking-[0.2em] border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]"
+                {/* Verify button */}
+                <button onClick={handleVerifyOtp} disabled={verifying}
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    background: otp.join("").length === 6
+                      ? "linear-gradient(90deg, #00d4c4 0%, #20E7F2 100%)"
+                      : "rgba(32,231,242,0.3)",
+                    border: "none",
+                    borderRadius: "10px",
+                    color: otp.join("").length === 6 ? "#0a1628" : "#64748b",
+                    fontSize: "15px",
+                    fontWeight: "700",
+                    cursor: verifying ? "default" : otp.join("").length === 6 ? "pointer" : "default",
+                    letterSpacing: "0.2px",
+                    transition: "all 0.2s",
+                    marginBottom: "14px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                  }}
                 >
-                  {resendTimer > 0 ? (
-                    <span>Resend in {resendTimer}s</span>
+                  {verifying ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      <ArrowRight className="h-3 w-3" /> Resend verification email
-                    </>
+                    <><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke={otp.join("").length === 6 ? "#0a1628" : "#64748b"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Verify and continue</>
                   )}
                 </button>
+
+                {/* Resend */}
+                <p style={{
+                  fontSize: "12px",
+                  color: "#475569",
+                  margin: "0",
+                }}>
+                  Didn&apos;t receive it?{" "}
+                  {resendTimer > 0 ? (
+                    <span style={{ color: "#64748b" }}>Resend in {resendTimer}s</span>
+                  ) : (
+                    <span onClick={handleResend} style={{ color: "#38bdf8", cursor: "pointer", fontWeight: "500" }}>
+                      Resend code
+                    </span>
+                  )}
+                </p>
+              </>
+            )}
+
+            {/* Success state */}
+            {verified && (
+              <div style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "50%",
+                background: "rgba(16,80,60,0.6)",
+                border: "2px solid #20E7F2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: "28px",
+              }}>
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+                  <path d="M5 13l6 6 10-11" stroke="#20E7F2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </div>
+            )}
 
-              <p className="text-[13px] text-white/35 mt-4">
-                Didn&apos;t receive the email?{" "}
-                {resendTimer > 0 ? (
-                  <span className="text-white/30">Please wait {resendTimer}s before resending</span>
-                ) : (
-                  <button type="button" onClick={handleResend} className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
-                    Resend verification email
-                  </button>
-                )}
-              </p>
-            </div>
+            <StepDots current={3} total={4} />
 
-            <StepDots current={3} total={3} />
-
-            <p className="text-center text-[13px] text-white/40 mt-6">
+            <p style={{ fontSize: "12.5px", color: "#475569", marginTop: "28px", marginBottom: "12px" }}>
               Already have an account?{" "}
-              <Link href="/login" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">Sign in</Link>
+              <Link href="/login" style={{ color: "#20E7F2", fontWeight: "500" }}>Sign in</Link>
             </p>
           </div>
         )}
 
-        {/* ΓöÇΓöÇ STEP 4: Welcome ΓöÇΓöÇ */}
-        {step === 4 && (
-          <div className="text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-900/40 border border-emerald-500/30">
-              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <div className="h-px w-5 bg-[#20E7F2]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">You&apos;re in</span>
-                <div className="h-px w-5 bg-[#20E7F2]" />
-              </div>
-              <h2 className="text-[1.75rem] font-black text-white/90 mb-3">Welcome to ZoikoVertex</h2>
-              <p className="text-[14px] text-white/45 leading-relaxed">
-                Your governed workspace is ready. Start with<br />
-                the guided setup or go directly to the<br />
-                Command Center.
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <button
-                onClick={() => router.push("/dashboard")}
-                className={cyanBtn}
-              >
-                <LayoutDashboard className="h-4 w-4" /> Go to Dashboard
-              </button>
-            </div>
-          </div>
-        )}
+        {/* STEP 4: no longer used — redirects to /onboarding */}
       </div>
     </AuthLayout>
   );
 }
+
