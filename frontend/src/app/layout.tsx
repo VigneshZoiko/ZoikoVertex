@@ -41,7 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable} ${jetbrains.variable}`} suppressHydrationWarning>
-      <body className="flex flex-col min-h-screen" suppressHydrationWarning>
+      <body className="flex flex-col h-screen" suppressHydrationWarning>
         <Providers>
           <CacheBuster />
           <NavbarWrapper />

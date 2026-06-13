@@ -200,11 +200,11 @@ function matchMember(members: OrgMember[], email: string, username: string): Mat
 
 function StatusBadge({ source }: { source?: KBSource }) {
   if (isBlocked(source)) return <Chip cls="bg-rose-500/10 text-rose-400 border-rose-500/20" icon={<Ban className="w-3 h-3" />} label="Blocked" />;
-  if (isRetired(source)) return <Chip cls="bg-zinc-500/10 text-zinc-400 border-zinc-500/20" icon={<Archive className="w-3 h-3" />} label="Retired" />;
+  if (isRetired(source)) return <Chip cls="bg-surface text-foreground-muted border-border" icon={<Archive className="w-3 h-3" />} label="Retired" />;
   if (isReview(source)) return <Chip cls="bg-amber-500/10 text-amber-400 border-amber-500/20" icon={<Clock className="w-3 h-3" />} label="Draft" />;
   if (isActiveLive(source)) return <Chip cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" icon={<CheckCircle2 className="w-3 h-3" />} label="Active" />;
   if (isApproved(source)) return <Chip cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" icon={<ShieldCheck className="w-3 h-3" />} label="Approved" />;
-  return <Chip cls="bg-zinc-500/10 text-zinc-400 border-zinc-500/20" icon={null} label={source?.status || "Draft"} />;
+  return <Chip cls="bg-surface text-foreground-muted border-border" icon={null} label={source?.status || "Draft"} />;
 }
 
 // Governance category shown beside the status. Indigo = governance metadata.
@@ -1449,7 +1449,7 @@ function SummaryCard({ label, value, icon, tone }: { label: string; value: numbe
     indigo: "text-indigo-400 bg-indigo-500/10",
     sky: "text-sky-400 bg-sky-500/10",
     emerald: "text-emerald-400 bg-emerald-500/10",
-    zinc: "text-zinc-400 bg-zinc-500/10",
+    zinc: "text-foreground-muted bg-zinc-500/10",
     amber: "text-amber-400 bg-amber-500/10",
     rose: "text-rose-400 bg-rose-500/10",
   };
@@ -1495,7 +1495,7 @@ function ToggleActiveRetired({ source, busy, disabled, onActivate, onRetire }: {
       aria-checked={!retired}
       disabled={busy || disabled}
       onClick={retired ? onActivate : onRetire}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${retired ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${retired ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-surface text-foreground-muted border-border"}`}
     >
       {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : retired ? <CheckCircle2 className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
       {retired ? "Activate" : "Retire"}

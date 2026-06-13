@@ -253,7 +253,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                       <button type="button"
                         onClick={() => fetchAd(a.id)}
                         disabled={loadingAd && linkingFor === a.id}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors text-left disabled:opacity-50">
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors text-left disabled:opacity-50">
                         {loadingAd && linkingFor === a.id
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground-muted" />
                           : <Link2 className="w-3.5 h-3.5 text-foreground-muted" />}
@@ -289,7 +289,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                       )}
 
                       <a href="/accounts" target="_blank"
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors">
                         <Settings className="w-3.5 h-3.5 text-foreground-muted" />
                         Manage in Platform Accounts
                       </a>
@@ -627,8 +627,8 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                     <div className="flex items-center gap-1.5 text-sm">
                       {st.icon === "check" && <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />}
                       {st.icon === "warn"  && <AlertCircle  className="w-3.5 h-3.5 text-warning-text shrink-0"   />}
-                      {st.icon === "dot"   && <div className="w-3 h-3 rounded-full border-2 border-zinc-600 shrink-0" />}
-                      <span className={st.icon === "check" ? "text-success-text" : st.icon === "warn" ? "text-warning-text" : "text-zinc-400"}>
+                      {st.icon === "dot"   && <div className="w-3 h-3 rounded-full border-2 border-border shrink-0" />}
+                      <span className={st.icon === "check" ? "text-success-text" : st.icon === "warn" ? "text-warning-text" : "text-foreground-muted"}>
                         {st.label}
                       </span>
                     </div>
@@ -883,7 +883,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
 
                 <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
                   <a href={`mailto:?subject=Install Meta Pixel Code&body=Please install this Meta Pixel Base Code on our website:%0A%0A<!-- Meta Pixel Code -->%0A<script>%0A!function(f,b,e,v,n,t,s)%0A{if(f.fbq)return;n=f.fbq=function(){n.callMethod?%0An.callMethod.apply(n,arguments):n.queue.push(arguments)};%0Aif(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';%0An.queue=[];t=b.createElement(e);t.async=!0;%0At.src=v;s=b.getElementsByTagName(e)[0];%0As.parentNode.insertBefore(t,s)}(window, document,'script',%0A'https://connect.facebook.net/en_US/fbevents.js');%0Afbq('init', '${showSetup.id}');%0Afbq('track', 'PageView');%0A</script>%0A<noscript><img height="1" width="1" style="display:none"%0Asrc="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"%0A/></noscript>%0A<!-- End Meta Pixel Code -->`} 
-                     className="text-sm font-medium text-foreground hover:text-white transition-colors">
+                     className="text-sm font-medium text-foreground hover:text-foreground transition-colors">
                     Email Instructions
                   </a>
                   <button 
@@ -1252,7 +1252,7 @@ export default function CampaignsPage() {
                               <div className="flex items-center gap-2 shrink-0">
                                 <button type="button"
                                   onClick={e => { e.stopPropagation(); setEditCampaignId(c.id); setShowCreator(true); }}
-                                  className="px-3 py-1.5 text-xs font-semibold border border-border hover:border-border text-foreground-muted hover:text-white rounded-lg transition-colors">
+                                  className="px-3 py-1.5 text-xs font-semibold border border-border hover:border-border text-foreground-muted hover:text-foreground rounded-lg transition-colors">
                                   Edit
                                 </button>
                                 <button type="button"

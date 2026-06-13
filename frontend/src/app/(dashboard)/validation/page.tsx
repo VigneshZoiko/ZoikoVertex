@@ -325,7 +325,7 @@ export default function ValidationDeskPage() {
         <button
           onClick={fetchData}
           disabled={loading}
-          className="p-2 bg-surface border border-border rounded-lg text-foreground-muted hover:text-white hover:border-border transition-all disabled:opacity-50"
+          className="p-2 bg-surface border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all disabled:opacity-50"
         >
           <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-info-text" : ""}`} />
         </button>
@@ -340,7 +340,7 @@ export default function ValidationDeskPage() {
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
-          <button onClick={() => setMessage(null)} className="ml-auto text-foreground-muted hover:text-white">
+          <button onClick={() => setMessage(null)} className="ml-auto text-foreground-muted hover:text-foreground">
             <X className="w-3 h-3" />
           </button>
         </div>

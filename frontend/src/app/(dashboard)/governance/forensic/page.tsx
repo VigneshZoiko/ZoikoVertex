@@ -32,7 +32,7 @@ export default function ForensicPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-12 pb-32">
       {/* Hero: Predictive Governance */}
-      <div className="relative overflow-hidden bg-slate-950 border border-info-border rounded-[3rem] p-12 shadow-[0_0_80px_rgba(99,102,241,0.15)]">
+      <div className="relative overflow-hidden bg-card border border-info-border rounded-[3rem] p-12 shadow-[0_0_80px_rgba(99,102,241,0.15)]">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-info-text/10 blur-[150px] rounded-full -mr-40 -mt-40 animate-pulse" />
         
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
@@ -44,14 +44,14 @@ export default function ForensicPage() {
             <h1 className="text-6xl font-black text-foreground tracking-tighter leading-[0.85]">
               Predictive <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-rose-600 italic">Governance.</span>
             </h1>
-            <p className="text-lg text-slate-400 leading-relaxed font-medium tracking-tight">
+            <p className="text-lg text-foreground-muted leading-relaxed font-medium tracking-tight">
               Deep forensic audit of agent behavioral patterns, trust scores, and long-term compliance drift. 
               Eliminate hallucinations and brand voice degradation before they impact the network.
             </p>
           </div>
           
           <div className="flex gap-4">
-             <div className="bg-black border border-slate-800 rounded-3xl p-8 text-center space-y-2 shadow-2xl">
+             <div className="bg-black border border-border rounded-3xl p-8 text-center space-y-2 shadow-2xl">
                 <div className="text-5xl font-black text-foreground tracking-tighter">{data?.trust_score}%</div>
                 <div className="text-[10px] font-bold text-info-text uppercase tracking-widest">Aggregate Trust</div>
              </div>
@@ -71,13 +71,13 @@ export default function ForensicPage() {
                 <stat.icon className="w-24 h-24 text-foreground" />
              </div>
              <div className="relative z-10 space-y-8">
-                <div className={`p-4 w-14 h-14 rounded-2xl bg-black border border-slate-800 flex items-center justify-center ${stat.color} shadow-inner`}>
+                <div className={`p-4 w-14 h-14 rounded-2xl bg-black border border-border flex items-center justify-center ${stat.color} shadow-inner`}>
                    <stat.icon className="w-6 h-6" />
                 </div>
                 <div>
                    <div className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</div>
                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</span>
+                      <span className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">{stat.label}</span>
                       <span className={`text-[8px] font-black px-2 py-0.5 rounded bg-white/5 border border-white/10 ${stat.color}`}>{stat.trend}</span>
                    </div>
                 </div>
@@ -95,9 +95,9 @@ export default function ForensicPage() {
                  <Clock className="w-5 h-5 text-info-text" />
                  <h2 className="text-xl font-black text-foreground uppercase tracking-tighter italic">Faithfulness History</h2>
               </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-black border border-slate-800 rounded-xl">
+              <div className="flex items-center gap-2 px-4 py-2 bg-black border border-border rounded-xl">
                  <div className="w-2 h-2 rounded-full bg-success-text animate-pulse" />
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real-time Feed</span>
+                 <span className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">Real-time Feed</span>
               </div>
            </div>
 
@@ -123,7 +123,7 @@ export default function ForensicPage() {
         {/* Behavioral Flags */}
         <div className="lg:col-span-4 space-y-8">
            <div className="bg-[#050505] border border-slate-900 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
-              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] mb-10">Behavioral Anomaly Flags</h3>
+              <h3 className="text-[11px] font-black text-foreground-muted uppercase tracking-[0.4em] mb-10">Behavioral Anomaly Flags</h3>
               
               <div className="space-y-4">
                  {[
@@ -133,7 +133,7 @@ export default function ForensicPage() {
                  ].map((flag, i) => (
                    <div key={i} className={`bg-black border ${flag.bg} rounded-3xl p-6 space-y-2 group hover:scale-[1.02] transition-transform cursor-pointer`}>
                       <div className={`text-[10px] font-black uppercase tracking-widest ${flag.severity}`}>{flag.type}</div>
-                      <p className="text-xs text-slate-400 leading-relaxed font-medium">{flag.msg}</p>
+                      <p className="text-xs text-foreground-muted leading-relaxed font-medium">{flag.msg}</p>
                    </div>
                  ))}
               </div>

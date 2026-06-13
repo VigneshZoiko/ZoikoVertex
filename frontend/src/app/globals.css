@@ -178,7 +178,7 @@ body {
   font-size: 18px;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 h1,

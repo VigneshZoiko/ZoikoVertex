@@ -21,7 +21,7 @@ export default function GovernanceCenterPage() {
         </div>
         <div>
           <h1 className="text-3xl font-bold text-foreground">Governance Center</h1>
-          <p className="text-[#888888] text-sm mt-1">Platform trust layer — policies, risk, audit, and compliance.</p>
+          <p className="text-foreground-muted text-sm mt-1">Platform trust layer — policies, risk, audit, and compliance.</p>
         </div>
       </div>
 
@@ -30,13 +30,13 @@ export default function GovernanceCenterPage() {
           <Link
             key={href}
             href={href}
-            className="bg-[#161616] border border-[#2d2d2d] rounded-2xl p-6 hover:border-warning-border hover:bg-[#1a1a1a] transition-all group"
+            className="bg-card border border-border rounded-2xl p-6 hover:border-warning-border hover:bg-surface-hover transition-all group"
           >
             <div className="w-10 h-10 rounded-xl bg-warning-bg flex items-center justify-center mb-4">
               <Icon className="w-5 h-5 text-warning-text" />
             </div>
             <h3 className="text-foreground font-semibold mb-2 group-hover:text-warning-text transition-colors">{label}</h3>
-            <p className="text-[#888888] text-sm leading-relaxed">{desc}</p>
+            <p className="text-foreground-muted text-sm leading-relaxed">{desc}</p>
           </Link>
         ))}
       </div>

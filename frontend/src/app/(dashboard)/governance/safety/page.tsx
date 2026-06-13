@@ -217,10 +217,10 @@ export default function SafetyOverviewPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
-              Tenant: <span className="text-white font-bold">{data?.tenant_id}</span>
+              Tenant: <span className="text-foreground font-bold">{data?.tenant_id}</span>
             </span>
             <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
-              Workspace: <span className="text-white font-bold">{data?.workspace_id?.substring(0, 8)}</span>
+              Workspace: <span className="text-foreground font-bold">{data?.workspace_id?.substring(0, 8)}</span>
             </span>
           </div>
 
@@ -278,12 +278,12 @@ export default function SafetyOverviewPage() {
         <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
           <div className="flex items-center gap-2.5">
             <Layers className="w-6 h-6 text-warning-text" />
-            <h1 className="text-xl font-extrabold text-white">Safety Layer Overview</h1>
+            <h1 className="text-xl font-extrabold text-foreground">Safety Layer Overview</h1>
           </div>
 
           <div className="flex items-center gap-3">
             <button onClick={() => fetchOverview(true)} className="p-2 bg-surface hover:bg-surface-hover border border-border rounded-lg" aria-label="Refresh">
-              <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 text-foreground ${isRefreshing ? "animate-spin" : ""}`} />
             </button>
             <button onClick={handleReviewCriticalQueue} className="px-4 py-2 bg-warning-text hover:brightness-110 text-black font-extrabold rounded-lg text-xs">
               Review Critical Queue
@@ -300,7 +300,7 @@ export default function SafetyOverviewPage() {
                 {data?.posture_status}
               </span>
             </div>
-            <h3 className="text-3xl font-black text-white mt-2">{data?.posture_score}%</h3>
+            <h3 className="text-3xl font-black text-foreground mt-2">{data?.posture_score}%</h3>
             <div className="w-full bg-surface h-2 rounded-full mt-2 overflow-hidden">
               <div className={`h-full rounded-full ${(data?.posture_score || 0) > 85 ? "bg-success-text" : (data?.posture_score || 0) > 60 ? "bg-warning-text" : "bg-error-text"}`}
                 style={{ width: `${data?.posture_score || 0}%` }} />
@@ -312,7 +312,7 @@ export default function SafetyOverviewPage() {
               <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Critical Holds</p>
               <ShieldAlert className="w-4 h-4 text-foreground-muted" />
             </div>
-            <h3 className={`text-3xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-error-text" : "text-white"}`}>
+            <h3 className={`text-3xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-error-text" : "text-foreground"}`}>
               {data?.critical_holds_count || 0}
             </h3>
           </div>
@@ -324,20 +324,20 @@ export default function SafetyOverviewPage() {
                 {data?.agent_safety_health}
               </span>
             </div>
-            <h3 className="text-3xl font-black text-white mt-2 capitalize">{data?.agent_safety_health || "healthy"}</h3>
+            <h3 className="text-3xl font-black text-foreground mt-2 capitalize">{data?.agent_safety_health || "healthy"}</h3>
           </div>
         </div>
 
         {/* Middle Section: Live Safety Queue Summary */}
         <div className="space-y-3">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-warning-text" />
             Live Safety Queue
           </h2>
 
           <div className="bg-surface border border-border rounded-xl flex flex-col h-[360px] overflow-hidden">
             <div className="p-3 border-b border-border flex justify-between items-center">
-              <span className="text-xs font-bold text-white">Telemetry Stream</span>
+              <span className="text-xs font-bold text-foreground">Telemetry Stream</span>
               <span className="text-[10px] text-foreground-muted">Sorted by criticality & recency</span>
             </div>
 
@@ -378,7 +378,7 @@ export default function SafetyOverviewPage() {
         {/* Bottom Widget: Top Rule Hits */}
         <div>
           <div className="bg-surface border border-border rounded-xl p-4">
-            <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+            <h3 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
               <Activity className="w-4 h-4 text-warning-text" />
               Top Rule Hits
             </h3>
@@ -386,7 +386,7 @@ export default function SafetyOverviewPage() {
               {data?.top_rule_hits.map((rule) => (
                 <div key={rule.rule_name} className="flex items-center justify-between p-2.5 bg-surface border border-border rounded-lg">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-white">{rule.rule_name}</h4>
+                    <h4 className="text-xs font-bold text-foreground">{rule.rule_name}</h4>
                     <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
                       rule.severity === 'CRITICAL' ? 'bg-error-bg text-error-text' : 'bg-warning-bg text-warning-text'
                     }`}>
@@ -395,7 +395,7 @@ export default function SafetyOverviewPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-white">{rule.count}</span>
+                    <span className="text-sm font-black text-foreground">{rule.count}</span>
                     <span className="flex items-center justify-center w-5 h-5 rounded bg-surface">
                       {rule.trend === 'up' ? (
                         <TrendingUp className="w-3 h-3 text-error-text" />

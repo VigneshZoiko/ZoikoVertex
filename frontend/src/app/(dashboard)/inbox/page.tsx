@@ -200,7 +200,7 @@ function MessageListItem({
     <div
       className={`w-full text-left px-3 py-2.5 border-b border-border transition-all duration-100 relative group ${
         selected
-          ? "bg-white/[0.05] border-l-2 border-l-info-border"
+          ? "bg-surface border-l-2 border-l-info-border"
           : checked
           ? "bg-error-bg border-l-2 border-l-error-border"
           : "border-l-2 border-l-transparent hover:bg-surface-hover"
@@ -287,7 +287,7 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
                 : sending
                   ? "bg-info-text/50 text-info-text/80 rounded-br-sm"
                   : "bg-info-text text-foreground rounded-br-sm"
-            : "bg-surface text-[#d4d4d4] rounded-bl-sm border border-border"
+            : "bg-surface text-foreground rounded-bl-sm border border-border"
         }`}>
           {body}
         </div>
@@ -342,7 +342,7 @@ function CommentItem({ body, author, time, isMine, sending, replyType, status, r
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-error-text/70" : isAutoSent ? "text-success-text/60" : "text-info-text") : "text-[#c0c0c0]"}`}>
+          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-error-text/70" : isAutoSent ? "text-success-text/60" : "text-info-text") : "text-foreground"}`}>
             {isMine ? (isAutoSent ? "⚡ Auto-reply" : "You") : author}
           </span>
           <span className="text-[10px] text-foreground-muted">{time}</span>
@@ -365,7 +365,7 @@ function CommentItem({ body, author, time, isMine, sending, replyType, status, r
           )}
         </div>
         <p className={`text-[13px] leading-[1.55] ${
-          failed ? "text-error-text line-through decoration-error-border" : isAutoSent ? "text-success-text italic" : sending ? "text-foreground-muted" : "text-[#bbb]"
+          failed ? "text-error-text line-through decoration-error-border" : isAutoSent ? "text-success-text italic" : sending ? "text-foreground-muted" : "text-foreground-muted"
         }`}>{body}</p>
       </div>
     </div>
@@ -468,7 +468,7 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
             View {isVideo ? "video" : "post"} <ExternalLink className="w-2.5 h-2.5" />
           </a>
         ) : msg.original_post_id ? (
-          <span className="ml-auto text-[9px] text-[#282828] font-mono">
+          <span className="ml-auto text-[9px] text-foreground-muted font-mono">
             {msg.original_post_id.slice(-10)}
           </span>
         ) : null}
@@ -519,7 +519,7 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
           <div>
             <p className="text-[11px] text-foreground-muted">Preview unavailable</p>
             {msg.original_post_id && (
-              <p className="text-[10px] text-[#282828] font-mono mt-0.5">{msg.original_post_id.slice(-12)}</p>
+              <p className="text-[10px] text-foreground-muted font-mono mt-0.5">{msg.original_post_id.slice(-12)}</p>
             )}
           </div>
         </div>
@@ -573,7 +573,7 @@ function ComposeBar({
           onKeyDown={handleKeyDown}
           placeholder={commentMode ? "Reply to comment…" : `Message ${senderName}…`}
           rows={2}
-          className={`flex-1 text-[13px] text-foreground placeholder-[#333] px-3.5 py-2.5 outline-none resize-none leading-relaxed transition-colors ${
+          className={`flex-1 text-[13px] text-foreground placeholder-foreground-muted px-3.5 py-2.5 outline-none resize-none leading-relaxed transition-colors ${
             commentMode
               ? "bg-surface border border-border rounded-xl focus:border-border"
               : "bg-background border border-border rounded-2xl focus:border-info-border/25"
@@ -1090,7 +1090,7 @@ export default function InboxPage() {
           {isDemo ? (
             <button
               onClick={() => fetchMessages(1)}
-              className="flex items-center gap-1.5 text-[11px] text-foreground-muted hover:text-foreground-muted bg-surface-hover hover:bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-[11px] text-foreground-muted hover:text-foreground-muted bg-surface-hover hover:bg-surface-hover border border-border px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <RefreshCcw className="w-3 h-3" />
               Reload
@@ -1114,7 +1114,7 @@ export default function InboxPage() {
           )}
           <button
             onClick={openSettings}
-            className="flex items-center justify-center w-7 h-7 text-foreground-muted hover:text-foreground/70 bg-surface-hover hover:bg-white/[0.06] border border-white/[0.06] rounded-lg transition-colors"
+            className="flex items-center justify-center w-7 h-7 text-foreground-muted hover:text-foreground/70 bg-surface-hover hover:bg-surface-hover border border-border rounded-lg transition-colors"
             title="Inbox Settings"
           >
             <Settings className="w-3.5 h-3.5" />
@@ -1130,12 +1130,12 @@ export default function InboxPage() {
           <div className="w-44 flex flex-col h-full overflow-y-auto">
             <div className="px-3 py-2 border-b border-border">
               <div className="flex items-center gap-1.5 bg-background border border-border rounded-lg px-2.5 py-1.5">
-                <Search className="w-3 h-3 text-[#303030]" />
+                <Search className="w-3 h-3 text-foreground-muted" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search…"
-                  className="bg-transparent text-[11px] text-foreground placeholder-[#303030] outline-none flex-1 w-0"
+                  className="bg-transparent text-[11px] text-foreground placeholder-foreground-muted outline-none flex-1 w-0"
                 />
               </div>
             </div>
@@ -1147,7 +1147,7 @@ export default function InboxPage() {
                   key={t.key}
                   onClick={() => setTab(t.key)}
                   className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md transition-colors ${
-                    tab === t.key ? "text-foreground bg-white/[0.05]" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"
+                    tab === t.key ? "text-foreground bg-surface" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"
                   }`}
                 >
                   {t.label}
@@ -1162,7 +1162,7 @@ export default function InboxPage() {
                   key={p.key}
                   onClick={() => setPlatform(p.key)}
                   className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 ${
-                    platform === p.key ? "text-foreground bg-white/[0.05]" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"
+                    platform === p.key ? "text-foreground bg-surface" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"
                   }`}
                 >
                   {p.key && (
@@ -1238,7 +1238,7 @@ export default function InboxPage() {
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
-                <Inbox className="w-5 h-5 text-[#1e1e1e]" />
+                <Inbox className="w-5 h-5 text-foreground-muted" />
                 <span className="text-[11px] text-foreground-muted">No messages</span>
               </div>
             ) : (
@@ -1275,7 +1275,7 @@ export default function InboxPage() {
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
               <div className="w-10 h-10 rounded-2xl bg-surface-hover border border-border flex items-center justify-center">
-                <MessageSquare className="w-4 h-4 text-[#1e1e1e]" />
+                <MessageSquare className="w-4 h-4 text-foreground-muted" />
               </div>
               <p className="text-[11px] text-foreground/50">Select a message to view the conversation</p>
             </div>
@@ -1347,7 +1347,7 @@ export default function InboxPage() {
                   {!isDemo && (
                     <button
                       onClick={handleArchive}
-                      className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-white/[0.04] transition-colors"
+                      className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-surface-hover transition-colors"
                       title="Archive"
                     >
                       <Archive className="w-3.5 h-3.5" />
@@ -1355,7 +1355,7 @@ export default function InboxPage() {
                   )}
                   <button
                     onClick={() => { setSelectedId(null); setDetail(null); }}
-                    className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-white/[0.04] transition-colors"
+                    className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-surface-hover transition-colors"
                     title="Close"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1423,7 +1423,7 @@ export default function InboxPage() {
                             </p>
                           </div>
                           {detail.escalation.review_status === "RESOLVED" ? (
-                            <p className="text-[10px] text-[#484848] mt-0.5">
+                            <p className="text-[10px] text-foreground-muted mt-0.5">
                               {detail.escalation.resolved_by_name
                                 ? `Resolved by ${detail.escalation.resolved_by_name}`
                                 : "Resolved"
@@ -1436,7 +1436,7 @@ export default function InboxPage() {
                             <p className="text-[10px] text-foreground-muted mt-0.5">
                               {detail.escalation.risk_category !== "AUTO_DETECTED" ? detail.escalation.risk_category : detail.escalation.risk_level} · Awaiting review
                               {detail.escalation.assigned_reviewer_name && (
-                                <span className="text-[#484848]"> · Assigned to {detail.escalation.assigned_reviewer_name}</span>
+                                <span className="text-foreground-muted"> · Assigned to {detail.escalation.assigned_reviewer_name}</span>
                               )}
                             </p>
                           )}
@@ -1457,7 +1457,7 @@ export default function InboxPage() {
                         {(detail.replies?.length ?? 0) > 0 && (
                           <div className="flex items-center gap-2 pl-8">
                             <div className="flex-1 border-t border-border" />
-                            <span className="text-[9px] text-[#282828]">
+                            <span className="text-[9px] text-foreground-muted">
                               {detail.replies!.length} {detail.replies!.length === 1 ? "reply" : "replies"}
                             </span>
                             <div className="flex-1 border-t border-border" />
@@ -1660,7 +1660,7 @@ export default function InboxPage() {
               <div className="flex gap-2 justify-end pt-1">
                 <button
                   onClick={() => setShowEscalate(false)}
-                  className="text-[11px] text-foreground-muted hover:text-foreground/70 px-3 py-1.5 rounded-lg border border-border hover:bg-white/[0.04] transition-colors"
+                  className="text-[11px] text-foreground-muted hover:text-foreground/70 px-3 py-1.5 rounded-lg border border-border hover:bg-surface-hover transition-colors"
                 >
                   Cancel
                 </button>
@@ -1697,7 +1697,7 @@ export default function InboxPage() {
                 </div>
                 <button
                   onClick={() => setShowSettings(false)}
-                  className="w-6 h-6 flex items-center justify-center rounded-md text-foreground-muted hover:text-foreground/60 hover:bg-white/[0.04] transition-colors"
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-foreground-muted hover:text-foreground/60 hover:bg-surface-hover transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1709,7 +1709,7 @@ export default function InboxPage() {
                 <section>
                   <p className="text-[9px] text-foreground-muted uppercase tracking-[0.14em] font-medium mb-2.5">Risk Classification</p>
                   <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                    <div className="divide-y divide-[#111]">
+                    <div className="divide-y divide-border">
                       {[
                         { level: "CRITICAL", color: "text-error-text",     bg: "bg-error-bg",     desc: "Threats, extreme abuse, slurs — 10 languages" },
                         { level: "HIGH",     color: "text-warning-text",  bg: "bg-warning-bg",  desc: "Legal threats, chargeback, fraud claims" },
@@ -1809,7 +1809,7 @@ export default function InboxPage() {
                   ) : autoReplyRules.length === 0 ? (
                     <div className="border border-dashed border-border rounded-lg py-6 text-center">
                       <p className="text-[11px] text-foreground/50">No auto-reply rules yet.</p>
-                      <p className="text-[10px] text-[#222] mt-0.5">Add a rule above to get started.</p>
+                      <p className="text-[10px] text-foreground-muted mt-0.5">Add a rule above to get started.</p>
                     </div>
                   ) : (
                     <div className="space-y-1.5">
@@ -1844,7 +1844,7 @@ export default function InboxPage() {
                               <button
                                 onClick={() => handleToggleRule(rule)}
                                 disabled={!canManageInboxRules}
-                                className="p-1 rounded-md hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1 rounded-md hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 title={rule.is_active ? "Disable" : "Enable"}
                               >
                                 {rule.is_active
@@ -1854,7 +1854,7 @@ export default function InboxPage() {
                               <button
                                 onClick={() => startEditRule(rule)}
                                 disabled={!canManageInboxRules}
-                                className="p-1 rounded-md text-foreground/50 hover:text-foreground/60 hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1 rounded-md text-foreground/50 hover:text-foreground/60 hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Pencil className="w-3 h-3" />
                               </button>
