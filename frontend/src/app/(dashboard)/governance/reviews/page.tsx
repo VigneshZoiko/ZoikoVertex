@@ -1,559 +1,709 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { useRoles } from "@/lib/hooks/useRoles";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  ShieldAlert,
-  Clock,
-  User,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  AlertTriangle,
-  FileText,
+  RefreshCcw,
   Search,
-  ArrowRight,
-  ShieldCheck,
-  Lock,
-  MessageSquare,
-  Cpu,
-  Archive,
-  Download,
-  AlertOctagon,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  Ban,
   Eye,
-  CornerDownRight
+  ShieldCheck,
+  Shield,
+  X,
+  User,
+  AlertCircle,
+  Calendar,
+  Inbox,
+  FileText,
 } from "lucide-react";
+import { api } from "@/lib/api";
+
+// ── Agent-routed posts (publish_intents) awaiting a governance decision. ──────
+// Sourced from /governance/queue — these were flagged by the agent safety check
+// and routed to the Approval Console for a human decision.
+interface AgentPost {
+  id: string;
+  content?: string;
+  platform?: string;
+  status: string;
+  risk_level?: string;
+  risk_score?: number;
+  created_at?: string;
+  feedback?: string;
+  media_url?: string | null;
+  media_urls?: string[] | null;
+}
 
 interface ReviewItem {
   id: string;
-  priority: string;
-  sla_due_at: string;
   item_type: string;
-  brand: string;
-  trigger_summary: string;
-  agent_id: string;
-  autonomy_band: string;
-  owner: string;
-  decision_state: string;
-  author_id: string;
-  content_preview?: string;
-  risk_factors?: string[];
-  jurisdictions?: string[];
-  policy_match?: string;
-  ai_recommendation?: string;
-  provenance?: string[];
-  evidence_hash?: string;
-  first_approver_id?: string;
-  workspace_id?: string;
+  source_module: string;
+  title: string;
+  content_snapshot: {
+    copy?: string;
+    urls?: string[];
+    file_type?: string;
+    violation_reason?: string;
+  };
+  platform?: string;
+  submitter_name?: string;
+  status: string;
+  risk_level: string;
+  submitted_at: string;
 }
 
-export default function HumanReviewConsolePage() {
-  const { hasRole, isLoading: rolesLoading } = useRoles();
-  const currentUser = "USR-042"; // Mocked session user for dual-control evaluation
+// Adapt an agent post into the card/detail shape the console renders.
+function agentPostToReviewItem(p: AgentPost): ReviewItem {
+  const risk = p.risk_score ?? 0;
+  const urls = (
+    p.media_urls && p.media_urls.length
+      ? p.media_urls
+      : p.media_url
+        ? [p.media_url]
+        : []
+  ).filter(Boolean) as string[];
+  return {
+    id: p.id,
+    item_type: "Social Post",
+    source_module: "Agent Publish",
+    title: (p.content || "Untitled post").slice(0, 80),
+    content_snapshot: {
+      copy: p.content || "",
+      urls,
+      file_type: urls.length ? "image" : undefined,
+      violation_reason:
+        risk >= 31
+          ? p.feedback || `Flagged by agent safety check (${risk}% risk)`
+          : undefined,
+    },
+    platform: p.platform,
+    submitter_name: p.platform ? p.platform.toUpperCase() : "Agent",
+    status: p.status,
+    risk_level: p.risk_level || "LOW",
+    submitted_at: p.created_at || "",
+  };
+}
 
-  
-  const [queue, setQueue] = useState<ReviewItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Decision Form State
-  const [rationale, setRationale] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  
-  // Downstream Preview logic
-  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  PENDING_REVIEW: { label: "Pending", color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
+  PENDING_VALIDATION: { label: "Pending", color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
+  PENDING_AUTHORIZATION: { label: "Pending", color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
+  PENDING_GOVERNANCE: { label: "Pending", color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
+  IN_REVIEW: { label: "In Review", color: "bg-amber-500/10 text-amber-300 border-amber-500/20" },
+  AWAITING_REVISION: { label: "Returned", color: "bg-orange-500/10 text-orange-300 border-orange-500/20" },
+  APPROVED: { label: "Approved", color: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" },
+  RELEASED: { label: "Released", color: "bg-emerald-600/10 text-emerald-300 border-emerald-600/20" },
+  REJECTED: { label: "Rejected", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+  GOVERNANCE_BLOCKED: { label: "Blocked", color: "bg-red-600/10 text-red-400 border-red-600/20" },
+};
 
-  const [now, setNow] = useState(Date.now);
+const RISK_CONFIG: Record<string, string> = {
+  LOW: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  MEDIUM: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  HIGH: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  CRITICAL: "bg-red-500/10 text-red-400 border-red-500/20",
+};
 
-  const fetchQueue = async () => {
+function formatRelative(d?: string) {
+  if (!d) return "—";
+  const diff = Date.now() - new Date(d).getTime();
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor(diff / 60000);
+  if (h > 24) return `${Math.floor(h / 24)}d ago`;
+  if (h > 0) return `${h}h ago`;
+  if (m > 0) return `${m}m ago`;
+  return "Just now";
+}
+
+function formatDateTime(d?: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const TABS = [
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected / Returned" },
+];
+
+// ── Knowledge Base Review Queue ──────────────────────────────────────────────
+// Mirrors the KB page's review queue: sources awaiting review, with Approve /
+// Block actions, surfaced at the top of the Approval Console.
+function KnowledgeReviewQueue() {
+  const [sources, setSources] = useState<any[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [open, setOpen] = useState(true);
+
+  const fetchSources = useCallback(async () => {
     try {
-      const res = await api.get("/api/safety/reviews");
+      const res = await api.listKnowledgeSources();
+      if (res?.success) setSources(res.data || []);
+    } catch {
+      // non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSources();
+  }, [fetchSources]);
+
+  const isReview = (s: any) =>
+    ["DRAFT", "REVIEW_REQUIRED", "PROCESSING"].includes(String(s?.status || "").toUpperCase());
+  const queue = sources.filter(isReview);
+
+  const act = async (s: any, action: "approve" | "block") => {
+    setBusy(s.id);
+    try {
+      if (action === "approve") await api.approveKnowledgeSource(s.id);
+      else await api.quarantineKnowledgeSource(s.id);
+      await fetchSources();
+    } catch {
+      // non-critical
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (queue.length === 0) return null;
+
+  return (
+    <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between px-5 py-3">
+        <span className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+          <Inbox className="w-4 h-4" /> Knowledge Base Review Queue
+          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">
+            {queue.length} pending
+          </span>
+        </span>
+        <span className="text-[11px] text-zinc-500">Approve or block sources awaiting review</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-zinc-800 border-t border-zinc-800">
+          {queue.map((s) => {
+            const author = (s.metadata?.author as string) || s.owner_name || "—";
+            return (
+              <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+                <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white truncate">{s.title}</p>
+                  <p className="text-[11px] text-zinc-500">{s.source_type || "source"} · by {author}</p>
+                </div>
+                <button
+                  onClick={() => act(s, "approve")}
+                  disabled={busy !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" /> Approve
+                </button>
+                <button
+                  onClick={() => act(s, "block")}
+                  disabled={busy !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-all disabled:opacity-50"
+                >
+                  <Ban className="w-3.5 h-3.5" /> Block
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ApprovalConsolePage() {
+  const [posts, setPosts] = useState<AgentPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
+  const [activeTab, setActiveTab] = useState("pending");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showActionDrawer, setShowActionDrawer] = useState<"reject" | "return" | null>(null);
+  const [drawerText, setDrawerText] = useState("");
+  const [activeMediaIdx, setActiveMediaIdx] = useState(0);
+  const initialSelectDone = useRef(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/api/v1/governance/queue");
       if (res.success) {
-        setQueue(res.data);
+        const all = (res.data || []) as AgentPost[];
+        setPosts(all);
+        if (all.length > 0 && !initialSelectDone.current) {
+          initialSelectDone.current = true;
+          const pending = all.find((p) => String(p.status || "").startsWith("PENDING"));
+          if (pending) setSelectedItem(agentPostToReviewItem(pending));
+        }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchDetail = async (id: string) => {
-    try {
-      const res = await api.get(`/api/safety/reviews/${id}`);
-      if (res.success) {
-        setSelectedItem(res.data);
-        setRationale("");
-        setActionError(null);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    const safeFetch = () => {
-      if (!cancelled && document.visibilityState === 'visible') {
-        setNow(Date.now());
-        fetchQueue();
-      }
-    };
-    safeFetch();
-    const interval = setInterval(safeFetch, 30000); // 30s auto-refresh
-    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  const handleDecision = async (decision: string) => {
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSelect = (item: ReviewItem) => {
+    setSelectedItem(item);
+    setActiveMediaIdx(0);
+    setMessage(null);
+    setShowActionDrawer(null);
+    setDrawerText("");
+  };
+
+  const handleAction = async (action: string, extra?: Record<string, string>) => {
     if (!selectedItem) return;
-    
-    // Rationale mandatory for everything except maybe allow? Requirements state: "required Rationale field for High and Critical decisions"
-    // To be perfectly safe, enforce for all material actions here.
-    if (!rationale || rationale.trim().length < 5) {
-      setActionError("A detailed rationale is required to submit this decision.");
-      return;
-    }
-
-    setSubmitting(true);
-    setActionError(null);
+    setActionLoading(action);
+    setMessage(null);
     try {
-      // Generate idempotency key for this attempt
-      const idempotencyKey = `IDMP-${selectedItem.id}-${Date.now()}`;
-      
-      const res = await api.post(`/api/safety/reviews/${selectedItem.id}/decision`, {
-        decision,
-        rationale,
-        idempotency_key: idempotencyKey
-      });
-
-      if (res.success) {
-        setSelectedItem(null);
-        setRationale("");
-        fetchQueue();
-      } else {
-        setActionError(res.error);
+      const map: Record<string, string> = {
+        approve: "approve",
+        reject: "reject",
+        request_revision: "return",
+      };
+      const govAction = map[action];
+      if (!govAction) {
+        setActionLoading(null);
+        return;
       }
-    } catch (err: any) {
-      setActionError(err.message || "Failed to submit decision.");
+      const r = await api.post(
+        `/api/v1/governance/intents/${selectedItem.id}/review-action`,
+        { action: govAction, reason: extra?.reason || extra?.note },
+      );
+      if (r.success) {
+        const labels: Record<string, string> = {
+          approve: r.blocked
+            ? "Governance blocked this post — not published."
+            : "Approved. Publishing…",
+          reject: "Rejected. Creator notified.",
+          request_revision: "Returned to creator.",
+        };
+        setMessage({ type: r.blocked ? "error" : "success", text: labels[action] || "Done." });
+        setShowActionDrawer(null);
+        setDrawerText("");
+        setSelectedItem(null);
+        initialSelectDone.current = false;
+        fetchData();
+      } else {
+        setMessage({ type: "error", text: r.error || "Action failed." });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed." });
     } finally {
-      setSubmitting(false);
+      setActionLoading(null);
     }
   };
 
-  const getSlaStatus = (dueAt: string) => {
-    const due = new Date(dueAt).getTime();
-    const diff = due - now;
-    
-    if (diff < 0) return { text: "BREACHED", color: "text-error-text bg-error-bg border-error-border animate-pulse" };
-    if (diff < 30 * 60 * 1000) return { text: "AT RISK", color: "text-warning-text bg-warning-bg border-warning-border" }; // < 30 mins
-    return { text: "ON TRACK", color: "text-success-text bg-success-bg border-success-border" };
+  const items = posts.map(agentPostToReviewItem);
+
+  const isPending = (s: string) => s.startsWith("PENDING") || s === "IN_REVIEW";
+  const isApproved = (s: string) => s === "APPROVED" || s === "RELEASED";
+  const isRejected = (s: string) =>
+    s === "REJECTED" || s === "GOVERNANCE_BLOCKED" || s === "AWAITING_REVISION";
+
+  const filtered = items
+    .filter((item) => {
+      if (activeTab === "pending") return isPending(item.status);
+      if (activeTab === "approved") return isApproved(item.status);
+      if (activeTab === "rejected") return isRejected(item.status);
+      return true;
+    })
+    .filter((i) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return i.title.toLowerCase().includes(q) || (i.platform || "").toLowerCase().includes(q);
+    });
+
+  const counts = {
+    pending: items.filter((i) => isPending(i.status)).length,
+    approved: items.filter((i) => isApproved(i.status)).length,
+    rejected: items.filter((i) => isRejected(i.status)).length,
   };
 
-  const formatTimeDiff = (dueAt: string) => {
-    const due = new Date(dueAt).getTime();
-    const diff = Math.abs(due - now);
-    
-    const mins = Math.floor(diff / 60000);
-    const hrs = Math.floor(mins / 60);
-    if (hrs > 0) return `${hrs}h ${mins % 60}m`;
-    return `${mins}m`;
-  };
+  // Media
+  const mediaUrls = selectedItem?.content_snapshot?.urls as string[] | undefined;
+  const fileType = selectedItem?.content_snapshot?.file_type as string | undefined;
+  const isImage = !!(fileType?.startsWith("image") || fileType === "image");
+  const isVideo = !!(fileType?.startsWith("video") || fileType === "video" || fileType === "mixed");
+  const hasMedia = !!(mediaUrls?.length && (isImage || isVideo));
+  const isFlagged = selectedItem?.status === "GOVERNANCE_BLOCKED" || selectedItem?.status === "REJECTED";
+  const snapCopy = selectedItem?.content_snapshot?.copy as string | undefined;
+  const violation = selectedItem?.content_snapshot?.violation_reason as string | undefined;
 
-  const requiresDualControl = selectedItem?.priority === 'Critical' || selectedItem?.item_type === 'Regulated Claim' || selectedItem?.item_type === 'Crisis Response';
-  const isFirstKeyTurned = !!selectedItem?.first_approver_id;
-  const isConflictOfInterest = selectedItem?.author_id === currentUser;
-
-  const getDownstreamPreview = () => {
-    if (!hoveredAction) return "Hover over a decision to view deterministic downstream impact.";
-    switch (hoveredAction) {
-      case 'Approve':
-        if (requiresDualControl && !isFirstKeyTurned) {
-          return "EMITS: require_approval. Transits to 'Awaiting Second Approval'. Downstream remains paused.";
-        }
-        return "EMITS: allow. Triggers downstream.release_requested to production environments.";
-      case 'Reject': return "EMITS: block. Triggers downstream.block_confirmed. Item is permanently halted.";
-      case 'Request Changes': return "EMITS: hold_for_review. Notifies assignee to revise. Item remains locked.";
-      case 'Escalate': return "EMITS: require_approval. SLA recalculated. Routes to next management tier.";
-      case 'Quarantine': return "EMITS: quarantine. Item isolated in Evidence Vault. Forensic analysis engaged.";
-      case 'Pause Agent': return "EMITS: emergency_pause_recommendation. Entire agent workflow halts immediately.";
-      default: return "";
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-warning-border mb-4"></div>
-        <p className="text-foreground-muted font-medium font-mono text-sm">Initializing Human-in-the-Loop Console...</p>
-      </div>
-    );
-  }
+  const pending = !!selectedItem && isPending(selectedItem.status);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex font-sans overflow-hidden h-screen selection:bg-warning-bg selection:text-white">
-      
-      {/* -------------------------------------------------------------
-          LEFT PANEL: REVIEW QUEUE
-          ------------------------------------------------------------- */}
-      <div className="w-[450px] border-r border-border bg-surface flex flex-col h-full flex-shrink-0">
-        <div className="p-4 border-b border-border bg-surface">
-          <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-warning-text" />
-            Active Review Queue
-          </h2>
-          <div className="flex items-center justify-between mt-3">
-            <div className="relative flex-1 mr-3">
-              <Search className="w-3.5 h-3.5 text-foreground-muted absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder="Filter items..." 
-                className="w-full bg-background border border-border focus:border-border rounded-lg pl-9 pr-4 py-1.5 text-xs text-foreground focus:outline-none"
-              />
+    <div className="max-w-7xl mx-auto px-6 py-8 pb-16">
+      {/* Header */}
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-8 h-8 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-zinc-300" />
             </div>
-            <button onClick={fetchQueue} className="p-2 bg-surface hover:bg-surface-hover border border-border rounded-lg text-foreground transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
+            <h1 className="text-xl font-bold text-white">Approval Console</h1>
+          </div>
+          <p className="text-sm text-zinc-500 ml-11">
+            Agent-routed posts awaiting a governance decision. Approve to publish,
+            reject, or return to the creator.
+          </p>
+        </div>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-zinc-400 text-xs font-medium transition-colors disabled:opacity-50"
+        >
+          <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Knowledge Base sources awaiting review — surfaced at the top. */}
+      <KnowledgeReviewQueue />
+
+      {/* Toast */}
+      {message && (
+        <div
+          className={`mb-5 p-3 rounded-lg flex items-center gap-2.5 text-xs font-medium border ${
+            message.type === "success"
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+              : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+          }`}
+        >
+          {message.type === "success" ? (
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          )}
+          {message.text}
+          <button onClick={() => setMessage(null)} className="ml-auto text-zinc-600 hover:text-zinc-300">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          { label: "Pending", value: counts.pending, color: "text-blue-400" },
+          { label: "Approved", value: counts.approved, color: "text-emerald-400" },
+          { label: "Rejected / Returned", value: counts.rejected, color: "text-rose-400" },
+        ].map((s) => (
+          <div key={s.label} className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-zinc-500 font-medium mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Layout */}
+      <div className="flex gap-5 items-start">
+        {/* Left: Item List */}
+        <div className="w-[260px] shrink-0 flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+            />
+          </div>
+
+          <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 px-2 py-1.5 text-[10px] font-semibold rounded transition-all ${
+                  activeTab === tab.key ? "bg-white text-black" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {tab.label}
+                {counts[tab.key as keyof typeof counts] > 0 && (
+                  <span
+                    className={`ml-1 px-1 rounded text-[8px] font-bold ${
+                      activeTab === tab.key ? "bg-black/10 text-black" : "bg-zinc-800 text-zinc-500"
+                    }`}
+                  >
+                    {counts[tab.key as keyof typeof counts]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-1.5 max-h-[600px] overflow-y-auto scrollbar-none">
+            {loading ? (
+              <div className="flex flex-col items-center py-12 text-zinc-600 gap-3">
+                <div className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
+                <p className="text-[10px]">Loading...</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
+                <CheckCircle2 className="w-6 h-6 text-zinc-700 mx-auto mb-2" />
+                <p className="text-xs text-zinc-600">No items</p>
+              </div>
+            ) : (
+              filtered.map((item) => {
+                const isSelected = selectedItem?.id === item.id;
+                const status = STATUS_CONFIG[item.status] || {
+                  label: item.status,
+                  color: "bg-zinc-800 text-zinc-400 border-zinc-700",
+                };
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item)}
+                    className={`w-full text-left rounded-lg p-3 transition-all border ${
+                      isSelected ? "bg-zinc-800 border-zinc-600" : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                    }`}
+                  >
+                    <p className="text-[11px] font-semibold text-white line-clamp-2 mb-1.5">{item.title}</p>
+                    <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                      <span className={`px-1.5 py-[1px] rounded border text-[8px] font-bold ${status.color}`}>
+                        {status.label}
+                      </span>
+                      <span className={`px-1.5 py-[1px] rounded border text-[8px] font-bold ${RISK_CONFIG[item.risk_level] || ""}`}>
+                        {item.risk_level}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[9px] text-zinc-600">
+                      <span>{item.submitter_name}</span>
+                      <span>{formatRelative(item.submitted_at)}</span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-          {queue.length > 0 ? queue.map((item) => {
-            const sla = getSlaStatus(item.sla_due_at);
-            const isSelected = selectedItem?.id === item.id;
-            
-            return (
-              <div 
-                key={item.id} 
-                onClick={() => fetchDetail(item.id)}
-                className={`p-3 rounded-xl border transition-all cursor-pointer select-none group ${
-                  isSelected 
-                    ? "bg-surface border-warning-border shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
-                    : "bg-surface border-border hover:border-border"
-                }`}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex gap-2">
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
-                      item.priority === 'Critical' ? 'bg-error-bg text-error-text border-error-border' :
-                      item.priority === 'High' ? 'bg-warning-bg text-warning-text border-warning-border' :
-                      'bg-warning-bg text-warning-text border-warning-border'
-                    }`}>
-                      {item.priority}
-                    </span>
-                    {item.priority === 'Critical' && <span className="text-[10px] text-foreground-muted font-bold">📌 Pinned</span>}
-                  </div>
-                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[9px] font-bold ${sla.color}`}>
-                    <Clock className="w-3 h-3" />
-                    {new Date(item.sla_due_at).getTime() < now ? '-' : ''}{formatTimeDiff(item.sla_due_at)}
-                  </div>
-                </div>
-
-                <h4 className="text-xs font-bold text-foreground leading-tight mb-1">{item.brand} — {item.item_type}</h4>
-                <p className="text-[10px] text-foreground-muted line-clamp-2 leading-relaxed mb-3">{item.trigger_summary}</p>
-
-                <div className="flex justify-between items-center pt-2 border-t border-border">
-                  <span className="text-[9px] font-mono text-foreground-muted">{item.id}</span>
-                  <div className="flex gap-2">
-                    {item.owner === 'Unassigned' ? (
-                      <button className="px-2 py-1 bg-warning-bg text-warning-text hover:brightness-110 rounded border border-warning-border text-[9px] font-bold">
-                        Assign Self
-                      </button>
-                    ) : (
-                      <span className="text-[9px] text-foreground-muted bg-surface px-2 py-1 rounded">
-                        <User className="w-2.5 h-2.5 inline mr-1" />{item.owner}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          }) : (
-            <div className="text-center py-10 text-xs text-foreground-muted font-mono">No items in queue.</div>
-          )}
-        </div>
-      </div>
-
-      {/* -------------------------------------------------------------
-          CENTER PANEL: DECISION CANVAS
-          ------------------------------------------------------------- */}
-      <div className="flex-1 bg-background flex flex-col h-full relative z-10 overflow-hidden">
-        {selectedItem ? (
-          <>
-            <div className="p-6 border-b border-border bg-surface/80 backdrop-blur flex justify-between items-center">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-mono text-warning-text">Decision Canvas</span>
-                  <span className="px-2 py-0.5 bg-surface text-foreground-muted text-[9px] font-bold rounded uppercase">{selectedItem.decision_state}</span>
-                </div>
-                <h1 className="text-2xl font-black text-foreground">{selectedItem.item_type} Review</h1>
-              </div>
-              {isConflictOfInterest && (
-                <div className="px-4 py-2 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-error-text" />
-                  <span className="text-xs font-bold text-error-text">Conflict of Interest: Self-Approval Disabled</span>
-                </div>
-              )}
+        {/* Right: Detail */}
+        <div className="flex-1 min-w-0">
+          {!selectedItem ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-16 text-center">
+              <Eye className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-zinc-500">Select a post to review</p>
+              <p className="text-xs text-zinc-700 mt-1">Choose from the queue on the left</p>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-              
-              {/* Content Preview */}
-              <div className="bg-surface border border-border rounded-xl overflow-hidden">
-                <div className="bg-surface px-4 py-3 border-b border-border flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground-muted uppercase tracking-wider flex items-center gap-2">
-                    <Eye className="w-4 h-4" /> Content / Action Preview
-                  </span>
-                  <span className="text-[10px] text-foreground-muted font-mono">Autonomy Band: {selectedItem.autonomy_band}</span>
-                </div>
-                <div className="p-6 text-sm text-foreground font-serif leading-relaxed italic border-l-4 border-warning-border bg-surface">
-                  {"\u201C"}{selectedItem.content_preview}{"\u201D"}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                {/* Risk Summary */}
-                <div className="bg-surface border border-border rounded-xl p-5">
-                  <h3 className="text-xs font-bold text-foreground-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-warning-text" /> Risk Summary
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center border-b border-border pb-2">
-                      <span className="text-[11px] text-foreground-muted">Base Tier</span>
-                      <span className="text-xs font-black text-error-text">{selectedItem.priority}</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-border pb-2">
-                      <span className="text-[11px] text-foreground-muted">Risk Factors</span>
-                      <div className="flex flex-wrap gap-1 justify-end">
-                        {selectedItem.risk_factors?.map(rf => (
-                          <span key={rf} className="px-1.5 py-0.5 bg-surface text-foreground text-[9px] rounded font-medium">{rf}</span>
-                        ))}
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}>
+                  {/* Left info pane */}
+                  <div className={`flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-zinc-800 p-4" : "w-full p-5"}`}>
+                    <div className="pb-3 border-b border-zinc-800">
+                      <h3 className="text-sm font-bold text-white leading-snug mb-2">{selectedItem.title}</h3>
+                      <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                        <span className={`px-2 py-0.5 rounded border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.status]?.color || "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                          {STATUS_CONFIG[selectedItem.status]?.label || selectedItem.status}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded border text-[8px] font-bold ${RISK_CONFIG[selectedItem.risk_level] || ""}`}>
+                          {selectedItem.risk_level}
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] text-foreground-muted">Jurisdictions</span>
-                      <div className="flex flex-wrap gap-1 justify-end">
-                        {selectedItem.jurisdictions?.map(j => (
-                          <span key={j} className="px-1.5 py-0.5 bg-info-bg text-info-text border border-info-border text-[9px] rounded font-medium">{j}</span>
-                        ))}
+                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-500">
+                        <User className="w-3 h-3 shrink-0" />
+                        <span className="text-zinc-300 font-medium truncate">{selectedItem.submitter_name}</span>
                       </div>
+                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 mt-0.5">
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        <span>{formatDateTime(selectedItem.submitted_at)}</span>
+                      </div>
+                      <p className="text-[9px] text-zinc-600 mt-1">
+                        {selectedItem.item_type} · {selectedItem.source_module}
+                      </p>
+                    </div>
+
+                    {snapCopy && (
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+                        <p className="text-[10px] text-zinc-400 leading-relaxed">{snapCopy}</p>
+                      </div>
+                    )}
+
+                    {violation && (
+                      <div className="flex items-start gap-2.5 p-2.5 bg-red-500/[0.05] border border-red-500/20 rounded-lg">
+                        <Shield className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[9px] font-bold text-red-300 mb-0.5 uppercase tracking-wide">Block Reason</p>
+                          <p className="text-[10px] text-red-300/80 leading-relaxed">{violation}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2 pt-1">
+                      {pending ? (
+                        <>
+                          <button
+                            onClick={() => handleAction("approve", { reason: "Approved" })}
+                            disabled={actionLoading !== null}
+                            className="w-full px-3 py-2 bg-white hover:bg-zinc-100 text-black text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            {actionLoading === "approve" ? (
+                              <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            )}
+                            Approve &amp; Publish
+                          </button>
+                          <button
+                            onClick={() => { setShowActionDrawer("reject"); setDrawerText(""); }}
+                            disabled={actionLoading !== null}
+                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> Reject
+                          </button>
+                          <button
+                            onClick={() => { setShowActionDrawer("return"); setDrawerText(""); }}
+                            disabled={actionLoading !== null}
+                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-orange-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" /> Return to Creator
+                          </button>
+                        </>
+                      ) : (
+                        <div
+                          className={`rounded-lg p-2.5 text-center text-[10px] font-semibold border ${
+                            isApproved(selectedItem.status)
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : selectedItem.status === "REJECTED" || selectedItem.status === "GOVERNANCE_BLOCKED"
+                                ? "bg-red-500/10 text-red-400 border-red-500/20"
+                                : "bg-orange-500/10 text-orange-400 border-orange-500/20"
+                          }`}
+                        >
+                          {STATUS_CONFIG[selectedItem.status]?.label || selectedItem.status}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* AI Rec & Policy Trigger */}
-                <div className="space-y-6">
-                  <div className="bg-surface border border-border rounded-xl p-4 flex gap-3">
-                    <Cpu className="w-5 h-5 text-info-text flex-shrink-0" />
-                    <div>
-                      <span className="text-[10px] font-bold text-foreground-muted uppercase block mb-1">AI Recommendation (Informational)</span>
-                      <span className="text-sm font-black text-info-text uppercase tracking-wide">{selectedItem.ai_recommendation?.replace(/_/g, ' ')}</span>
-                      <p className="text-[9px] text-foreground-muted mt-1 italic">AI recommendations do not pre-select decision buttons.</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-surface border border-error-border rounded-xl p-4">
-                    <span className="text-[10px] font-bold text-error-text uppercase block mb-1 flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5" /> Policy Trigger Stack
-                    </span>
-                    <span className="text-xs text-foreground font-mono">{selectedItem.policy_match}</span>
-                    <p className="text-[10px] text-foreground-muted mt-2 line-clamp-2">{selectedItem.trigger_summary}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Area */}
-              <div className="bg-surface border border-border rounded-2xl p-6 shadow-2xl relative">
-                
-                {requiresDualControl && (
-                  <div className="absolute -top-3 left-6 px-3 py-1 bg-info-bg border border-info-border text-info-text text-[10px] font-black rounded uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
-                    <Lock className="w-3 h-3" /> Dual-Control Validation Required
-                  </div>
-                )}
-
-                <div className="mb-5">
-                  <label className="block text-xs font-bold text-foreground-muted mb-2">Mandatory Rationale *</label>
-                  <textarea 
-                    value={rationale}
-                    onChange={(e) => setRationale(e.target.value)}
-                    placeholder="Provide explicit reasoning for the decision. This is immutable and visible in audits."
-                    className="w-full h-24 bg-background border border-border focus:border-warning-border rounded-xl p-4 text-xs text-foreground placeholder-foreground-muted resize-none focus:outline-none focus:ring-warning-border"
-                  />
-                  {actionError && (
-                    <div className="mt-2 text-[10px] text-error-text font-semibold flex items-center gap-1">
-                      <AlertOctagon className="w-3 h-3" /> {actionError}
+                  {/* Right media pane */}
+                  {hasMedia && mediaUrls && (
+                    <div className="flex-1 min-w-0 bg-black flex flex-col">
+                      {isImage && (
+                        <div className="relative w-full flex items-center justify-center min-h-[200px] flex-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={mediaUrls[activeMediaIdx] ?? mediaUrls[0]}
+                            alt={selectedItem.title}
+                            className="w-full h-auto max-h-[560px] object-contain"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                          {isFlagged && (
+                            <div className="absolute inset-0 bg-red-950/40 flex items-center justify-center backdrop-blur-[1px] pointer-events-none">
+                              <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 px-3 py-1.5 rounded-lg">
+                                <Ban className="w-4 h-4 text-red-400" />
+                                <span className="text-red-300 text-xs font-bold uppercase tracking-wide">Blocked</span>
+                              </div>
+                            </div>
+                          )}
+                          {mediaUrls.length > 1 && (
+                            <span className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                              {activeMediaIdx + 1} / {mediaUrls.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {isVideo && (
+                        <div className="relative aspect-video w-full">
+                          <video
+                            src={mediaUrls[0]}
+                            controls
+                            className="w-full h-full object-contain"
+                            onError={(e) => { (e.target as HTMLVideoElement).style.display = "none"; }}
+                          />
+                        </div>
+                      )}
+                      {isImage && mediaUrls.length > 1 && (
+                        <div className="flex gap-1.5 p-2 bg-zinc-950 border-t border-zinc-800 overflow-x-auto scrollbar-none">
+                          {mediaUrls.map((url, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setActiveMediaIdx(idx)}
+                              className={`relative h-12 w-12 shrink-0 rounded overflow-hidden bg-black border-2 transition-all ${
+                                activeMediaIdx === idx ? "border-white" : "border-zinc-700 opacity-50 hover:opacity-80"
+                              }`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt={`${idx + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-
-                {/* Downstream Impact Preview */}
-                <div className="bg-background border border-border rounded-lg p-3 mb-6 min-h-[48px] flex items-center gap-2">
-                  <CornerDownRight className="w-4 h-4 text-foreground-muted" />
-                  <span className={`text-[10px] font-mono ${hoveredAction ? 'text-warning-text' : 'text-foreground-muted'}`}>
-                    {getDownstreamPreview()}
-                  </span>
-                </div>
-
-                {/* Decision Buttons */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <button 
-                    onMouseEnter={() => setHoveredAction('Approve')} onMouseLeave={() => setHoveredAction(null)}
-                    onClick={() => handleDecision('Approve')}
-                    disabled={isConflictOfInterest || submitting}
-                    className="py-3 px-4 bg-success-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-1"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    {requiresDualControl && !isFirstKeyTurned ? "Submit First Approval" : "Approve & Release"}
-                  </button>
-                  
-                  <button 
-                    onMouseEnter={() => setHoveredAction('Reject')} onMouseLeave={() => setHoveredAction(null)}
-                    onClick={() => handleDecision('Reject')}
-                    disabled={submitting}
-                    className="py-3 px-4 bg-error-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all flex flex-col items-center justify-center gap-1"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Reject & Block
-                  </button>
-
-                  <button 
-                    onMouseEnter={() => setHoveredAction('Request Changes')} onMouseLeave={() => setHoveredAction(null)}
-                    onClick={() => handleDecision('Request Changes')}
-                    disabled={submitting}
-                    className="py-3 px-4 bg-surface hover:bg-surface-hover border border-border text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Request Changes
-                  </button>
-
-                  <button 
-                    onMouseEnter={() => setHoveredAction('Escalate')} onMouseLeave={() => setHoveredAction(null)}
-                    onClick={() => handleDecision('Escalate')}
-                    disabled={submitting}
-                    className="py-3 px-4 bg-warning-text hover:brightness-110 text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                    Escalate
-                  </button>
-                </div>
-
-                <div className="flex justify-center mt-4">
-                   <button 
-                    onMouseEnter={() => setHoveredAction('Quarantine')} onMouseLeave={() => setHoveredAction(null)}
-                    onClick={() => handleDecision('Quarantine')}
-                    className="text-[10px] text-foreground-muted hover:text-foreground transition-colors uppercase font-bold tracking-widest mr-4"
-                  >
-                    Quarantine
-                  </button>
-                  <button 
-                    onMouseEnter={() => setHoveredAction('Pause Agent')} onMouseLeave={() => setHoveredAction(null)}
-                    onClick={() => handleDecision('Pause Agent')}
-                    className="text-[10px] text-error-text hover:text-error-text transition-colors uppercase font-bold tracking-widest"
-                  >
-                    Emergency Pause Agent
-                  </button>
-                </div>
               </div>
 
+              {/* Action Drawer */}
+              {showActionDrawer && (
+                <div
+                  className={`rounded-lg p-4 space-y-3 border ${
+                    showActionDrawer === "reject" ? "bg-red-500/[0.03] border-red-500/20" : "bg-orange-500/[0.03] border-orange-500/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className={`text-xs font-bold ${showActionDrawer === "reject" ? "text-red-300" : "text-orange-300"}`}>
+                      {showActionDrawer === "reject" ? "Rejection Reason" : "Return Instructions"}
+                    </p>
+                    <button onClick={() => setShowActionDrawer(null)} className="text-zinc-600 hover:text-zinc-400">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <textarea
+                    placeholder={showActionDrawer === "reject" ? "Reason for rejection..." : "Instructions for the creator..."}
+                    value={drawerText}
+                    onChange={(e) => setDrawerText(e.target.value)}
+                    rows={3}
+                    className={`w-full bg-zinc-950 rounded-lg p-3 text-xs text-white placeholder-zinc-600 focus:outline-none resize-none border ${
+                      showActionDrawer === "reject" ? "border-red-500/20 focus:border-red-500/40" : "border-orange-500/20 focus:border-orange-500/40"
+                    }`}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowActionDrawer(null)}
+                      className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-xs font-semibold rounded-lg text-zinc-400"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() =>
+                        showActionDrawer === "reject"
+                          ? handleAction("reject", { reason: drawerText })
+                          : handleAction("request_revision", { note: drawerText, reason: "Revision requested" })
+                      }
+                      disabled={!drawerText.trim() || actionLoading !== null}
+                      className="px-4 py-1.5 bg-white hover:bg-zinc-100 text-black text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
+                    >
+                      {showActionDrawer === "reject" ? "Confirm Reject" : "Send to Creator"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-foreground-muted">
-            <ShieldCheck className="w-16 h-16 mb-4 opacity-20" />
-            <p className="text-sm font-medium">Select an item from the queue to begin review.</p>
-          </div>
-        )}
-      </div>
-
-      {/* -------------------------------------------------------------
-          RIGHT PANEL: EVIDENCE DRAWER
-          ------------------------------------------------------------- */}
-      <div className="w-[380px] border-l border-border bg-surface flex flex-col h-full flex-shrink-0 z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
-        <div className="p-4 border-b border-border bg-surface flex justify-between items-center">
-          <h2 className="text-sm font-black text-foreground flex items-center gap-2 uppercase tracking-widest">
-            <Archive className="w-4 h-4 text-foreground-muted" />
-            Evidence Drawer
-          </h2>
+          )}
         </div>
-
-        {selectedItem ? (
-          <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
-            
-            {/* Export Hash */}
-            <div className="p-3 bg-info-bg border border-info-border rounded-xl flex items-start gap-3">
-              <Download className="w-4 h-4 text-info-text mt-0.5" />
-              <div>
-                <span className="text-[10px] font-bold text-info-text block mb-0.5">Export Immutable Evidence</span>
-                <span className="text-[9px] text-foreground-muted font-mono block break-all">{selectedItem.evidence_hash}</span>
-              </div>
-            </div>
-
-            {/* Provenance */}
-            <div>
-              <h4 className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Provenance & Lineage</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-foreground-muted">Agent Identity</span>
-                  <span className="text-foreground font-mono">{selectedItem.agent_id}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-foreground-muted">Source Workspace</span>
-                  <span className="text-foreground font-mono">{selectedItem.workspace_id?.substring(0,8)}</span>
-                </div>
-                <div className="mt-3">
-                  <span className="text-[10px] text-foreground-muted block mb-1">Execution Chain:</span>
-                  <div className="flex gap-2 font-mono text-[9px] text-warning-text">
-                    {selectedItem.provenance?.map((p, i) => (
-                      <span key={i} className="px-1.5 py-0.5 bg-surface border border-border rounded">{p}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="h-px bg-surface w-full" />
-
-            {/* Classification */}
-            <div>
-              <h4 className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Intake Classification</h4>
-              <div className="bg-surface border border-border rounded-lg p-3 space-y-2">
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-foreground-muted">Outcome Code</span>
-                  <span className="text-success-text font-mono font-bold">hold_for_review</span>
-                </div>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-foreground-muted">Intake Confidence</span>
-                  <span className="text-foreground">99.4%</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="h-px bg-surface w-full" />
-
-            {/* Prior Decisions */}
-            <div>
-              <h4 className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Prior Decisions (Context)</h4>
-              <div className="space-y-2">
-                <div className="p-2 border border-border rounded bg-surface text-[10px]">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-error-text font-bold uppercase">Block</span>
-                    <span className="text-foreground-muted">14d ago</span>
-                  </div>
-                  <p className="text-foreground-muted truncate">Same policy triggered by AGT-FIN-01.</p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-foreground-muted">
-            <FileText className="w-10 h-10 mb-3 opacity-20" />
-            <p className="text-xs">Context will populate automatically upon review selection.</p>
-          </div>
-        )}
       </div>
-
     </div>
   );
 }

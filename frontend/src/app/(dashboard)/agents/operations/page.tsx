@@ -661,9 +661,6 @@ function RunDetailDrawer({
                       <Hash className="w-4 h-4 text-indigo-400" />
                       <span className="text-sm font-semibold text-foreground">Prompt Template</span>
                     </div>
-                    {detail.prompt_version && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v{detail.prompt_version}</span>
-                    )}
                   </div>
                   <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 font-mono text-xs text-[#aaa] whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {detail.prompt_template}

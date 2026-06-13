@@ -37,60 +37,6 @@ interface ReviewItem {
   risk_level: string;
   risk_category?: string;
   submitted_at: string;
-  /** True when this row is an agent-routed post (publish_intents), not a review_item. */
-  __agent?: boolean;
-}
-
-// Posts routed here by the agent safety check (everything that wasn't a
-// 100%-clean auto-publish). Sourced from publish_intents via /governance/queue.
-interface AgentPost {
-  id: string;
-  content?: string;
-  platform?: string;
-  status: string;
-  risk_level?: string;
-  risk_score?: number;
-  created_at?: string;
-  feedback?: string;
-  media_url?: string | null;
-  media_urls?: string[] | null;
-}
-
-// Adapt an agent post (publish_intents) into the ReviewItem shape the queue UI
-// renders, so it flows through the same list, detail panel, and actions.
-function agentPostToReviewItem(p: AgentPost): ReviewItem {
-  const risk = p.risk_score ?? 0;
-  const urls = (
-    p.media_urls && p.media_urls.length
-      ? p.media_urls
-      : p.media_url
-        ? [p.media_url]
-        : []
-  ).filter(Boolean) as string[];
-  return {
-    id: p.id,
-    item_type: "Social Post",
-    source_module: "Agent Publish",
-    source_entity_id: p.id,
-    title: (p.content || "Untitled post").slice(0, 80),
-    content_snapshot: {
-      copy: p.content || "",
-      urls,
-      file_type: urls.length ? "image" : undefined,
-      violation_reason:
-        risk >= 31
-          ? p.feedback || `Flagged by agent safety check (${risk}% risk)`
-          : undefined,
-    },
-    platform: p.platform,
-    submitted_by: "Agent",
-    submitter_name: p.platform ? p.platform.toUpperCase() : "Agent",
-    status: p.status,
-    priority: "NORMAL",
-    risk_level: p.risk_level || "LOW",
-    submitted_at: p.created_at || "",
-    __agent: true,
-  };
 }
 
 interface ReviewStats {
@@ -198,7 +144,6 @@ function formatDateTime(d?: string) {
 
 export default function ReviewQueuePage() {
   const [items, setItems] = useState<ReviewItem[]>([]);
-  const [agentPosts, setAgentPosts] = useState<AgentPost[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
@@ -227,10 +172,9 @@ export default function ReviewQueuePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [itemsRes, statsRes, agentRes] = await Promise.all([
+      const [itemsRes, statsRes] = await Promise.all([
         api.get("/api/v1/review-queue?limit=100"),
         api.get("/api/v1/review-queue/stats"),
-        api.get("/api/v1/governance/queue"),
       ]);
       if (itemsRes.success) {
         const all = (itemsRes.items || []) as ReviewItem[];
@@ -243,7 +187,6 @@ export default function ReviewQueuePage() {
           if (pool.length > 0) setSelectedItem(pool[0]);
         }
       }
-      if (agentRes.success) setAgentPosts((agentRes.data || []) as AgentPost[]);
       if (statsRes.success) setStats(statsRes.data as ReviewStats);
     } catch (e) {
       console.error(e);
@@ -282,32 +225,10 @@ export default function ReviewQueuePage() {
     setActionLoading(action);
     setMessage(null);
     try {
-      let r;
-      if (selectedItem.__agent) {
-        // Agent posts (publish_intents) go through the governed publish lifecycle.
-        const map: Record<string, string> = {
-          approve: "approve",
-          reject: "reject",
-          request_revision: "return",
-        };
-        const govAction = map[action];
-        if (!govAction) {
-          setActionLoading(null);
-          return;
-        } // claim/unclaim don't apply
-        r = await api.post(
-          `/api/v1/governance/intents/${selectedItem.id}/review-action`,
-          {
-            action: govAction,
-            reason: extra?.reason || extra?.note,
-          },
-        );
-      } else {
-        r = await api.post(
-          `/api/v1/review-queue/items/${selectedItem.id}/action`,
-          { action, ...(extra || {}) },
-        );
-      }
+      const r = await api.post(
+        `/api/v1/review-queue/items/${selectedItem.id}/action`,
+        { action, ...(extra || {}) },
+      );
       if (r.success) {
         const labels: Record<string, string> = {
           claim: "Item claimed.",
@@ -338,20 +259,13 @@ export default function ReviewQueuePage() {
   };
 
   const TABS = [
-    { key: "agent", label: "Agent Queue" },
     { key: "needs_review", label: "Needs Review" },
     { key: "resolve", label: "Resolve" },
     { key: "resolved", label: "Resolved" },
   ];
 
-  // Agent-routed posts adapted to the ReviewItem shape so they share the list,
-  // detail panel, and actions.
-  const agentItems = agentPosts.map(agentPostToReviewItem);
-  const listSource = activeTab === "agent" ? agentItems : items;
-
-  const filtered = listSource
+  const filtered = items
     .filter((item) => {
-      if (activeTab === "agent") return true;
       if (activeTab === "needs_review")
         return item.status === "PENDING_REVIEW" && !item.assigned_to;
       if (activeTab === "resolve")
@@ -395,7 +309,6 @@ export default function ReviewQueuePage() {
         i.assigned_to === currentUserId &&
         (i.status === "IN_REVIEW" || i.status === "ASSIGNED"),
     ).length,
-    agent: agentItems.length,
     resolved: items.filter((i) =>
       ["APPROVED", "REJECTED", "AWAITING_REVISION", "RELEASED"].includes(
         i.status,
@@ -434,13 +347,6 @@ export default function ReviewQueuePage() {
     ["APPROVED", "REJECTED", "AWAITING_REVISION", "RELEASED"].includes(
       selectedItem.status,
     );
-
-  // Agent-routed posts: no claim step — act directly while pending.
-  const isAgentItem = !!selectedItem?.__agent;
-  const agentPending =
-    isAgentItem &&
-    typeof selectedItem?.status === "string" &&
-    selectedItem.status.startsWith("PENDING");
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 pb-16">
@@ -718,61 +624,7 @@ export default function ReviewQueuePage() {
 
                     {/* Actions */}
                     <div className="flex flex-col gap-2 pt-1">
-                      {isAgentItem && agentPending && (
-                        <>
-                          <button
-                            onClick={() =>
-                              handleAction("approve", { reason: "Approved" })
-                            }
-                            disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-white hover:bg-zinc-100 text-black text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                          >
-                            {actionLoading === "approve" ? (
-                              <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            )}
-                            Approve &amp; Publish
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowActionDrawer("reject");
-                              setDrawerText("");
-                            }}
-                            disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                          >
-                            <XCircle className="w-3.5 h-3.5" /> Reject
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowActionDrawer("return");
-                              setDrawerText("");
-                            }}
-                            disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-orange-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" /> Return to
-                            Creator
-                          </button>
-                        </>
-                      )}
-                      {isAgentItem && !agentPending && (
-                        <div
-                          className={`rounded-lg p-2.5 text-center text-[10px] font-semibold border ${
-                            selectedItem.status === "APPROVED"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : selectedItem.status === "REJECTED" ||
-                                  selectedItem.status === "GOVERNANCE_BLOCKED"
-                                ? "bg-red-500/10 text-red-400 border-red-500/20"
-                                : "bg-orange-500/10 text-orange-400 border-orange-500/20"
-                          }`}
-                        >
-                          {STATUS_CONFIG[selectedItem.status]?.label ||
-                            selectedItem.status}
-                        </div>
-                      )}
-                      {!isAgentItem && isPoolItem && (
+                      {isPoolItem && (
                         <button
                           onClick={() => handleAction("claim")}
                           disabled={actionLoading !== null}
@@ -786,7 +638,7 @@ export default function ReviewQueuePage() {
                           Claim & Review
                         </button>
                       )}
-                      {!isAgentItem && isMyClaim && (
+                      {isMyClaim && (
                         <>
                           <button
                             onClick={() =>
@@ -832,7 +684,7 @@ export default function ReviewQueuePage() {
                           </button>
                         </>
                       )}
-                      {!isAgentItem && isResolved && (
+                      {isResolved && (
                         <div
                           className={`rounded-lg p-2.5 text-center text-[10px] font-semibold border ${
                             selectedItem.status === "APPROVED"

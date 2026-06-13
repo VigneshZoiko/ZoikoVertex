@@ -30,8 +30,6 @@ import {
   CircleDot,
   ArrowRight,
   Cpu,
-  BarChart3,
-  Activity,
   Plus,
   Check,
   Loader2,
@@ -112,6 +110,7 @@ interface PromptRecord {
   last_deployed: string;
   description: string;
   knowledge_sources: string[];
+  linked_knowledge_sources?: { id: string; title: string; match_action?: string | null }[];
   tools_permitted: string[];
   updated_at?: string;
   metadata?: Record<string, any>;
@@ -260,6 +259,20 @@ function ApprovalChain({ approvals, riskTier }: { approvals: ApprovalRecord[]; r
 
 // ─── Simplified status for Prompt Governance Registry ────────────────────────
 
+// A prompt counts as "working" (live, green) when it is active AND has governed
+// a post within this window. `last_used_at` / `working_since` are stamped by the
+// backend each time the prompt classifies a post, so the green state appears
+// while the prompt does real work and settles back to "Active" once idle.
+const WORKING_WINDOW_MS = 5 * 60 * 1000;
+function isPromptWorking(p: PromptRecord): boolean {
+  if (normalizeStatus(p.status) !== "PRODUCTION_ACTIVE") return false;
+  const ts = p.metadata?.working_since || p.metadata?.last_used_at;
+  if (!ts) return false;
+  const used = new Date(ts).getTime();
+  if (Number.isNaN(used)) return false;
+  return Date.now() - used < WORKING_WINDOW_MS;
+}
+
 function SimplifiedStatusBadge({ p }: { p: PromptRecord }) {
   const s = normalizeStatus(p.status);
   const isFailed = p.last_test?.pass_fail === "FAIL";
@@ -273,6 +286,16 @@ function SimplifiedStatusBadge({ p }: { p: PromptRecord }) {
     );
   }
   if (s === "PRODUCTION_ACTIVE") {
+    // Live: actively governing a post right now → solid green indicator.
+    if (isPromptWorking(p)) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-white bg-green-500 border border-green-400/50 shadow-[0_0_12px_rgba(34,197,94,0.45)]">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          Working
+        </span>
+      );
+    }
+    // Active but idle: deployed and ready, not currently processing.
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-white/5">
         <Zap className="w-3 h-3" />
@@ -330,33 +353,49 @@ function RegistryTab({
     return (p.metadata?.block_count || 0) + (p.metadata?.fail_count || 0);
   }, []);
 
+  // Knowledge Base sources the prompt actually consulted on its last run. Falls
+  // back to any statically bound sources, then to "—" when the prompt needs no KB.
+  const kbSourceFor = useCallback((p: PromptRecord): { label: string; extra: number } | null => {
+    const dynamic = p.linked_knowledge_sources || [];
+    if (dynamic.length > 0) {
+      return { label: dynamic[0].title || "Source", extra: dynamic.length - 1 };
+    }
+    const bound = p.knowledge_sources || [];
+    if (bound.length > 0) {
+      return { label: bound[0], extra: bound.length - 1 };
+    }
+    return null;
+  }, []);
+
   return (
     <div className="p-6">
       {/* Table */}
       <div className="w-full overflow-hidden">
         <table className="w-full text-left table-fixed">
           <colgroup>
-            <col style={{ width: "15%" }} />
-            <col style={{ width: "17%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "11%" }} />
             <col style={{ width: "10%" }} />
-            <col style={{ width: "10%" }} />
-            <col style={{ width: "10%" }} />
-            <col style={{ width: "10%" }} />
-            <col style={{ width: "12%" }} />
-            <col style={{ width: "8%" }} />
+            <col style={{ width: "6%" }} />
             <col style={{ width: "8%" }} />
           </colgroup>
           <thead>
             <tr className="border-b border-slate-900 bg-slate-950/60">
               {[
-                { label: "Prompt Name", width: "15%" },
-                { label: "Purpose", width: "17%" },
-                { label: "Workflow Name", width: "10%" },
-                { label: "Linked Agent", width: "10%" },
-                { label: "Last Used", width: "10%" },
-                { label: "Status", width: "10%" },
-                { label: "Last Test Result", width: "12%" },
-                { label: "Failed/Blocked", width: "8%" },
+                { label: "Prompt Name", width: "13%" },
+                { label: "Purpose", width: "14%" },
+                { label: "Workflow Name", width: "9%" },
+                { label: "Linked Agent", width: "9%" },
+                { label: "Knowledge Source", width: "11%" },
+                { label: "Last Used", width: "9%" },
+                { label: "Status", width: "11%" },
+                { label: "Last Test Result", width: "10%" },
+                { label: "Failed/Blocked", width: "6%" },
                 { label: "Actions", width: "8%" }
               ].map((h) => (
                 <th key={h.label} style={{ width: h.width }} className="py-4 px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">{h.label}</th>
@@ -380,6 +419,18 @@ function RegistryTab({
                 </td>
                 <td className="py-4 px-3 text-center">
                   <span className="text-xs text-slate-400 truncate block max-w-[120px] mx-auto">{p.linked_agent !== "—" && p.linked_agent !== "" ? p.linked_agent : <span className="italic text-slate-600">Not linked</span>}</span>
+                </td>
+                <td className="py-4 px-3 text-center">
+                  {(() => {
+                    const kb = kbSourceFor(p);
+                    if (!kb) return <span className="text-xs italic text-slate-600">—</span>;
+                    return (
+                      <span className="text-xs text-slate-400 truncate block max-w-[130px] mx-auto" title={kb.label}>
+                        {kb.label}
+                        {kb.extra > 0 && <span className="text-slate-600"> +{kb.extra}</span>}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="py-4 px-3 text-center">
                   <span className="text-[11px] text-slate-500 whitespace-nowrap">{formatDateTime(p.metadata?.last_used_at) || formatDateTime(p.last_deployed) || "—"}</span>
@@ -420,7 +471,7 @@ function RegistryTab({
             })}
             {prompts.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-20 text-center text-sm text-slate-600">No system prompts available.</td>
+                <td colSpan={10} className="py-20 text-center text-sm text-slate-600">No system prompts available.</td>
               </tr>
             )}
           </tbody>
@@ -592,7 +643,6 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                     {[
                       { label: "Risk Tier", value: RISK_META[normalizeRiskTier(detailPrompt.risk_tier)].label },
                       { label: "Owner", value: detailPrompt.owner },
-                      { label: "Current Version", value: detailPrompt.active_version },
                       { label: "Review Stage", value: reviewStageLabel(normalizeStatus(detailPrompt.status)) },
                     ].map((f) => (
                       <div key={f.label} className="p-3 bg-black border border-slate-900 rounded-xl">
@@ -783,13 +833,6 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
 // Governance audit and traceability view. Read-only decisions, runtime traces,
 // evidence receipts, and audit entries.
 
-const EVIDENCE_SECTIONS = [
-  { id: "decisions" as const, label: "Governance Decisions", icon: FileCheck },
-  { id: "runtime" as const, label: "Runtime Evidence", icon: Cpu },
-  { id: "receipts" as const, label: "Evidence Receipts", icon: ShieldCheck },
-  { id: "audit" as const, label: "Audit Entries", icon: History },
-];
-
 const EVIDENCE_DECISION_META: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
   APPROVED: { label: "Approved", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/25", icon: CheckCircle2 },
   REVIEWED: { label: "Reviewed", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/25", icon: Eye },
@@ -808,7 +851,8 @@ function EvidenceTab({
   auditStats: AuditStats | null;
   onExportPromptEvidence: (prompt: PromptRecord, context: string) => void;
 }) {
-  const [section, setSection] = useState<"decisions" | "runtime" | "receipts" | "audit">("decisions");
+  // Sub-tab navigation removed — the Evidence tab shows the Governance Decisions view only.
+  const section: string = "decisions";
 
   const productionPrompts = prompts.filter((p) => p.status === "PRODUCTION_ACTIVE");
   const deployedPrompts = prompts.filter((p) => p.last_deployed);
@@ -858,27 +902,6 @@ function EvidenceTab({
                 <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{k.label}</div>
               </div>
             ))}
-          </div>
-
-          {/* Sub-navigation */}
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {EVIDENCE_SECTIONS.map((s) => {
-              const SIcon = s.icon;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSection(s.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                    section === s.id
-                      ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
-                      : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-                  }`}
-                >
-                  <SIcon className="w-3.5 h-3.5" />
-                  {s.label}
-                </button>
-              );
-            })}
           </div>
 
           {/* 1. Governance Decisions */}
@@ -943,7 +966,7 @@ function EvidenceTab({
                     <tbody className="divide-y divide-slate-900">
                       {deployedPrompts.map((p) => (
                         <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                          <td className="py-3 px-3"><span className="text-xs font-bold text-white max-w-[140px] truncate block" title={p.name}>{p.name}</span><span className="text-[9px] text-slate-600">{p.active_version}</span></td>
+                          <td className="py-3 px-3"><span className="text-xs font-bold text-white max-w-[140px] truncate block" title={p.name}>{p.name}</span></td>
                           <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.metadata?.model || "claude-sonnet-4-20250514"}</span></td>
                           <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.knowledge_sources.length > 0 ? `${p.knowledge_sources.length} source(s)` : "—"}</span></td>
                           <td className="py-3 px-3"><span className="text-[10px] text-slate-400">{p.tools_permitted.length > 0 ? `${p.tools_permitted.length} tool(s)` : "—"}</span></td>
@@ -1880,7 +1903,6 @@ function DeploymentConfirmation({ data, prompt, onClose }: {
   const workflows = affectedWorkflows.length ? affectedWorkflows : (data.linked_workflow && data.linked_workflow !== "—" ? [data.linked_workflow] : []);
 
   const rows: { label: string; value: string }[] = [
-    { label: "Deployed Version", value: data.version_number || prompt.active_version || "—" },
     { label: "Environment / Scope", value: String(data.environment || "—").toUpperCase() },
     { label: "Deployed At", value: data.deployed_at ? new Date(data.deployed_at).toLocaleString() : "—" },
     { label: "Deployed By", value: data.deployed_by || "—" },
@@ -2054,7 +2076,6 @@ function PromptDetailDrawer({
               <div className="flex flex-wrap gap-2">
                 <StatusBadge status={prompt.status} />
                 <RiskBadge tier={prompt.risk_tier} />
-                <span className="text-[10px] font-black text-slate-400 bg-black border border-slate-800 px-2 py-1 rounded-lg">{prompt.active_version}</span>
               </div>
             </div>
             <button onClick={onClose} className="p-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:border-slate-600 transition-all">
@@ -2080,7 +2101,6 @@ function PromptDetailDrawer({
               <div className="grid grid-cols-3 gap-4">
                 {[
                   { label: "Current Status", value: STATUS_META[normalizeStatus(prompt.status)].label },
-                  { label: "Current Version", value: prompt.active_version },
                   { label: "Linked Agent", value: prompt.linked_agent },
                   { label: "Linked Workflow", value: prompt.linked_workflow },
                   { label: "Workflow Node", value: prompt.workflow_node },
@@ -2176,15 +2196,6 @@ const DECISION_META: Record<string, { label: string; color: string; bg: string; 
 
 const TEST_PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "threads", "youtube"];
 
-const GOVERNANCE_TEST_CENTER_SECTIONS = [
-  { id: "overview" as const, label: "Overview", icon: ShieldCheck },
-  { id: "test_runs" as const, label: "Test Runs", icon: FlaskConical },
-  { id: "adversarial" as const, label: "Adversarial Testing", icon: ShieldAlert },
-  { id: "evaluation" as const, label: "Evaluation Runs", icon: BarChart3 },
-  { id: "drift" as const, label: "Drift Monitoring", icon: Activity },
-  { id: "simulation" as const, label: "Policy Simulation", icon: Play },
-];
-
 function GovernanceTestCenterTab({
   prompts,
   onRunTests,
@@ -2192,7 +2203,8 @@ function GovernanceTestCenterTab({
   prompts: PromptRecord[];
   onRunTests: (versionId: string) => void;
 }) {
-  const [section, setSection] = useState<"overview" | "test_runs" | "adversarial" | "evaluation" | "drift" | "simulation">("overview");
+  // Sub-tab navigation removed — the Test Center shows the Overview view only.
+  const section: string = "overview";
 
   // ── KPI data ──
   const withTests = prompts.filter((p) => p.last_test);
@@ -2209,27 +2221,6 @@ function GovernanceTestCenterTab({
 
   return (
     <div className="space-y-6">
-      {/* Sub-navigation */}
-      <div className="flex items-center gap-1 overflow-x-auto">
-        {GOVERNANCE_TEST_CENTER_SECTIONS.map((s) => {
-          const SIcon = s.icon;
-          return (
-            <button
-              key={s.id}
-              onClick={() => setSection(s.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                section === s.id
-                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-              }`}
-            >
-              <SIcon className="w-3.5 h-3.5" />
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Overview — KPI Cards */}
       {section === "overview" && (
         <div className="grid grid-cols-4 gap-4">
@@ -2496,7 +2487,10 @@ function mapBackendPrompt(b: any): PromptRecord {
     autonomy_level: b.autonomy_level || b.governance_level || '—',
     review_requirement: b.review_requirement || b.approval_requirement || '—',
     risk_tier: b.risk_tier || 'TIER_2_MEDIUM',
-    status: b.status || 'DRAFT',
+    // Normalize the raw DB enum (e.g. "production_active") to the canonical
+    // uppercase LifecycleStatus so every `p.status === "PRODUCTION_ACTIVE"`
+    // comparison (KPI counts, Evidence tab, drawer controls) works correctly.
+    status: normalizeStatus(b.status),
     active_version: b.active_version || b.current_version || 'v0.0',
     active_version_id: b.active_version_id || b.current_version_id || undefined,
     last_test: b.last_test || null,
@@ -2504,6 +2498,7 @@ function mapBackendPrompt(b: any): PromptRecord {
     last_deployed: b.last_deployed || b.last_deployed_at || '',
     description: b.description || b.prompt_description || '',
     knowledge_sources: b.knowledge_sources || [],
+    linked_knowledge_sources: b.metadata?.linked_knowledge_sources || b.linked_knowledge_sources || [],
     tools_permitted: b.tools_permitted || [],
     updated_at: b.updated_at || b.updated || '',
     metadata: b.metadata || {},
@@ -2577,8 +2572,8 @@ export default function PromptsPage() {
   // Normal users get read-only registry actions.
   const canManagePrompts = canWaive;
 
-  const fetchPrompts = useCallback(async () => {
-    setPromptsLoading(true);
+  const fetchPrompts = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setPromptsLoading(true);
     try {
       const [promptsRes, statsRes] = await Promise.all([
         api.get("/api/v1/prompts").catch(() => ({ success: false, data: null })),
@@ -2595,7 +2590,7 @@ export default function PromptsPage() {
     } catch {
       // non-critical
     } finally {
-      setPromptsLoading(false);
+      if (!opts?.silent) setPromptsLoading(false);
     }
   }, []);
 
@@ -2778,6 +2773,10 @@ export default function PromptsPage() {
     };
     load();
     fetchPrompts();
+    // Light poll so the live "Working" (green) state appears and clears on its
+    // own as prompts govern posts — silent so it never flashes the loader.
+    const poll = setInterval(() => fetchPrompts({ silent: true }), 15000);
+    return () => clearInterval(poll);
   }, [fetchPrompts]);
 
   // Only the 5 system-governed prompts are visible in the registry.

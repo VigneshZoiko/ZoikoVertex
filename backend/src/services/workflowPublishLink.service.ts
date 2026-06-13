@@ -28,6 +28,7 @@ export interface PublishCheck {
     decision: string;
     kb_checked: boolean;
     kb_matches: number;
+    kb_sources: string[];
   };
 }
 
@@ -103,6 +104,11 @@ async function runAgentChecks(
         decision: governanceResult.decision,
         kb_checked: governanceResult.knowledge.checked,
         kb_matches: governanceResult.knowledge.matches?.length || 0,
+        // Actual matched KB source titles so the Live Workflow Runs table can
+        // show the real Knowledge Base Source the run consulted (not just a count).
+        kb_sources: (governanceResult.knowledge.matches || [])
+          .map((m) => m.title)
+          .filter(Boolean),
       } : undefined,
     };
   } catch (err) {
@@ -522,19 +528,41 @@ export function enrichPublishInstance(instance: any): any {
   // the stored status as 'paused'. Falls back to the stored status otherwise.
   const verdict: string | undefined = meta.check?.verdict;
   let displayStatus = instance.status;
-  if (verdict === 'block') displayStatus = 'blocked';
-  else if (verdict === 'review') displayStatus = 'waiting_review';
-  else if (instance.status === 'paused') {
-    // Safe post that got swept into 'paused' — restore to its scheduled/queued
-    // or completed display state.
-    displayStatus = meta.scheduled ? 'pending' : 'completed';
+  // Once a review decision has moved the run into a decided state, the stored
+  // status is the source of truth — do NOT override it with the verdict frozen
+  // at creation (that's what left approved runs stuck on "Waiting"). Only derive
+  // the display status from the verdict while the run is still unresolved.
+  const decided = ['completed', 'failed', 'cancelled', 'blocked', 'running'].includes(
+    String(instance.status),
+  );
+  if (!decided) {
+    if (verdict === 'block') displayStatus = 'blocked';
+    else if (verdict === 'review') displayStatus = 'waiting_review';
+    else if (instance.status === 'paused') {
+      // Safe post that got swept into 'paused' — restore to its scheduled/queued
+      // or completed display state.
+      displayStatus = meta.scheduled ? 'pending' : 'completed';
+    }
   }
+
+  // Governance prompt + KB source that actually governed this run, so the Live
+  // Workflow Runs table shows the real prompt → KB-source chain instead of "—".
+  const gov = meta.governance;
+  const kbSources: string[] = Array.isArray(gov?.kb_sources) ? gov.kb_sources : [];
+  const knowledgeBaseSource =
+    kbSources.length > 0
+      ? kbSources.join(', ')
+      : gov?.kb_checked
+        ? (gov?.kb_matches ? `${gov.kb_matches} source(s)` : 'No KB evidence')
+        : undefined;
 
   return {
     ...instance,
     status: displayStatus,
     assigned_agent_name: meta.agent_name || instance.assigned_agent_name,
     current_step_name: meta.step || instance.current_step_name,
+    prompt: gov?.governed_prompt || instance.prompt,
+    knowledgeBaseSource: knowledgeBaseSource ?? instance.knowledgeBaseSource,
     risk_score:
       typeof instance.risk_score === 'number'
         ? instance.risk_score

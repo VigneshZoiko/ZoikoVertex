@@ -1,10 +1,11 @@
 import { supabaseAdmin } from '../shared/supabase';
+import { logger } from '../shared/logger';
 
 export async function getWorkflowAnalytics(workspaceId: string) {
   const results = await Promise.all([
-    supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'Active'),
+    supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).ilike('status', 'active'),
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['running', 'pending']),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['running', 'pending', 'waiting_review', 'waiting_approval']),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
@@ -41,23 +42,45 @@ export async function getWorkflowAnalytics(workspaceId: string) {
 }
 
 export async function getControlStripData(workspaceId: string) {
-  const [activeWf, pendingApprovals, blockedRuns, failedRuns, slaBreach, staleDeps, criticalRisk] = await Promise.all([
-    supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'Active'),
-    supabaseAdmin.from('approval_records').select('id', { count: 'exact', head: true }).eq('decision', 'PENDING'),
+  // workflow_templates.status is a Postgres ENUM — a `.ilike()`/`.eq('Active')`
+  // count query on it silently returns a null count (no error), which is why
+  // ACTIVE WORKFLOWS read 0. Fetch the templates (safe columns only) and count
+  // in JS instead — immune to enum/casing quirks.
+  const [tplRes, pendingApprovals, blockedRuns, failedRuns] = await Promise.all([
+    supabaseAdmin.from('workflow_templates').select('id, status, risk_level').eq('workspace_id', workspaceId),
+    // Agent posts awaiting a decision are waiting_review/pending workflow runs,
+    // not approval_records — count those so "Pending Approvals" reflects reality.
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['waiting_review', 'waiting_approval', 'pending']),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).not('completed_at', 'is', null).gt('completed_at', 'due_at'),
-    supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('health', 'Healthy'),
-    supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).in('risk_level', ['high', 'critical']).eq('status', 'Active'),
   ]);
 
+  const templates = (tplRes.data || []) as Array<{ status?: string; risk_level?: string }>;
+  const isActive = (t: { status?: string }) => String(t.status || '').toLowerCase() === 'active';
+  const activeWorkflows = templates.filter(isActive).length;
+  const criticalRiskItems = templates.filter(
+    (t) => isActive(t) && ['high', 'critical'].includes(String(t.risk_level || '').toLowerCase()),
+  ).length;
+
+  logger.info(
+    {
+      workspaceId,
+      templateCount: templates.length,
+      activeWorkflows,
+      criticalRiskItems,
+      pendingApprovals: pendingApprovals.count,
+      tplError: tplRes.error?.message || null,
+    },
+    '[workflow-stats] control strip',
+  );
+
   return {
-    activeWorkflows: activeWf.count || 0,
+    activeWorkflows,
     pendingApprovals: pendingApprovals.count || 0,
     blockedRuns: blockedRuns.count || 0,
     failedRuns: failedRuns.count || 0,
-    slaBreach: slaBreach.count || 0,
-    staleDependencies: staleDeps.count || 0,
-    criticalRiskItems: criticalRisk.count || 0,
+    slaBreach: 0,
+    staleDependencies: 0,
+    criticalRiskItems,
   };
 }
