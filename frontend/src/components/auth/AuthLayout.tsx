@@ -61,8 +61,8 @@ export default function AuthLayout({ children, footer }: { children: React.React
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-[#0C1422] gap-6">
-        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-[50px] pt-[68px] pb-[54px] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#0C1422] gap-6">
+        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-6 sm:px-[50px] pt-10 sm:pt-[68px] pb-10 sm:pb-[54px] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
           {children}
         </div>
         {footer && <div className="w-full max-w-[480px] text-center">{footer}</div>}
