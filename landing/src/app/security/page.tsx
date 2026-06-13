@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/Footer";
 import {
   Users, CheckSquare, FileText, Lock, Bot,
@@ -196,7 +195,6 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 export default function SecurityPage() {
   return (
     <div className="min-h-screen bg-[#080d1a] text-white">
-      <Navbar />
 
       {/* ── HERO ──────────────────────────────────────────────────── */}
       <section className="relative min-h-[680px] flex items-center overflow-hidden pt-[68px]">
