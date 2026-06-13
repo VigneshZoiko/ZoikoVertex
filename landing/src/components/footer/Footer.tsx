@@ -75,7 +75,7 @@ export default function Footer() {
   return (
     <footer style={{ background: "#080f1e" }} className="px-6 pt-16 pb-8">
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-6 gap-10 pb-14 border-b border-white/5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
               <span className="text-white font-black text-xl tracking-tight">
@@ -122,7 +122,7 @@ export default function Footer() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-10 py-10 border-b border-white/5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-10 py-10 border-b border-white/5">
           <div>
             <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase mb-4">
               Contact & Locations
@@ -175,7 +175,7 @@ export default function Footer() {
             2026 ZoikoVertex | All rights reserved | ZoikoVertex is a platform
             operated by Zoiko Tech Inc.
           </p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap gap-4">
             {[
               "Privacy Policy",
               "Terms of Service",

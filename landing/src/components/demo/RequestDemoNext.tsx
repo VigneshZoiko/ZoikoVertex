@@ -116,7 +116,7 @@ export default function RequestDemoNext() {
 
         {/* 4 Steps — NO gap, shared borders */}
         <div
-          className={`grid grid-cols-4 border border-white/10 rounded-2xl overflow-hidden mb-5
+          className={`grid grid-cols-2 sm:grid-cols-4 border border-white/10 rounded-2xl overflow-hidden mb-5
             transition-all duration-700 ease-out ${
             visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
           }`}
@@ -128,6 +128,7 @@ export default function RequestDemoNext() {
               className={`flex flex-col gap-3 p-5 cursor-default transition-colors duration-300
                 ${step.highlighted ? "bg-[#20E7F21A]" : "bg-[#0C1422] hover:bg-white/[0.02]"}
                 ${i < STEPS.length - 1 ? "border-r border-white/10" : ""}
+                ${i < 2 ? "border-b sm:border-b-0 border-white/10" : ""}
               `}
             >
               {/* Number */}
@@ -161,7 +162,7 @@ export default function RequestDemoNext() {
 
         {/* 3 Path cards — NO gap, shared borders */}
         <div
-          className={`grid grid-cols-3 border border-white/10 rounded-2xl overflow-hidden
+          className={`grid grid-cols-1 sm:grid-cols-3 border border-white/10 rounded-2xl overflow-hidden
             transition-all duration-700 ease-out ${
             visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
           }`}
@@ -172,7 +173,7 @@ export default function RequestDemoNext() {
               key={path.title}
               className={`flex flex-col gap-4 p-6 bg-[#0a0a18]
                 hover:bg-[#0d0d1f] transition-colors duration-300 cursor-default
-                ${i < PATHS.length - 1 ? "border-r border-white/10" : ""}`}
+                ${i < PATHS.length - 1 ? "border-b sm:border-b-0 sm:border-r border-white/10" : ""}`}
             >
               {/* Category */}
               <p

@@ -243,7 +243,7 @@ export default function TermsPage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-16">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
 
         {/* Title */}
         <div className="mb-12">

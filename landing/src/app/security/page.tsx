@@ -197,7 +197,7 @@ export default function SecurityPage() {
     <div className="min-h-screen bg-[#080d1a] text-white">
 
       {/* ── HERO ──────────────────────────────────────────────────── */}
-      <section className="relative min-h-[680px] flex items-center overflow-hidden pt-[68px]">
+      <section className="relative md:min-h-[680px] flex items-center overflow-hidden pt-[68px]">
         {/* Background image */}
         <div className="absolute inset-0">
           <Image
@@ -258,7 +258,7 @@ export default function SecurityPage() {
 
       {/* ── FEATURE STRIP ─────────────────────────────────────────── */}
       <section className="bg-[#0b1120] border-y border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-8">
           {FEATURES.map(({ icon: Icon, title, desc }) => (
             <div key={title}>
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#20E7F2]/10 border border-[#20E7F2]/15 mb-4">
