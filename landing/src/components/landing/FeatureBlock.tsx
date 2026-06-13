@@ -24,7 +24,7 @@ export default function FeatureBlock() {
 
   return (
     <section className="bg-white py-24 px-6">
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-start">
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-20 items-start">
         <div>
           <div className="inline-flex items-center gap-2 text-indigo-500 text-xs font-semibold tracking-widest uppercase mb-5">
             <span className="w-4 h-px bg-indigo-400" />
