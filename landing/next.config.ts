@@ -8,21 +8,6 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
-  async redirects() {
-    return [
-      {
-        source: "/security",
-        has: [
-          {
-            type: "host",
-            value: "getzoikovertex.com",
-          },
-        ],
-        destination: "https://zoikovertex.com/security",
-        permanent: true,
-      },
-    ];
-  },
 };
 
 export default nextConfig;
