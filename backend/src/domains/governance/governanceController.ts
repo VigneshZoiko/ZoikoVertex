@@ -200,18 +200,41 @@ export const submitIntent = async (
       row.status = check.risk === 0 && autonomyOk ? 'APPROVED' : 'PENDING_REVIEW';
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('publish_intents')
-      .insert(intentsToCreate)
-      .select();
+    // Insert resiliently. risk_level / risk_score / agent_id are written for the
+    // Review Queue's risk display, but those columns may not exist yet in every
+    // environment (pending migration). Rather than 500 the entire publish on a
+    // missing display column, strip whatever column PostgREST reports as unknown
+    // and retry. The routing decision (status) and the workflow wiring below
+    // rely only on base columns, so stripping these never breaks publishing.
+    let data: any[] | null = null;
+    let error: any = null;
+    let rowsToInsert = intentsToCreate as any[];
+    const strippedColumns: string[] = [];
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const res2 = await supabaseAdmin.from('publish_intents').insert(rowsToInsert).select();
+      if (!res2.error) { data = res2.data; error = null; break; }
+      error = res2.error;
+      const missing = /Could not find the '([^']+)' column/.exec(res2.error.message || '');
+      if (!missing) break; // a different error — don't loop
+      const col = missing[1];
+      strippedColumns.push(col);
+      rowsToInsert = rowsToInsert.map((r) => {
+        const { [col]: _omit, ...rest } = r;
+        return rest;
+      });
+      logger.warn({ col }, '[Governance] publish_intents missing column — retrying insert without it');
+    }
 
-    if (error) {
+    if (error || !data) {
       logger.error({ error, sample: intentsToCreate[0] }, '[Governance] publish_intents insert failed');
       return res.status(500).json({
         success: false,
-        error: error.message || 'Insert failed',
-        detail: (error as any).details || (error as any).hint || null,
+        error: error?.message || 'Insert failed',
+        detail: (error as any)?.details || (error as any)?.hint || null,
       });
+    }
+    if (strippedColumns.length > 0) {
+      logger.warn({ strippedColumns }, '[Governance] published with missing columns stripped — apply migration to enable risk display');
     }
 
     // Mirror each post into Agent Operations for policy checks (non-blocking).

@@ -357,7 +357,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
         });
 
       // Create a Review Queue item
-      await supabaseAdmin
+      const { error: reviewInsertError } = await supabaseAdmin
         .from('review_items')
         .insert({
           id: uuidv4(),
@@ -380,8 +380,10 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           risk_category: scan.isVideo ? 'video_content' : 'content_safety',
           status: 'PENDING_REVIEW',
           // Videos await human review (not a safety failure); blocked images truly failed the scan.
-          validation_status: scan.isVideo ? 'MANUAL_CHECK_REQUIRED' : 'FAILED',
+          validation_status: scan.isVideo ? 'NOT_RUN' : 'FAILED',
         });
+
+      if (reviewInsertError) throw reviewInsertError;
 
       // Notify creator
       await supabaseAdmin

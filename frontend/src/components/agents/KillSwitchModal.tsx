@@ -167,6 +167,7 @@ export default function KillSwitchModal({
   const [loading, setLoading] = useState(false);
   const [completedTasks, setCompletedTasks] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ suspendedAgents: number; pausedInstances: number } | null>(null);
 
   if (!isOpen) return null;
 
@@ -200,6 +201,10 @@ export default function KillSwitchModal({
             : "Emergency suspension failed.",
         );
       }
+      setResult({
+        suspendedAgents: Number(res?.suspendedAgents ?? 0),
+        pausedInstances: Number(res?.pausedInstances ?? 0),
+      });
       setStep(3);
       onActivated();
     } catch (err: any) {
@@ -215,6 +220,7 @@ export default function KillSwitchModal({
     setCompletedTasks(0);
     setLoading(false);
     setError(null);
+    setResult(null);
     onClose();
   };
 
@@ -350,6 +356,19 @@ export default function KillSwitchModal({
                   Manual restoration required per-agent via the Autonomy Control Center.
                 </p>
               </div>
+
+              {result && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-rose-500/5 rounded-2xl border border-rose-500/15 text-center">
+                    <div className="text-2xl font-black text-rose-600">{result.suspendedAgents}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)] mt-1">Agents Suspended</div>
+                  </div>
+                  <div className="p-3 bg-rose-500/5 rounded-2xl border border-rose-500/15 text-center">
+                    <div className="text-2xl font-black text-rose-600">{result.pausedInstances}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--foreground-muted)] mt-1">Workflows Halted</div>
+                  </div>
+                </div>
+              )}
 
               <div className="p-3 bg-[var(--background)] rounded-2xl border border-[var(--border)] text-left">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground-muted)] mb-1.5">Recorded Reason</div>

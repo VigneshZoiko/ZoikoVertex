@@ -9,6 +9,7 @@ import {
   confirmAnchor as extConfirmAnchor,
   verifyAnchorIntegrity,
   computeAnchorHash,
+  AnchorProvider,
 } from './externalAnchor.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1720,9 +1721,9 @@ export async function createChainAnchor(params: {
   requireAnyPermission(auth, 'evidence:view');
   const anchorId = generateAnchorId();
   const scope = await resolveChainAnchorScope(params);
-  const provider = (['ethereum', 'opentimestamps', 'mock'].includes(params.anchor_provider)
-    ? params.anchor_provider
-    : 'mock') as 'ethereum' | 'opentimestamps' | 'mock';
+  const provider: AnchorProvider = ['ethereum', 'opentimestamps'].includes(params.anchor_provider)
+    ? (params.anchor_provider as AnchorProvider)
+    : (process.env.ANCHOR_PROVIDER as AnchorProvider) || 'ethereum';
 
   const targetData = await resolveAnchorTargetData(params);
   const hashPayload = { ...targetData, ...(params.anchor_data || {}) };
@@ -1787,9 +1788,9 @@ export async function confirmChainAnchor(
     throw new Error(`Anchor ${anchorId} is already ${anchor.status}`);
   }
 
-  const provider = (['ethereum', 'opentimestamps', 'mock'].includes(anchor.anchor_provider)
-    ? anchor.anchor_provider
-    : 'mock') as 'ethereum' | 'opentimestamps' | 'mock';
+  const provider: AnchorProvider = ['ethereum', 'opentimestamps'].includes(anchor.anchor_provider)
+    ? (anchor.anchor_provider as AnchorProvider)
+    : (process.env.ANCHOR_PROVIDER as AnchorProvider) || 'ethereum';
 
   const confirmed = await extConfirmAnchor({
     anchor_hash: anchor.anchor_hash,

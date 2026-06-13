@@ -43,7 +43,7 @@ import {
   updateSubscriptionRoute,
 } from './domains/evidence/auditTrailStreamingController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
-import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause, sendMfaChallengeHandler } from './domains/governance/safetyController';
+import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause } from './domains/governance/safetyController';
 import { getSafetySignals, getSafetySignalDetail, createManualSignal, classifySafetySignal, routeSafetySignal, mergeSafetySignals, splitSafetySignal, closeSafetySignal, getSafetyActionsHistory } from './domains/governance/signalsController';
 import { getPolicySummary, getPolicies, createPolicy, simulatePolicy, getEnforcementEvents } from './domains/governance/policyController';
 import { getReviewQueue, getReviewDetail, submitReviewDecision } from './domains/governance/reviewController';
@@ -178,7 +178,8 @@ import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampa
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
 import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
-import { listLibrary, addToLibrary, deleteFromLibrary, bulkDeleteFromLibrary, listStorageItems } from './domains/content/libraryController';
+import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
+import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { readRecentScans } from './modules/safety/scanLogger';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
@@ -227,10 +228,10 @@ import {
   KnowledgeController,
 } from './modules/knowledge/knowledgeController';
 import { PromptController } from './modules/prompts/promptController';
-import { getResourceUsage, getTokenQuota, getStorageQuota, purchaseStorageAddon, checkAiTokenQuota } from './domains/monitoring/usageController';
+import { getResourceUsage } from './domains/monitoring/usageController';
 import {
   getWalletData, updateAutoTopup, calculateFees, createDepositSession, stripeWebhook, simulateDeposit, syncDepositSession,
-  getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings, getOvercharge, updateOvercharge,
+  getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings,
   createSetupIntent, createSetupCheckout, syncCardSession, listPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod,
   getWalletBalance, createSubscription, cancelSubscription, getSubscription, listInvoices,
 } from './domains/billing/walletController';
@@ -241,7 +242,7 @@ import { enterpriseSignup } from './domains/identity/enterpriseSignupController'
 import { setupWorkspace } from './domains/identity/onboardingController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
-import { listNotifications, markAsRead, markAllRead, clearNotifications, listWorkspaceNotifications, getNotificationSummary } from './domains/identity/notificationController';
+import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
 import {
   exportWorkflow,
   exportApprovals,
@@ -430,8 +431,8 @@ app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN');
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN');
 
-app.post('/api/v1/ai/generate',      authenticate, planRateLimit('ai'), checkAiTokenQuota, scopeGuard('write:content', '*'), generateContent);
-app.post('/api/v1/ai/analyze-image', authenticate, planRateLimit('ai'), checkAiTokenQuota, scopeGuard('write:content', '*'), analyzeImage);
+app.post('/api/v1/ai/generate', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateContent);
+app.post('/api/v1/ai/analyze-image', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), analyzeImage);
 app.post('/api/v1/qa/check', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), performQualityCheck);
 // ─── Exception Routes (v2 — Full wireframe) ────────────────────────────
 app.get('/api/v1/exceptions/cases', authenticate, acctView, scopeGuard('read:governance', '*'), listExceptions);
@@ -677,7 +678,6 @@ app.get('/api/safety/queue/summary', authenticate, getSafetyQueueSummary);
 app.get('/api/safety/recent-decisions', authenticate, getSafetyRecentDecisions);
 app.post('/api/safety/actions/review-critical-queue', authenticate, reviewCriticalQueue);
 app.post('/api/safety/actions/request-emergency-pause', authenticate, requestEmergencyPause);
-app.post('/api/safety/actions/send-mfa-challenge', authenticate, sendMfaChallengeHandler);
 // Safety Layer Risk Intake & Triage (Document 02) endpoints
 app.get('/api/safety/signals', authenticate, getSafetySignals);
 app.get('/api/safety/signals/:id', authenticate, getSafetySignalDetail);
@@ -764,7 +764,7 @@ app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGua
 app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Client Meta Account routes (bring-your-own-account model)
-import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages, fetchMetaPixels, getPixelStats, createPixel, updatePixelName, deleteMetaPixel } from './domains/campaigns/metaAccountController';
+import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages } from './domains/campaigns/metaAccountController';
 import { publishToMeta, toggleMetaStatus, deleteFromMeta, syncFromMeta, getAdAccountDetails, verifyMetaCampaign } from './domains/campaigns/metaPublishController';
 import { searchLocations, searchInterests, getReachEstimate } from './domains/campaigns/metaTargetingSearch';
 
@@ -773,11 +773,6 @@ app.get('/api/v1/campaigns/meta/accounts',                        authenticate, 
 app.post('/api/v1/campaigns/meta/accounts/:id/fetch-ad-accounts', authenticate, campaignGuard, fetchMetaAdAccounts);
 app.post('/api/v1/campaigns/meta/accounts/:id/set-ad-account',    authenticate, campaignWriteGuard, setAdAccount);
 app.get('/api/v1/campaigns/meta/pages',                           authenticate, campaignGuard, fetchMetaPages);
-app.get('/api/v1/campaigns/meta/pixels',                          authenticate, campaignGuard,      fetchMetaPixels);
-app.post('/api/v1/campaigns/meta/pixels',                         authenticate, campaignWriteGuard, createPixel);
-app.get('/api/v1/campaigns/meta/pixels/:pixelId/stats',           authenticate, campaignGuard,      getPixelStats);
-app.patch('/api/v1/campaigns/meta/pixels/:pixelId',               authenticate, campaignWriteGuard, updatePixelName);
-app.delete('/api/v1/campaigns/meta/pixels/:pixelId',              authenticate, campaignWriteGuard, deleteMetaPixel);
 
 // Meta campaign publish / sync
 app.post('/api/v1/campaigns/:id/publish-to-meta',    authenticate, campaignWriteGuard,  publishToMeta);
@@ -811,9 +806,17 @@ app.post('/api/v1/ads/boosts/:id/resume',  authenticate, adsGuard, resumeBoost);
 app.delete('/api/v1/ads/boosts/:id',       authenticate, adsGuard, cancelBoost);
 app.get('/api/v1/campaigns/:id/insights',  authenticate, adsGuard, getCampaignInsights);
 
+// Google Ads / Boost routes (Phase 2b)
+app.get('/api/v1/ads/google/accounts/:connectedAccountId/customers',      authenticate, adsGuard, getGoogleAdsCustomers);
+app.post('/api/v1/ads/google/accounts/:connectedAccountId/link-customer', authenticate, adsGuard, linkGoogleAdsCustomer);
+app.post('/api/v1/ads/google/boosts',            authenticate, adsGuard, createGoogleBoost);
+app.post('/api/v1/ads/google/boosts/:id/sync',   authenticate, adsGuard, syncGoogleMetrics);
+app.post('/api/v1/ads/google/boosts/:id/pause',  authenticate, adsGuard, pauseGoogleBoost);
+app.post('/api/v1/ads/google/boosts/:id/resume', authenticate, adsGuard, resumeGoogleBoost);
+app.delete('/api/v1/ads/google/boosts/:id',      authenticate, adsGuard, cancelGoogleBoost);
 
 // Protected Scheduler Routes
-app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), checkAiTokenQuota, scopeGuard('read:content', '*'), getRecommendations);
+app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getRecommendations);
 app.get('/api/v1/scheduler/posts', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listScheduledPosts);
 app.get('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getScheduledPost);
 app.post('/api/v1/scheduler/posts', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), schedulePost);
@@ -823,8 +826,6 @@ app.delete('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general')
 // Protected Library Routes
 app.get('/api/v1/library', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);
 app.post('/api/v1/library/upload', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), addToLibrary);
-app.post('/api/v1/library/bulk-delete', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), bulkDeleteFromLibrary);
-app.delete('/api/v1/library/bulk', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), bulkDeleteFromLibrary);
 app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), deleteFromLibrary);
 app.get('/api/v1/library/scan-logs', authenticate, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
@@ -870,8 +871,6 @@ app.get('/api/v1/notifications', authenticate, listNotifications);
 app.patch('/api/v1/notifications/:id/read', authenticate, markAsRead);
 app.post('/api/v1/notifications/mark-all-read', authenticate, markAllRead);
 app.delete('/api/v1/notifications', authenticate, clearNotifications);
-app.get('/api/v1/notifications/admin/workspace', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SECURITY_ADMIN'), listWorkspaceNotifications);
-app.get('/api/v1/notifications/admin/summary', authenticate, getNotificationSummary);
 
 // Protected Agent/Workflow Routes
 // Autonomy Control Routes
@@ -1043,11 +1042,7 @@ app.post('/api/v1/operations/evidence/:bundleId/lock', authenticate, lockEvidenc
 app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
 
 // Monitoring Routes
-app.get('/api/v1/monitoring/usage',          authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
-app.get('/api/v1/monitoring/quota',          authenticate, scopeGuard('read:analytics', '*'), getTokenQuota);
-app.get('/api/v1/monitoring/storage-quota',  authenticate, scopeGuard('read:analytics', '*'), getStorageQuota);
-app.get('/api/v1/monitoring/storage-items',  authenticate, scopeGuard('read:analytics', '*'), listStorageItems);
-app.post('/api/v1/monitoring/storage-addon', authenticate, purchaseStorageAddon);
+app.get('/api/v1/monitoring/usage', authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
 
 // Billing & Wallet
 app.use('/api/v1/billing/webhook', express.raw({ type: 'application/json' }));
@@ -1059,10 +1054,8 @@ app.post('/api/v1/billing/fees',             authenticate, calculateFees);
 app.post('/api/v1/billing/deposit/create',        authenticate, createDepositSession);
 app.post('/api/v1/billing/deposit/simulate',      authenticate, simulateDeposit);
 app.post('/api/v1/billing/deposit/sync-session',  authenticate, syncDepositSession);
-app.get('/api/v1/billing/spend-cap',          authenticate, getSpendCap);
-app.patch('/api/v1/billing/spend-cap',        authenticate, updateSpendCap);
-app.get('/api/v1/billing/overcharge',         authenticate, getOvercharge);
-app.patch('/api/v1/billing/overcharge',       authenticate, updateOvercharge);
+app.get('/api/v1/billing/spend-cap',         authenticate, getSpendCap);
+app.patch('/api/v1/billing/spend-cap',       authenticate, updateSpendCap);
 app.get('/api/v1/billing/settings',          authenticate, getBillingSettings);
 app.patch('/api/v1/billing/settings',        authenticate, updateBillingSettings);
 app.post('/api/v1/billing/payment-methods/setup',          authenticate, createSetupIntent);
@@ -1133,6 +1126,9 @@ app.post('/api/v1/knowledge/sources/:id/activate', authenticate, scopeGuard('wri
 app.post('/api/v1/knowledge/sources/:id/publish', authenticate, scopeGuard('write:content', '*'), KnowledgeController.publishSource);
 app.post('/api/v1/knowledge/sources/:id/restrict', authenticate, scopeGuard('write:content', '*'), KnowledgeController.restrictSource);
 app.post('/api/v1/knowledge/sources/:id/quarantine', authenticate, scopeGuard('write:content', '*'), KnowledgeController.quarantineSource);
+app.post('/api/v1/knowledge/sources/:id/classify-governance', authenticate, scopeGuard('write:content', '*'), KnowledgeController.classifySourceGovernance);
+app.post('/api/v1/knowledge/sources/:id/governance-decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideGovernanceCategory);
+app.post('/api/v1/knowledge/sources/:id/transfer/decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideSourceTransfer);
 
 // Stats
 app.get('/api/v1/knowledge/stats', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getStats);
@@ -1294,6 +1290,7 @@ app.post('/api/v1/prompts/:id/pause', authenticate, govLifecycle, PromptControll
 app.post('/api/v1/prompts/:id/resume', authenticate, govLifecycle, PromptController.resumePrompt);
 app.post('/api/v1/prompts/:id/archive', authenticate, govLifecycle, PromptController.archivePrompt);
 app.post('/api/v1/prompts/:id/retire', authenticate, govLifecycle, PromptController.retirePrompt);
+app.post('/api/v1/prompts/:id/reactivate', authenticate, govLifecycle, PromptController.reactivatePrompt);
 app.post('/api/v1/prompts/:id/submit-review', authenticate, govLifecycle, PromptController.submitForReview);
 app.post('/api/v1/prompts/:id/rollback', authenticate, govLifecycle, PromptController.rollbackPrompt);
 
@@ -1340,6 +1337,9 @@ app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs', authentica
 app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs/:runId', authenticate, govView, PromptController.getAdversarialResultDetail);
 // Phase 6.2 — Real adversarial attack execution
 app.post('/api/v1/prompts/versions/:versionId/tests/adversarial/real', authenticate, govEdit, PromptController.runRealAdversarialSuite);
+
+// Test Center — runtime governance classifier (post description → APPROVE/REVIEW/BLOCK)
+app.post('/api/v1/prompts/test-center/classify', authenticate, govView, PromptController.classifyTestDescription);
 
 // Policy Simulation (Phase 5D) — read-only what-if analysis
 app.post('/api/v1/prompts/simulate', authenticate, govView, PromptController.runPolicySimulation);
@@ -1571,7 +1571,6 @@ import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
-import { startSlaBreachWorker } from './workers/slaBreachWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1582,10 +1581,10 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- intentional lazy require so env (provider keys) is loaded before adapter registration
   const { registerProductionAdapters } = require('./modules/prompts/modelProviders');
   registerProductionAdapters();
-  const server = app.listen(port, async () => {
+  const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
-    await initWorker();
+    initWorker();
     initAuditExportWorker();
     initAuditIntegrityWorker();
     initAuditStreamingWorker();
@@ -1593,7 +1592,6 @@ try {
     initDlpScanWorker();
     startCampaignWorker();
     initOrgInactivityWorker();
-    startSlaBreachWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {

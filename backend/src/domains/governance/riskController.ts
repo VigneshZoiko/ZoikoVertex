@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logAuditEvent } from './evidenceController';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -244,21 +245,86 @@ export const triggerEmergencyPause = async (req: AuthRequest, res: Response) => 
   try {
     const workspaceId = req.user?.workspace_id;
     const actorId = req.user?.id;
-    const { scope, reason } = req.body; // scope: 'GLOBAL', 'CAMPAIGN', 'AGENT'
+    const isSuper = req.user?.is_superadmin;
+    const { scope, reason } = req.body; // scope: 'workspace' | 'GLOBAL' | 'CAMPAIGN' | 'AGENT'
 
-    // Log this highly critical event
+    if (!workspaceId && !isSuper) {
+      return res.status(403).json({ success: false, error: 'Workspace context missing' });
+    }
+
+    const finalWorkspaceId = workspaceId || 'global';
+    const now = new Date().toISOString();
+
+    // ── 1. Suspend every operational agent in scope ────────────────────────
+    // The kill switch is a hard stop: any agent that could still act
+    // (ACTIVE / APPROVED / IN_REVIEW / PAUSED) is forced to SUSPENDED so it
+    // stops working until a human manually restores it via Autonomy Control.
+    let suspendedAgents = 0;
+    try {
+      let agentQuery = supabaseAdmin
+        .from('agents')
+        .update({ status: 'SUSPENDED', updated_at: now })
+        .in('status', ['ACTIVE', 'APPROVED', 'IN_REVIEW', 'PAUSED'])
+        .select('id');
+      if (!isSuper && workspaceId) agentQuery = agentQuery.eq('workspace_id', workspaceId);
+      const { data: suspended } = await agentQuery;
+      suspendedAgents = suspended?.length || 0;
+    } catch (err) {
+      console.error('Emergency pause: failed to suspend agents', err);
+    }
+
+    // ── 2. Halt only genuinely-executing workflow runs in scope ────────────
+    // Pause runs that are ACTIVELY executing (status 'running'). We deliberately
+    // do NOT touch 'pending' / 'waiting_review' / 'blocked', because publish-hub
+    // display instances live in those states — collapsing them to 'paused' would
+    // hide flagged/queued posts from Live Orchestrations & Published Content
+    // while giving no real safety benefit (the scheduler fires off
+    // scheduled_posts, not these mirror instances). Agent suspension + the
+    // emergency lock below are what actually stop new work.
+    let pausedInstances = 0;
+    try {
+      let wfQuery = supabaseAdmin
+        .from('workflow_instances')
+        .update({ status: 'paused' })
+        .eq('status', 'running')
+        .select('id');
+      if (!isSuper && workspaceId) wfQuery = wfQuery.eq('workspace_id', workspaceId);
+      const { data: paused } = await wfQuery;
+      pausedInstances = paused?.length || 0;
+    } catch (err) {
+      console.error('Emergency pause: failed to pause workflow instances', err);
+    }
+
+    // ── 3. Engage an in-memory emergency lock ──────────────────────────────
+    // Blocks NEW autonomous actions from starting (consistent with the
+    // Autonomy Control Center emergency-lock store) until it is released.
+    const lock = {
+      id: randomUUID(),
+      level: 'L4',
+      scope: scope || 'workspace',
+      reason: reason || 'Global Kill Switch activated from Agent Studio',
+      created_by: actorId || 'system',
+      created_at: now,
+      workspace_id: finalWorkspaceId,
+    };
+    lockStore.set(lock.id, lock);
+
+    // ── 4. Log this highly critical event ──────────────────────────────────
     await logAuditEvent({
-      workspaceId: workspaceId || '00000000-0000-0000-0000-000000000000',
+      workspaceId: finalWorkspaceId === 'global' ? '00000000-0000-0000-0000-000000000000' : finalWorkspaceId,
       actorId: actorId || 'system',
       module: 'RiskCommandCenter',
-      action: `Emergency Pause triggered: ${scope}. Reason: ${reason}`,
+      action: `Emergency Pause triggered: ${scope}. Suspended ${suspendedAgents} agent(s), paused ${pausedInstances} workflow(s). Reason: ${reason}`,
       riskLevel: 'CRITICAL',
       objectType: 'EMERGENCY_PAUSE'
     });
 
     res.json({
       success: true,
-      message: `Emergency Pause (${scope}) activated successfully. All autonomous actions suspended.`
+      lockId: lock.id,
+      suspendedAgents,
+      pausedInstances,
+      message: `Emergency Pause (${scope}) activated. ${suspendedAgents} agent(s) suspended and ${pausedInstances} workflow(s) halted. All autonomous actions are blocked until restored.`
     });
   } catch (error) {
     console.error("Failed to trigger emergency pause:", error);

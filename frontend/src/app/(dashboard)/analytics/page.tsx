@@ -80,7 +80,6 @@ interface CampaignStats {
   in_review: number;
   approval_pending: number;
   active: number;
-  pausing: number;
   paused: number;
   completed: number;
   risk_flags: number;
@@ -156,7 +155,6 @@ function normalizeCampaignStats(payload: Partial<CampaignStats>): CampaignStats 
     in_review: safeNumber(payload.in_review),
     approval_pending: safeNumber(payload.approval_pending),
     active: safeNumber(payload.active),
-    pausing: safeNumber(payload.pausing),
     paused: safeNumber(payload.paused),
     completed: safeNumber(payload.completed),
     risk_flags: safeNumber(payload.risk_flags),

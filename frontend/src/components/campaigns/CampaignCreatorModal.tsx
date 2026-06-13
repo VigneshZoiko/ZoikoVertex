@@ -6,6 +6,7 @@ import Image from "next/image";
 import {
   X, ChevronDown, ChevronLeft, Loader2, ImageIcon, Trash2,
   Monitor, Smartphone, Globe as InstaIcon, Check, Link2,
+  Globe2, Heart, MessageCircle, Send, Bookmark, ThumbsUp, ArrowRight
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -540,7 +541,34 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [showWelcomeErr,   setShowWelcomeErr]   = useState(false);
   const [imageUploading,   setImageUploading]   = useState(false);
   const [imageUploadErr,   setImageUploadErr]   = useState<string | null>(null);
+  const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLength, setAiLength] = useState("");
   const uploadCounterRef = useRef(0);
+
+  const generateAdCopy = async () => {
+    if (!aiPrompt) return;
+    setIsGeneratingCopy(true);
+    setError(null);
+    try {
+      const res = await api.post("/api/v1/ai/generate-ad-copy", {
+        prompt: aiPrompt,
+        lengthInstructions: aiLength
+      });
+      if (res.success && res.copy) {
+        setAd(a => ({ ...a, copy: res.copy }));
+        setAiPrompt("");
+        setAiLength("");
+      } else {
+        setError(res.error || "Failed to generate ad copy");
+      }
+    } catch (err) {
+      setError("An error occurred while generating ad copy");
+    } finally {
+      setIsGeneratingCopy(false);
+    }
+  };
+
 
   const uploadAdImage = async (file: File) => {
     setImageUploading(true); setImageUploadErr(null);
@@ -2194,7 +2222,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                   <h4 className="text-sm font-bold text-foreground mb-1">Payment</h4>
                   <p className="text-xs text-foreground-muted">
                     Meta will bill your ad account when your ad is published. Review your payment method on Meta.{" "}
-                    <span className="text-blue-400 underline cursor-pointer">Learn more â†—</span>
+                    <span className="text-blue-400 underline cursor-pointer">Learn more <ArrowRight className="w-3 h-3 inline-block ml-0.5" /></span>
                   </p>
                 </div>
               </div>
@@ -2313,16 +2341,49 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         className={inp} placeholder="New ad" />
                     </Field>
 
-                    {/* Copy textarea */}
-                    <div className="relative">
-                      <textarea
-                        value={ad.copy}
-                        onChange={e => setAd(a => ({...a, copy: e.target.value}))}
-                        maxLength={2200} rows={4}
-                        placeholder="Tell people about your offer..."
-                        className={inp + " resize-none text-sm"}
-                      />
-                      <p className="text-[10px] text-foreground-muted text-right mt-1">{ad.copy.length} / 2,200</p>
+                    {/* Copy textarea & AI Generator */}
+                    <div className="space-y-3">
+                      <div className="p-3 bg-surface border border-border rounded-xl space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">✨ AI Copy Generator</span>
+                        </div>
+                        <textarea
+                          value={aiPrompt}
+                          onChange={e => setAiPrompt(e.target.value)}
+                          placeholder="Describe your product or idea (e.g., 'A new summer collection of sneakers')..."
+                          className={inp + " resize-none text-xs"}
+                          rows={2}
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={aiLength}
+                            onChange={e => setAiLength(e.target.value)}
+                            placeholder="Length (e.g., '1000 words' or '100 lines')"
+                            className={inp + " flex-1 text-xs"}
+                          />
+                          <button
+                            type="button"
+                            onClick={generateAdCopy}
+                            disabled={!aiPrompt || isGeneratingCopy}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0"
+                          >
+                            {isGeneratingCopy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                            Generate
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <textarea
+                          value={ad.copy}
+                          onChange={e => setAd(a => ({...a, copy: e.target.value}))}
+                          maxLength={2200} rows={6}
+                          placeholder="Tell people about your offer..."
+                          className={inp + " resize-y min-h-[120px] max-h-[500px] text-sm"}
+                        />
+                        <p className="text-[10px] text-foreground-muted text-right mt-1">{ad.copy.length} / 2,200</p>
+                      </div>
                     </div>
 
                     {/* Ad format selector — not shown for message destination */}
@@ -2361,7 +2422,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         <input type="text" value={ad.video_url || ""}
                           onChange={e => setAd(a => ({ ...a, video_url: e.target.value }))}
                           className={inp} placeholder="e.g. 1234567890123456" />
-                        <p className="text-[11px] text-foreground-muted mt-1.5">Upload your video in Meta Ads Manager â†’ Creative Hub, then paste the video ID here.</p>
+                        <p className="text-[11px] text-foreground-muted mt-1.5">Upload your video in Meta Ads Manager <ArrowRight className="w-3 h-3 inline-block mx-0.5" /> Creative Hub, then paste the video ID here.</p>
                       </Field>
                     )}
 
@@ -2371,7 +2432,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         <input type="text" value={ad.lead_form_id || ""}
                           onChange={e => setAd(a => ({ ...a, lead_form_id: e.target.value }))}
                           className={inp} placeholder="e.g. 1234567890123456" />
-                        <p className="text-[11px] text-foreground-muted mt-1.5">Create your form in Meta Ads Manager â†’ Lead Ads Forms, then paste the Form ID here.</p>
+                        <p className="text-[11px] text-foreground-muted mt-1.5">Create your form in Meta Ads Manager <ArrowRight className="w-3 h-3 inline-block mx-0.5" /> Lead Ads Forms, then paste the Form ID here.</p>
                       </Field>
                     )}
 
@@ -2544,7 +2605,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         // Message destination — messenger preview style
                         if (convLocation === "message") {
                           return (
-                            <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64">
+                            <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64 shrink-0">
                               <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100">
                                 <div className="flex items-center gap-2">
                                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text p-0.5">
@@ -2552,7 +2613,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                   </div>
                                   <div>
                                     <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                    <p className="text-[9px] text-foreground-muted">Sponsored · ðŸŒ</p>
+                                    <p className="text-[9px] text-foreground-muted flex items-center gap-1">Sponsored · <Globe2 className="w-2.5 h-2.5" /></p>
                                   </div>
                                 </div>
                                 <span className="text-foreground-muted">···</span>
@@ -2568,9 +2629,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                               </div>
                               <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-100">
                                 <div className="flex items-center gap-3 text-foreground-muted">
-                                  <span>♡</span><span>💬</span><span>⊘</span>
+                                  <Heart className="w-4 h-4" /><MessageCircle className="w-4 h-4" /><Send className="w-4 h-4" />
                                 </div>
-                                <span className="text-foreground-muted">ðŸ”–</span>
+                                <Bookmark className="w-4 h-4 text-foreground-muted" />
                               </div>
                               <div className="px-3 pb-2">
                                 <p className="text-[11px] font-bold text-zinc-900">{pageName}</p>
@@ -2580,7 +2641,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         }
 
                         return (
-                          <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64">
+                          <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64 shrink-0">
                             {/* Instagram header */}
                             <div className="flex items-center justify-between px-3 py-2">
                               <div className="flex items-center gap-2">
@@ -2589,7 +2650,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                  <p className="text-[9px] text-foreground-muted">Sponsored · ðŸŒ</p>
+                                  <p className="text-[9px] text-foreground-muted flex items-center gap-1">Sponsored · <Globe2 className="w-2.5 h-2.5" /></p>
                                 </div>
                               </div>
                               <span className="text-foreground-muted">···</span>
@@ -2600,11 +2661,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             <div className="px-3 pt-2 pb-1">
                               <div className="flex items-center justify-between mb-1.5">
                                 <div className="flex items-center gap-3 text-foreground-muted">
-                                  <span className="text-lg">♡</span>
-                                  <span className="text-lg">💬</span>
-                                  <span className="text-lg">â†—</span>
+                                  <Heart className="w-5 h-5" /><MessageCircle className="w-5 h-5" /><Send className="w-5 h-5" />
                                 </div>
-                                <span className="text-lg text-foreground-muted">ðŸ”–</span>
+                                <Bookmark className="w-5 h-5 text-foreground-muted" />
                               </div>
                               {(ad.headline || ad.copy) && (
                                 <div className="flex items-center justify-between mt-1 border-t border-zinc-100 pt-1.5">
@@ -2616,6 +2675,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 </div>
                               )}
                               <p className="text-[11px] font-bold text-zinc-900 mt-1">{pageName}</p>
+                              {ad.copy && (
+                                <div className="max-h-24 overflow-y-auto mt-1 pr-1">
+                                  <p className="text-[10px] text-zinc-800 leading-relaxed whitespace-pre-wrap">{ad.copy}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -2623,19 +2687,23 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
 
                       // Desktop / Mobile — Facebook style
                       return (
-                        <div className={`bg-white rounded-xl overflow-hidden shadow-lg ${previewTab === "mobile" ? "w-64" : "w-80"}`}>
+                        <div className={`bg-white rounded-xl overflow-hidden shadow-lg shrink-0 ${previewTab === "mobile" ? "w-64" : "w-80"}`}>
                           <div className="p-3">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 rounded-full bg-zinc-300 flex items-center justify-center text-xs font-bold text-foreground-muted">{pageInitial}</div>
                                 <div>
                                   <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                  <p className="text-[10px] text-foreground-muted">Sponsored · ðŸŒ</p>
+                                  <p className="text-[10px] text-foreground-muted flex items-center gap-1">Sponsored · <Globe2 className="w-3 h-3" /></p>
                                 </div>
                               </div>
                               <span className="text-foreground-muted text-lg">···</span>
                             </div>
-                            {ad.copy && <p className="text-xs text-zinc-800 mb-2 leading-relaxed">{ad.copy}</p>}
+                            {ad.copy && (
+                              <div className="max-h-32 overflow-y-auto mb-2 pr-2">
+                                <p className="text-xs text-zinc-800 leading-relaxed whitespace-pre-wrap">{ad.copy}</p>
+                              </div>
+                            )}
                             {imageEl}
                             {(ad.headline || ad.website_url) && (
                               <div className="mt-2 flex items-center justify-between">
@@ -2647,8 +2715,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                               </div>
                             )}
                             <div className="flex items-center gap-4 mt-3 pt-2 border-t border-zinc-100">
-                              {["ðŸ‘ Like", "💬 Comment", "â†— Share"].map(label => (
-                                <button key={label} className="flex-1 text-center text-[11px] text-foreground-muted font-semibold">{label}</button>
+                              {[
+                                { label: "Like", icon: <ThumbsUp className="w-3.5 h-3.5" /> },
+                                { label: "Comment", icon: <MessageCircle className="w-3.5 h-3.5" /> },
+                                { label: "Share", icon: <Send className="w-3.5 h-3.5" /> }
+                              ].map(({ label, icon }) => (
+                                <button key={label} className="flex-1 flex items-center justify-center gap-1.5 text-[11px] text-foreground-muted font-semibold">{icon}{label}</button>
                               ))}
                             </div>
                           </div>

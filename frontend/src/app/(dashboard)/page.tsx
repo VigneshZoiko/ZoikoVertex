@@ -10,7 +10,6 @@ interface CampaignStats {
   in_review: number;
   approval_pending: number;
   active: number;
-  pausing: number;
   paused: number;
   completed: number;
   risk_flags: number;
@@ -107,7 +106,7 @@ export default function CommandCenterPage() {
         { label: 'In Review', count: campaigns.in_review, color: 'bg-info-text' },
         { label: 'Pending Approval', count: campaigns.approval_pending, color: 'bg-warning-text' },
         { label: 'Active', count: campaigns.active, color: 'bg-success-text' },
-        { label: 'Paused', count: campaigns.paused + campaigns.pausing, color: 'bg-warning-text' },
+        { label: 'Paused', count: campaigns.paused, color: 'bg-warning-text' },
         { label: 'Completed', count: campaigns.completed, color: 'bg-info-text' },
       ]
     : [];

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Search, Filter, Image as ImageIcon, Video as VideoIcon,
-  ExternalLink, Send, Trash2, Loader2, User, Calendar
+  ExternalLink, Send, Trash2, Loader2, User, Calendar, Eye, X
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -37,6 +37,7 @@ export default function MediaLibraryPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [deleteAsset, setDeleteAsset] = useState<{id: string, title: string} | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<LibraryAsset | null>(null);
 
   useEffect(() => {
     const fetchUserContext = async () => {
@@ -224,20 +225,27 @@ export default function MediaLibraryPage() {
                   );
                 })()}
 
-                {/* Overlay on hover — visible to anyone who can submit/publish */}
-                {userRole !== 'VIEWER' && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
+                {/* Overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6 gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPreviewAsset(asset); }}
+                    className="w-full bg-black/60 backdrop-blur-sm text-white border border-white/20 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-black/80 hover:border-white/40 transition-all transform translate-y-4 group-hover:translate-y-0 duration-300"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Preview
+                  </button>
+                  {userRole !== 'VIEWER' && (
                     <button
                       onClick={() => handleUseAsset(asset)}
-                      className="w-full bg-white text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-info-text hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300"
+                      className="w-full bg-white text-black py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-info-text hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300 delay-75"
                     >
                       <Send className="w-4 h-4" />
                       {['ADMIN', 'MANAGER', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'PUBLISHER'].includes(userRole ?? '')
                         ? 'Pick & Publish'
                         : 'Use in Post'}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Asset Info */}
@@ -266,6 +274,55 @@ export default function MediaLibraryPage() {
           <p className="text-[var(--foreground-muted)] max-w-sm mx-auto">Try adjusting your search or ask Creators to upload new content.</p>
         </div>
       )}
+      {/* Preview Modal */}
+      {previewAsset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-md" onClick={() => setPreviewAsset(null)}>
+          <div className="relative w-fit max-w-5xl min-w-[min(100%,600px)] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="w-full flex justify-end mb-4">
+              <button 
+                onClick={() => setPreviewAsset(null)}
+                className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="rounded-2xl overflow-hidden flex items-center justify-center w-full bg-black/40 border border-white/10 shadow-2xl">
+              {previewAsset.file_type === 'video' ? (
+                <video 
+                  src={previewAsset.url} 
+                  controls 
+                  autoPlay 
+                  className="max-w-full max-h-[65vh] object-contain"
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img 
+                  src={previewAsset.url} 
+                  alt={previewAsset.title} 
+                  className="max-w-full max-h-[65vh] object-contain"
+                />
+              )}
+            </div>
+            <div className="w-full mt-4 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center text-white bg-[#111] p-5 rounded-2xl border border-white/10 shadow-xl">
+              <div className="flex-1 min-w-0 pr-4">
+                <h2 className="text-xl font-bold truncate">{previewAsset.title}</h2>
+                <p className="text-xs text-[#888] mt-1.5 truncate">
+                   {previewAsset.file_type.toUpperCase()} • Uploaded by {previewAsset.uploader?.full_name || 'Unknown'}
+                </p>
+              </div>
+              {userRole !== 'VIEWER' && (
+                <button
+                  onClick={() => handleUseAsset(previewAsset)}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap"
+                >
+                  <Send className="w-4 h-4" /> Pick & Publish
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmActionModal
         open={!!deleteAsset}
         variant="danger"

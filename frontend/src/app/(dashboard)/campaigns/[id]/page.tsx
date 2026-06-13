@@ -105,7 +105,25 @@ export default function CampaignDetailPage() {
         api.get(`/api/v1/campaigns/${id}/insights`),
       ]);
       if (cRes.status === "fulfilled") setCampaign(cRes.value.data);
-      if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
+      let fetchedBoosts = bRes.status === "fulfilled" ? (bRes.value.data || []) : [];
+      if (cRes.status === "fulfilled" && cRes.value.data.ads_data && Array.isArray(cRes.value.data.ads_data)) {
+        cRes.value.data.ads_data.forEach((ad: any, i: number) => {
+          fetchedBoosts.push({
+            id: `virtual-ad-${i}`,
+            status: cRes.value.data.status,
+            ad_image_url: ad.ad_image_url,
+            ad_headline: ad.headline,
+            ad_body: ad.copy,
+            boost_type: ad.ad_type || 'IMAGE_AD',
+            spend_recorded: 0,
+            clicks: 0,
+            impressions: 0,
+            budget_daily: 0,
+            budget_total: 0
+          });
+        });
+      }
+      setBoosts(fetchedBoosts);
       if (iRes.status === "fulfilled") setInsights(iRes.value.data);
     } catch { setError("Failed to load campaign"); }
     finally { setLoading(false); }
@@ -123,7 +141,7 @@ export default function CampaignDetailPage() {
         pausing ? { reason: "Paused by operator" } : { reason: "Resumed by operator" },
       );
       if (r.success) {
-        setCampaign(prev => prev ? { ...prev, status: pausing ? "PAUSING" : "ACTIVE" } : prev);
+        setCampaign(prev => prev ? { ...prev, status: pausing ? "PAUSED" : "ACTIVE" } : prev);
       }
     } catch { /* silent */ }
     finally { setToggling(false); }
@@ -204,7 +222,7 @@ export default function CampaignDetailPage() {
               onClick={handleToggle}
               disabled={toggling || ["DRAFT","COMPLETED","CANCELLED"].includes(campaign.status)}
               className={`relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${
-                isActive(campaign.status) ? "bg-zinc-500" : "bg-surface-hover"
+                isActive(campaign.status) ? "bg-[#1877F2]" : "bg-surface-hover"
               }`}
               style={{ width: 36, height: 20 }}
             >
@@ -827,16 +845,16 @@ export default function CampaignDetailPage() {
                         <td className="px-4 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <div style={{
-                              width: 30, height: 17, borderRadius: 999,
-                              background: isAdActive ? "#71717a" : "#3f3f46",
+                              width: 32, height: 18, borderRadius: 999,
+                              background: isAdActive ? "#1877F2" : "#3f3f46",
                               position: "relative", display: "inline-block",
                             }}>
                               <span style={{
-                                position: "absolute", top: 1.5, width: 14, height: 14,
+                                position: "absolute", top: 2, width: 14, height: 14,
                                 borderRadius: "50%", background: "#fff",
                                 boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
                                 transition: "transform 150ms",
-                                transform: isAdActive ? "translateX(15px)" : "translateX(2px)",
+                                transform: isAdActive ? "translateX(16px)" : "translateX(2px)",
                               }} />
                             </div>
                             <span className={`text-xs font-medium ${isAdActive ? "text-foreground" : "text-foreground-muted"}`}>

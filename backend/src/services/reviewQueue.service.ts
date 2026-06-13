@@ -389,9 +389,10 @@ export function calculateEligibility(item: ReviewItem, role: string, userId?: st
   if (item.risk_level === 'CRITICAL' && !['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN'].includes(role)) {
     return 'ELEVATED_APPROVAL_REQUIRED';
   }
-  if (item.risk_level === 'HIGH' && item.validation_status === 'FAILED') {
-    return 'REVISION_REQUIRED';
-  }
+  // Allow human reviewers to override/approve FAILED validation items if they judge it safe.
+  // if (item.risk_level === 'HIGH' && item.validation_status === 'FAILED') {
+  //   return 'REVISION_REQUIRED';
+  // }
   if (item.status === 'ESCALATED') {
     return 'ESCALATION_REQUIRED';
   }
