@@ -393,10 +393,26 @@ export class PostGovernanceService {
         if (currentMeta) {
           const meta: Record<string, unknown> = currentMeta.metadata || {};
           meta.last_used_at = nowIso;
+          // `working_since` marks the moment this prompt last did real work on a
+          // post. The registry derives a live "Working" (green) state from how
+          // recent this is — so the prompt visibly lights up while it governs a
+          // post and settles back to "Active" once idle.
+          meta.working_since = nowIso;
           meta.last_possibility = possKey;
           meta.last_decision = result.decision;
           meta.last_reason = result.reason;
           meta.usage_count = ((meta.usage_count as number) || 0) + 1;
+          // Wire the Knowledge Base sources this prompt actually consulted, so the
+          // registry can show the live prompt → agent → workflow → KB-source chain
+          // with real values rather than a static placeholder.
+          if (result.knowledge?.checked) {
+            meta.last_kb_status = result.knowledge.status;
+            meta.linked_knowledge_sources = (result.knowledge.matches || []).map((m) => ({
+              id: m.id,
+              title: m.title,
+              match_action: m.match_action || null,
+            }));
+          }
           if (result.decision === 'BLOCK') {
             meta.last_blocked_at = nowIso;
             meta.block_count = ((meta.block_count as number) || 0) + 1;
@@ -522,36 +538,71 @@ export class PostGovernanceService {
     workspaceId: string,
   ): Promise<KnowledgeMatch[]> {
     try {
-      const { data: sources } = await supabaseAdmin
+      // A vetted source is usable as evidence whether it's APPROVED or fully
+      // ACTIVE — both are past human review. Only DRAFT / RETIRED / REJECTED /
+      // QUARANTINED sources are excluded from governance lookups.
+      // Fetch every source in the workspace, then filter usable statuses in JS.
+      // A PostgREST `.in('status', [...])` on an ENUM column throws if any label
+      // isn't a valid enum value, and the whole query returns null — which was
+      // silently swallowed as "0 sources" and is why KB never matched. Filtering
+      // in JS is immune to that.
+      const { data: allSources, error: srcErr } = await supabaseAdmin
         .from('knowledge_sources')
-        .select('id, title, citation_reference, content, metadata')
+        .select('id, title, content, metadata, status')
         .eq('workspace_id', workspaceId)
-        .eq('status', 'ACTIVE')
-        .limit(20);
+        .limit(50);
 
-      if (!sources || sources.length === 0) return [];
+      const USABLE_STATUSES = ['ACTIVE', 'APPROVED'];
+      const sources = (allSources || []).filter((s: any) =>
+        USABLE_STATUSES.includes(String(s.status || '').toUpperCase()),
+      );
+
+      logger.info(
+        {
+          workspaceId,
+          contentPreview: (content || '').slice(0, 80),
+          totalInWorkspace: allSources?.length || 0,
+          usableCount: sources.length,
+          queryError: srcErr ? (srcErr.message || String(srcErr)) : null,
+          statuses: (allSources || []).map((s: any) => s.status),
+        },
+        '[KB-lookup] sources fetched',
+      );
+
+      if (sources.length === 0) return [];
 
       const contentLower = content.toLowerCase();
+      const contentWords = contentLower.split(/\s+/).filter((w) => w.length > 3);
       const matches: KnowledgeMatch[] = [];
 
       for (const src of sources) {
         const srcText = ((src.content || '') + ' ' + (src.title || '')).toLowerCase();
-        const contentWords = contentLower.split(/\s+/).filter((w) => w.length > 3);
-        const matchCount = contentWords.filter((w) => srcText.includes(w)).length;
+        const matchedWords = contentWords.filter((w) => srcText.includes(w));
+        const matchCount = matchedWords.length;
         const ratio = contentWords.length > 0 ? matchCount / contentWords.length : 0;
 
-        if (ratio > 0.3 || matchCount >= 5) {
+        logger.info(
+          { srcId: src.id, title: src.title, status: src.status, matchCount, ratio: Number(ratio.toFixed(2)), matchedWords },
+          '[KB-lookup] candidate',
+        );
+
+        // A source is supporting evidence when it shares at least two significant
+        // words with the post, OR covers a third of the post's significant words.
+        // Ratio alone misses longer posts/hashtags that dilute the score, which is
+        // why an obviously-relevant source could read as "No KB evidence".
+        if (matchCount >= 2 || ratio > 0.3) {
           const meta = src.metadata || {};
           const matchAction = meta.match_action || meta.default_match_action || 'review';
           matches.push({
             id: src.id,
             title: src.title || 'Untitled',
-            citation_reference: src.citation_reference || undefined,
+            citation_reference: meta.citation_reference || meta.citation || undefined,
             match_action: matchAction as 'approve' | 'review' | 'block',
           });
         }
       }
 
+      logger.info({ matchesFound: matches.length }, '[KB-lookup] done');
       return matches;
     } catch (err) {
       logger.warn({ err }, '[PostGovernance] KB lookup failed');

@@ -634,6 +634,32 @@ export const getQueue = async (
 //   • reject  → REJECTED  (with reason as feedback)
 //   • return  → RETURNED  (back to the creator with the note)
 // ─────────────────────────────────────────────────────────────────────────────
+// Keep the linked Publishing Workflow run in sync with a review decision on the
+// post. The instance is linked via trigger_source JSON ("post_id": intentId);
+// without this the run stayed on its creation-time status (e.g. "Waiting").
+async function syncWorkflowInstanceStatus(intentId: string, status: string): Promise<void> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('workflow_instances')
+      .select('id, trigger_source')
+      .ilike('trigger_source', `%${intentId}%`);
+    const ids = (data || [])
+      .filter((r: any) => {
+        try {
+          return JSON.parse(r.trigger_source)?.post_id === intentId;
+        } catch {
+          return false;
+        }
+      })
+      .map((r: any) => r.id);
+    if (ids.length > 0) {
+      await supabaseAdmin.from('workflow_instances').update({ status }).in('id', ids);
+    }
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), intentId }, '[review-action] workflow instance status sync failed (non-blocking)');
+  }
+}
+
 export const reviewActionIntent = async (
   req: AuthRequest,
   res: Response,
@@ -674,12 +700,14 @@ export const reviewActionIntent = async (
           .from('publish_intents')
           .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decision.decision_id, feedback: `Blocked by Decision Engine: ${decision.decision_class}` })
           .eq('id', intentId);
+        await syncWorkflowInstanceStatus(intentId, 'blocked');
         return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
       }
       await supabaseAdmin
         .from('publish_intents')
         .update({ status: 'APPROVED', decision_id: decision.decision_id, feedback: reason || null })
         .eq('id', intentId);
+      await syncWorkflowInstanceStatus(intentId, 'completed');
       internalEventBus.emit('execution.requested', { intentId, orgId: workspaceId });
       return res.status(200).json({ success: true, data: { status: 'APPROVED' } });
     }
@@ -692,6 +720,7 @@ export const reviewActionIntent = async (
         .from('publish_intents')
         .update({ status: 'REJECTED', feedback: reason || null })
         .eq('id', intentId);
+      await syncWorkflowInstanceStatus(intentId, 'failed');
       return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
     }
 
@@ -700,6 +729,7 @@ export const reviewActionIntent = async (
       .from('publish_intents')
       .update({ status: 'RETURNED', feedback: reason || null })
       .eq('id', intentId);
+    await syncWorkflowInstanceStatus(intentId, 'cancelled');
     return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
     next(error);

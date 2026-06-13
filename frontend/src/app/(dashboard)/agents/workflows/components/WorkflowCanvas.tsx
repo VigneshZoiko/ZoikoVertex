@@ -117,7 +117,6 @@ const NODE_TYPE_FIELDS: Record<string, { label: string; key: keyof CanvasNode; f
   ],
   prompt: [
     { label: 'Prompt ID', key: 'prompt_id' },
-    { label: 'Version', key: 'prompt_version' },
     { label: 'Description', key: 'description' },
     { label: 'SLA (min)', key: 'sla_minutes' },
   ],

@@ -213,6 +213,10 @@ export default function WorkflowRunDetailDrawer({
   useEffect(() => {
     if (run) {
       setTab("overview");
+      // Scroll the page to the top first, then lock it there, so the drawer
+      // (a `fixed` overlay that a transformed ancestor can pin to page-top)
+      // is fully in view instead of off-screen above the current scroll position.
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       document.body.style.overflow = "hidden";
       setTimeout(() => scrollRef.current?.scrollTo(0, 0), 0);
     }
