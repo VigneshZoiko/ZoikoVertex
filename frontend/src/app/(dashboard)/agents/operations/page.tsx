@@ -195,7 +195,7 @@ const POLICY_CONFIG: Record<string, { label: string; color: string; bg: string }
   BLOCKED:        { label: "Blocked",        color: "text-rose-400",    bg: "bg-rose-500/10"    },
   NOT_EVALUATED:  { label: "Not Evaluated",  color: "text-gray-400",    bg: "bg-gray-500/10"     },
   PENDING_REVIEW: { label: "Pending Review", color: "text-purple-400",  bg: "bg-purple-500/10"  },
-  NOT_APPLICABLE: { label: "N/A",            color: "text-[#555]",      bg: "bg-white/5"        },
+  NOT_APPLICABLE: { label: "N/A",            color: "text-foreground-muted",      bg: "bg-surface"        },
 };
 
 const EVIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -249,7 +249,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-      className="p-1 hover:bg-white/5 rounded text-[#555] hover:text-white transition-colors"
+      className="p-1 hover:bg-surface-hover rounded text-foreground-muted hover:text-foreground transition-colors"
       title="Copy ID"
     >
       {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -258,7 +258,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] || { label: status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
+  const cfg = STATUS_CONFIG[status] || { label: status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium ${cfg.bg} ${cfg.color} border ${cfg.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -278,7 +278,7 @@ function PolicyBadge({ result }: { result: string }) {
 }
 
 function EvidenceBadge({ status }: { status: string }) {
-  const cfg = EVIDENCE_CONFIG[status] || { label: status, color: "text-[#555]" };
+  const cfg = EVIDENCE_CONFIG[status] || { label: status, color: "text-foreground-muted" };
   return <span className={`text-[10px] font-medium ${cfg.color}`}>{cfg.label}</span>;
 }
 
@@ -324,10 +324,10 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
       onKeyDown={(e) => { if (e.key === "Escape" && !loading) onCancel(); }}
       onClick={(e) => { if (e.target === e.currentTarget && !loading) onCancel(); }}
     >
-      <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
-        <div className="p-5 border-b border-[#2a2a2a]">
+      <div ref={cardRef} tabIndex={-1} className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
+        <div className="p-5 border-b border-border">
           <h3 className="text-base font-bold text-foreground">{title}</h3>
-          <p className="text-sm text-[#888] mt-1">{description}</p>
+          <p className="text-sm text-foreground-muted mt-1">{description}</p>
         </div>
         <div className="p-5 space-y-4">
           {impactPreview && (
@@ -338,12 +338,12 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
           )}
           {requireReason && (
             <div>
-              <label className="block text-xs text-[#666] mb-1.5">Reason <span className="text-rose-400">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
+              <label className="block text-xs text-foreground-muted mb-1.5">Reason <span className="text-rose-400">*</span> <span className="text-foreground-muted">(minimum 8 characters)</span></label>
               <textarea
                 ref={textareaRef}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
+                className={`w-full bg-background border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-foreground-muted ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-border focus:border-border"}`}
                 placeholder="Describe reason for this action (at least 8 characters)..."
               />
               <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -354,8 +354,8 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
-          <button onClick={onCancel} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] hover:text-white transition-colors">
+        <div className="p-4 border-t border-border flex items-center justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-1.5 bg-surface text-foreground-muted rounded-xl text-sm hover:bg-surface-hover hover:text-foreground transition-colors">
             Cancel
           </button>
           <button
@@ -394,22 +394,22 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
       onKeyDown={(e) => { if (e.key === "Escape" && !loading) onCancel(); }}
       onClick={(e) => { if (e.target === e.currentTarget && !loading) onCancel(); }}
     >
-      <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
-        <div className="p-5 border-b border-[#2a2a2a]">
+      <div ref={cardRef} tabIndex={-1} className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
+        <div className="p-5 border-b border-border">
           <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Download className="w-4 h-4 text-indigo-400" /> Export Evidence Bundle</h3>
-          <p className="text-xs text-[#888] mt-1 font-mono">Bundle: {shortId(bundleId)}</p>
+          <p className="text-xs text-foreground-muted mt-1 font-mono">Bundle: {shortId(bundleId)}</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300">
             This export will be recorded with your identity, timestamp, and stated reason per governance requirements.
           </div>
           <div>
-            <label className="block text-xs text-[#666] mb-1.5">Export Reason <span className="text-rose-400">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
+            <label className="block text-xs text-foreground-muted mb-1.5">Export Reason <span className="text-rose-400">*</span> <span className="text-foreground-muted">(minimum 8 characters)</span></label>
             <textarea
               ref={textareaRef}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
+              className={`w-full bg-background border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-foreground-muted ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-border focus:border-border"}`}
               placeholder="Legal review, audit request, incident investigation..."
             />
             <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -418,8 +418,8 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
                 : `Reason looks good (${reason.trim().length} characters).`}
             </p>
           </div>
-          <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
-            <button onClick={onCancel} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] transition-colors">Cancel</button>
+          <div className="p-4 border-t border-border flex items-center justify-end gap-2">
+            <button onClick={onCancel} className="px-4 py-1.5 bg-surface text-foreground-muted rounded-xl text-sm hover:bg-surface-hover transition-colors">Cancel</button>
             <button
               onClick={() => onConfirm(reason)}
               disabled={reason.trim().length < 8 || loading}
@@ -494,7 +494,7 @@ function RunDetailDrawer({
     { id: "evidence",  label: "Evidence",  icon: <Lock className="w-3.5 h-3.5" />        },
   ];
 
-  const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
+  const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
 
   return (
     <div
@@ -505,9 +505,9 @@ function RunDetailDrawer({
       onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div ref={cardRef} tabIndex={-1} className="bg-[#131313] border border-[#2a2a2a] rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl focus:outline-none">
+      <div ref={cardRef} tabIndex={-1} className="bg-background border border-border rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl focus:outline-none">
         {/* Drawer header */}
-        <div className="flex items-start justify-between p-5 border-b border-[#2a2a2a] shrink-0">
+        <div className="flex items-start justify-between p-5 border-b border-border shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <StatusBadge status={run.status} />
@@ -515,28 +515,28 @@ function RunDetailDrawer({
               <EvidenceBadge status={run.evidence_status} />
             </div>
             <h3 className="text-base font-bold text-foreground truncate">{run.agent_name}</h3>
-            <p className="text-xs text-[#666] truncate mt-0.5">{run.task_objective || run.workflow_name}</p>
+            <p className="text-xs text-foreground-muted truncate mt-0.5">{run.task_objective || run.workflow_name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] font-mono text-[#444] bg-[#1a1a1a] px-1.5 py-0.5 rounded">{shortId(run.id)}</span>
+              <span className="text-[10px] font-mono text-foreground-muted bg-card px-1.5 py-0.5 rounded">{shortId(run.id)}</span>
               <CopyButton text={run.id} />
               {run.environment && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1f1f1f] text-[#666] border border-[#2a2a2a]">{run.environment}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface text-foreground-muted border border-border">{run.environment}</span>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-xl text-[#555] hover:text-white ml-4 shrink-0">
+          <button onClick={onClose} className="p-2 hover:bg-surface-hover rounded-xl text-foreground-muted hover:text-white ml-4 shrink-0">
             <XCircle className="w-5 h-5" />
           </button>
         </div>
 
         {/* Drawer tabs */}
-        <div className="flex items-center gap-0 px-4 border-b border-[#2a2a2a] overflow-x-auto shrink-0">
+        <div className="flex items-center gap-0 px-4 border-b border-border overflow-x-auto shrink-0">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === t.id ? "border-indigo-500 text-foreground" : "border-transparent text-[#555] hover:text-[#aaa]"
+                activeTab === t.id ? "border-indigo-500 text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
               }`}
             >
               {t.icon}
@@ -567,8 +567,8 @@ function RunDetailDrawer({
                   { label: "Started",          value: run.started_at ? new Date(run.started_at).toLocaleString() : "—" },
                   { label: "Due",              value: run.due_at ? new Date(run.due_at).toLocaleString() : "—" },
                 ].map((row) => (
-                  <div key={row.label} className="bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
-                    <p className="text-[10px] text-[#555] mb-0.5">{row.label}</p>
+                  <div key={row.label} className="bg-card rounded-xl p-3 border border-border">
+                    <p className="text-[10px] text-foreground-muted mb-0.5">{row.label}</p>
                     {row.link ? (
                       <a href={row.link} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium truncate underline underline-offset-2 decoration-[#333] hover:decoration-indigo-500/40 block">{row.value}</a>
                     ) : (
@@ -590,34 +590,34 @@ function RunDetailDrawer({
           {activeTab === "timeline" && (
             <div>
               {loadingTimeline ? (
-                <div className="flex items-center justify-center py-12 gap-3 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-3 text-foreground-muted">
                   <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
                   <span className="text-sm">Loading timeline…</span>
                 </div>
               ) : timeline.length === 0 ? (
-                <p className="text-center text-[#555] text-sm py-12">No events recorded for this run.</p>
+                <p className="text-center text-foreground-muted text-sm py-12">No events recorded for this run.</p>
               ) : (
                 <div className="relative space-y-0">
                   {timeline.map((event, i) => (
                     <div key={event.id} className="flex items-start gap-3 pb-4">
                       <div className="flex flex-col items-center shrink-0 mt-1">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-[#131313] z-10" />
-                        {i < timeline.length - 1 && <span className="w-px flex-1 bg-[#2a2a2a] mt-1 h-full min-h-[1.5rem]" />}
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-background z-10" />
+                        {i < timeline.length - 1 && <span className="w-px flex-1 bg-surface mt-1 h-full min-h-[1.5rem]" />}
                       </div>
-                      <div className="flex-1 bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
+                      <div className="flex-1 bg-card rounded-xl p-3 border border-border">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-xs text-foreground font-semibold">{event.event_type.replace(/\./g, " → ")}</p>
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] font-mono text-[#444]">{shortId(event.id)}</span>
+                            <span className="text-[10px] font-mono text-foreground-muted">{shortId(event.id)}</span>
                             <CopyButton text={event.id} />
                           </div>
                         </div>
-                        <p className="text-[10px] text-[#666] mt-0.5">
+                        <p className="text-[10px] text-foreground-muted mt-0.5">
                           {event.actor_name}{event.actor_type && ` (${event.actor_type})`}
                           {event.previous_state && ` · ${event.previous_state} → ${event.new_state}`}
                         </p>
-                        {event.reason && <p className="text-xs text-[#555] mt-1">{event.reason}</p>}
-                        <p className="text-[10px] text-[#3a3a3a] mt-1.5">{new Date(event.created_at).toLocaleString()}</p>
+                        {event.reason && <p className="text-xs text-foreground-muted mt-1">{event.reason}</p>}
+                        <p className="text-[10px] text-foreground-muted mt-1.5">{new Date(event.created_at).toLocaleString()}</p>
                       </div>
                     </div>
                   ))}
@@ -630,19 +630,19 @@ function RunDetailDrawer({
           {activeTab === "inputs" && (
             <div className="space-y-3">
               {loadingDetail ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-2 text-foreground-muted">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                   <span className="text-sm">Loading inputs…</span>
                 </div>
               ) : detail?.inputs ? (
                 Object.entries(detail.inputs).map(([key, val]) => (
-                  <div key={key} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
-                    <p className="text-[10px] text-[#555] mb-1 capitalize">{key.replace(/_/g, " ")}</p>
+                  <div key={key} className="bg-card border border-border rounded-xl p-3">
+                    <p className="text-[10px] text-foreground-muted mb-1 capitalize">{key.replace(/_/g, " ")}</p>
                     <p className="text-xs text-foreground whitespace-pre-wrap">{typeof val === "string" ? val : JSON.stringify(val, null, 2)}</p>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-[#555] text-center py-12">No input data available.</p>
+                <p className="text-sm text-foreground-muted text-center py-12">No input data available.</p>
               )}
             </div>
           )}
@@ -651,7 +651,7 @@ function RunDetailDrawer({
           {activeTab === "prompt" && (
             <div className="space-y-3">
               {loadingDetail ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-2 text-foreground-muted">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 </div>
               ) : detail?.prompt_template ? (
@@ -665,7 +665,7 @@ function RunDetailDrawer({
                       <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v{detail.prompt_version}</span>
                     )}
                   </div>
-                  <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 font-mono text-xs text-[#aaa] whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  <div className="bg-background border border-border rounded-xl p-4 font-mono text-xs text-foreground-muted whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {detail.prompt_template}
                   </div>
                   <a
@@ -676,7 +676,7 @@ function RunDetailDrawer({
                   </a>
                 </>
               ) : (
-                <p className="text-sm text-[#555] text-center py-12">No prompt data available.</p>
+                <p className="text-sm text-foreground-muted text-center py-12">No prompt data available.</p>
               )}
             </div>
           )}
@@ -685,19 +685,19 @@ function RunDetailDrawer({
           {activeTab === "knowledge" && (
             <div className="space-y-3">
               {loadingDetail ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-2 text-foreground-muted">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 </div>
               ) : detail?.knowledge_sources?.length ? (
                 detail.knowledge_sources.map((ks, i) => (
-                  <div key={i} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
+                  <div key={i} className="bg-card border border-border rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-semibold text-foreground">{ks.name}</p>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${ks.confidence >= 80 ? "bg-emerald-500/10 text-emerald-400" : ks.confidence >= 60 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
                         {ks.confidence}% confidence
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-[10px] text-[#555]">
+                    <div className="flex items-center gap-4 text-[10px] text-foreground-muted">
                       <span>v{ks.version}</span>
                       <span>Freshness: {ks.freshness}</span>
                     </div>
@@ -723,7 +723,7 @@ function RunDetailDrawer({
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-[#555] text-center py-12">No knowledge sources accessed.</p>
+                <p className="text-sm text-foreground-muted text-center py-12">No knowledge sources accessed.</p>
               )}
             </div>
           )}
@@ -732,7 +732,7 @@ function RunDetailDrawer({
           {activeTab === "policy" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-[#555]">Policy & platform-safety checks</p>
+                <p className="text-xs text-foreground-muted">Policy & platform-safety checks</p>
                 <button
                   onClick={() => onRunPolicyCheck(run.id)}
                   disabled={policyCheckLoading}
@@ -743,7 +743,7 @@ function RunDetailDrawer({
                 </button>
               </div>
               {loadingDetail ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-2 text-foreground-muted">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 </div>
               ) : detail?.policy_results?.length ? (
@@ -751,25 +751,25 @@ function RunDetailDrawer({
                   const outcomeKey = String(pr.outcome || "").toUpperCase();
                   const polCfg = POLICY_CONFIG[outcomeKey] || POLICY_CONFIG.NOT_APPLICABLE;
                   return (
-                    <div key={pr.id} className={`bg-[#1a1a1a] border rounded-xl p-4 ${outcomeKey === "BLOCKED" ? "border-rose-500/30" : outcomeKey === "WARNING" ? "border-amber-500/30" : "border-[#2a2a2a]"}`}>
+                    <div key={pr.id} className={`bg-card border rounded-xl p-4 ${outcomeKey === "BLOCKED" ? "border-rose-500/30" : outcomeKey === "WARNING" ? "border-amber-500/30" : "border-border"}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${polCfg.bg} ${polCfg.color}`}>{polCfg.label}</span>
-                        <span className="text-[10px] text-[#555]">{new Date(pr.created_at).toLocaleString()}</span>
+                        <span className="text-[10px] text-foreground-muted">{new Date(pr.created_at).toLocaleString()}</span>
                       </div>
                       {pr.failed_rule && (
-                        <p className="text-xs text-foreground mb-1"><span className="text-[#555]">Failed rule:</span> {pr.failed_rule}</p>
+                        <p className="text-xs text-foreground mb-1"><span className="text-foreground-muted">Failed rule:</span> {pr.failed_rule}</p>
                       )}
                       {pr.check_category && (
-                        <p className="text-xs text-foreground mb-1"><span className="text-[#555]">Category:</span> {pr.check_category}</p>
+                        <p className="text-xs text-foreground mb-1"><span className="text-foreground-muted">Category:</span> {pr.check_category}</p>
                       )}
                       {pr.platform && (
-                        <p className="text-xs text-foreground mb-1"><span className="text-[#555]">Platform:</span> {pr.platform}</p>
+                        <p className="text-xs text-foreground mb-1"><span className="text-foreground-muted">Platform:</span> {pr.platform}</p>
                       )}
                       {pr.remediation_path && (
-                        <p className="text-xs text-amber-300 mb-1"><span className="text-[#555]">Remediation:</span> {pr.remediation_path}</p>
+                        <p className="text-xs text-amber-300 mb-1"><span className="text-foreground-muted">Remediation:</span> {pr.remediation_path}</p>
                       )}
                       {(pr.notes || pr.policy_version) && (
-                        <p className="text-[10px] text-[#555]">Source policy: {pr.notes || "policy"} {pr.policy_version && `v${pr.policy_version}`}</p>
+                        <p className="text-[10px] text-foreground-muted">Source policy: {pr.notes || "policy"} {pr.policy_version && `v${pr.policy_version}`}</p>
                       )}
                       {pr.remediation_required && (
                         <div className="mt-2 flex items-center gap-2">
@@ -787,7 +787,7 @@ function RunDetailDrawer({
               ) : (
                 <div className="text-center py-12">
                   <ShieldCheck className="w-10 h-10 text-emerald-400/20 mx-auto mb-2" />
-                  <p className="text-sm text-[#555]">No policy results available.</p>
+                  <p className="text-sm text-foreground-muted">No policy results available.</p>
                 </div>
               )}
             </div>
@@ -797,7 +797,7 @@ function RunDetailDrawer({
           {activeTab === "output" && (
             <div className="space-y-3">
               {loadingDetail ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-2 text-foreground-muted">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 </div>
               ) : detail?.output_snapshot ? (
@@ -805,10 +805,10 @@ function RunDetailDrawer({
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-foreground">Generated Output</span>
                     {detail.output_status && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-[#1f1f1f] text-[#888] border border-[#2a2a2a]">{detail.output_status}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-surface text-foreground-muted border border-border">{detail.output_status}</span>
                     )}
                   </div>
-                  <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 text-xs text-[#ccc] whitespace-pre-wrap max-h-48 overflow-y-auto">
+                  <div className="bg-background border border-border rounded-xl p-4 text-xs text-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">
                     {detail.output_snapshot}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -835,7 +835,7 @@ function RunDetailDrawer({
                     </button>
                     <button
                       onClick={() => onExportSnapshot(run, detail)}
-                      className="px-3 py-1.5 text-xs bg-[#1f1f1f] border border-[#2a2a2a] text-[#888] rounded-lg hover:text-white transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 text-xs bg-surface border border-border text-foreground-muted rounded-lg hover:text-foreground transition-colors flex items-center gap-1.5"
                     >
                       <Download className="w-3.5 h-3.5" />
                       Export Snapshot
@@ -843,7 +843,7 @@ function RunDetailDrawer({
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-[#555] text-center py-12">No output available yet.</p>
+                <p className="text-sm text-foreground-muted text-center py-12">No output available yet.</p>
               )}
             </div>
           )}
@@ -852,13 +852,13 @@ function RunDetailDrawer({
           {activeTab === "evidence" && (
             <div className="space-y-4">
               {loadingDetail ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
+                <div className="flex items-center justify-center py-12 gap-2 text-foreground-muted">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 </div>
               ) : (
                 <>
                   {detail?.evidence_bundle ? (
-                    <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 space-y-3">
+                    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Lock className="w-4 h-4 text-indigo-400" />
@@ -868,8 +868,8 @@ function RunDetailDrawer({
                       </div>
                       {detail.evidence_bundle.hash && (
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-[#555]">Hash:</span>
-                          <span className="font-mono text-[10px] text-[#888]">{detail.evidence_bundle.hash}</span>
+                          <span className="text-[10px] text-foreground-muted">Hash:</span>
+                          <span className="font-mono text-[10px] text-foreground-muted">{detail.evidence_bundle.hash}</span>
                           <CopyButton text={detail.evidence_bundle.hash} />
                         </div>
                       )}
@@ -879,7 +879,7 @@ function RunDetailDrawer({
                         </a>
                       )}
                       {detail.evidence_bundle.locked_at && (
-                        <p className="text-[10px] text-[#555]">Locked: {new Date(detail.evidence_bundle.locked_at).toLocaleString()}</p>
+                        <p className="text-[10px] text-foreground-muted">Locked: {new Date(detail.evidence_bundle.locked_at).toLocaleString()}</p>
                       )}
                       {detail.evidence_bundle.exported_by && (
                         <p className="text-[10px] text-amber-400">Last exported by {detail.evidence_bundle.exported_by} · {detail.evidence_bundle.exported_at ? new Date(detail.evidence_bundle.exported_at).toLocaleString() : ""}</p>
@@ -894,23 +894,23 @@ function RunDetailDrawer({
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-[#1a1a1a] border border-amber-500/20 rounded-xl p-4 text-center">
+                    <div className="bg-card border border-amber-500/20 rounded-xl p-4 text-center">
                       <AlertTriangle className="w-8 h-8 text-amber-400/30 mx-auto mb-2" />
                       <p className="text-sm text-amber-400">Evidence capture incomplete</p>
-                      <p className="text-xs text-[#555] mt-1">Missing artifacts detected. A remediation task may be required.</p>
+                      <p className="text-xs text-foreground-muted mt-1">Missing artifacts detected. A remediation task may be required.</p>
                     </div>
                   )}
                   {detail?.approval_chain?.length ? (
                     <div>
-                      <p className="text-xs font-semibold text-[#666] mb-2 uppercase tracking-wide">Approval Chain</p>
+                      <p className="text-xs font-semibold text-foreground-muted mb-2 uppercase tracking-wide">Approval Chain</p>
                       <div className="space-y-2">
                         {detail.approval_chain.map((a, i) => (
-                          <div key={i} className="flex items-start gap-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
+                          <div key={i} className="flex items-start gap-3 bg-card border border-border rounded-xl p-3">
                             <UserCheck className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-xs text-foreground">{a.actor} <span className="text-[#555]">·</span> <span className="text-emerald-400">{a.action}</span></p>
-                              {a.reason && <p className="text-[10px] text-[#555] mt-0.5">{a.reason}</p>}
-                              <p className="text-[10px] text-[#3a3a3a] mt-0.5">{new Date(a.timestamp).toLocaleString()}</p>
+                              <p className="text-xs text-foreground">{a.actor} <span className="text-foreground-muted">·</span> <span className="text-emerald-400">{a.action}</span></p>
+                              {a.reason && <p className="text-[10px] text-foreground-muted mt-0.5">{a.reason}</p>}
+                              <p className="text-[10px] text-foreground-muted mt-0.5">{new Date(a.timestamp).toLocaleString()}</p>
                             </div>
                           </div>
                         ))}
@@ -924,8 +924,8 @@ function RunDetailDrawer({
         </div>
 
         {/* Drawer footer */}
-        <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end shrink-0">
-          <button onClick={onClose} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-xs hover:bg-[#333] transition-colors">
+        <div className="p-4 border-t border-border flex items-center justify-end shrink-0">
+          <button onClick={onClose} className="px-4 py-1.5 bg-surface text-foreground-muted rounded-xl text-xs hover:bg-surface-hover transition-colors">
             Close
           </button>
         </div>
@@ -1538,13 +1538,13 @@ export default function AgentOperationsPage() {
       <div className="mb-5 flex flex-col md:flex-row md:items-center gap-3 justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-0.5">Agent Operations</h1>
-          <p className="text-[#666] text-sm">Live supervision · Runtime intervention · Evidence capture</p>
+          <p className="text-foreground-muted text-sm">Live supervision · Runtime intervention · Evidence capture</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Context selectors */}
           <div className="relative">
-            <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]">
+            <Building2 className="w-3.5 h-3.5 text-foreground-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-card border border-border rounded-xl pl-7 pr-3 py-1.5 text-xs text-foreground-muted appearance-none focus:outline-none focus:border-border">
               <option value="">All Brands</option>
               {[...new Set(runs.map((r) => r.brand_name).filter(Boolean))].sort().map((b) => (
                 <option key={b} value={b!}>{b}</option>
@@ -1552,8 +1552,8 @@ export default function AgentOperationsPage() {
             </select>
           </div>
           <div className="relative">
-            <Globe className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <select value={envFilter} onChange={(e) => setEnvFilter(e.target.value)} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]">
+            <Globe className="w-3.5 h-3.5 text-foreground-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <select value={envFilter} onChange={(e) => setEnvFilter(e.target.value)} className="bg-card border border-border rounded-xl pl-7 pr-3 py-1.5 text-xs text-foreground-muted appearance-none focus:outline-none focus:border-border">
               <option value="">All Envs</option>
               <option value="production">Production</option>
               <option value="staging">Staging</option>
@@ -1567,7 +1567,7 @@ export default function AgentOperationsPage() {
           </div>
           <button
             onClick={fetchData}
-            className="p-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-[#555] hover:text-white transition-all group"
+            className="p-2 bg-card border border-border rounded-xl text-foreground-muted hover:text-foreground transition-all group"
           >
             <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : "group-hover:rotate-180 transition-transform duration-500"}`} />
           </button>
@@ -1576,12 +1576,12 @@ export default function AgentOperationsPage() {
 
       {/* ── Global Search ── */}
       <div className="relative mb-5">
-        <Search className="w-4 h-4 text-[#444] absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-foreground-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search runs by agent name, objective, or Run ID…"
-          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder-[#444] focus:outline-none focus:border-[#444] transition-colors"
+          className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder-foreground-muted focus:outline-none focus:border-border transition-colors"
         />
       </div>
 
@@ -1618,13 +1618,13 @@ export default function AgentOperationsPage() {
 
             { label: "Ops Health",     val: `${stats.operations_health_score ?? stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "text-emerald-400" : "text-amber-400", bg: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
           ].map((card) => (
-            <div key={card.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-2.5">
+            <div key={card.label} className="bg-card border border-border rounded-xl p-3 flex items-center gap-2.5">
               <div className={`w-7 h-7 ${card.bg} rounded-lg flex items-center justify-center shrink-0 ${card.color}`}>
                 {card.icon}
               </div>
               <div className="min-w-0">
                 <p className={`text-base font-bold leading-none ${card.color}`}>{card.val}</p>
-                <p className="text-[9px] text-[#555] mt-0.5 truncate">{card.label}</p>
+                <p className="text-[9px] text-foreground-muted mt-0.5 truncate">{card.label}</p>
               </div>
             </div>
           ))}
@@ -1645,7 +1645,7 @@ export default function AgentOperationsPage() {
       )}
 
       {/* ── Tab Bar ── */}
-      <div className="flex items-center gap-0 mb-5 border-b border-[#2a2a2a]">
+      <div className="flex items-center gap-0 mb-5 border-b border-border">
         {[
           { id: "runs",      label: "Agent Runs",  icon: <Bot className="w-3.5 h-3.5" />,           count: runs.length         },
           { id: "queues",    label: "Task Queue",  icon: <Clock className="w-3.5 h-3.5" />,          count: queues.length       },
@@ -1655,13 +1655,13 @@ export default function AgentOperationsPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.id ? "border-indigo-500 text-foreground" : "border-transparent text-[#555] hover:text-[#aaa]"
+              activeTab === tab.id ? "border-indigo-500 text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
             }`}
           >
             {tab.icon}
             {tab.label}
             {tab.count > 0 && (
-              <span className={`px-1.5 py-0.5 text-[9px] rounded-full ${activeTab === tab.id ? "bg-indigo-500/20 text-indigo-400" : "bg-white/5 text-[#555]"}`}>
+              <span className={`px-1.5 py-0.5 text-[9px] rounded-full ${activeTab === tab.id ? "bg-indigo-500/20 text-indigo-400" : "bg-surface text-foreground-muted"}`}>
                 {tab.count}
               </span>
             )}
@@ -1677,11 +1677,11 @@ export default function AgentOperationsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-[#555]" />
+              <Filter className="w-3.5 h-3.5 text-foreground-muted" />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-foreground-muted focus:outline-none focus:border-border"
               >
                 <option value="">All Statuses</option>
                 {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
@@ -1692,7 +1692,7 @@ export default function AgentOperationsPage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                 aria-label="Sort runs by"
-                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-foreground-muted focus:outline-none focus:border-border"
               >
                 <option value="created_at">Created</option>
                 <option value="last_event_at">Last event</option>
@@ -1705,18 +1705,18 @@ export default function AgentOperationsPage() {
                 onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                 aria-label={`Sort direction: ${sortDir === "asc" ? "ascending" : "descending"}`}
                 title={sortDir === "asc" ? "Ascending" : "Descending"}
-                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
+                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-white hover:border-border transition-colors"
               >
                 {sortDir === "asc" ? "↑" : "↓"}
               </button>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#555]">
+              <div className="flex items-center gap-1.5 text-[10px] text-foreground-muted">
                 <CalendarRange className="w-3.5 h-3.5" />
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                   aria-label="Created from date"
-                  className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-2 py-1 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                  className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground-muted focus:outline-none focus:border-border"
                 />
                 <span>–</span>
                 <input
@@ -1724,10 +1724,10 @@ export default function AgentOperationsPage() {
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                   aria-label="Created to date"
-                  className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-2 py-1 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                  className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground-muted focus:outline-none focus:border-border"
                 />
                 {(dateFrom || dateTo) && (
-                  <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[#666] hover:text-white" aria-label="Clear date range" title="Clear dates">✕</button>
+                  <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-foreground-muted hover:text-white" aria-label="Clear date range" title="Clear dates">✕</button>
                 )}
               </div>
               {/* Saved operational views */}
@@ -1735,7 +1735,7 @@ export default function AgentOperationsPage() {
                 value=""
                 onChange={(e) => { if (e.target.value) applySavedView(e.target.value); }}
                 aria-label="Apply saved view"
-                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-foreground-muted focus:outline-none focus:border-border"
               >
                 <option value="">Saved views…</option>
                 {savedViews.map((v) => (
@@ -1745,13 +1745,13 @@ export default function AgentOperationsPage() {
               <button
                 onClick={saveCurrentView}
                 title="Save current filters as a view"
-                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
+                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-white hover:border-border transition-colors"
               >
                 Save view
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-[10px] text-[#555]">
+              <div className="flex items-center gap-1 text-[10px] text-foreground-muted">
                 <SeverityDot severity="critical" /><span>Critical</span>
                 <span className="mx-1.5" />
                 <SeverityDot severity="warning" /><span>Warning</span>
@@ -1761,63 +1761,63 @@ export default function AgentOperationsPage() {
               <button
                 onClick={handleExportFilteredRuns}
                 title="Export the currently filtered runs to CSV"
-                className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
+                className="flex items-center gap-1.5 bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-white hover:border-border transition-colors"
               >
                 <Download className="w-3.5 h-3.5" /> Export
               </button>
-              <div className="flex items-center border border-[#2a2a2a] rounded-xl overflow-hidden">
-                <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-[#2a2a2a] text-foreground" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><List className="w-3.5 h-3.5" /></button>
-                <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-[#2a2a2a] text-foreground" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><LayoutGrid className="w-3.5 h-3.5" /></button>
+              <div className="flex items-center border border-border rounded-xl overflow-hidden">
+                <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-surface text-foreground" : "text-foreground-muted hover:text-foreground-muted"} transition-colors`}><List className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-surface text-foreground" : "text-foreground-muted hover:text-foreground-muted"} transition-colors`}><LayoutGrid className="w-3.5 h-3.5" /></button>
               </div>
             </div>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-[#555] gap-3">
+            <div className="flex items-center justify-center py-16 text-foreground-muted gap-3">
               <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
               <span className="text-sm">Loading agent runs…</span>
             </div>
           ) : filteredRuns.length === 0 ? (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
+            <div className="bg-card border border-border rounded-2xl p-10 text-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
               <p className="text-emerald-400 font-semibold mb-1">No Active Runs</p>
-              <p className="text-[#555] text-sm mb-4">Agent operations are clear. No runs match the current filter.</p>
+              <p className="text-foreground-muted text-sm mb-4">Agent operations are clear. No runs match the current filter.</p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
-                <button onClick={() => setStatusFilter("SCHEDULED")} className="text-xs px-3 py-1.5 border border-[#2a2a2a] rounded-xl text-[#666] hover:text-white hover:border-[#444] transition-colors flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Scheduled Runs</button>
-                <a href="/agents/studio" className="text-xs px-3 py-1.5 border border-[#2a2a2a] rounded-xl text-[#666] hover:text-white hover:border-[#444] transition-colors flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" />Agent Catalog</a>
-                <button onClick={() => setStatusFilter("COMPLETED")} className="text-xs px-3 py-1.5 border border-[#2a2a2a] rounded-xl text-[#666] hover:text-white hover:border-[#444] transition-colors flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />Recent Completed</button>
+                <button onClick={() => setStatusFilter("SCHEDULED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-white hover:border-border transition-colors flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Scheduled Runs</button>
+                <a href="/agents/studio" className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-white hover:border-border transition-colors flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" />Agent Catalog</a>
+                <button onClick={() => setStatusFilter("COMPLETED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-white hover:border-border transition-colors flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />Recent Completed</button>
               </div>
             </div>
           ) : viewMode === "list" ? (
             /* ── List View ── */
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 items-center border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
                 <span>Actions</span>
               </div>
-              <div className="divide-y divide-[#1f1f1f]">
+              <div className="divide-y divide-border">
                 {filteredRuns.map((run) => {
-                  const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
+                  const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   return (
-                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-start hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <SeverityDot severity={statusCfg.severity} />
                           <span className="text-sm font-semibold text-foreground truncate">{run.agent_name}</span>
-                          <span className="text-[10px] font-mono text-[#3a3a3a] shrink-0">{shortId(run.id)}</span>
+                          <span className="text-[10px] font-mono text-foreground-muted shrink-0">{shortId(run.id)}</span>
                           <CopyButton text={run.id} />
                         </div>
-                        <p className="text-xs text-[#555] truncate pl-4">{run.task_objective || run.workflow_name}</p>
+                        <p className="text-xs text-foreground-muted truncate pl-4">{run.task_objective || run.workflow_name}</p>
                         <div className="flex items-center gap-2 mt-1 pl-4 flex-wrap">
-                          {run.brand_name && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#1f1f1f] text-[#555] border border-[#2a2a2a]">{run.brand_name}</span>}
-                          {run.channel && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#1f1f1f] text-[#555] border border-[#2a2a2a]">{run.channel}</span>}
-                          {run.owner_name && <span className="text-[9px] text-[#444]">@{run.owner_name}</span>}
-                          <span className="text-[9px] text-[#3a3a3a]">{timeAgo(run.last_event_at)}</span>
+                          {run.brand_name && <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface text-foreground-muted border border-border">{run.brand_name}</span>}
+                          {run.channel && <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface text-foreground-muted border border-border">{run.channel}</span>}
+                          {run.owner_name && <span className="text-[9px] text-foreground-muted">@{run.owner_name}</span>}
+                          <span className="text-[9px] text-foreground-muted">{timeAgo(run.last_event_at)}</span>
                         </div>
                       </div>
                       {/* Status */}
@@ -1828,7 +1828,7 @@ export default function AgentOperationsPage() {
                       <div><EvidenceBadge status={run.evidence_status} /></div>
                       {/* Actions */}
                       <div className="flex items-center gap-0.5">
-                        <button onClick={() => handleViewRun(run)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="View Run Detail"><Eye className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleViewRun(run)} className="p-1.5 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors" title="View Run Detail"><Eye className="w-3.5 h-3.5" /></button>
                         {run.status === "RUNNING" && (
                           <button
                             onClick={() => checkStaleAndAct(run.id, { type: "pause", runId: run.id, label: "Pause Run", description: `Pause "${run.agent_name}"?`, impactPreview: "Agent will halt at current step. In-progress tool calls may be interrupted.", confirmLabel: "Pause Run", confirmClass: "bg-amber-500 hover:bg-amber-600" })}
@@ -1907,24 +1907,24 @@ export default function AgentOperationsPage() {
               {filteredRuns.map((run) => {
                 const sla = formatTimeRemaining(run.due_at);
                 return (
-                  <div key={run.id} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4 hover:border-[#333] transition-colors">
+                  <div key={run.id} className="bg-card border border-border rounded-2xl p-4 hover:border-border transition-colors">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <SeverityDot severity={STATUS_CONFIG[run.status]?.severity || "normal"} />
                           <p className="text-sm font-bold text-foreground truncate">{run.agent_name}</p>
                         </div>
-                        <p className="text-xs text-[#555] truncate pl-4">{run.task_objective || run.workflow_name}</p>
+                        <p className="text-xs text-foreground-muted truncate pl-4">{run.task_objective || run.workflow_name}</p>
                       </div>
                       <StatusBadge status={run.status} />
                     </div>
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <PolicyBadge result={run.policy_result} />
                       <EvidenceBadge status={run.evidence_status} />
-                      {sla.label && <span className={`text-[10px] font-medium ${sla.overdue ? "text-rose-400" : "text-[#555]"}`}>{sla.label}</span>}
+                      {sla.label && <span className={`text-[10px] font-medium ${sla.overdue ? "text-rose-400" : "text-foreground-muted"}`}>{sla.label}</span>}
                     </div>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[10px] text-[#444]">
+                      <div className="flex items-center gap-1.5 text-[10px] text-foreground-muted">
                         {run.brand_name && <span>{run.brand_name}</span>}
                         {run.channel && <><span>·</span><span>{run.channel}</span></>}
                         <span>·</span><span>{timeAgo(run.last_event_at)}</span>
@@ -1941,7 +1941,7 @@ export default function AgentOperationsPage() {
 
           {/* Pagination */}
           {!loading && totalRuns > 0 && (
-            <div className="flex items-center justify-between mt-4 text-xs text-[#777]">
+            <div className="flex items-center justify-between mt-4 text-xs text-foreground-muted">
               <span>
                 {totalRuns === 0 ? "No runs" : `Showing ${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalRuns)} of ${totalRuns}`}
               </span>
@@ -1949,15 +1949,15 @@ export default function AgentOperationsPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground-muted hover:text-white hover:border-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <span className="text-[#555]">Page {page + 1} of {totalPages}</span>
+                <span className="text-foreground-muted">Page {page + 1} of {totalPages}</span>
                 <button
                   onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
                   disabled={page + 1 >= totalPages}
-                  className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground-muted hover:text-white hover:border-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -1976,13 +1976,13 @@ export default function AgentOperationsPage() {
       {activeTab === "queues" && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-[#555]">{visibleQueues.length} item{visibleQueues.length !== 1 ? "s" : ""}{queueTypeFilter !== "ALL" ? ` · ${queueTypeFilter.replace(/_/g, " ")}` : " in queue"}</p>
+            <p className="text-sm text-foreground-muted">{visibleQueues.length} item{visibleQueues.length !== 1 ? "s" : ""}{queueTypeFilter !== "ALL" ? ` · ${queueTypeFilter.replace(/_/g, " ")}` : " in queue"}</p>
           </div>
           {/* Queue type tabs */}
           <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
             <button
               onClick={() => setQueueTypeFilter("ALL")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-card text-foreground-muted border-border hover:text-white"}`}
             >
               All <span className="ml-1 text-[10px] opacity-70">{queues.length}</span>
             </button>
@@ -1992,7 +1992,7 @@ export default function AgentOperationsPage() {
                 <button
                   key={qt}
                   onClick={() => setQueueTypeFilter(qt)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-card text-foreground-muted border-border hover:text-white"}`}
                 >
                   {qt.replace(/_/g, " ")} <span className="ml-1 text-[10px] opacity-70">{count}</span>
                 </button>
@@ -2000,48 +2000,48 @@ export default function AgentOperationsPage() {
             })}
           </div>
           {visibleQueues.length === 0 ? (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
+            <div className="bg-card border border-border rounded-2xl p-10 text-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
               <p className="text-emerald-400 font-semibold mb-1">Queue Empty</p>
-              <p className="text-[#555] text-sm">No pending tasks in this queue.</p>
+              <p className="text-foreground-muted text-sm">No pending tasks in this queue.</p>
             </div>
           ) : (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-2.5 border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-2.5 border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
                 <span>Task</span>
                 <span>Priority</span>
                 <span>Assignee</span>
                 <span>SLA</span>
                 <span>Actions</span>
               </div>
-              <div className="divide-y divide-[#1f1f1f]">
+              <div className="divide-y divide-border">
                 {visibleQueues.map((item) => {
                   const sla = formatTimeRemaining(item.due_at);
                   const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
-                    <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
+                    <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-foreground">{item.queue_type.replace(/_/g, " ")}</p>
                         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {item.status}
                         </span>
                       </div>
-                      <span className="text-xs font-semibold text-foreground px-2 py-0.5 rounded bg-[#1f1f1f] border border-[#2a2a2a]">{item.priority}</span>
+                      <span className="text-xs font-semibold text-foreground px-2 py-0.5 rounded bg-surface border border-border">{item.priority}</span>
                       <div>
                         {item.assignee_name ? (
-                          <span className="text-xs text-[#888]">{item.assignee_name}</span>
+                          <span className="text-xs text-foreground-muted">{item.assignee_name}</span>
                         ) : (
                           <span className="text-xs text-amber-400">Unassigned</span>
                         )}
-                        {item.claimed_by && <p className="text-[9px] text-[#444]">Claimed: {item.claimed_by}</p>}
+                        {item.claimed_by && <p className="text-[9px] text-foreground-muted">Claimed: {item.claimed_by}</p>}
                       </div>
                       <div>
                         {sla.label ? (
-                          <span className={`text-xs ${sla.overdue ? "text-rose-400 font-semibold" : "text-[#666]"}`}>{sla.label}</span>
-                        ) : <span className="text-[#333]">—</span>}
+                          <span className={`text-xs ${sla.overdue ? "text-rose-400 font-semibold" : "text-foreground-muted"}`}>{sla.label}</span>
+                        ) : <span className="text-foreground-muted">—</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleQueueAssign(item)} disabled={resolved} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors disabled:opacity-30" title={item.assignee_name ? "Reassign / claim" : "Assign"}><UserCheck className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueAssign(item)} disabled={resolved} className="p-1.5 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors disabled:opacity-30" title={item.assignee_name ? "Reassign / claim" : "Assign"}><UserCheck className="w-3.5 h-3.5" /></button>
                         {isRetryableQueueItem(item) && (
                           <button onClick={() => handleQueueRetry(item)} disabled={resolved} className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400/70 hover:text-blue-400 transition-colors disabled:opacity-30" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
                         )}

@@ -800,7 +800,7 @@ export default function BillingPage() {
               <button type="button"
                 onClick={handleDownloadCSV}
                 disabled={transactions.length === 0}
-                className="text-xs font-medium text-foreground-muted hover:text-white transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-xs font-medium text-foreground-muted hover:text-foreground transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Download className="w-3.5 h-3.5" /> Download CSV
               </button>
@@ -877,7 +877,7 @@ export default function BillingPage() {
                               href={`https://dashboard.stripe.com/test/payments/${tx.stripe_charge_id}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-foreground-muted hover:text-white transition-colors"
+                              className="inline-flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors"
                               title="View receipt"
                             >
                               <FileText className="w-3 h-3" /> Receipt
@@ -899,15 +899,15 @@ export default function BillingPage() {
         <div className="space-y-6">
 
           {/* Enable Overcharge */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+          <div className="bg-card/50 border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-white">Enable Overcharge</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Allow usage beyond your plan quota — excess is charged automatically from your wallet.</p>
+                <h3 className="text-sm font-medium text-foreground">Enable Overcharge</h3>
+                <p className="text-xs text-foreground-muted mt-0.5">Allow usage beyond your plan quota — excess is charged automatically from your wallet.</p>
               </div>
               <button type="button" onClick={handleOverchargeToggle} disabled={overchargeLoading}
-                className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${overchargeEnabled ? "bg-white" : "bg-zinc-700"}`}>
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-900 shadow transition-transform ${overchargeEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${overchargeEnabled ? "bg-white" : "bg-surface"}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${overchargeEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </div>
             {overchargeEnabled ? (
@@ -916,7 +916,7 @@ export default function BillingPage() {
                 <p>Excess AI usage will be charged from your wallet. If balance hits $0, AI services suspend until you top up or your billing cycle resets.</p>
               </div>
             ) : (
-              <p className="text-xs text-zinc-600">When disabled, AI features stop once your monthly quota is reached. No wallet charges apply. Enable to add credits and prevent service interruptions.</p>
+              <p className="text-xs text-foreground-muted">When disabled, AI features stop once your monthly quota is reached. No wallet charges apply. Enable to add credits and prevent service interruptions.</p>
             )}
           </div>
 
@@ -1106,7 +1106,7 @@ export default function BillingPage() {
                         <td className="px-5 py-3 text-right">
                           {inv.hosted_url && (
                             <a href={inv.hosted_url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-foreground-muted hover:text-white transition-colors flex items-center gap-1 justify-end">
+                              className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1 justify-end">
                               <Download className="w-3 h-3" /> View
                             </a>
                           )}
@@ -1195,7 +1195,7 @@ export default function BillingPage() {
           <div className="relative z-10 w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-foreground">Confirm Upgrade</h3>
-              <button type="button" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} className="p-1.5 text-foreground-muted hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} className="p-1.5 text-foreground-muted hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>
             </div>
 
             {/* Plan summary */}
@@ -1226,7 +1226,7 @@ export default function BillingPage() {
                     </div>
                   ))}
                   <button type="button" onClick={() => { setUpgradeConfirm(null); handleAddCard(); }}
-                    className="w-full py-2 text-xs text-foreground-muted hover:text-white border border-dashed border-border hover:border-border rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                    className="w-full py-2 text-xs text-foreground-muted hover:text-foreground border border-dashed border-border hover:border-border rounded-xl transition-colors flex items-center justify-center gap-1.5">
                     <Plus className="w-3 h-3" /> Use a different card
                   </button>
                 </div>
@@ -1291,7 +1291,7 @@ export default function BillingPage() {
                   {depositStep === "confirm" && "Confirm Deposit"}
                 </h2>
               </div>
-              <button type="button" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
+              <button type="button" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1429,7 +1429,7 @@ export default function BillingPage() {
               <h2 className="text-xl font-semibold text-foreground">Change subscription plan</h2>
               <button
                 onClick={() => setShowUpgradeModal(false)}
-                className="p-2 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
+                className="p-2 text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>

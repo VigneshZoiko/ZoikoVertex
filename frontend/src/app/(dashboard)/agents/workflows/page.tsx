@@ -1505,7 +1505,7 @@ export default function WorkflowsPage() {
             : "border-error-border/20 bg-error-text/10 text-error-text"
         }`}>
           <span>{safeStr(emergencyMessage)}</span>
-          <button onClick={() => setEmergencyMessage(null)} className="ml-auto hover:text-white">
+          <button onClick={() => setEmergencyMessage(null)} className="ml-auto hover:text-foreground">
             <XCircle className="w-4 h-4" />
           </button>
         </div>

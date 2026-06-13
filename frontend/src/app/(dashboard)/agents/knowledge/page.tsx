@@ -1,2215 +1,1774 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+// ============================================================
+// Knowledge Base — Governed source-of-truth control surface.
+//
+//   Knowledge Base
+//     ├── Collections   (create / edit / delete / open · name · description · source count)
+//     ├── Sources       (create-as-DRAFT / delete / open · Active⇄Retired toggle)
+//     └── Source Content (opens like a FILE: status banner on top, source options —
+//                         name · type · author · keywords · citation · match action —
+//                         editable inline in the header with separate edit controls,
+//                         content editable in the body, evidence history)
+//
+// Governance flow:
+//   • A source is ONLY created as a DRAFT. No approve/review/block is chosen at
+//     creation — it lands in the Review Queue for the Admin / Workspace Owner.
+//   • The Admin / Workspace Owner later Approves it → a green "Approved" status
+//     banner shows above the source content. Block / Review are admin-only too.
+//   • Match Action (runtime rule) + author/keywords/citation live in metadata,
+//     so no DB schema change is required.
+// ============================================================
+
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
+import { useRoleContext } from "@/lib/context/RoleContext";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import {
-  Brain,
-  Palette,
-  BookOpen,
+  Database,
+  FolderPlus,
+  Folder,
   Plus,
+  Pencil,
   Trash2,
-  Link as LinkIcon,
   FileText,
-  ChevronRight,
-  Loader2,
-  CheckCircle2,
-  Globe,
+  Eye,
   ShieldCheck,
+  Ban,
+  CheckCircle2,
+  Clock,
+  Archive,
+  Tag,
   Search,
   X,
-  PlusCircle,
-  FileCode,
-  Info,
-  Upload,
-  FileDigit,
-  HelpCircle,
-  Sparkles,
-  Mic2,
-  ListChecks,
-  ChevronDown,
-  ChevronUp,
-  Type,
+  Check,
+  Loader2,
+  History,
   Layers,
-  ShieldAlert,
-  Clock3,
   AlertTriangle,
-  XCircle,
-  Eye,
-  RotateCcw,
-  Lock,
-  Archive,
-  ActivitySquare,
-  Users,
-  GitBranch,
-  Database,
-  Settings2,
-  Filter,
+  Sparkles,
+  Inbox,
   RefreshCw,
-  ClipboardList,
-  BadgeCheck,
-  Skull,
-  TrendingUp,
-  BarChart3,
-  Tag,
-  Zap,
-  AlertOctagon,
-  FlaskConical,
+  Upload,
+  ArrowLeftRight,
 } from "lucide-react";
-import { api } from "@/lib/api";
 
-// ─────────────────────────────────────────────
-// Types — aligned to Data Model (Section 15)
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
+type MatchAction = "APPROVE" | "REVIEW" | "BLOCK";
 
-type SourceStatus =
-  | "DRAFT"
-  | "PROCESSING"
-  | "REVIEW_REQUIRED"
-  | "APPROVED"
-  | "ACTIVE"
-  | "RESTRICTED"
-  | "EXPIRED"
-  | "RETIRED"
-  | "QUARANTINED"
-  | "REJECTED";
+interface OwnerRecord {
+  email: string;
+  username: string;
+  until: string; // ISO date ownership left this person
+}
 
-type RetrievalPolicy =
-  | "ALLOWED"
-  | "BLOCKED"
-  | "MANDATORY"
-  | "OPTIONAL"
-  | "CITATION_REQUIRED"
-  | "APPROVAL_GATED"
-  | "FALLBACK_ONLY";
+interface PendingTransfer {
+  to_email: string;
+  to_username: string;
+  requested_at: string;
+  requested_by?: string;
+}
 
-type RiskTier = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+interface SourceMetadata {
+  author?: string;
+  author_email?: string;
+  owner_email?: string;
+  owner_username?: string;
+  pending_transfer?: PendingTransfer | null;
+  owner_history?: OwnerRecord[];
+  keywords?: string[];
+  match_action?: MatchAction;
+  citation_reference?: string;
+  governance_category?: string;
+  [k: string]: unknown;
+}
 
-type AuthorityLevel =
-  | "OFFICIAL"
-  | "LEGAL_APPROVED"
-  | "PRODUCT_APPROVED"
-  | "CUSTOMER_APPROVED"
-  | "THIRD_PARTY_REFERENCE"
-  | "DRAFT_INTERNAL";
-
-type SensitivityLevel = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
-
-type ConflictSeverity = "LOW" | "MEDIUM" | "HIGH" | "BLOCKING";
-
-type PrimaryTab =
-  | "COLLECTIONS"
-  | "SOURCES"
-  | "REVIEW_QUEUE"
-  | "CONFLICTS"
-  | "RETRIEVAL_LOGS"
-  | "AGENT_ACCESS"
-  | "TAXONOMY"
-  | "SETTINGS";
-
-// Legacy KB type kept for backward compat with existing API
-type KBType = "AI_LIBRARY" | "BRAND_GUIDELINES" | "SOP";
-
-// ─────────────────────────────────────────────
-// Data model interfaces
-// ─────────────────────────────────────────────
-
-interface KnowledgeCollection {
+interface KBCollection {
   id: string;
   name: string;
-  description: string;
-  owner_id?: string;
-  owner_name?: string;
-  scope?: string;
-  risk_tier?: RiskTier;
-  status: SourceStatus | "ACTIVE" | "INACTIVE";
-  retrieval_policy?: RetrievalPolicy;
-  review_cadence?: string;
+  description?: string;
   source_count?: number;
-  agent_count?: number;
-  workflow_count?: number;
-  last_reviewed?: string;
-  next_review?: string;
-  type: KBType; // mapped from legacy
-  created_at: string;
+  created_at?: string;
+}
+
+interface KBSource {
+  id: string;
+  collection_id: string;
+  title: string;
+  source_type?: string;
+  content?: string;
+  status?: string;
+  owner_name?: string;
+  created_by?: string;
+  metadata?: SourceMetadata;
+  created_at?: string;
   updated_at?: string;
 }
 
-interface KnowledgeSource {
+interface KBReview {
   id: string;
-  collection_id: string;
-  kb_id?: string; // legacy compat
-  title: string;
-  content: string;
-  source_type?: string;
-  source_url?: string;
-  file_path?: string;
-  status?: SourceStatus;
-  authority_level?: AuthorityLevel;
-  sensitivity_level?: SensitivityLevel;
-  risk_tier?: RiskTier;
-  retrieval_policy?: RetrievalPolicy;
-  locale?: string;
-  jurisdiction?: string;
-  product?: string;
-  brand?: string;
-  channel?: string;
-  review_date?: string;
-  expiry_date?: string;
-  evidence_id?: string;
-  version?: number;
-  owner_name?: string;
-  chunk_count?: number;
-  citation_count?: number;
-  conflict_count?: number;
-  created_at: string;
-  metadata?: {
-    visual_identity?: {
-      primary_color?: string;
-      secondary_color?: string;
-      visual_style?: string;
-      font_family?: string;
-    };
-    original_filename?: string;
-    file_size?: number;
-    mime_type?: string;
-  };
+  source_id: string;
+  reviewer_id?: string;
+  review_type?: string;
+  decision?: string;
+  comments?: string;
+  completed_at?: string;
+  created_at?: string;
 }
 
-interface KnowledgeConflict {
+interface OrgMember {
   id: string;
-  source_ids: string[];
-  chunk_ids?: string[];
-  severity: ConflictSeverity;
-  summary: string;
-  owner_id?: string;
-  owner_name?: string;
-  status: "OPEN" | "IN_REVIEW" | "RESOLVED" | "ESCALATED";
-  resolution?: string;
-  created_at: string;
-  resolved_at?: string;
-  source_titles?: string[];
+  full_name: string | null;
+  email: string | null;
+  role?: string;
 }
 
-interface RetrievalEvent {
-  id: string;
-  agent_id?: string;
-  agent_name?: string;
-  prompt_id?: string;
-  workflow_id?: string;
-  query: string;
-  returned_chunks?: number;
-  blocked_chunks?: number;
-  reason_codes?: string[];
-  latency_ms?: number;
-  output_id?: string;
-  evidence_id?: string;
-  created_at: string;
-}
-
-interface KBSummaryStats {
-  total_sources: number;
-  approved_sources: number;
-  stale_sources: number;
-  review_required: number;
-  active_collections: number;
-  retrieval_errors: number;
-  conflict_flags: number;
-  high_risk_restricted: number;
-}
-
-interface AIContextResponse {
-  brand_voice: { title: string; guideline: string; base_name: string }[] | null;
-  brand_visual: {
-    primary_color?: string;
-    secondary_color?: string;
-    visual_style?: string;
-    font_family?: string;
-  } | null;
-  sop_rules: { title: string; rule: string; base_name: string }[];
-  ai_library: { title: string; content: string; base_name: string }[];
-  meta?: { generated_at?: string; entries_loaded?: number; bases_loaded?: number };
-}
-
-// ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<
-  SourceStatus,
-  { label: string; color: string; bg: string; icon: React.ElementType }
-> = {
-  DRAFT: { label: "Draft", color: "text-foreground-muted", bg: "bg-surface-hover", icon: FileText },
-  PROCESSING: { label: "Processing", color: "text-blue-400", bg: "bg-blue-500/10", icon: Loader2 },
-  REVIEW_REQUIRED: { label: "Review Required", color: "text-warning-text", bg: "bg-warning-text/10", icon: ClipboardList },
-  APPROVED: { label: "Approved", color: "text-success-text", bg: "bg-success-text/10", icon: BadgeCheck },
-  ACTIVE: { label: "Active", color: "text-green-400", bg: "bg-green-500/10", icon: CheckCircle2 },
-  RESTRICTED: { label: "Restricted", color: "text-purple-400", bg: "bg-purple-500/10", icon: Lock },
-  EXPIRED: { label: "Expired", color: "text-orange-400", bg: "bg-orange-500/10", icon: Clock3 },
-  RETIRED: { label: "Retired", color: "text-foreground-muted", bg: "bg-surface-hover/40", icon: Archive },
-  QUARANTINED: { label: "Quarantined", color: "text-error-text", bg: "bg-error-text/10", icon: AlertOctagon },
-  REJECTED: { label: "Rejected", color: "text-red-400", bg: "bg-red-500/10", icon: XCircle },
-};
-
-const RISK_CONFIG: Record<RiskTier, { label: string; color: string; bg: string }> = {
-  LOW: { label: "Low", color: "text-green-400", bg: "bg-green-500/10" },
-  MEDIUM: { label: "Medium", color: "text-warning-text", bg: "bg-warning-text/10" },
-  HIGH: { label: "High", color: "text-orange-400", bg: "bg-orange-500/10" },
-  CRITICAL: { label: "Critical", color: "text-error-text", bg: "bg-error-text/10" },
-};
-
-const CONFLICT_SEVERITY_CONFIG: Record<ConflictSeverity, { color: string; bg: string }> = {
-  LOW: { color: "text-green-400", bg: "bg-green-500/10" },
-  MEDIUM: { color: "text-warning-text", bg: "bg-warning-text/10" },
-  HIGH: { color: "text-orange-400", bg: "bg-orange-500/10" },
-  BLOCKING: { color: "text-error-text", bg: "bg-error-text/10" },
-};
-
-const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: React.ElementType; desc: string }[] = [
-  { id: "COLLECTIONS", label: "Collections", icon: Database, desc: "Governed knowledge collections" },
-  { id: "SOURCES", label: "Sources", icon: FileText, desc: "All ingested sources" },
-  { id: "REVIEW_QUEUE", label: "Review Queue", icon: ClipboardList, desc: "Pending approvals" },
-  { id: "CONFLICTS", label: "Conflicts", icon: AlertTriangle, desc: "Conflicting knowledge" },
-  { id: "RETRIEVAL_LOGS", label: "Retrieval Logs", icon: ActivitySquare, desc: "Agent retrieval trace" },
-  { id: "AGENT_ACCESS", label: "Agent Access", icon: Users, desc: "Agent–collection permissions" },
-  { id: "TAXONOMY", label: "Taxonomy", icon: Tag, desc: "Classification values" },
-  { id: "SETTINGS", label: "Settings", icon: Settings2, desc: "KB governance config" },
+const SOURCE_TYPES = [
+  "MANUAL_ARTICLE",
+  "POLICY",
+  "BRAND_GUIDE",
+  "FAQ",
+  "PRODUCT_FACT",
+  "LEGAL_CLAIM",
+  "PDF",
+  "URL",
 ];
 
-// ─────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────
+// Governance categories — align a source with the runtime governance path it
+// supports (mirrors the 5 governed prompts / Test Center possibilities).
+// Changing this on an approved source forces admin / workspace-owner re-approval.
+const GOVERNANCE_CATEGORIES: { id: string; label: string }[] = [
+  { id: "BASIC_CONTENT", label: "Basic Content" },
+  { id: "CLAIM_VALIDATION", label: "Claim Validation" },
+  { id: "KNOWLEDGE_VERIFICATION", label: "Knowledge Verification" },
+  { id: "HIGH_RISK_REVIEW", label: "High-Risk Review" },
+  { id: "POLICY_SAFETY", label: "Policy / Safety" },
+];
+const GOV_CATEGORY_LABEL: Record<string, string> = Object.fromEntries(GOVERNANCE_CATEGORIES.map((c) => [c.id, c.label]));
 
-function StatusBadge({ status }: { status: SourceStatus }) {
-  const cfg = STATUS_CONFIG[status];
-  if (!cfg) return null;
-  const Icon = cfg.icon;
+// ─────────────────────────────────────────────────────────────
+// Status helpers
+// ─────────────────────────────────────────────────────────────
+const isRetired = (s?: KBSource) => s?.status === "RETIRED";
+const isBlocked = (s?: KBSource) => s?.status === "QUARANTINED" || s?.status === "REJECTED";
+const isReview = (s?: KBSource) =>
+  s?.status === "DRAFT" || s?.status === "REVIEW_REQUIRED" || s?.status === "PROCESSING";
+const isApproved = (s?: KBSource) => s?.status === "APPROVED" || s?.status === "ACTIVE";
+const isActiveLive = (s?: KBSource) => s?.status === "ACTIVE";
+
+const meta = (s?: KBSource): SourceMetadata => s?.metadata || {};
+const getKeywords = (s?: KBSource): string[] =>
+  Array.isArray(meta(s).keywords) ? (meta(s).keywords as string[]) : [];
+const getAuthor = (s?: KBSource): string => (meta(s).author as string) || s?.owner_name || "";
+const getAuthorEmail = (s?: KBSource): string => {
+  const m = meta(s);
+  if (m.author_email) return m.author_email as string;
+  // The backend stamps owner_name with the creator's email at creation time.
+  if (s?.owner_name && s.owner_name.includes("@")) return s.owner_name;
+  return "";
+};
+const getCitation = (s?: KBSource): string => (meta(s).citation_reference as string) || "";
+const getGovernanceCategory = (s?: KBSource): string => (meta(s).governance_category as string) || "";
+// AI-assisted governance classification (stored in metadata — no new columns).
+const getAiCategory = (s?: KBSource): string => (meta(s).ai_suggested_governance_category as string) || "";
+const getAiConfidence = (s?: KBSource): number => Number(meta(s).ai_category_confidence) || 0;
+const getAiReason = (s?: KBSource): string => (meta(s).ai_category_reason as string) || "";
+const getAiMatchAction = (s?: KBSource): string => (meta(s).ai_suggested_match_action as string) || "";
+const getCategoryReviewStatus = (s?: KBSource): string => (meta(s).category_review_status as string) || "";
+const isCategoryUnresolved = (s?: KBSource): boolean => ["mismatch", "review_required"].includes(getCategoryReviewStatus(s));
+
+// Current owner (updated on an approved ownership transfer; defaults to creator).
+const getOwnerName = (s?: KBSource): string => (meta(s).owner_username as string) || getAuthor(s);
+const getOwnerEmail = (s?: KBSource): string => (meta(s).owner_email as string) || getAuthorEmail(s);
+const getPendingTransfer = (s?: KBSource): PendingTransfer | null => meta(s).pending_transfer || null;
+const getOwnerHistory = (s?: KBSource): OwnerRecord[] => (Array.isArray(meta(s).owner_history) ? (meta(s).owner_history as OwnerRecord[]) : []);
+
+// Validate a transfer target against real org/workspace members: the email must
+// belong to a member AND the username must match that member's name.
+type MatchResult = { ok: true; member: OrgMember } | { ok: false; reason: "no_email" | "name_mismatch"; member?: OrgMember };
+function matchMember(members: OrgMember[], email: string, username: string): MatchResult {
+  const e = email.trim().toLowerCase();
+  const u = username.trim().toLowerCase();
+  const byEmail = members.find((m) => (m.email || "").toLowerCase() === e);
+  if (!byEmail) return { ok: false, reason: "no_email" };
+  if ((byEmail.full_name || "").trim().toLowerCase() !== u) return { ok: false, reason: "name_mismatch", member: byEmail };
+  return { ok: true, member: byEmail };
+}
+
+function StatusBadge({ source }: { source?: KBSource }) {
+  if (isBlocked(source)) return <Chip cls="bg-rose-500/10 text-rose-400 border-rose-500/20" icon={<Ban className="w-3 h-3" />} label="Blocked" />;
+  if (isRetired(source)) return <Chip cls="bg-zinc-500/10 text-foreground-muted border-zinc-500/20" icon={<Archive className="w-3 h-3" />} label="Retired" />;
+  if (isReview(source)) return <Chip cls="bg-amber-500/10 text-amber-400 border-amber-500/20" icon={<Clock className="w-3 h-3" />} label="Draft" />;
+  if (isActiveLive(source)) return <Chip cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" icon={<CheckCircle2 className="w-3 h-3" />} label="Active" />;
+  if (isApproved(source)) return <Chip cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" icon={<ShieldCheck className="w-3 h-3" />} label="Approved" />;
+  return <Chip cls="bg-zinc-500/10 text-foreground-muted border-zinc-500/20" icon={null} label={source?.status || "Draft"} />;
+}
+
+// Governance category shown beside the status. Indigo = governance metadata.
+function GovCategoryChip({ source }: { source?: KBSource }) {
+  const cat = getGovernanceCategory(source);
+  if (!cat) return null;
+  return <Chip cls="bg-indigo-500/10 text-indigo-300 border-indigo-500/20" icon={<ShieldCheck className="w-3 h-3" />} label={GOV_CATEGORY_LABEL[cat] || cat} />;
+}
+
+function Chip({ cls, icon, label }: { cls: string; icon: React.ReactNode; label: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${cfg.color} ${cfg.bg}`}>
-      <Icon className="w-3 h-3" />
-      {cfg.label}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cls}`}>
+      {icon}
+      {label}
     </span>
   );
 }
 
-function RiskBadge({ tier }: { tier?: RiskTier }) {
-  if (!tier) return null;
-  const cfg = RISK_CONFIG[tier];
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${cfg.color} ${cfg.bg}`}>
-      {cfg.label} risk
-    </span>
-  );
-}
+// ─────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────
+export default function KnowledgeBasePage() {
+  const { role, isSuperAdmin, fullName } = useRoleContext();
+  const isApprover = isSuperAdmin || ["ADMIN", "WORKSPACE_OWNER"].includes((role || "").toUpperCase());
 
-function SummaryCard({ label, value, accent }: { label: string; value: number | string; accent?: string }) {
-  return (
-    <div className="bg-surface/40 border border-border/60 rounded-2xl p-4 space-y-2">
-      <p className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">{label}</p>
-      <p className={`text-2xl font-black ${accent || "text-foreground"}`}>{value}</p>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Panels
-// ─────────────────────────────────────────────
-
-function CollectionsPanel({
-  collections,
-  loading,
-  selectedCollection,
-  onSelect,
-  onCreateClick,
-  sources,
-  fetchingEntries,
-  entrySearch,
-  setEntrySearch,
-  onAddSourceClick,
-  onDeleteSource,
-  onApproveSource,
-  onRetireSource,
-  onActivateSource,
-  onPublishSource,
-  onRestrictSource,
-  onQuarantineSource,
-  onUpdateCollection,
-  onDeleteCollection,
-}: {
-  collections: KnowledgeCollection[];
-  loading: boolean;
-  selectedCollection: KnowledgeCollection | null;
-  onSelect: (c: KnowledgeCollection) => void;
-  onCreateClick: () => void;
-  sources: KnowledgeSource[];
-  fetchingEntries: boolean;
-  entrySearch: string;
-  setEntrySearch: (v: string) => void;
-  onAddSourceClick: () => void;
-  onDeleteSource: (id: string) => void;
-  onApproveSource: (id: string) => void;
-  onRetireSource: (id: string) => void;
-  onActivateSource: (id: string) => void;
-  onPublishSource: (id: string) => void;
-  onRestrictSource: (id: string) => void;
-  onQuarantineSource: (id: string) => void;
-  onUpdateCollection?: (id: string, data: Partial<KnowledgeCollection>) => void;
-  onDeleteCollection?: (id: string) => void;
-}) {
-  const filtered = sources.filter(
-    (s) =>
-      s.title.toLowerCase().includes(entrySearch.toLowerCase()) ||
-      s.content?.toLowerCase().includes(entrySearch.toLowerCase()),
-  );
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Left: collection list */}
-      <div className="lg:col-span-4 space-y-4">
-        <div className="flex items-center justify-between px-2">
-          <h2 className="text-xs font-black text-foreground-muted uppercase tracking-widest">Collections</h2>
-          <button onClick={onCreateClick} className="p-1.5 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-white transition-colors">
-            <PlusCircle className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="space-y-2">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-6 h-6 text-foreground-muted animate-spin" />
-            </div>
-          ) : collections.length > 0 ? (
-            collections.map((col) => (
-              <div key={col.id} className="group relative">
-                <button
-                  onClick={() => onSelect(col)}
-                  className={`w-full p-4 rounded-2xl border text-left transition-all ${selectedCollection?.id === col.id ? "bg-info-text/5 border-info-border/30" : "bg-surface border-border hover:bg-surface"}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-sm font-bold ${selectedCollection?.id === col.id ? "text-foreground" : "text-foreground-muted"}`}>{col.name}</span>
-                    <ChevronRight className={`w-4 h-4 transition-transform ${selectedCollection?.id === col.id ? "translate-x-1 text-info-text" : "text-foreground-muted"}`} />
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                    {col.risk_tier && <RiskBadge tier={col.risk_tier} />}
-                    <span className="text-[10px] text-foreground-muted font-medium">{col.source_count ?? 0} sources</span>
-                    {(col.agent_count ?? 0) > 0 && (
-                      <span className="text-[10px] text-foreground-muted">{col.agent_count} agents</span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-foreground-muted font-medium line-clamp-1 mt-1">{col.description || "No description."}</p>
-                </button>
-                {onDeleteCollection && (
-                  <button onClick={(e) => { e.stopPropagation(); onDeleteCollection(col.id); }}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-card border border-border text-foreground-muted hover:text-error-text hover:border-error-border/30 transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete collection">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="p-10 text-center border border-dashed border-border rounded-3xl">
-              <p className="text-xs text-foreground-muted font-medium">No collections defined.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Right: source entries */}
-      <div className="lg:col-span-8">
-        {selectedCollection ? (
-          <div className="bg-surface/40 border border-border rounded-[2.5rem] overflow-hidden min-h-[600px] flex flex-col">
-            <div className="p-8 border-b border-border bg-surface flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-foreground">{selectedCollection.name}</h2>
-                  {selectedCollection.risk_tier && <RiskBadge tier={selectedCollection.risk_tier} />}
-                </div>
-                <p className="text-xs text-foreground-muted font-medium">{selectedCollection.description}</p>
-                {selectedCollection.retrieval_policy && (
-                  <span className="text-[10px] text-info-text font-black uppercase tracking-widest">
-                    Retrieval: {selectedCollection.retrieval_policy.replace(/_/g, " ")}
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={onAddSourceClick}
-                className="px-4 py-2 bg-info-text text-foreground rounded-xl text-xs font-black hover:bg-info-text transition-all flex items-center gap-2 shadow-lg shadow-info-text/20"
-              >
-                <Plus className="w-4 h-4" />
-                ADD SOURCE
-              </button>
-            </div>
-
-            <div className="flex-1 p-8">
-              <div className="mb-6 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                <input
-                  value={entrySearch}
-                  onChange={(e) => setEntrySearch(e.target.value)}
-                  placeholder="Search sources, guidelines, or SOP text..."
-                  className="w-full bg-card border border-border rounded-2xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-sm"
-                />
-              </div>
-
-              {fetchingEntries ? (
-                <div className="flex flex-col items-center justify-center h-48 gap-4 text-foreground-muted">
-                  <Loader2 className="w-10 h-10 animate-spin" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Loading sources...</span>
-                </div>
-              ) : filtered.length > 0 ? (
-                <div className="space-y-4">
-                  {filtered.map((source) => (
-                    <SourceCard
-                      key={source.id}
-                      source={source}
-                      onDelete={onDeleteSource}
-                      onApprove={onApproveSource}
-                      onRetire={onRetireSource}
-                      onActivate={onActivateSource}
-                      onPublish={onPublishSource}
-                      onRestrict={onRestrictSource}
-                      onQuarantine={onQuarantineSource}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-48 text-center space-y-4 opacity-40">
-                  <div className="p-6 bg-surface-hover rounded-full">
-                    <FileCode className="w-12 h-12 text-foreground-muted" />
-                  </div>
-                  <div className="max-w-xs">
-                    <h3 className="text-sm font-bold text-foreground mb-1">Collection is empty</h3>
-                    <p className="text-xs text-foreground-muted">Ingest approved documents, manual articles, or approved URLs.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="h-full min-h-[600px] border border-dashed border-border rounded-[2.5rem] flex flex-col items-center justify-center p-12 text-center space-y-6">
-            <div className="w-20 h-20 bg-card rounded-3xl flex items-center justify-center text-foreground-muted">
-              <ShieldCheck className="w-10 h-10" />
-            </div>
-            <div className="max-w-sm space-y-2">
-              <h2 className="text-xl font-bold text-foreground">Select a Collection</h2>
-              <p className="text-sm text-foreground-muted leading-relaxed">Choose a governed knowledge collection to manage evidence-backed sources, approval status, and agent access.</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SourceCard({
-  source,
-  onDelete,
-  onApprove,
-  onRetire,
-  onActivate,
-  onPublish,
-  onRestrict,
-  onQuarantine,
-}: {
-  source: KnowledgeSource;
-  onDelete: (id: string) => void;
-  onApprove: (id: string) => void;
-  onRetire: (id: string) => void;
-  onActivate?: (id: string) => void;
-  onPublish?: (id: string) => void;
-  onRestrict?: (id: string) => void;
-  onQuarantine?: (id: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const status = source.status ?? "DRAFT";
-
-  return (
-    <div className="group bg-card/50 border border-border rounded-2xl p-6 hover:border-border transition-all">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-2 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            {source.source_url ? <Globe className="w-4 h-4 text-success-text shrink-0" /> : <FileText className="w-4 h-4 text-blue-400 shrink-0" />}
-            <h3 className="font-bold text-foreground">{source.title}</h3>
-            <StatusBadge status={status as SourceStatus} />
-            {source.risk_tier && <RiskBadge tier={source.risk_tier} />}
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            {source.authority_level && (
-              <span className="text-[10px] text-foreground-muted font-bold uppercase tracking-widest">
-                {source.authority_level.replace(/_/g, " ")}
-              </span>
-            )}
-            {source.sensitivity_level && (
-              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-widest">
-                {source.sensitivity_level}
-              </span>
-            )}
-            {source.retrieval_policy && (
-              <span className="text-[10px] text-info-text font-bold uppercase tracking-widest">
-                {source.retrieval_policy.replace(/_/g, " ")}
-              </span>
-            )}
-            {source.version && (
-              <span className="text-[10px] text-foreground-muted font-medium">v{source.version}</span>
-            )}
-          </div>
-
-          {source.content && !expanded && (
-            <p className="text-sm text-foreground-muted leading-relaxed line-clamp-2">{source.content}</p>
-          )}
-          {expanded && source.content && (
-            <p className="text-sm text-foreground-muted leading-relaxed">{source.content}</p>
-          )}
-
-          <div className="flex items-center gap-3 flex-wrap text-[10px] text-foreground-muted font-medium">
-            {source.chunk_count !== undefined && <span>{source.chunk_count} chunks</span>}
-            {source.citation_count !== undefined && <span>{source.citation_count} citations</span>}
-            {source.conflict_count !== undefined && source.conflict_count > 0 && (
-              <span className="text-error-text">{source.conflict_count} conflicts</span>
-            )}
-            {source.review_date && <span>Review: {new Date(source.review_date).toLocaleDateString()}</span>}
-            {source.expiry_date && <span className="text-orange-400">Expires: {new Date(source.expiry_date).toLocaleDateString()}</span>}
-            {source.locale && <span>{source.locale}</span>}
-          </div>
-
-          {source.source_url && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-surface rounded-lg w-fit">
-              <LinkIcon className="w-3 h-3 text-foreground-muted" />
-              <span className="text-[10px] text-foreground-muted font-medium">{source.source_url}</span>
-            </div>
-          )}
-
-          {source.metadata?.visual_identity && (
-            <div className="flex flex-wrap gap-2">
-              {source.metadata.visual_identity.primary_color && (
-                <span className="px-2 py-1 rounded-lg bg-surface text-[10px] text-foreground-muted font-bold">
-                  Primary {source.metadata.visual_identity.primary_color}
-                </span>
-              )}
-              {source.metadata.visual_identity.font_family && (
-                <span className="px-2 py-1 rounded-lg bg-surface text-[10px] text-foreground-muted font-bold">
-                  {source.metadata.visual_identity.font_family}
-                </span>
-              )}
-              {source.metadata.visual_identity.visual_style && (
-                <span className="px-2 py-1 rounded-lg bg-surface text-[10px] text-foreground-muted font-bold">
-                  {source.metadata.visual_identity.visual_style}
-                </span>
-              )}
-            </div>
-          )}
-
-          {source.evidence_id && (
-            <div className="flex items-center gap-1.5 text-[10px] text-foreground-muted">
-              <ShieldCheck className="w-3 h-3 text-info-text" />
-              Evidence: {source.evidence_id}
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1 shrink-0">
-          <button onClick={() => setExpanded((v) => !v)} className="p-2 text-foreground-muted hover:text-white transition-colors" title="Expand">
-            <Eye className="w-4 h-4" />
-          </button>
-          {(status === "DRAFT" || status === "REVIEW_REQUIRED") && (
-            <button onClick={() => onApprove(source.id)} className="p-2 text-foreground-muted hover:text-success-text transition-colors" title="Approve source">
-              <BadgeCheck className="w-4 h-4" />
-            </button>
-          )}
-          {status === "APPROVED" && onActivate && (
-            <button onClick={() => onActivate(source.id)} className="p-2 text-foreground-muted hover:text-green-400 transition-colors" title="Activate for retrieval">
-              <CheckCircle2 className="w-4 h-4" />
-            </button>
-          )}
-          {status === "ACTIVE" && (
-            <button onClick={() => onRetire(source.id)} className="p-2 text-foreground-muted hover:text-orange-400 transition-colors" title="Retire source">
-              <Archive className="w-4 h-4" />
-            </button>
-          )}
-          {(status === "ACTIVE" || status === "APPROVED") && onPublish && (
-            <button onClick={() => onPublish(source.id)} className="p-2 text-foreground-muted hover:text-info-text transition-colors" title="Publish to production">
-              <Globe className="w-4 h-4" />
-            </button>
-          )}
-          {(status === "ACTIVE" || status === "APPROVED") && onRestrict && (
-            <button onClick={() => onRestrict(source.id)} className="p-2 text-foreground-muted hover:text-purple-400 transition-colors" title="Restrict access">
-              <Lock className="w-4 h-4" />
-            </button>
-          )}
-          {(status === "ACTIVE" || status === "APPROVED") && onQuarantine && (
-            <button onClick={() => onQuarantine(source.id)} className="p-2 text-foreground-muted hover:text-error-text transition-colors" title="Quarantine">
-              <AlertTriangle className="w-4 h-4" />
-            </button>
-          )}
-          {status !== "ACTIVE" && status !== "APPROVED" && (
-            <button onClick={() => onDelete(source.id)} className="p-2 text-foreground-muted hover:text-error-text transition-colors" title="Delete">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReviewQueuePanel({
-  sources,
-  loading,
-  onApprove,
-  onReject,
-}: {
-  sources: KnowledgeSource[];
-  loading: boolean;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
-}) {
-  const reviewItems = sources.filter((s) =>
-    ["REVIEW_REQUIRED", "PROCESSING", "DRAFT"].includes(s.status ?? ""),
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground uppercase tracking-wider">
-          Review Queue
-          {reviewItems.length > 0 && (
-            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-warning-text/20 text-warning-text font-black">
-              {reviewItems.length}
-            </span>
-          )}
-        </h2>
-        <p className="text-xs text-foreground-muted font-medium">Pending approval — sources blocked from runtime until reviewed</p>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 text-foreground-muted animate-spin" />
-        </div>
-      ) : reviewItems.length === 0 ? (
-        <div className="p-16 text-center border border-dashed border-border rounded-3xl space-y-3 opacity-50">
-          <CheckCircle2 className="w-10 h-10 text-foreground-muted mx-auto" />
-          <p className="text-sm font-bold text-foreground-muted">No items pending review</p>
-          <p className="text-xs text-foreground-muted">All sources are approved, active, or in a terminal state.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {reviewItems.map((source) => (
-            <div key={source.id} className="bg-surface/40 border border-warning-border/20 rounded-2xl p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-foreground">{source.title}</h3>
-                    <StatusBadge status={(source.status ?? "DRAFT") as SourceStatus} />
-                    {source.risk_tier && <RiskBadge tier={source.risk_tier} />}
-                  </div>
-                  <p className="text-xs text-foreground-muted line-clamp-2">{source.content}</p>
-                  <div className="flex items-center gap-3 text-[10px] text-foreground-muted">
-                    {source.owner_name && <span>Owner: {source.owner_name}</span>}
-                    {source.authority_level && <span>{source.authority_level.replace(/_/g, " ")}</span>}
-                    <span>Added {new Date(source.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => onApprove(source.id)}
-                    className="px-3 py-1.5 bg-success-text/10 text-success-text border border-success-border/20 rounded-lg text-xs font-black hover:bg-success-text/20 transition-all flex items-center gap-1"
-                  >
-                    <BadgeCheck className="w-3.5 h-3.5" />
-                    APPROVE
-                  </button>
-                  <button
-                    onClick={() => onReject(source.id)}
-                    className="px-3 py-1.5 bg-error-text/10 text-error-text border border-error-border/20 rounded-lg text-xs font-black hover:bg-error-text/20 transition-all flex items-center gap-1"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    REJECT
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-    </div>
-  );
-}
-
-function ConflictsPanel({
-  conflicts,
-  loading,
-  onResolve,
-}: {
-  conflicts: KnowledgeConflict[];
-  loading: boolean;
-  onResolve: (id: string) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground uppercase tracking-wider">
-          Conflict Registry
-          {conflicts.length > 0 && (
-            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-error-text/20 text-error-text font-black">
-              {conflicts.length}
-            </span>
-          )}
-        </h2>
-        <p className="text-xs text-foreground-muted">Contradictory or duplicate knowledge — agents must not improvise</p>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 text-foreground-muted animate-spin" />
-        </div>
-      ) : conflicts.length === 0 ? (
-        <div className="p-16 text-center border border-dashed border-border rounded-3xl space-y-3 opacity-50">
-          <CheckCircle2 className="w-10 h-10 text-foreground-muted mx-auto" />
-          <p className="text-sm font-bold text-foreground-muted">No conflicts detected</p>
-          <p className="text-xs text-foreground-muted">Knowledge base is consistent across all active sources.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {conflicts.map((conflict) => {
-            const cfg = CONFLICT_SEVERITY_CONFIG[conflict.severity];
-            return (
-              <div key={conflict.id} className={`bg-surface/40 border rounded-2xl p-6 border-l-4 ${cfg.color.replace("text", "border")}`} style={{ borderLeftColor: "currentColor" }}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-4 h-4 shrink-0 ${cfg.color}`} />
-                      <h3 className="font-bold text-foreground text-sm">{conflict.summary}</h3>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded ${cfg.color} ${cfg.bg} uppercase tracking-widest`}>
-                        {conflict.severity}
-                      </span>
-                    </div>
-                    {conflict.source_titles && (
-                      <div className="flex flex-wrap gap-1">
-                        {conflict.source_titles.map((t) => (
-                          <span key={t} className="text-[10px] px-2 py-0.5 bg-surface-hover rounded text-foreground-muted">{t}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 text-[10px] text-foreground-muted">
-                      <span>Status: {conflict.status}</span>
-                      {conflict.owner_name && <span>Owner: {conflict.owner_name}</span>}
-                      <span>Detected {new Date(conflict.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  {conflict.status !== "RESOLVED" && (
-                    <button
-                      onClick={() => onResolve(conflict.id)}
-                      className="px-3 py-1.5 bg-info-text/10 text-info-text border border-info-border/20 rounded-lg text-xs font-black hover:bg-info-text/20 transition-all shrink-0"
-                    >
-                      RESOLVE
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RetrievalLogsPanel({ logs, loading }: { logs: RetrievalEvent[]; loading: boolean }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground uppercase tracking-wider">Retrieval Logs</h2>
-        <p className="text-xs text-foreground-muted">Agent retrieval trace — every knowledge access recorded</p>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 text-foreground-muted animate-spin" />
-        </div>
-      ) : logs.length === 0 ? (
-        <div className="p-16 text-center border border-dashed border-border rounded-3xl space-y-3 opacity-50">
-          <ActivitySquare className="w-10 h-10 text-foreground-muted mx-auto" />
-          <p className="text-sm font-bold text-foreground-muted">No retrieval events yet</p>
-          <p className="text-xs text-foreground-muted">Retrieval events are written here when agents access knowledge.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {logs.map((log) => (
-            <div key={log.id} className="bg-surface border border-border/40 rounded-xl p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {log.agent_name && (
-                      <span className="text-[10px] font-black text-info-text uppercase tracking-widest">{log.agent_name}</span>
-                    )}
-                    <span className="text-xs text-foreground-muted font-medium">{log.query}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[10px] text-foreground-muted">
-                    {log.returned_chunks !== undefined && <span>{log.returned_chunks} chunks returned</span>}
-                    {(log.blocked_chunks ?? 0) > 0 && (
-                      <span className="text-error-text">{log.blocked_chunks} blocked</span>
-                    )}
-                    {log.latency_ms !== undefined && <span>{log.latency_ms}ms</span>}
-                    {log.evidence_id && (
-                      <span className="flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3 text-info-text" />
-                        {log.evidence_id}
-                      </span>
-                    )}
-                    <span>{new Date(log.created_at).toLocaleString()}</span>
-                  </div>
-                  {log.reason_codes && log.reason_codes.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {log.reason_codes.map((code) => (
-                        <span key={code} className="text-[10px] px-2 py-0.5 bg-error-text/10 text-error-text rounded">{code}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AgentAccessPanel({ collections, accessPolicy }: { collections: KnowledgeCollection[]; accessPolicy: any }) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground uppercase tracking-wider">Agent Access Map</h2>
-        <p className="text-xs text-foreground-muted">Which agents can retrieve which collections</p>
-      </div>
-      <div className="space-y-3">
-        {collections.map((col) => (
-          <div key={col.id} className="bg-surface/40 border border-border rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="space-y-0.5">
-                <h3 className="font-bold text-foreground text-sm">{col.name}</h3>
-                {col.retrieval_policy && (
-                  <span className="text-[10px] text-info-text font-black uppercase tracking-widest">
-                    {col.retrieval_policy.replace(/_/g, " ")}
-                  </span>
-                )}
-              </div>
-              {col.risk_tier && <RiskBadge tier={col.risk_tier} />}
-            </div>
-            <div className="flex items-center gap-4 text-[10px] text-foreground-muted">
-              <span className="flex items-center gap-1">
-                <Users className="w-3 h-3" /> {col.agent_count ?? 0} agents
-              </span>
-              <span className="flex items-center gap-1">
-                <GitBranch className="w-3 h-3" /> {col.workflow_count ?? 0} workflows
-              </span>
-              <span className="flex items-center gap-1">
-                <FileText className="w-3 h-3" /> {col.source_count ?? 0} sources
-              </span>
-            </div>
-          </div>
-        ))}
-        {collections.length === 0 && (
-          <div className="p-12 text-center border border-dashed border-border rounded-3xl opacity-50">
-            <p className="text-sm text-foreground-muted">No collections available to display.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Access Policy */}
-      <div className="bg-surface/40 border border-border rounded-2xl p-6">
-        <h3 className="text-[10px] font-black text-foreground uppercase tracking-widest mb-4">Global Access Policy</h3>
-        {accessPolicy ? (
-          <div className="space-y-3 text-xs text-foreground-muted">
-            {Object.entries(accessPolicy).map(([key, val]) => (
-              <div key={key} className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest min-w-[160px]">{key.replace(/_/g, ' ')}</span>
-                <span className="text-foreground-muted">{String(val)}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-foreground-muted italic">No global access policy configured. Collections use their individual retrieval policies.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TaxonomyPanel() {
-  const taxonomyGroups = [
-    {
-      label: "Source Status Lifecycle",
-      color: "text-info-text",
-      items: ["DRAFT", "PROCESSING", "REVIEW_REQUIRED", "APPROVED", "ACTIVE", "RESTRICTED", "EXPIRED", "RETIRED", "QUARANTINED", "REJECTED"],
-    },
-    {
-      label: "Retrieval Policy",
-      color: "text-success-text",
-      items: ["ALLOWED", "BLOCKED", "MANDATORY", "OPTIONAL", "CITATION_REQUIRED", "APPROVAL_GATED", "FALLBACK_ONLY"],
-    },
-    {
-      label: "Risk Tier",
-      color: "text-warning-text",
-      items: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
-    },
-    {
-      label: "Authority Level",
-      color: "text-purple-400",
-      items: ["OFFICIAL", "LEGAL_APPROVED", "PRODUCT_APPROVED", "CUSTOMER_APPROVED", "THIRD_PARTY_REFERENCE", "DRAFT_INTERNAL"],
-    },
-    {
-      label: "Sensitivity Level",
-      color: "text-error-text",
-      items: ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"],
-    },
-    {
-      label: "Source Type",
-      color: "text-blue-400",
-      items: ["PDF", "DOCX", "PPTX", "TXT", "CSV", "MARKDOWN", "HTML", "MANUAL_ARTICLE", "APPROVED_URL", "CONNECTOR"],
-    },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground uppercase tracking-wider">Taxonomy & Classification Values</h2>
-        <p className="text-xs text-foreground-muted">Controlled vocabulary for all knowledge objects</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {taxonomyGroups.map((group) => (
-          <div key={group.label} className="bg-surface/40 border border-border rounded-2xl p-5">
-            <h3 className={`text-[10px] font-black uppercase tracking-widest mb-3 ${group.color}`}>{group.label}</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {group.items.map((item) => (
-                <span key={item} className="text-[10px] px-2 py-1 bg-surface-hover text-foreground-muted rounded-lg font-bold tracking-wide">
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const SETTINGS_DEFAULTS = [
-  { key: "review_cadence", label: "Default Review Cadence", default: "90 days", icon: Clock3 },
-  { key: "chunking_strategy", label: "Default Chunking Strategy", default: "Semantic structure", icon: Layers },
-  { key: "embedding_model", label: "Embedding Model", default: "text-embedding-3-large", icon: Brain },
-  { key: "citation_policy", label: "Citation Policy", default: "Required for claim-sensitive outputs", icon: ShieldCheck },
-  { key: "stale_threshold", label: "Stale Source Threshold", default: "30 days past review date", icon: AlertTriangle },
-  { key: "duplicate_detection", label: "Duplicate Detection", default: "Enabled — fingerprint + near-duplicate", icon: FlaskConical },
-  { key: "pii_scan", label: "PII Scan", default: "Enabled — blocks publication", icon: Lock },
-  { key: "retention_policy", label: "Retention Policy", default: "Retired sources: 7 years", icon: Archive },
-];
-
-function SettingsPanel() {
-  const [settings, setSettings] = useState<Record<string, string>>({});
-  const [loadingSettings, setLoadingSettings] = useState(true);
-
+  // Current user — stamped as the source author (username) + creator email on create,
+  // and used to decide who may edit (creator only, besides admin / workspace owner).
+  const [myEmail, setMyEmail] = useState("");
+  const [myId, setMyId] = useState("");
   useEffect(() => {
-    api.get("/api/v1/knowledge/settings")
-      .then((res) => {
-        if (res?.success && res.data && typeof res.data === "object") {
-          // Map API response fields to display values
-          const mapped: Record<string, string> = {};
-          if (res.data.review_cadence != null) mapped.review_cadence = `${res.data.review_cadence} days`;
-          if (res.data.chunking_strategy) mapped.chunking_strategy = res.data.chunking_strategy;
-          if (res.data.embedding_model) mapped.embedding_model = res.data.embedding_model;
-          if (res.data.citation_policy) mapped.citation_policy = res.data.citation_policy;
-          if (res.data.stale_threshold != null) mapped.stale_threshold = `${res.data.stale_threshold} days past review date`;
-          if (res.data.duplicate_detection != null) mapped.duplicate_detection = res.data.duplicate_detection ? "Enabled — fingerprint + near-duplicate" : "Disabled";
-          if (res.data.pii_scan != null) mapped.pii_scan = res.data.pii_scan ? "Enabled — blocks publication" : "Disabled";
-          if (res.data.retention_policy) mapped.retention_policy = res.data.retention_policy;
-          setSettings(mapped);
-        }
+    if (!isSupabaseReady) return;
+    let cancelled = false;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setMyEmail(data?.user?.email || "");
+        setMyId(data?.user?.id || "");
       })
-      .catch(() => {})
-      .finally(() => setLoadingSettings(false));
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground uppercase tracking-wider">Knowledge Governance Settings</h2>
-        <p className="text-xs text-foreground-muted">
-          {loadingSettings ? "Loading workspace settings…" : "Workspace-level defaults · contact AI Operations to change"}
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {SETTINGS_DEFAULTS.map(({ key, label, default: def, icon: Icon }) => (
-          <div key={key} className="bg-surface/40 border border-border rounded-2xl p-5 flex items-start gap-3">
-            <div className="p-2 bg-surface-hover rounded-lg text-foreground-muted shrink-0">
-              <Icon className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">{label}</p>
-              <p className="text-sm font-bold text-foreground mt-0.5">
-                {loadingSettings ? <span className="text-foreground-muted animate-pulse">Loading…</span> : (settings[key] ?? def)}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="bg-warning-text/5 border border-warning-border/20 rounded-2xl p-5">
-        <p className="text-xs font-black text-warning-text uppercase tracking-widest mb-1">Governance Reminder</p>
-        <p className="text-xs text-foreground-muted leading-relaxed">
-          Modifications to chunking strategy, embedding model, or citation policy require all affected sources to be re-processed and re-approved. Changes write to the Evidence Vault and notify AI Operations.
-        </p>
-      </div>
-    </div>
+  // Edit rights follow OWNERSHIP: the admin / workspace owner, OR the current
+  // owner (which moves when an ownership transfer is approved). Everyone else
+  // gets a read-only view.
+  const canEditSource = useCallback(
+    (s?: KBSource): boolean => {
+      if (!s) return false;
+      if (isApprover) return true;
+      const ownerEmail = getOwnerEmail(s).toLowerCase();
+      if (!!myEmail && ownerEmail === myEmail.toLowerCase()) return true;
+      // Fallback for older rows with no resolvable owner email yet.
+      if (!ownerEmail && myId && s.created_by === myId) return true;
+      return false;
+    },
+    [isApprover, myId, myEmail],
   );
-}
 
-// ─────────────────────────────────────────────
-// Create Collection Modal
-// ─────────────────────────────────────────────
-
-function CreateCollectionModal({
-  onClose,
-  onCreate,
-  creating,
-}: {
-  onClose: () => void;
-  onCreate: (data: {
-    name: string;
-    description: string;
-    type: KBType;
-    risk_tier: RiskTier;
-    retrieval_policy: RetrievalPolicy;
-    scope: string;
-  }) => void;
-  creating: boolean;
-}) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState<KBType>("AI_LIBRARY");
-  const [riskTier, setRiskTier] = useState<RiskTier>("MEDIUM");
-  const [retrievalPolicy, setRetrievalPolicy] = useState<RetrievalPolicy>("ALLOWED");
-  const [scope, setScope] = useState("");
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-surface border border-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-info-text/10 rounded-lg text-info-text">
-              <Database className="w-4 h-4" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground">New Knowledge Collection</h3>
-          </div>
-          <button onClick={onClose} className="text-foreground-muted hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-8 space-y-5">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Collection Name *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Q4 Brand Voice Guidelines" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose of this collection and what agents use it..." className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-20 resize-none text-sm" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Scope / Brand</label>
-            <input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="e.g. Global / North America / Brand X" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-sm" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Category</label>
-              <select value={type} onChange={(e) => setType(e.target.value as KBType)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                <option value="AI_LIBRARY">AI Library</option>
-                <option value="BRAND_GUIDELINES">Brand Guidelines</option>
-                <option value="SOP">Operations / SOP</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Risk Tier</label>
-              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="CRITICAL">Critical</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Retrieval</label>
-              <select value={retrievalPolicy} onChange={(e) => setRetrievalPolicy(e.target.value as RetrievalPolicy)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                <option value="ALLOWED">Allowed</option>
-                <option value="MANDATORY">Mandatory</option>
-                <option value="OPTIONAL">Optional</option>
-                <option value="CITATION_REQUIRED">Citation Required</option>
-                <option value="APPROVAL_GATED">Approval Gated</option>
-                <option value="BLOCKED">Blocked</option>
-              </select>
-            </div>
-          </div>
-          <button
-            onClick={() => onCreate({ name, description, type, risk_tier: riskTier, retrieval_policy: retrievalPolicy, scope })}
-            disabled={creating || !name}
-            className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:bg-info-text disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-info-text/20"
-          >
-            {creating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</>
-            ) : (
-              <><Plus className="w-4 h-4" />CREATE COLLECTION</>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Create Source Modal (aligned to Section 7 ingestion requirements)
-// ─────────────────────────────────────────────
-
-function CreateSourceModal({
-  collectionType,
-  onClose,
-  onCreate,
-  creating,
-}: {
-  collectionType?: KBType;
-  onClose: () => void;
-  onCreate: (formData: FormData) => void;
-  creating: boolean;
-}) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [authorityLevel, setAuthorityLevel] = useState<AuthorityLevel>("OFFICIAL");
-  const [sensitivityLevel, setSensitivityLevel] = useState<SensitivityLevel>("INTERNAL");
-  const [riskTier, setRiskTier] = useState<RiskTier>("MEDIUM");
-  const [locale, setLocale] = useState("");
-  const [reviewDate, setReviewDate] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("");
-  const [secondaryColor, setSecondaryColor] = useState("");
-  const [visualStyle, setVisualStyle] = useState("");
-  const [fontFamily, setFontFamily] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
-
-  const ALLOWED_FILE_EXTENSIONS = [".pdf", ".docx", ".pptx", ".txt", ".csv", ".md"];
-  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-
-  const handleSubmit = () => {
-    setValidationError(null);
-
-    if (!title) {
-      setValidationError("Title is required before ingesting a source.");
-      return;
-    }
-
-    if (!content.trim() && !sourceUrl.trim() && !selectedFile) {
-      setValidationError(
-        "Please provide at least one of: a Source URL, a file upload, or manual content."
-      );
-      return;
-    }
-
-    if (selectedFile) {
-      const ext = "." + (selectedFile.name.split(".").pop()?.toLowerCase() ?? "");
-      if (!ALLOWED_FILE_EXTENSIONS.includes(ext)) {
-        setValidationError(
-          `Unsupported file type "${ext}". Allowed formats: PDF, DOCX, PPTX, TXT, CSV, MD.`
-        );
-        return;
-      }
-      if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-        setValidationError(
-          `File is too large (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 10 MB.`
-        );
-        return;
-      }
-    }
-
-    if (sourceUrl.trim()) {
-      try {
-        const parsed = new URL(sourceUrl.trim());
-        if (!["http:", "https:"].includes(parsed.protocol)) {
-          setValidationError("Source URL must begin with http:// or https://");
-          return;
-        }
-      } catch {
-        setValidationError(
-          "Source URL is not valid. Please enter a full URL, e.g. https://example.com/doc"
-        );
-        return;
-      }
-    }
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("content", content);
-    formData.append("source_url", sourceUrl);
-    formData.append("authority_level", authorityLevel);
-    formData.append("sensitivity_level", sensitivityLevel);
-    formData.append("risk_tier", riskTier);
-    formData.append("locale", locale);
-    formData.append("review_date", reviewDate);
-    formData.append("expiry_date", expiryDate);
-    if (selectedFile) formData.append("file", selectedFile);
-
-    const metadataObj: Record<string, unknown> = {};
-    if (collectionType === "BRAND_GUIDELINES") {
-      metadataObj.visual_identity = {
-        primary_color: primaryColor,
-        secondary_color: secondaryColor,
-        visual_style: visualStyle,
-        font_family: fontFamily,
-      };
-    }
-    formData.append("metadata", JSON.stringify(metadataObj));
-    onCreate(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-surface border border-border rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-info-text/10 rounded-lg text-info-text">
-              <Plus className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">Ingest Knowledge Source</h3>
-              <p className="text-[10px] text-foreground-muted uppercase tracking-widest font-black">Source will be blocked from agents until approved</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-foreground-muted hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
-          {/* Title */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Title / Headline *</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tone of Voice — Professional Markets" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
-          </div>
-
-          {/* Governance metadata */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Authority Level</label>
-              <select value={authorityLevel} onChange={(e) => setAuthorityLevel(e.target.value as AuthorityLevel)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                <option value="OFFICIAL">Official</option>
-                <option value="LEGAL_APPROVED">Legal Approved</option>
-                <option value="PRODUCT_APPROVED">Product Approved</option>
-                <option value="CUSTOMER_APPROVED">Customer Approved</option>
-                <option value="THIRD_PARTY_REFERENCE">Third-Party Reference</option>
-                <option value="DRAFT_INTERNAL">Draft / Internal</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Sensitivity</label>
-              <select value={sensitivityLevel} onChange={(e) => setSensitivityLevel(e.target.value as SensitivityLevel)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                <option value="PUBLIC">Public</option>
-                <option value="INTERNAL">Internal</option>
-                <option value="CONFIDENTIAL">Confidential</option>
-                <option value="RESTRICTED">Restricted</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Risk Tier</label>
-              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="CRITICAL">Critical</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Locale / Market</label>
-              <input value={locale} onChange={(e) => setLocale(e.target.value)} placeholder="e.g. en-US, en-GB" className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Review Date</label>
-              <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Expiry Date</label>
-              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs" />
-            </div>
-          </div>
-
-          {/* Source URL */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Source URL (Approved URLs only)</label>
-            <div className="relative">
-              <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-              <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-            </div>
-          </div>
-
-          {/* File upload */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">
-              Document Upload (PDF, DOCX, PPTX, TXT, CSV, MD)
-            </label>
-            <div className="relative group">
-              <input type="file" accept=".pdf,.docx,.pptx,.txt,.csv,.md" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-              <div className={`w-full bg-card border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center gap-3 ${selectedFile ? "border-info-border/50 bg-info-text/5" : "border-border group-hover:border-border"}`}>
-                {selectedFile ? (
-                  <>
-                    <div className="p-3 bg-info-text/10 rounded-xl text-info-text">
-                      <FileDigit className="w-6 h-6" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-foreground">{selectedFile.name}</p>
-                      <p className="text-[10px] text-foreground-muted mt-1 uppercase font-black tracking-tighter">
-                        {(selectedFile.size / 1024).toFixed(1)} KB — Will be parsed, chunked, and indexed
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="p-3 bg-surface rounded-xl text-foreground-muted">
-                      <Upload className="w-6 h-6" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-foreground-muted">Click to upload or drag & drop</p>
-                      <p className="text-[10px] text-foreground-muted mt-1 uppercase font-black tracking-tighter max-w-[240px]">
-                        Server-side: duplicate detection, PII check, and content scan run on ingestion
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Brand visual identity — BRAND_GUIDELINES only */}
-          {collectionType === "BRAND_GUIDELINES" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="relative py-4 flex items-center gap-4">
-                <div className="flex-1 h-px bg-surface-hover" />
-                <span className="text-[10px] font-black text-info-text uppercase tracking-[0.2em]">Visual Identity</span>
-                <div className="flex-1 h-px bg-surface-hover" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Primary HEX</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border border-border" style={{ backgroundColor: primaryColor || "transparent" }} />
-                    <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#000000" className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Secondary HEX</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border border-border" style={{ backgroundColor: secondaryColor || "transparent" }} />
-                    <input value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} placeholder="#FFFFFF" className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Typography</label>
-                  <div className="relative">
-                    <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                    <input value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} placeholder="e.g. Inter, Roboto" className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Style Keywords</label>
-                  <div className="relative">
-                    <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                    <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)} placeholder="e.g. Minimal, Vibrant" className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Manual content fallback */}
-          <div className="relative py-4 flex items-center gap-4">
-            <div className="flex-1 h-px bg-surface-hover" />
-            <span className="text-[10px] font-black text-foreground-muted uppercase tracking-[0.2em]">OR ENTER MANUALLY</span>
-            <div className="flex-1 h-px bg-surface-hover" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Content / Body</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter guidelines, policy text, or instructions if not uploading a file..."
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-32 resize-none text-sm"
-              disabled={!!selectedFile}
-            />
-          </div>
-
-          <div className="bg-warning-text/5 border border-warning-border/20 rounded-xl p-4 flex items-start gap-3">
-            <Info className="w-4 h-4 text-warning-text shrink-0 mt-0.5" />
-            <p className="text-[10px] text-warning-text leading-relaxed font-medium">
-              This source will enter <strong>DRAFT</strong> status and be blocked from agent retrieval until reviewed and approved by an authorized reviewer.
-            </p>
-          </div>
-
-          {validationError && (
-            <div className="bg-error-text/10 border border-error-border/30 rounded-xl p-4 flex items-start gap-3">
-              <Info className="w-4 h-4 text-error-text shrink-0 mt-0.5" />
-              <p className="text-[11px] text-error-text leading-relaxed font-medium">{validationError}</p>
-            </div>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={creating || !title}
-            className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:bg-info-text disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-info-text/20 flex items-center justify-center gap-2"
-          >
-            {creating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" />INGESTING SOURCE...</>
-            ) : (
-              <><Plus className="w-4 h-4" />INGEST SOURCE TO COLLECTION</>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Create Conflict Modal
-// ─────────────────────────────────────────────
-
-function CreateConflictModal({ onClose, onCreate }: {
-  onClose: () => void;
-  onCreate: (data: { summary: string; severity: ConflictSeverity; source_ids: string[] }) => void;
-}) {
-  const [summary, setSummary] = useState("");
-  const [severity, setSeverity] = useState<ConflictSeverity>("MEDIUM");
-  const [sourceIds, setSourceIds] = useState("");
-  const [conflictValidationError, setConflictValidationError] = useState<string | null>(null);
-
-  const parsedSourceIds = sourceIds.split(",").map((s) => s.trim()).filter(Boolean);
-
-  const handleConflictSubmit = () => {
-    setConflictValidationError(null);
-    if (!summary.trim()) {
-      setConflictValidationError("Conflict summary is required.");
-      return;
-    }
-    if (parsedSourceIds.length < 1) {
-      setConflictValidationError(
-        "At least one Source ID is required. A conflict must reference the sources in dispute."
-      );
-      return;
-    }
-    onCreate({ summary, severity, source_ids: parsedSourceIds });
-  };
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-surface border border-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <h3 className="text-lg font-bold text-foreground">Report Knowledge Conflict</h3>
-          <button onClick={onClose} className="text-foreground-muted hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-8 space-y-5">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Conflict Summary *</label>
-            <textarea value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="Describe the contradictory or duplicate knowledge..."
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-24 resize-none text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Severity</label>
-              <select value={severity} onChange={(e) => setSeverity(e.target.value as ConflictSeverity)}
-                className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
-                {(["LOW","MEDIUM","HIGH","BLOCKING"] as const).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Source IDs * (comma-sep)</label>
-              <input value={sourceIds} onChange={(e) => setSourceIds(e.target.value)} placeholder="src-001, src-002"
-                className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
-            </div>
-          </div>
-          {conflictValidationError && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/30 text-error-text text-xs">
-              <Info className="w-4 h-4 shrink-0 mt-0.5" />
-              {conflictValidationError}
-            </div>
-          )}
-          <button onClick={handleConflictSubmit}
-            disabled={!summary || parsedSourceIds.length === 0}
-            className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:bg-info-text disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-info-text/20">
-            <Plus className="w-4 h-4" /> REPORT CONFLICT
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Main Page
-// ─────────────────────────────────────────────
-
-export default function KnowledgePage() {
-  const [activeTab, setActiveTab] = useState<PrimaryTab>("COLLECTIONS");
+  const [collections, setCollections] = useState<KBCollection[]>([]);
+  const [sources, setSources] = useState<KBSource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<KnowledgeCollection | null>(null);
-  const [sources, setSources] = useState<KnowledgeSource[]>([]);
-  const [allSources, setAllSources] = useState<KnowledgeSource[]>([]);
-  const [conflicts, setConflicts] = useState<KnowledgeConflict[]>([]);
-  const [retrievalLogs, setRetrievalLogs] = useState<RetrievalEvent[]>([]);
-  const [aiContext, setAiContext] = useState<AIContextResponse | null>(null);
-  const [summaryStats, setSummaryStats] = useState<KBSummaryStats | null>(null);
-  const [fetchingEntries, setFetchingEntries] = useState(false);
-  const [entrySearch, setEntrySearch] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [showCreateCollection, setShowCreateCollection] = useState(false);
-  const [showCreateSource, setShowCreateSource] = useState(false);
-  const [creatingSource, setCreatingSource] = useState(false);
-  const [creatingCollection, setCreatingCollection] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const [searchResults, setSearchResults] = useState<KnowledgeSource[] | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [accessPolicy, setAccessPolicy] = useState<any>(null);
-  const [showCreateConflict, setShowCreateConflict] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<{ type: string; id: string } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [reviews, setReviews] = useState<KBReview[]>([]);
+  const [members, setMembers] = useState<OrgMember[]>([]);
+  const [showReviewQueue, setShowReviewQueue] = useState(true);
+
+  const [collectionModal, setCollectionModal] = useState<{ open: boolean; edit?: KBCollection }>({ open: false });
+  const [createSourceOpen, setCreateSourceOpen] = useState(false);
+  const [transferModal, setTransferModal] = useState<{ open: boolean; source?: KBSource }>({ open: false });
+  const [confirm, setConfirm] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant: "danger" | "warning" | "info";
+    confirmLabel: string;
+    requireReason?: boolean;
+    onConfirm: (reason?: string) => void;
+  } | null>(null);
+
+  const flash = useCallback((kind: "ok" | "err", text: string) => {
+    setToast({ kind, text });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  // ── Data fetch ────────────────────────────────────────────
+  const refreshAll = useCallback(async () => {
     try {
-      setError(null);
-      const [basesResult, collectionsResult, contextResult, statsResult] = await Promise.all([
-        api.get("/api/v1/knowledge/bases"),
-        api.get("/api/v1/knowledge/collections").catch(() => ({ success: false, data: null })),
-        api.get("/api/v1/knowledge/ai-context"),
-        api.get("/api/v1/knowledge/stats").catch(() => ({ success: false, data: null })),
+      const [colRes, srcRes, memRes] = await Promise.all([
+        api.listKnowledgeCollections(),
+        api.listKnowledgeSources(),
+        api.listTeamMembers().catch(() => null),
       ]);
-      // Prefer governed collections endpoint, fall back to legacy bases
-      if (collectionsResult.success && Array.isArray(collectionsResult.data)) {
-        setCollections(collectionsResult.data);
-      } else if (basesResult.success) {
-        const mapped: KnowledgeCollection[] = (basesResult.data || []).map((b: KnowledgeCollection) => ({
-          ...b,
-          risk_tier: b.risk_tier ?? "MEDIUM",
-          retrieval_policy: b.retrieval_policy ?? "ALLOWED",
-        }));
-        setCollections(mapped);
-      }
-      if (contextResult.success) {
-        setAiContext(contextResult.data);
-        // Derive summary stats from context if backend stats not available
-        if (!statsResult.success) {
-          const ctx = contextResult.data as AIContextResponse;
-          setSummaryStats({
-            total_sources: (ctx.ai_library?.length ?? 0) + (ctx.sop_rules?.length ?? 0) + (ctx.brand_voice?.length ?? 0),
-            approved_sources: (ctx.ai_library?.length ?? 0) + (ctx.sop_rules?.length ?? 0) + (ctx.brand_voice?.length ?? 0),
-            stale_sources: 0,
-            review_required: 0,
-            active_collections: 0,
-            retrieval_errors: 0,
-            conflict_flags: 0,
-            high_risk_restricted: 0,
-          });
-        }
-      }
-      if (statsResult.success && statsResult.data) {
-        setSummaryStats(statsResult.data);
-      }
-
-      // Fetch conflicts and retrieval logs
-      const [conflictsResult, logsResult] = await Promise.all([
-        api.get("/api/v1/knowledge/conflicts").catch(() => ({ success: false, data: [] })),
-        api.get("/api/v1/knowledge/retrieval-logs").catch(() => ({ success: false, data: [] })),
-      ]);
-      if (conflictsResult.success) setConflicts(conflictsResult.data ?? []);
-      if (logsResult.success) setRetrievalLogs(logsResult.data ?? []);
-    } catch (fetchError) {
-      console.error("Failed to fetch knowledge data", fetchError);
-      setError("Knowledge authority data could not be fully loaded.");
+      if (colRes?.success) setCollections(colRes.data || []);
+      if (srcRes?.success) setSources(srcRes.data || []);
+      if (memRes?.success) setMembers(memRes.data || []);
+    } catch {
+      flash("err", "Failed to load Knowledge Base.");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const fetchEntries = async (collectionId: string) => {
-    setFetchingEntries(true);
-    try {
-      const result = await api.get(`/api/v1/knowledge/bases/${collectionId}/entries`);
-      if (result.success) setSources(result.data ?? []);
-    } catch (fetchError) {
-      console.error("Failed to fetch entries", fetchError);
-      setError("Failed to load collection sources.");
-    } finally {
-      setFetchingEntries(false);
-    }
-  };
-
-  const fetchAllSources = useCallback(async () => {
-    try {
-      const result = await api.get("/api/v1/knowledge/sources").catch(() => ({ success: false, data: [] }));
-      if (result.success) setAllSources(result.data ?? []);
-    } catch {
-      // no-op — optional endpoint
-    }
-  }, []);
+  }, [flash]);
 
   useEffect(() => {
-    fetchData();
-    fetchAllSources();
-  }, [fetchData, fetchAllSources]);
+    refreshAll();
+  }, [refreshAll]);
 
-  const handleCreateCollection = async (data: {
-    name: string;
-    description: string;
-    type: KBType;
-    risk_tier: RiskTier;
-    retrieval_policy: RetrievalPolicy;
-    scope: string;
-  }) => {
-    if (!data.name) return;
-    setCreatingCollection(true);
+  useEffect(() => {
+    if (!selectedSourceId) {
+      setReviews([]);
+      return;
+    }
+    let cancelled = false;
+    api
+      .listKnowledgeReviews(selectedSourceId)
+      .then((r) => {
+        if (!cancelled && r?.success) setReviews(r.data || []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSourceId, sources]);
+
+  // ── Derived ───────────────────────────────────────────────
+  const sourcesByCollection = useMemo(() => {
+    const map = new Map<string, KBSource[]>();
+    for (const s of sources) {
+      const arr = map.get(s.collection_id) || [];
+      arr.push(s);
+      map.set(s.collection_id, arr);
+    }
+    return map;
+  }, [sources]);
+
+  const collectionSources = useMemo(() => {
+    if (!selectedCollectionId) return [];
+    const list = sourcesByCollection.get(selectedCollectionId) || [];
+    if (!search.trim()) return list;
+    const q = search.toLowerCase();
+    return list.filter(
+      (s) => s.title?.toLowerCase().includes(q) || getAuthor(s).toLowerCase().includes(q) || getKeywords(s).some((k) => k.toLowerCase().includes(q)),
+    );
+  }, [selectedCollectionId, sourcesByCollection, search]);
+
+  const selectedSource = useMemo(() => sources.find((s) => s.id === selectedSourceId), [sources, selectedSourceId]);
+  const reviewQueue = useMemo(() => sources.filter((s) => isReview(s)), [sources]);
+  const transferRequests = useMemo(() => sources.filter((s) => getPendingTransfer(s)), [sources]);
+
+  const summary = useMemo(
+    () => ({
+      collections: collections.length,
+      sources: sources.length,
+      active: sources.filter(isActiveLive).length,
+      retired: sources.filter(isRetired).length,
+      review: sources.filter(isReview).length,
+      blocked: sources.filter(isBlocked).length,
+    }),
+    [collections, sources],
+  );
+
+  // ── Mutations ─────────────────────────────────────────────
+  const saveCollection = async (name: string, description: string) => {
+    setBusy("collection");
     try {
-      const result = await api.post("/api/v1/knowledge/collections", data).catch(() => api.post("/api/v1/knowledge/bases", data));
-      if (result.success) {
-        const newCol: KnowledgeCollection = { ...result.data, risk_tier: data.risk_tier, retrieval_policy: data.retrieval_policy };
-        setCollections((prev) => [newCol, ...prev]);
-        setShowCreateCollection(false);
+      if (collectionModal.edit) {
+        await api.updateKnowledgeCollection(collectionModal.edit.id, { name, description });
+        flash("ok", "Collection updated.");
+      } else {
+        await api.createKnowledgeCollection({ name, description });
+        flash("ok", "Collection created.");
       }
-    } catch (createError) {
-      console.error("Failed to create collection", createError);
-      setError("Failed to create knowledge collection.");
+      setCollectionModal({ open: false });
+      await refreshAll();
+    } catch {
+      flash("err", "Could not save collection.");
     } finally {
-      setCreatingCollection(false);
+      setBusy(null);
     }
   };
 
-  const handleCreateSource = async (formData: FormData) => {
-    if (!selectedCollection) return;
-    setCreatingSource(true);
+  // Create as DRAFT only — no governance choice at creation. Opens it as a file.
+  // Optional upload: JSON / TXT are read in the browser so their content opens
+  // straight in the editor; PDF / Word are uploaded for the backend to extract.
+  const createDraftSource = async (title: string, sourceType: string, file?: File | null, fileText?: string | null, governanceCategory?: string) => {
+    if (!selectedCollectionId) return;
+    setBusy("source");
     try {
-      const result = await api.postMultipart(`/api/v1/knowledge/bases/${selectedCollection.id}/entries`, formData);
-      if (result.success) {
-        setSources((prev) => [result.data, ...prev]);
-        setShowCreateSource(false);
-        fetchData();
+      const fd = new FormData();
+      fd.append("title", title);
+      fd.append("source_type", sourceType);
+      fd.append("metadata", JSON.stringify({ author: fullName || myEmail || "", author_email: myEmail, keywords: [], ...(governanceCategory ? { governance_category: governanceCategory } : {}) }));
+
+      let attached = "no file";
+      if (fileText != null && fileText.length > 0) {
+        // JSON / TXT already read in the browser → straight into the content.
+        fd.append("content", fileText);
+        attached = `${fileText.length} chars`;
+      } else if (file) {
+        // PDF / DOC / DOCX → backend extracts the text.
+        fd.append("content", "");
+        fd.append("file", file);
+        attached = `file: ${file.name}`;
+      } else {
+        fd.append("content", "");
       }
-    } catch (createError) {
-      console.error("Failed to create source", createError);
-      setError("Failed to ingest knowledge source.");
-    } finally {
-      setCreatingSource(false);
-    }
-  };
 
-  const handleDeleteSource = (sourceId: string) => setConfirmAction({ type: "delete-source", id: sourceId });
-
-  const handleApproveSource = async (sourceId: string) => {
-    try {
-      await api.post(`/api/v1/knowledge/entries/${sourceId}/approve`, {});
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "APPROVED" as SourceStatus } : s));
-    } catch {
-      setError("Failed to approve source. Only authorized reviewers can approve.");
-    }
-  };
-
-  const handleRetireSource = (sourceId: string) => setConfirmAction({ type: "retire-source", id: sourceId });
-
-  const handleRejectSource = async (sourceId: string) => {
-    try {
-      await api.post(`/api/v1/knowledge/entries/${sourceId}/reject`, {}).catch(() => api.post(`/api/v1/knowledge/sources/${sourceId}/reject`, {}));
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "REJECTED" as SourceStatus } : s));
-    } catch {
-      setError("Failed to reject source.");
-    }
-  };
-
-  const handleActivateSource = async (sourceId: string) => {
-    try {
-      await api.post(`/api/v1/knowledge/sources/${sourceId}/activate`, {});
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "ACTIVE" as SourceStatus } : s));
-    } catch {
-      setError("Failed to activate source.");
-    }
-  };
-
-  const handlePublishSource = async (sourceId: string) => {
-    try {
-      await api.post(`/api/v1/knowledge/sources/${sourceId}/publish`, {});
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "ACTIVE" as SourceStatus } : s));
-    } catch {
-      setError("Failed to publish source.");
-    }
-  };
-
-  const handleRestrictSource = (sourceId: string) => setConfirmAction({ type: "restrict-source", id: sourceId });
-
-  const handleQuarantineSource = (sourceId: string) => setConfirmAction({ type: "quarantine-source", id: sourceId });
-
-  const handleUpdateCollection = async (collectionId: string, data: Partial<KnowledgeCollection>) => {
-    try {
-      await api.patch(`/api/v1/knowledge/collections/${collectionId}`, data);
-      setCollections((prev) => prev.map((c) => c.id === collectionId ? { ...c, ...data } : c));
-      setError(null);
-    } catch {
-      setError("Failed to update collection.");
-    }
-  };
-
-  const handleDeleteCollection = (collectionId: string) => setConfirmAction({ type: "delete-collection", id: collectionId });
-
-  const executeConfirmedAction = async () => {
-    if (!confirmAction) return;
-    const { type, id } = confirmAction;
-    setConfirmAction(null);
-    switch (type) {
-      case "delete-source":
-        try {
-          await api.delete(`/api/v1/knowledge/entries/${id}`);
-          setSources((prev) => prev.filter((s) => s.id !== id));
-          fetchData();
-        } catch {
-          setError("Failed to remove knowledge source.");
-        }
-        break;
-      case "retire-source":
-        try {
-          await api.post(`/api/v1/knowledge/entries/${id}/retire`, {}).catch(() => api.post(`/api/v1/knowledge/sources/${id}/retire`, {}));
-          setSources((prev) => prev.map((s) => s.id === id ? { ...s, status: "RETIRED" as SourceStatus } : s));
-        } catch {
-          setError("Failed to retire source.");
-        }
-        break;
-      case "restrict-source":
-        try {
-          await api.post(`/api/v1/knowledge/sources/${id}/restrict`, {});
-          setSources((prev) => prev.map((s) => s.id === id ? { ...s, status: "RESTRICTED" as SourceStatus } : s));
-        } catch {
-          setError("Failed to restrict source.");
-        }
-        break;
-      case "quarantine-source":
-        try {
-          await api.post(`/api/v1/knowledge/sources/${id}/quarantine`, {});
-          setSources((prev) => prev.map((s) => s.id === id ? { ...s, status: "QUARANTINED" as SourceStatus } : s));
-        } catch {
-          setError("Failed to quarantine source.");
-        }
-        break;
-      case "delete-collection":
-        try {
-          await api.delete(`/api/v1/knowledge/collections/${id}`).catch(() => api.delete(`/api/v1/knowledge/bases/${id}`));
-          setCollections((prev) => prev.filter((c) => c.id !== id));
-          if (selectedCollection?.id === id) setSelectedCollection(null);
-        } catch {
-          setError("Failed to delete collection.");
-        }
-        break;
-    }
-  };
-
-  const handleSearch = useCallback(async (query: string) => {
-    if (!query.trim()) { setSearchResults(null); return; }
-    setSearching(true);
-    try {
-      const res = await api.get(`/api/v1/knowledge/search?q=${encodeURIComponent(query)}`).catch(() => api.get(`/api/v1/knowledge/search?query=${encodeURIComponent(query)}`));
-      if (res.success) setSearchResults(res.data?.results || res.data?.sources || res.data || []);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  const fetchAccessPolicy = useCallback(async () => {
-    try {
-      const res = await api.get("/api/v1/knowledge/access-policy").catch(() => ({ success: false, data: null }));
-      if (res.success) setAccessPolicy(res.data);
-    } catch {
-      // no-op
-    }
-  }, []);
-
-  useEffect(() => { fetchAccessPolicy(); }, [fetchAccessPolicy]);
-
-  const handleCreateConflict = async (data: { summary: string; severity: ConflictSeverity; source_ids: string[] }) => {
-    try {
-      const res = await api.post("/api/v1/knowledge/conflicts", data);
-      if (res.success) {
-        setConflicts((prev) => [res.data, ...prev]);
-        setShowCreateConflict(false);
+      const res = await api.createKnowledgeSource(selectedCollectionId, fd);
+      if (!res?.success) {
+        flash("err", typeof res?.error === "string" ? res.error : "Could not create source.");
+        return;
       }
-    } catch (e: any) {
-      setError(e.message || "Failed to create conflict report.");
-    }
-  };
-
-  const handleResolveConflict = async (conflictId: string) => {
-    try {
-      await api.post(`/api/v1/knowledge/conflicts/${conflictId}/resolve`, {});
-      setConflicts((prev) => prev.map((c) => c.id === conflictId ? { ...c, status: "RESOLVED" } : c));
+      setCreateSourceOpen(false);
+      await refreshAll();
+      if (res.data?.id) setSelectedSourceId(res.data.id);
+      flash("ok", `Draft created (${attached}).`);
     } catch {
-      setError("Failed to resolve conflict.");
+      flash("err", "Could not create source. For PDF / Word, make sure it's a valid file.");
+    } finally {
+      setBusy(null);
     }
   };
 
-  // Render active panel
-  const renderPanel = () => {
-    switch (activeTab) {
-      case "COLLECTIONS":
-        return (
-          <CollectionsPanel
-            collections={collections}
-            loading={loading}
-            selectedCollection={selectedCollection}
-            onSelect={(col) => { setSelectedCollection(col); fetchEntries(col.id); }}
-            onCreateClick={() => setShowCreateCollection(true)}
-            sources={sources}
-            fetchingEntries={fetchingEntries}
-            entrySearch={entrySearch}
-            setEntrySearch={setEntrySearch}
-            onAddSourceClick={() => setShowCreateSource(true)}
-            onDeleteSource={handleDeleteSource}
-            onApproveSource={handleApproveSource}
-            onRetireSource={handleRetireSource}
-            onActivateSource={handleActivateSource}
-            onPublishSource={handlePublishSource}
-            onRestrictSource={handleRestrictSource}
-            onQuarantineSource={handleQuarantineSource}
-            onUpdateCollection={handleUpdateCollection}
-            onDeleteCollection={handleDeleteCollection}
-          />
+  // Inline field saves (used by the file-style header + content editor).
+  const patchSourceTop = useCallback(
+    async (s: KBSource, top: Record<string, unknown>) => {
+      try {
+        const r = await api.updateKnowledgeSource(s.id, top);
+        if (!r?.success) throw new Error("save failed");
+        await refreshAll();
+      } catch {
+        flash("err", "Could not save change.");
+        throw new Error("save failed");
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  const patchSourceMeta = useCallback(
+    async (s: KBSource, metaPatch: SourceMetadata) => {
+      try {
+        const r = await api.updateKnowledgeSource(s.id, { metadata: { ...meta(s), ...metaPatch } });
+        if (!r?.success) throw new Error("save failed");
+        await refreshAll();
+      } catch {
+        flash("err", "Could not save change.");
+        throw new Error("save failed");
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // Governance category change. If the source is already approved/active, the
+  // change invalidates that approval — status drops to REVIEW_REQUIRED so the
+  // admin / workspace owner must re-approve it (same gate as initial approval).
+  const changeGovernanceCategory = useCallback(
+    async (s: KBSource, category: string) => {
+      if (category === getGovernanceCategory(s)) return;
+      setBusy(s.id);
+      try {
+        const needsReapproval = isApproved(s); // APPROVED or ACTIVE
+        const top: Record<string, unknown> = { metadata: { ...meta(s), governance_category: category } };
+        if (needsReapproval) top.status = "REVIEW_REQUIRED";
+        const r = await api.updateKnowledgeSource(s.id, top);
+        if (!r?.success) throw new Error("save failed");
+        await refreshAll();
+        flash(
+          "ok",
+          needsReapproval
+            ? `Governance category changed — "${s.title}" needs admin / workspace-owner re-approval.`
+            : `Governance category updated for "${s.title}".`,
         );
-      case "SOURCES":
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-foreground uppercase tracking-wider">All Sources</h2>
-              <p className="text-xs text-foreground-muted">Full ingested source inventory across all collections</p>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-              <input
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); if (e.target.value.length > 2) handleSearch(e.target.value); else setSearchResults(null); }}
-                placeholder="Search across all sources (3+ characters)..."
-                className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-sm"
-              />
-            </div>
-            {searchResults !== null ? (
-              searchResults.length === 0 ? (
-                <div className="p-12 text-center border border-dashed border-border rounded-3xl opacity-50">
-                  <Search className="w-10 h-10 text-foreground-muted mx-auto mb-3" />
-                  <p className="text-sm text-foreground-muted">No results found for &ldquo;{searchQuery}&rdquo;</p>
+      } catch {
+        flash("err", "Could not update the governance category.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // ── AI-assisted governance classification ──────────────────
+  // Groq primary / Gemini optional fallback (backend). Result is stored in the
+  // source metadata and surfaced as a reminder in the source header.
+  const [classifying, setClassifying] = useState(false);
+  const autoClassified = useRef<Set<string>>(new Set());
+
+  const classifyGovernance = useCallback(
+    async (s: KBSource, opts?: { silent?: boolean }) => {
+      setClassifying(true);
+      try {
+        const r = await api.classifySourceGovernance(s.id);
+        if (r?.success) {
+          await refreshAll();
+          if (!opts?.silent) {
+            flash("ok", r.classified === false ? "AI check unavailable (no classifier configured)." : "AI governance check complete.");
+          }
+        } else if (!opts?.silent) {
+          flash("err", "AI governance check failed.");
+        }
+      } catch {
+        if (!opts?.silent) flash("err", "AI governance check failed.");
+      } finally {
+        setClassifying(false);
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // Admin / workspace owner resolves the category check: accept / keep / review.
+  const decideGovernance = useCallback(
+    async (s: KBSource, decision: "accept" | "keep" | "review", reason?: string) => {
+      setBusy(s.id);
+      try {
+        const r = await api.decideSourceGovernance(s.id, { decision, reason });
+        if (r?.success) {
+          await refreshAll();
+          flash("ok", decision === "review" ? "Source sent for review." : decision === "accept" ? "AI suggestion accepted." : "Selection kept.");
+        } else {
+          flash("err", (r?.error as string) || "Could not resolve the category check.");
+        }
+      } catch {
+        flash("err", "Could not resolve the category check.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // Auto-run the AI governance check once per source when opened and not yet
+  // classified. Silent; the backend no-ops on empty content. Stored on first run
+  // so reopening shows the saved result without re-calling the model.
+  useEffect(() => {
+    if (!selectedSource) return;
+    if (getAiCategory(selectedSource)) return;
+    if (autoClassified.current.has(selectedSource.id)) return;
+    autoClassified.current.add(selectedSource.id);
+    void classifyGovernance(selectedSource, { silent: true });
+  }, [selectedSource, classifyGovernance]);
+
+  const runSourceAction = async (
+    source: KBSource,
+    action: "approve" | "review" | "block" | "activate" | "retire" | "delete",
+    reason?: string,
+  ) => {
+    setBusy(source.id);
+    try {
+      switch (action) {
+        case "approve":
+          await api.approveKnowledgeSource(source.id);
+          flash("ok", `"${source.title}" approved.`);
+          break;
+        case "review":
+          await api.updateKnowledgeSource(source.id, { status: "REVIEW_REQUIRED" });
+          flash("ok", `"${source.title}" sent to review.`);
+          break;
+        case "block":
+          await api.quarantineKnowledgeSource(source.id);
+          flash("ok", `"${source.title}" blocked.`);
+          break;
+        case "activate":
+          await api.activateKnowledgeSource(source.id);
+          flash("ok", `"${source.title}" is now active.`);
+          break;
+        case "retire":
+          await api.retireKnowledgeSource(source.id);
+          flash("ok", `"${source.title}" retired.`);
+          break;
+        case "delete":
+          await api.deleteKnowledgeSource(source.id);
+          flash("ok", `"${source.title}" deleted.`);
+          if (selectedSourceId === source.id) setSelectedSourceId(null);
+          break;
+      }
+      void reason;
+      await refreshAll();
+    } catch {
+      flash("err", `Could not ${action} the source.`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // ── Ownership transfer ────────────────────────────────────
+  // Owner requests a transfer (target email + username) → goes to the admin /
+  // workspace-owner queue. Admin allows (ownership moves, prior owner recorded
+  // in history) or blocks (request cleared).
+  const requestTransfer = async (source: KBSource, toEmail: string, toUsername: string) => {
+    // Authenticate the target: must be a real member of this org/workspace AND
+    // the username must match that member.
+    const match = matchMember(members, toEmail, toUsername);
+    if (!match.ok) {
+      // Generic message — do not disclose whether the email exists or its owner.
+      flash("err", "No organization member matches that email and username.");
+      return;
+    }
+    if (toEmail.trim().toLowerCase() === getOwnerEmail(source).toLowerCase()) {
+      flash("err", "That user already owns this source.");
+      return;
+    }
+    setBusy(source.id);
+    try {
+      await patchSourceMeta(source, {
+        pending_transfer: { to_email: match.member.email || toEmail, to_username: match.member.full_name || toUsername, requested_at: new Date().toISOString(), requested_by: myEmail },
+      });
+      setTransferModal({ open: false });
+      flash("ok", `Transfer to ${match.member.full_name || toUsername} sent to the admin / workspace owner for approval.`);
+    } catch {
+      /* patchSourceMeta already surfaced the error */
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // Allow/block run server-side: the backend re-verifies org membership, hands
+  // over ownership, records history, and notifies the new owner.
+  const allowTransfer = async (source: KBSource) => {
+    const pt = getPendingTransfer(source);
+    if (!pt) return;
+    setBusy(source.id);
+    try {
+      const res = await api.decideKnowledgeTransfer(source.id, "allow");
+      if (!res?.success) {
+        flash("err", typeof res?.error === "string" ? res.error : "Could not complete the transfer.");
+        return;
+      }
+      await refreshAll();
+      flash("ok", `Ownership transferred to ${pt.to_username}. They have been notified.`);
+    } catch {
+      flash("err", "Could not complete the transfer.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const blockTransfer = async (source: KBSource) => {
+    setBusy(source.id);
+    try {
+      const res = await api.decideKnowledgeTransfer(source.id, "block");
+      if (!res?.success) {
+        flash("err", typeof res?.error === "string" ? res.error : "Could not block the transfer.");
+        return;
+      }
+      await refreshAll();
+      flash("ok", "Transfer request blocked.");
+    } catch {
+      flash("err", "Could not block the transfer.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteCollection = async (c: KBCollection) => {
+    setBusy(c.id);
+    try {
+      await api.deleteKnowledgeCollection(c.id);
+      flash("ok", "Collection deleted.");
+      if (selectedCollectionId === c.id) {
+        setSelectedCollectionId(null);
+        setSelectedSourceId(null);
+      }
+      await refreshAll();
+    } catch {
+      flash("err", "Could not delete collection.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // ── Confirm helpers ───────────────────────────────────────
+  const confirmDeleteSource = (s: KBSource) =>
+    setConfirm({
+      open: true,
+      title: "Delete source",
+      message: `Delete "${s.title}"? This removes the source, but its evidence history remains preserved for audit.`,
+      variant: "danger",
+      confirmLabel: "Delete source",
+      onConfirm: () => {
+        setConfirm(null);
+        runSourceAction(s, "delete");
+      },
+    });
+
+  const confirmDeleteCollection = (c: KBCollection) =>
+    setConfirm({
+      open: true,
+      title: "Delete collection",
+      message: `Delete "${c.name}" and unlink its sources? Source evidence history is preserved.`,
+      variant: "danger",
+      confirmLabel: "Delete collection",
+      onConfirm: () => {
+        setConfirm(null);
+        deleteCollection(c);
+      },
+    });
+
+  const confirmBlock = (s: KBSource) =>
+    setConfirm({
+      open: true,
+      title: "Block source",
+      message: `Block "${s.title}"? Agents will be prevented from using or citing it until it is reviewed again.`,
+      variant: "danger",
+      confirmLabel: "Block",
+      requireReason: true,
+      onConfirm: (reason) => {
+        setConfirm(null);
+        runSourceAction(s, "block", reason);
+      },
+    });
+
+  // ── Render ────────────────────────────────────────────────
+  return (
+    <div className="p-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-indigo-500/10 rounded-2xl">
+            <Database className="w-6 h-6 text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--foreground)]">Knowledge Base</h1>
+            <p className="text-sm text-[var(--foreground-muted)]">Governed source-of-truth for agents — collections, sources, and approved content.</p>
+          </div>
+        </div>
+        <button
+          onClick={refreshAll}
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <SummaryCard label="Collections" value={summary.collections} icon={<Layers className="w-4 h-4" />} tone="indigo" />
+        <SummaryCard label="Sources" value={summary.sources} icon={<FileText className="w-4 h-4" />} tone="sky" />
+        <SummaryCard label="Active" value={summary.active} icon={<CheckCircle2 className="w-4 h-4" />} tone="emerald" />
+        <SummaryCard label="Retired" value={summary.retired} icon={<Archive className="w-4 h-4" />} tone="zinc" />
+        <SummaryCard label="Review" value={summary.review} icon={<Clock className="w-4 h-4" />} tone="amber" />
+        <SummaryCard label="Blocked" value={summary.blocked} icon={<Ban className="w-4 h-4" />} tone="rose" />
+      </div>
+
+      {/* Review Queue */}
+      {reviewQueue.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+          <button onClick={() => setShowReviewQueue((v) => !v)} className="w-full flex items-center justify-between px-5 py-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+              <Inbox className="w-4 h-4" /> Review Queue
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">{reviewQueue.length} pending</span>
+            </span>
+            <span className="text-[11px] text-[var(--foreground-muted)]">{isApprover ? "You can approve or block" : "Awaiting admin / workspace owner"}</span>
+          </button>
+          {showReviewQueue && (
+            <div className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
+              {reviewQueue.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+                  <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--foreground)] truncate">{s.title}</p>
+                    <p className="text-[11px] text-[var(--foreground-muted)]">{s.source_type} · by {getAuthor(s) || "—"}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedCollectionId(s.collection_id);
+                      setSelectedSourceId(s.id);
+                    }}
+                    className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 px-2 py-1"
+                  >
+                    Open
+                  </button>
+                  {isApprover ? (
+                    <>
+                      <ActionBtn tone="emerald" label="Approve" busy={busy === s.id} onClick={() => runSourceAction(s, "approve")} icon={<ShieldCheck className="w-3.5 h-3.5" />} />
+                      <ActionBtn tone="rose" label="Block" busy={busy === s.id} onClick={() => confirmBlock(s)} icon={<Ban className="w-3.5 h-3.5" />} />
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-[var(--foreground-muted)] italic px-2">Pending approval</span>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-[10px] text-foreground-muted font-black uppercase tracking-widest">Search Results ({searchResults.length})</p>
-                  {searchResults.map((s) => (
-                    <SourceCard key={s.id} source={s} onDelete={handleDeleteSource} onApprove={handleApproveSource} onRetire={handleRetireSource} onActivate={handleActivateSource} onPublish={handlePublishSource} onRestrict={handleRestrictSource} onQuarantine={handleQuarantineSource} />
-                  ))}
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Ownership Transfer Requests — admin / workspace owner allows or blocks. */}
+      {transferRequests.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+            <span className="flex items-center gap-2 text-sm font-semibold text-indigo-300">
+              <ArrowLeftRight className="w-4 h-4" /> Ownership Transfer Requests
+              <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">{transferRequests.length} pending</span>
+            </span>
+            <span className="text-[11px] text-[var(--foreground-muted)]">{isApprover ? "You can allow or block" : "Awaiting admin / workspace owner"}</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {transferRequests.map((s) => {
+              const pt = getPendingTransfer(s)!;
+              return (
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+                  <ArrowLeftRight className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-[var(--foreground)] truncate">{s.title}</p>
+                    <p className="text-[11px] text-[var(--foreground-muted)] truncate">
+                      {getOwnerName(s) || getOwnerEmail(s)} → <span className="text-indigo-300">{pt.to_username}</span> ({pt.to_email})
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedCollectionId(s.collection_id); setSelectedSourceId(s.id); }}
+                    className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 px-2 py-1"
+                  >
+                    Open
+                  </button>
+                  {isApprover ? (
+                    <>
+                      <ActionBtn tone="emerald" label="Allow" busy={busy === s.id} onClick={() => allowTransfer(s)} icon={<ShieldCheck className="w-3.5 h-3.5" />} />
+                      <ActionBtn tone="rose" label="Block" busy={busy === s.id} onClick={() => blockTransfer(s)} icon={<Ban className="w-3.5 h-3.5" />} />
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-[var(--foreground-muted)] italic px-2">Pending approval</span>
+                  )}
                 </div>
-              )
-            ) : allSources.length === 0 ? (
-              <div className="p-16 text-center border border-dashed border-border rounded-3xl opacity-50">
-                <FileText className="w-10 h-10 text-foreground-muted mx-auto mb-3" />
-                <p className="text-sm text-foreground-muted">No sources indexed yet.</p>
-              </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Main 3-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Collections */}
+        <section className="lg:col-span-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
+              <Layers className="w-4 h-4 text-indigo-400" /> Collections
+            </h2>
+            <button onClick={() => setCollectionModal({ open: true })} className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300">
+              <FolderPlus className="w-3.5 h-3.5" /> New
+            </button>
+          </div>
+          <div className="p-3 space-y-2 overflow-y-auto max-h-[640px]">
+            {loading ? (
+              <Skeleton rows={4} />
+            ) : collections.length === 0 ? (
+              <EmptyState icon={<Layers className="w-6 h-6" />} title="No collections yet" hint="Create a collection to group your sources." action="Create collection" onAction={() => setCollectionModal({ open: true })} />
             ) : (
-              <div className="space-y-3">
-                {allSources.map((s) => (
-                  <SourceCard key={s.id} source={s} onDelete={handleDeleteSource} onApprove={handleApproveSource} onRetire={handleRetireSource} onActivate={handleActivateSource} onPublish={handlePublishSource} onRestrict={handleRestrictSource} onQuarantine={handleQuarantineSource} />
-                ))}
-              </div>
+              collections.map((c) => {
+                const count = sourcesByCollection.get(c.id)?.length ?? c.source_count ?? 0;
+                const active = selectedCollectionId === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedCollectionId(c.id);
+                      setSelectedSourceId(null);
+                    }}
+                    className={`group cursor-pointer rounded-xl border p-3 transition ${active ? "border-indigo-500/40 bg-indigo-500/10" : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--border-hover)]"}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Folder className={`w-4 h-4 mt-0.5 shrink-0 ${active ? "text-indigo-400" : "text-[var(--foreground-muted)]"}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-[var(--foreground)] truncate">{c.name}</p>
+                        {c.description && <p className="text-[11px] text-[var(--foreground-muted)] line-clamp-2">{c.description}</p>}
+                        <p className="text-[10px] text-[var(--foreground-muted)] mt-1">{count} source{count === 1 ? "" : "s"}</p>
+                      </div>
+                      <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition">
+                        <IconBtn title="Edit" onClick={(e) => { e.stopPropagation(); setCollectionModal({ open: true, edit: c }); }}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </IconBtn>
+                        <IconBtn title="Delete" danger onClick={(e) => { e.stopPropagation(); confirmDeleteCollection(c); }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </IconBtn>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
-        );
-      case "REVIEW_QUEUE":
-        return (
-          <ReviewQueuePanel
-            sources={allSources.length > 0 ? allSources : sources}
-            loading={loading}
-            onApprove={handleApproveSource}
-            onReject={handleRejectSource}
-          />
-        );
-      case "CONFLICTS":
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-black text-foreground uppercase tracking-wider">Conflict Registry</h2>
-                <p className="text-xs text-foreground-muted mt-1">Contradictory or duplicate knowledge — agents must not improvise</p>
+        </section>
+
+        {/* Sources — narrows when a source is open so the content pane gets ~half the width */}
+        <section className={`${selectedSource ? "lg:col-span-3" : "lg:col-span-9"} rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden flex flex-col`}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
+              <FileText className="w-4 h-4 text-sky-400" /> Sources
+              {selectedCollectionId && <span className="text-[11px] font-normal text-[var(--foreground-muted)]">· {collections.find((c) => c.id === selectedCollectionId)?.name}</span>}
+            </h2>
+            <button disabled={!selectedCollectionId} onClick={() => setCreateSourceOpen(true)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-400 hover:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed">
+              <Plus className="w-3.5 h-3.5" /> New source
+            </button>
+          </div>
+
+          {selectedCollectionId && (
+            <div className="px-4 py-2 border-b border-[var(--border)]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sources, author, tags…" className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg pl-8 pr-3 py-2 text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:border-[var(--border-hover)] focus:outline-none" />
               </div>
-              <button onClick={() => setShowCreateConflict(true)} className="flex items-center gap-2 px-4 py-2 bg-info-text/10 border border-info-border/20 text-info-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-info-text/20 transition-all">
-                <Plus className="w-3.5 h-3.5" /> Report Conflict
+            </div>
+          )}
+
+          <div className="p-3 space-y-2 overflow-y-auto max-h-[600px]">
+            {!selectedCollectionId ? (
+              <EmptyState icon={<Folder className="w-6 h-6" />} title="Open a collection" hint="Select a collection on the left to see its sources." />
+            ) : collectionSources.length === 0 ? (
+              <EmptyState icon={<FileText className="w-6 h-6" />} title="No sources here" hint="Add a source — it is created as a draft and submitted for approval." action="Create source" onAction={() => setCreateSourceOpen(true)} />
+            ) : (
+              collectionSources.map((s) => {
+                const open = selectedSourceId === s.id;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => setSelectedSourceId(s.id)}
+                    className={`cursor-pointer rounded-xl border p-3 transition ${open ? "border-sky-500/40 bg-sky-500/5" : "border-[var(--border)] bg-[var(--background)] hover:border-[var(--border-hover)]"} ${isRetired(s) ? "opacity-45 grayscale" : ""}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--foreground)] truncate">{s.title}</p>
+                        <p className="text-[11px] text-[var(--foreground-muted)]">{s.source_type || "—"} · by {getAuthor(s) || "—"}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <StatusBadge source={s} />
+                        <GovCategoryChip source={s} />
+                      </div>
+                    </div>
+
+                    {getKeywords(s).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {getKeywords(s).slice(0, 6).map((k) => (
+                          <span key={k} className="px-1.5 py-0.5 rounded-md bg-[var(--surface-hover)] text-[10px] text-[var(--foreground-muted)]">#{k}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end mt-2.5">
+                      <div className="flex items-center gap-1">
+                        {canEditSource(s) && (
+                          <ToggleActiveRetired source={s} busy={busy === s.id} disabled={isReview(s) || isBlocked(s) || isCategoryUnresolved(s)} onActivate={(e) => { e.stopPropagation(); runSourceAction(s, "activate"); }} onRetire={(e) => { e.stopPropagation(); runSourceAction(s, "retire"); }} />
+                        )}
+                        <IconBtn title="Open" onClick={(e) => { e.stopPropagation(); setSelectedSourceId(s.id); }}>
+                          <Eye className="w-3.5 h-3.5" />
+                        </IconBtn>
+                        {canEditSource(s) && (
+                          <IconBtn title="Delete source" danger onClick={(e) => { e.stopPropagation(); confirmDeleteSource(s); }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </IconBtn>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        {/* Source Content — expands to ~half the width as a tall, clean reading pane.
+            Only rendered when a source is open, so closing returns the layout to normal. */}
+        {selectedSource && (
+          <section className="lg:col-span-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden flex flex-col lg:h-[80vh] lg:sticky lg:top-4 self-start">
+            {/* Title bar — the source name lives here as the heading (no extra block) */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] shrink-0">
+              <FileText className="w-4 h-4 text-violet-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <InlineText
+                  big
+                  hideLabel
+                  label="Source Name"
+                  value={selectedSource.title}
+                  placeholder="Untitled source"
+                  readOnly={!canEditSource(selectedSource)}
+                  onSave={(v) => patchSourceTop(selectedSource, { title: v })}
+                />
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <StatusBadge source={selectedSource} />
+                <GovCategoryChip source={selectedSource} />
+              </div>
+              <button onClick={() => setSelectedSourceId(null)} title="Close" className="w-7 h-7 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] shrink-0">
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <ConflictsPanel conflicts={conflicts} loading={loading} onResolve={handleResolveConflict} />
-          </div>
-        );
-      case "RETRIEVAL_LOGS":
-        return <RetrievalLogsPanel logs={retrievalLogs} loading={loading} />;
-      case "AGENT_ACCESS":
-        return <AgentAccessPanel collections={collections} accessPolicy={accessPolicy} />;
-      case "TAXONOMY":
-        return <TaxonomyPanel />;
-      case "SETTINGS":
-        return <SettingsPanel />;
+
+            {/* Metadata strip — one clean professional line */}
+            <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] flex flex-wrap items-center gap-x-4 gap-y-2">
+              <MetaInline label="Type" value={selectedSource.source_type || "MANUAL_ARTICLE"} options={SOURCE_TYPES} readOnly={!canEditSource(selectedSource)} onSave={(v) => patchSourceTop(selectedSource, { source_type: v })} />
+              <MetaInline label="Author" value={getAuthor(selectedSource)} readOnly={!canEditSource(selectedSource)} onSave={(v) => patchSourceMeta(selectedSource, { author: v })} />
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">Owner</span>
+                <span className="text-xs text-[var(--foreground)] truncate max-w-[200px]" title={getOwnerEmail(selectedSource)}>{getOwnerEmail(selectedSource) || "—"}</span>
+              </span>
+              <MetaInline label="Citation" value={getCitation(selectedSource)} readOnly={!canEditSource(selectedSource)} onSave={(v) => patchSourceMeta(selectedSource, { citation_reference: v })} />
+              {/* Governance Category — changing it on an approved source forces re-approval. */}
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] shrink-0">Governance Category</span>
+                {canEditSource(selectedSource) ? (
+                  <select
+                    value={getGovernanceCategory(selectedSource)}
+                    disabled={busy === selectedSource.id}
+                    onChange={(e) => changeGovernanceCategory(selectedSource, e.target.value)}
+                    className="bg-[var(--background)] border border-[var(--border)] rounded px-1.5 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--border-hover)]"
+                  >
+                    <option value="">— none —</option>
+                    {GOVERNANCE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                ) : (
+                  <span className={`text-xs ${getGovernanceCategory(selectedSource) ? "text-[var(--foreground)] font-medium" : "italic text-[var(--foreground-muted)]"}`}>
+                    {GOV_CATEGORY_LABEL[getGovernanceCategory(selectedSource)] || "—"}
+                  </span>
+                )}
+              </span>
+              {/* Tags inline */}
+              <span className="inline-flex flex-wrap items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] flex items-center gap-1"><Tag className="w-3 h-3" /> Tags</span>
+                {getKeywords(selectedSource).length === 0 && !canEditSource(selectedSource) && <span className="text-[11px] italic text-[var(--foreground-muted)]">none</span>}
+                {getKeywords(selectedSource).map((k) => (
+                  <span key={k} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--surface-hover)] text-[10px] text-[var(--foreground)]">
+                    #{k}
+                    {canEditSource(selectedSource) && (
+                      <button onClick={() => patchSourceMeta(selectedSource, { keywords: getKeywords(selectedSource).filter((x) => x !== k) })} className="text-[var(--foreground-muted)] hover:text-rose-400">
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+                {canEditSource(selectedSource) && (
+                  <TagAdd onAdd={(t) => { if (!getKeywords(selectedSource).includes(t)) patchSourceMeta(selectedSource, { keywords: [...getKeywords(selectedSource), t] }); }} />
+                )}
+              </span>
+            </div>
+
+            {/* Action bar — owner / admin only, thin row */}
+            {(canEditSource(selectedSource) || isApprover) && (
+              <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] flex flex-wrap items-center gap-1.5">
+                {canEditSource(selectedSource) &&
+                  (getPendingTransfer(selectedSource) ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-[11px] text-indigo-300">
+                      <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" /> Transfer pending to {getPendingTransfer(selectedSource)!.to_username}
+                    </span>
+                  ) : (
+                    <button onClick={() => setTransferModal({ open: true, source: selectedSource })} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition">
+                      <ArrowLeftRight className="w-3.5 h-3.5" /> Transfer
+                    </button>
+                  ))}
+                {isApprover && (
+                  <>
+                    <ActionBtn tone="emerald" label="Approve" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} disabled={isApproved(selectedSource)} onClick={() => runSourceAction(selectedSource, "approve")} />
+                    <ActionBtn tone="amber" label="Review" icon={<Clock className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => runSourceAction(selectedSource, "review")} />
+                    <ActionBtn tone="rose" label="Block" icon={<Ban className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => confirmBlock(selectedSource)} />
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* AI governance check — smart reminder in the source header */}
+            {(() => {
+              const aiCat = getAiCategory(selectedSource);
+              const userCat = getGovernanceCategory(selectedSource);
+              const status = getCategoryReviewStatus(selectedSource);
+              const unresolved = isCategoryUnresolved(selectedSource);
+              if (!aiCat) {
+                if (classifying) {
+                  return (
+                    <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] flex items-center gap-2 text-[11px] text-[var(--foreground-muted)]">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Running AI governance check…
+                    </div>
+                  );
+                }
+                return null;
+              }
+              const detail = (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px]">
+                  <span><span className="text-[var(--foreground-muted)]">User Selected:</span> <b className="text-[var(--foreground)]">{GOV_CATEGORY_LABEL[userCat] || "— none —"}</b></span>
+                  <span><span className="text-[var(--foreground-muted)]">AI Suggested:</span> <b className="text-[var(--foreground)]">{GOV_CATEGORY_LABEL[aiCat] || aiCat}</b></span>
+                  <span><span className="text-[var(--foreground-muted)]">Confidence:</span> <b className="text-[var(--foreground)]">{getAiConfidence(selectedSource)}%</b></span>
+                  {getAiMatchAction(selectedSource) && <span><span className="text-[var(--foreground-muted)]">Suggested Match Action:</span> <b className="text-[var(--foreground)]">{getAiMatchAction(selectedSource)}</b></span>}
+                </div>
+              );
+              return (
+                <div className={`shrink-0 px-4 py-2.5 border-b ${unresolved ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-500/25 bg-emerald-500/5"} space-y-1.5`}>
+                  <div className="flex items-center gap-2">
+                    {unresolved ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                    <span className={`text-[11px] font-semibold ${unresolved ? "text-amber-300" : "text-emerald-300"}`}>
+                      {unresolved ? "Category mismatch detected. This source may require stricter governance." : "AI check passed — category appears correct."}
+                    </span>
+                    {canEditSource(selectedSource) && (
+                      <button onClick={() => classifyGovernance(selectedSource)} disabled={classifying} className="ml-auto inline-flex items-center gap-1 text-[10px] text-[var(--foreground-muted)] hover:text-[var(--foreground)] disabled:opacity-50">
+                        {classifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Re-check
+                      </button>
+                    )}
+                  </div>
+                  {detail}
+                  {getAiReason(selectedSource) && (
+                    <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed"><span className="font-semibold">Reason:</span> {getAiReason(selectedSource)}</p>
+                  )}
+                  {unresolved && isApprover && (
+                    /* Admin / workspace owner = the reviewer: adopt AI, or keep the user's selection. */
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <ActionBtn tone="emerald" label="Accept AI Suggestion" icon={<CheckCircle2 className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "accept")} />
+                      <ActionBtn tone="zinc" label="Keep My Selection" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "keep", window.prompt("Reason for keeping your selected category (recorded in evidence):") || "")} />
+                    </div>
+                  )}
+                  {unresolved && !isApprover && canEditSource(selectedSource) && (
+                    /* Source editor (non-admin): adopt AI, or escalate so an admin can decide. */
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <ActionBtn tone="emerald" label="Accept AI Suggestion" icon={<CheckCircle2 className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "accept")} />
+                      <ActionBtn tone="amber" label="Send to Review" icon={<Clock className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "review")} />
+                    </div>
+                  )}
+                  {unresolved && !isApprover && !canEditSource(selectedSource) && (
+                    <p className="text-[10px] text-[var(--foreground-muted)] italic">An admin / workspace owner must resolve this before the source can be activated.</p>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Scrollable body — content dominates, like a clean text file */}
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {!canEditSource(selectedSource) && (
+                <div className="mb-2 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--surface-hover)]/40 border border-[var(--border)] text-[10px] text-[var(--foreground-muted)]">
+                  <Eye className="w-3 h-3 shrink-0" /> View only — only the creator or an admin / workspace owner can edit this source.
+                </div>
+              )}
+              <ContentEditor source={selectedSource} readOnly={!canEditSource(selectedSource)} onSave={(content) => patchSourceTop(selectedSource, { content })} />
+
+              {/* History */}
+              <div className="mt-6 pt-4 border-t border-[var(--border)]">
+                {getOwnerHistory(selectedSource).length > 0 && (
+                  <div className="mb-4">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] flex items-center gap-1 mb-1.5">
+                      <ArrowLeftRight className="w-3 h-3" /> Previous Owners
+                    </span>
+                    <ol className="space-y-1.5">
+                      {getOwnerHistory(selectedSource).slice(0, 2).map((o, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="min-w-0 truncate text-[var(--foreground)]">
+                            {o.username || o.email}
+                            {o.username && o.email ? <span className="text-[var(--foreground-muted)]"> · {o.email}</span> : null}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-[var(--foreground-muted)]">
+                            transferred {o.until ? new Date(o.until).toLocaleDateString() : "—"}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] flex items-center gap-1 mb-1.5">
+                  <History className="w-3 h-3" /> Evidence History
+                </span>
+                <EvidenceHistory source={selectedSource} reviews={reviews} />
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[120] rounded-xl px-4 py-3 text-sm font-medium shadow-lg border ${toast.kind === "ok" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-rose-500/10 border-rose-500/30 text-rose-300"}`}>
+          {toast.text}
+        </div>
+      )}
+
+      {/* Modals */}
+      {collectionModal.open && <CollectionModal edit={collectionModal.edit} busy={busy === "collection"} onClose={() => setCollectionModal({ open: false })} onSave={saveCollection} />}
+      {createSourceOpen && <CreateSourceModal busy={busy === "source"} onClose={() => setCreateSourceOpen(false)} onCreate={createDraftSource} />}
+      {transferModal.open && transferModal.source && (
+        <TransferModal
+          source={transferModal.source}
+          members={members}
+          currentOwnerEmail={getOwnerEmail(transferModal.source)}
+          busy={busy === transferModal.source.id}
+          onClose={() => setTransferModal({ open: false })}
+          onSubmit={(email, username) => requestTransfer(transferModal.source as KBSource, email, username)}
+        />
+      )}
+      <ConfirmActionModal
+        open={!!confirm?.open}
+        variant={confirm?.variant || "danger"}
+        title={confirm?.title || ""}
+        message={confirm?.message || ""}
+        confirmLabel={confirm?.confirmLabel}
+        requireReason={confirm?.requireReason}
+        reasonPlaceholder="Reason (recorded in evidence history)…"
+        loading={!!busy}
+        onConfirm={(reason) => confirm?.onConfirm(reason)}
+        onCancel={() => setConfirm(null)}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Inline file-style editors
+// ─────────────────────────────────────────────────────────────
+function InlineText({
+  label,
+  value,
+  onSave,
+  big,
+  placeholder,
+  icon,
+  readOnly,
+  hideLabel,
+}: {
+  label: string;
+  value: string;
+  onSave: (v: string) => Promise<void>;
+  big?: boolean;
+  placeholder?: string;
+  icon?: React.ReactNode;
+  readOnly?: boolean;
+  hideLabel?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setVal(value);
+  }, [value, editing]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(val.trim());
+      setEditing(false);
+    } catch {
+      /* keep editing on failure */
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
-      {/* ── Page Header ── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">Knowledge Base</h1>
-          <p className="text-foreground-muted mt-1 font-medium">
-            Governed source-of-truth layer — ingest, approve, and control what agents are allowed to know, cite, and retrieve.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            className="p-2 hover:bg-surface-hover rounded-xl text-foreground-muted hover:text-white transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowGuide(!showGuide)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-bold text-xs ${showGuide ? "bg-info-text/10 border-info-border/50 text-info-text" : "bg-surface border-border text-foreground-muted hover:border-border"}`}
-          >
-            <HelpCircle className="w-4 h-4" />
-            QUICK GUIDE
-            {showGuide ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Quick Guide ── */}
-      {showGuide && (
-        <div className="bg-card border border-info-border/20 rounded-[2rem] p-8 animate-in slide-in-from-top-4 duration-500">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Sparkles,
-                color: "text-blue-400",
-                bg: "bg-blue-500/10",
-                title: "AI Library (The Brain)",
-                body: "Upload approved business knowledge so governed agents answer from source truth instead of improvising.",
-              },
-              {
-                icon: Mic2,
-                color: "text-purple-400",
-                bg: "bg-purple-500/10",
-                title: "Brand Center (The Voice)",
-                body: "Define tone, visual identity, and language constraints so the authority layer enforces brand consistency.",
-              },
-              {
-                icon: ListChecks,
-                color: "text-success-text",
-                bg: "bg-success-text/10",
-                title: "Operations (The Rules)",
-                body: "Store SOPs and workflow rules so all agent actions route through approved operating procedures.",
-              },
-              {
-                icon: ShieldCheck,
-                color: "text-warning-text",
-                bg: "bg-warning-text/10",
-                title: "Approval Gate",
-                body: "Every source starts as DRAFT and is blocked from agents until reviewed and approved by an authorized reviewer.",
-              },
-              {
-                icon: Zap,
-                color: "text-error-text",
-                bg: "bg-error-text/10",
-                title: "Conflict Control",
-                body: "Contradictory sources are flagged automatically. Agents must not improvise — they escalate until the conflict is resolved.",
-              },
-              {
-                icon: ActivitySquare,
-                color: "text-info-text",
-                bg: "bg-info-text/10",
-                title: "Evidence Vault",
-                body: "Every upload, approval, retrieval, and citation writes an immutable evidence record for audit and compliance.",
-              },
-            ].map(({ icon: Icon, color, bg, title, body }) => (
-              <div key={title} className="space-y-3">
-                <div className={`p-3 ${bg} rounded-2xl w-fit ${color}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-foreground uppercase tracking-wider mb-2">{title}</h4>
-                  <p className="text-xs text-foreground-muted leading-relaxed font-medium">{body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div>
+      {!hideLabel && (
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] flex items-center gap-1">
+          {icon}
+          {label}
+        </span>
       )}
-
-      {/* ── Error Banner ── */}
-      {error && (
-        <div className="flex items-center gap-3 rounded-2xl border border-warning-border/20 bg-warning-text/10 px-5 py-4 text-sm text-warning-text">
-          <ShieldAlert className="h-4 w-4 shrink-0" />
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-warning-text hover:text-white">
-            <X className="w-4 h-4" />
+      {editing && !readOnly ? (
+        <div className="flex items-center gap-1.5 mt-1">
+          <input
+            autoFocus
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder={placeholder}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className={`flex-1 bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[var(--foreground)] focus:border-[var(--border-hover)] focus:outline-none ${big ? "text-base font-bold" : "text-sm"}`}
+          />
+          <button onClick={save} disabled={saving} className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center disabled:opacity-50">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          </button>
+          <button onClick={() => setEditing(false)} className="w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] flex items-center justify-center">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
-      )}
-
-      {/* ── Summary Stats (Section 5 — Top summary cards) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        <SummaryCard label="Total Sources" value={summaryStats?.total_sources ?? collections.length} />
-        <SummaryCard label="Approved Sources" value={summaryStats?.approved_sources ?? 0} accent="text-success-text" />
-        <SummaryCard label="Stale Sources" value={summaryStats?.stale_sources ?? 0} accent={(summaryStats?.stale_sources ?? 0) > 0 ? "text-orange-400" : "text-foreground"} />
-        <SummaryCard label="Review Required" value={summaryStats?.review_required ?? 0} accent={(summaryStats?.review_required ?? 0) > 0 ? "text-warning-text" : "text-foreground"} />
-        <SummaryCard label="Active Collections" value={summaryStats?.active_collections ?? collections.length} accent="text-info-text" />
-        <SummaryCard label="Retrieval Errors" value={summaryStats?.retrieval_errors ?? 0} accent={(summaryStats?.retrieval_errors ?? 0) > 0 ? "text-error-text" : "text-foreground"} />
-        <SummaryCard label="Conflict Flags" value={summaryStats?.conflict_flags ?? conflicts.length} accent={(summaryStats?.conflict_flags ?? 0) > 0 ? "text-error-text" : "text-foreground"} />
-        <SummaryCard label="High-Risk Restricted" value={summaryStats?.high_risk_restricted ?? 0} accent={(summaryStats?.high_risk_restricted ?? 0) > 0 ? "text-error-text" : "text-foreground"} />
-      </div>
-
-      {/* ── Primary Tabs (Section 5 — Collections, Sources, Review Queue, Conflicts, Retrieval Logs, Agent Access, Taxonomy, Settings) ── */}
-      <div className="flex gap-1 flex-wrap bg-surface/40 border border-border rounded-2xl p-1.5">
-        {PRIMARY_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          const hasBadge =
-            (tab.id === "REVIEW_QUEUE" && (summaryStats?.review_required ?? 0) > 0) ||
-            (tab.id === "CONFLICTS" && (summaryStats?.conflict_flags ?? conflicts.length) > 0);
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-wider flex-1 justify-center min-w-fit ${isActive ? "bg-info-text text-foreground shadow-lg shadow-info-text/20" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"}`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{tab.label}</span>
-              {hasBadge && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-error-text shadow-lg shadow-rose-500/50" />
-              )}
+      ) : (
+        <div className="group flex items-center gap-2 mt-0.5">
+          <span className={`min-w-0 truncate ${big ? "text-base font-bold text-[var(--foreground)]" : "text-sm text-[var(--foreground)]"} ${!value ? "italic text-[var(--foreground-muted)]" : ""}`}>
+            {value || placeholder || "—"}
+          </span>
+          {!readOnly && (
+            <button onClick={() => setEditing(true)} title={`Edit ${label}`} className="opacity-0 group-hover:opacity-100 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition">
+              <Pencil className="w-3 h-3" />
             </button>
-          );
-        })}
-      </div>
-
-      {/* ── Active Panel ── */}
-      {renderPanel()}
-
-      {/* ── AI Context Summary (Brand Voice / Visual Identity / Operational Rules) ── */}
-      {activeTab === "COLLECTIONS" && aiContext && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-surface/40 border border-border rounded-[2rem] p-6">
-            <h3 className="text-sm font-black text-foreground uppercase tracking-wider mb-4">Brand Voice Context</h3>
-            <div className="space-y-3">
-              {(aiContext.brand_voice || []).slice(0, 3).map((rule) => (
-                <div key={`${rule.base_name}-${rule.title}`} className="rounded-2xl border border-border/60 p-4">
-                  <p className="text-xs font-bold text-foreground">{rule.title}</p>
-                  <p className="text-[10px] text-foreground-muted mt-2 line-clamp-3">{rule.guideline}</p>
-                </div>
-              ))}
-              {!aiContext.brand_voice?.length && (
-                <p className="text-xs text-foreground-muted italic">No brand voice rules approved yet.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-surface/40 border border-border rounded-[2rem] p-6">
-            <h3 className="text-sm font-black text-foreground uppercase tracking-wider mb-4">Visual Identity</h3>
-            <div className="space-y-3 text-xs text-foreground-muted">
-              <p>Primary color: <span className="text-foreground font-bold">{aiContext.brand_visual?.primary_color || "Not set"}</span></p>
-              <p>Secondary color: <span className="text-foreground font-bold">{aiContext.brand_visual?.secondary_color || "Not set"}</span></p>
-              <p>Typography: <span className="text-foreground font-bold">{aiContext.brand_visual?.font_family || "Not set"}</span></p>
-              <p>Style: <span className="text-foreground font-bold">{aiContext.brand_visual?.visual_style || "Not set"}</span></p>
-              {aiContext.meta?.generated_at && (
-                <p className="flex items-center gap-1.5 text-foreground-muted pt-2 border-t border-border">
-                  <Clock3 className="w-3 h-3 text-info-text" />
-                  Context snapshot: {new Date(aiContext.meta.generated_at).toLocaleString()}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-surface/40 border border-border rounded-[2rem] p-6">
-            <h3 className="text-sm font-black text-foreground uppercase tracking-wider mb-4">Operational Rules</h3>
-            <div className="space-y-3">
-              {aiContext.sop_rules.slice(0, 3).map((rule) => (
-                <div key={`${rule.base_name}-${rule.title}`} className="rounded-2xl border border-border/60 p-4">
-                  <p className="text-xs font-bold text-foreground">{rule.title}</p>
-                  <p className="text-[10px] text-foreground-muted mt-2 line-clamp-3">{rule.rule}</p>
-                </div>
-              ))}
-              {!aiContext.sop_rules.length && (
-                <p className="text-xs text-foreground-muted italic">No SOP rules approved yet.</p>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       )}
-
-      {/* ── Modals ── */}
-      {showCreateCollection && (
-        <CreateCollectionModal
-          onClose={() => setShowCreateCollection(false)}
-          onCreate={handleCreateCollection}
-          creating={creatingCollection}
-        />
-      )}
-
-      {showCreateSource && (
-        <CreateSourceModal
-          collectionType={selectedCollection?.type}
-          onClose={() => setShowCreateSource(false)}
-          onCreate={handleCreateSource}
-          creating={creatingSource}
-        />
-      )}
-
-      {showCreateConflict && (
-        <CreateConflictModal
-          onClose={() => setShowCreateConflict(false)}
-          onCreate={handleCreateConflict}
-        />
-      )}
-
-      <ConfirmActionModal
-        open={!!confirmAction}
-        variant="danger"
-        title={
-          confirmAction?.type === "delete-source" ? "Remove Source" :
-          confirmAction?.type === "retire-source" ? "Retire Source" :
-          confirmAction?.type === "restrict-source" ? "Restrict Source" :
-          confirmAction?.type === "quarantine-source" ? "Quarantine Source" :
-          "Delete Collection"
-        }
-        message={
-          confirmAction?.type === "delete-source" ? "Remove this source from the knowledge base? Evidence record will be preserved." :
-          confirmAction?.type === "retire-source" ? "Retire this source? It will no longer be retrievable by agents. Evidence history is preserved." :
-          confirmAction?.type === "restrict-source" ? "Restrict this source? It will be blocked from non-privileged agent retrieval." :
-          confirmAction?.type === "quarantine-source" ? "Quarantine this source? It will be blocked from ALL agent retrieval pending investigation." :
-          "Delete this collection? All associated sources will remain but the collection association will be removed."
-        }
-        confirmLabel={
-          confirmAction?.type === "delete-source" ? "Remove" :
-          confirmAction?.type === "retire-source" ? "Retire" :
-          confirmAction?.type === "restrict-source" ? "Restrict" :
-          confirmAction?.type === "quarantine-source" ? "Quarantine" :
-          "Delete"
-        }
-        onConfirm={executeConfirmedAction}
-        onCancel={() => setConfirmAction(null)}
-      />
     </div>
+  );
+}
+
+// Compact inline metadata field — "LABEL value" on one line, click to edit.
+// Supports free text or a select (when `options` is provided).
+function MetaInline({ label, value, options, placeholder, onSave, readOnly }: { label: string; value: string; options?: string[]; placeholder?: string; onSave: (v: string) => Promise<void>; readOnly?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setVal(value);
+  }, [value, editing]);
+
+  const commit = async (next: string) => {
+    setSaving(true);
+    try {
+      await onSave(next.trim());
+      setEditing(false);
+    } catch {
+      /* keep editing */
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const display = options ? (value || "").replace(/_/g, " ") : value;
+
+  return (
+    <span className="group inline-flex items-center gap-1.5 min-w-0">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] shrink-0">{label}</span>
+      {editing && !readOnly ? (
+        options ? (
+          <select
+            autoFocus
+            defaultValue={value}
+            disabled={saving}
+            onChange={(e) => commit(e.target.value)}
+            onBlur={() => setEditing(false)}
+            className="bg-[var(--background)] border border-[var(--border)] rounded px-1.5 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--border-hover)]"
+          >
+            {options.map((o) => (
+              <option key={o} value={o}>{o.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+        ) : (
+          <span className="inline-flex items-center gap-1">
+            <input
+              autoFocus
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commit(val); if (e.key === "Escape") setEditing(false); }}
+              placeholder={placeholder}
+              className="bg-[var(--background)] border border-[var(--border)] rounded px-1.5 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--border-hover)] w-36"
+            />
+            <button onClick={() => commit(val)} disabled={saving} className="text-emerald-400 hover:text-emerald-300">{saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}</button>
+            <button onClick={() => setEditing(false)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]"><X className="w-3 h-3" /></button>
+          </span>
+        )
+      ) : (
+        <>
+          <span className={`text-xs truncate max-w-[180px] ${value ? "text-[var(--foreground)] font-medium" : "italic text-[var(--foreground-muted)]"}`} title={display}>{display || placeholder || "—"}</span>
+          {!readOnly && (
+            <button onClick={() => setEditing(true)} title={`Edit ${label}`} className="opacity-0 group-hover:opacity-100 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition shrink-0">
+              <Pencil className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
+
+// Tiny inline "+tag" input for the metadata strip.
+function TagAdd({ onAdd }: { onAdd: (t: string) => void }) {
+  const [v, setV] = useState("");
+  const commit = () => {
+    const t = v.trim();
+    if (t) onAdd(t);
+    setV("");
+  };
+  return (
+    <input
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+      onBlur={commit}
+      placeholder="+ tag"
+      className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[10px] text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:border-[var(--border-hover)] focus:outline-none w-16"
+    />
+  );
+}
+
+function ContentEditor({ source, onSave, readOnly }: { source: KBSource; onSave: (content: string) => Promise<void>; readOnly?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(source.content || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setVal(source.content || "");
+  }, [source.content, source.id, editing]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(val);
+      setEditing(false);
+    } catch {
+      /* keep editing */
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] flex items-center gap-1">
+          <FileText className="w-3 h-3" /> Content
+        </span>
+        {readOnly ? null : !editing ? (
+          <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-400 hover:text-violet-300">
+            <Pencil className="w-3 h-3" /> Edit
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setEditing(false)} className="text-[11px] font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)]">Cancel</button>
+            <button onClick={save} disabled={saving} className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 disabled:opacity-50">
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Save
+            </button>
+          </div>
+        )}
+      </div>
+      {editing ? (
+        <textarea
+          autoFocus
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          rows={10}
+          placeholder="Write the source content here…"
+          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:border-[var(--border-hover)] focus:outline-none resize-y"
+        />
+      ) : (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap min-h-[360px]">
+          {source.content?.trim() ? source.content : <span className="text-[var(--foreground-muted)] italic">No content yet — click Edit to add it.</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Small UI primitives
+// ─────────────────────────────────────────────────────────────
+function SummaryCard({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
+  const tones: Record<string, string> = {
+    indigo: "text-indigo-400 bg-indigo-500/10",
+    sky: "text-sky-400 bg-sky-500/10",
+    emerald: "text-emerald-400 bg-emerald-500/10",
+    zinc: "text-foreground-muted bg-zinc-500/10",
+    amber: "text-amber-400 bg-amber-500/10",
+    rose: "text-rose-400 bg-rose-500/10",
+  };
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${tones[tone]}`}>{icon}</div>
+      <p className="text-2xl font-bold text-[var(--foreground)]">{value}</p>
+      <p className="text-[11px] text-[var(--foreground-muted)]">{label}</p>
+    </div>
+  );
+}
+
+function IconBtn({ children, title, onClick, danger }: { children: React.ReactNode; title: string; onClick: (e: React.MouseEvent) => void; danger?: boolean }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      className={`w-7 h-7 rounded-lg flex items-center justify-center border border-[var(--border)] bg-[var(--surface)] transition hover:bg-[var(--surface-hover)] ${danger ? "text-[var(--foreground-muted)] hover:text-rose-400 hover:border-rose-500/30" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ActionBtn({ tone, label, icon, onClick, busy, disabled }: { tone: "emerald" | "amber" | "rose" | "zinc"; label: string; icon: React.ReactNode; onClick: () => void; busy?: boolean; disabled?: boolean }) {
+  const tones = { emerald: "bg-emerald-600 hover:bg-emerald-500", amber: "bg-amber-600 hover:bg-amber-500", rose: "bg-rose-600 hover:bg-rose-500", zinc: "bg-zinc-600 hover:bg-zinc-500" };
+  return (
+    <button onClick={onClick} disabled={busy || disabled} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40 disabled:cursor-not-allowed ${tones[tone]}`}>
+      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}
+      {label}
+    </button>
+  );
+}
+
+function ToggleActiveRetired({ source, busy, disabled, onActivate, onRetire }: { source: KBSource; busy?: boolean; disabled?: boolean; onActivate: (e: React.MouseEvent) => void; onRetire: (e: React.MouseEvent) => void }) {
+  // Retired → green "Activate" (bring it back, live again).
+  // Not retired → neutral "Retire" (counts toward the Retired total once retired).
+  const retired = isRetired(source);
+  return (
+    <button
+      title={retired ? "Retired — click to activate" : "Active — click to retire"}
+      role="switch"
+      aria-checked={!retired}
+      disabled={busy || disabled}
+      onClick={retired ? onActivate : onRetire}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${retired ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-zinc-500/10 text-foreground-muted border-zinc-500/20"}`}
+    >
+      {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : retired ? <CheckCircle2 className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+      {retired ? "Activate" : "Retire"}
+    </button>
+  );
+}
+
+function EvidenceHistory({ source, reviews }: { source: KBSource; reviews: KBReview[] }) {
+  // Real review events + derived lifecycle events.
+  // TODO(backend): a dedicated evidence-events endpoint would give richer history.
+  const events: { label: string; detail: string; at?: string; tone: string; dot: string }[] = [];
+  if (source.created_at) events.push({ label: "Created", detail: `by ${getAuthor(source) || "—"}`, at: source.created_at, tone: "text-sky-400", dot: "bg-sky-400" });
+  for (const r of reviews) {
+    const approved = r.decision === "APPROVED";
+    const rejected = r.decision === "REJECTED";
+    events.push({
+      label: approved ? "Approved" : rejected ? "Rejected" : r.review_type || "Reviewed",
+      detail: r.comments || r.review_type || "",
+      at: r.completed_at || r.created_at,
+      tone: approved ? "text-emerald-400" : rejected ? "text-rose-400" : "text-amber-400",
+      dot: approved ? "bg-emerald-400" : rejected ? "bg-rose-400" : "bg-amber-400",
+    });
+  }
+  if (source.updated_at && source.updated_at !== source.created_at) events.push({ label: `Status: ${source.status}`, detail: "last updated", at: source.updated_at, tone: "text-violet-400", dot: "bg-violet-400" });
+
+  if (events.length === 0) return <p className="text-[11px] text-[var(--foreground-muted)] italic">No evidence events yet.</p>;
+
+  return (
+    <ol className="space-y-2">
+      {events
+        .sort((a, b) => (b.at || "").localeCompare(a.at || ""))
+        .map((e, i) => (
+          <li key={i} className="flex gap-2 text-[11px]">
+            <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${e.dot}`} />
+            <div className="min-w-0">
+              <span className={`font-semibold ${e.tone}`}>{e.label}</span>
+              {e.detail && <span className="text-[var(--foreground-muted)]"> — {e.detail}</span>}
+              {e.at && <span className="block text-[10px] text-[var(--foreground-muted)]">{new Date(e.at).toLocaleString()}</span>}
+            </div>
+          </li>
+        ))}
+    </ol>
+  );
+}
+
+function EmptyState({ icon, title, hint, action, onAction }: { icon: React.ReactNode; title: string; hint: string; action?: string; onAction?: () => void }) {
+  return (
+    <div className="text-center py-10 px-4">
+      <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--surface-hover)] flex items-center justify-center text-[var(--foreground-muted)] mb-3">{icon}</div>
+      <p className="text-sm font-medium text-[var(--foreground)]">{title}</p>
+      <p className="text-[11px] text-[var(--foreground-muted)] mt-1">{hint}</p>
+      {action && onAction && (
+        <button onClick={onAction} className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300">
+          <Plus className="w-3.5 h-3.5" /> {action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Skeleton({ rows }: { rows: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="h-16 rounded-xl bg-[var(--surface-hover)] animate-pulse" />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Modals
+// ─────────────────────────────────────────────────────────────
+function ModalShell({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+          <h3 className="text-base font-bold text-[var(--foreground)]">{title}</h3>
+          <button onClick={onClose} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">{children}</div>
+        <div className="flex gap-3 px-6 py-4 border-t border-[var(--border)]">{footer}</div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
+
+const inputCls =
+  "w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:border-[var(--border-hover)] focus:outline-none";
+
+// Ask for the new owner's email + username (both required). The request is then
+// routed to the admin / workspace-owner queue for allow/block.
+function TransferModal({ source, members, currentOwnerEmail, busy, onClose, onSubmit }: { source: KBSource; members: OrgMember[]; currentOwnerEmail: string; busy?: boolean; onClose: () => void; onSubmit: (email: string, username: string) => void }) {
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+
+  const emailFormatOk = /^\S+@\S+\.\S+$/.test(email.trim());
+  const ready = emailFormatOk && username.trim().length > 0;
+  const match = ready ? matchMember(members, email, username) : null;
+  const isSelf = !!email.trim() && email.trim().toLowerCase() === (currentOwnerEmail || "").toLowerCase();
+  const valid = !!match?.ok && !isSelf;
+
+  // Privacy-safe feedback: never reveal whether an email exists or who it
+  // belongs to. Only a requester who already knows BOTH the exact email and
+  // username gets a positive match; every failure returns the same generic text.
+  let hint: { text: string; ok: boolean } | null = null;
+  if (email.trim() && !emailFormatOk) hint = { text: "Enter a valid email address.", ok: false };
+  else if (isSelf) hint = { text: "That user already owns this source.", ok: false };
+  else if (match && !match.ok) hint = { text: "No organization member matches that email and username.", ok: false };
+  else if (match?.ok) hint = { text: "Verified — this matches a member of your organization.", ok: true };
+
+  return (
+    <ModalShell
+      title={`Transfer ownership — ${source.title}`}
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)]">Cancel</button>
+          <button onClick={() => onSubmit(email.trim(), username.trim())} disabled={!valid || busy} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            Request transfer
+          </button>
+        </>
+      }
+    >
+      <Field label="New owner email *">
+        <input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="new.owner@company.com" className={inputCls} />
+      </Field>
+      <Field label="New owner username *">
+        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="New owner full name" className={inputCls} />
+      </Field>
+
+      {hint && (
+        <p className={`flex items-center gap-1.5 text-[11px] ${hint.ok ? "text-emerald-400" : "text-rose-400"}`}>
+          {hint.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+          {hint.text}
+        </p>
+      )}
+
+      <p className="text-[11px] text-[var(--foreground-muted)]">
+        The new owner must be an existing member of this organization, and the username must match their account. The request is sent to the <span className="font-semibold text-indigo-400">admin / workspace owner</span> — ownership only changes once they allow it, and the current owner is recorded in the source history.
+      </p>
+    </ModalShell>
+  );
+}
+
+function CollectionModal({ edit, busy, onClose, onSave }: { edit?: KBCollection; busy?: boolean; onClose: () => void; onSave: (name: string, description: string) => void }) {
+  const [name, setName] = useState(edit?.name || "");
+  const [description, setDescription] = useState(edit?.description || "");
+  return (
+    <ModalShell
+      title={edit ? "Edit collection" : "Create collection"}
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)]">Cancel</button>
+          <button onClick={() => onSave(name.trim(), description.trim())} disabled={!name.trim() || busy} className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            {edit ? "Save" : "Create"}
+          </button>
+        </>
+      }
+    >
+      <Field label="Name">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Guidelines" className={inputCls} />
+      </Field>
+      <Field label="Description">
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="What this collection holds…" className={`${inputCls} resize-none`} />
+      </Field>
+    </ModalShell>
+  );
+}
+
+// Create captures ONLY a name + type. The source is created as a DRAFT and
+// opens like a file — author, keywords, citation, content, and match action
+// are all edited inline in the source header afterwards.
+function CreateSourceModal({ busy, onClose, onCreate }: { busy?: boolean; onClose: () => void; onCreate: (title: string, sourceType: string, file?: File | null, fileText?: string | null, governanceCategory?: string) => void }) {
+  const [title, setTitle] = useState("");
+  const [sourceType, setSourceType] = useState("MANUAL_ARTICLE");
+  const [governanceCategory, setGovernanceCategory] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileText, setFileText] = useState<string | null>(null);
+
+  const ACCEPT = ".json,.pdf,.txt,.doc,.docx,application/json,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+  // Read the file the moment it's picked: JSON/TXT → text into state (so it
+  // can't be lost later); PDF/Word → keep the File for the backend to extract.
+  const pickFile = async (f: File | null) => {
+    setFileText(null);
+    setFile(f);
+    if (!f) return;
+    const name = f.name.toLowerCase();
+    const isText = name.endsWith(".json") || name.endsWith(".txt") || f.type === "application/json" || f.type === "text/plain";
+    if (isText) {
+      try {
+        setFileText(await f.text());
+      } catch {
+        setFileText(null);
+      }
+    }
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    setFileText(null);
+  };
+
+  return (
+    <ModalShell
+      title="Create source"
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)]">Cancel</button>
+          <button onClick={() => onCreate(title.trim(), sourceType, file, fileText, governanceCategory)} disabled={!title.trim() || busy} className="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2">
+            {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create draft
+          </button>
+        </>
+      }
+    >
+      <Field label="Source Name">
+        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. 2026 Pricing Sheet" className={inputCls} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) onCreate(title.trim(), sourceType, file, fileText, governanceCategory); }} />
+      </Field>
+      <Field label="Source Type">
+        <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className={inputCls}>
+          {SOURCE_TYPES.map((t) => (
+            <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Governance Category">
+        <select value={governanceCategory} onChange={(e) => setGovernanceCategory(e.target.value)} className={inputCls}>
+          <option value="">— none —</option>
+          {GOVERNANCE_CATEGORIES.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Upload file (optional) — JSON, PDF, TXT, or Word">
+        <input
+          type="file"
+          accept={ACCEPT}
+          onChange={(e) => pickFile(e.target.files?.[0] || null)}
+          className="w-full text-xs text-[var(--foreground-muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-sky-600 file:px-3 file:py-1.5 file:text-white file:text-xs file:font-semibold file:cursor-pointer hover:file:bg-sky-500"
+        />
+        {file && (
+          <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-emerald-400">
+            <Upload className="w-3 h-3" /> {file.name}
+            {fileText != null && <span className="text-[var(--foreground-muted)]">({fileText.length} chars loaded)</span>}
+            <button onClick={clearFile} className="text-[var(--foreground-muted)] hover:text-rose-400">
+              <X className="w-3 h-3" />
+            </button>
+          </p>
+        )}
+        <p className="text-[10px] text-[var(--foreground-muted)] mt-1">JSON / TXT load straight into the content. PDF / Word are parsed into text. The content stays fully editable after.</p>
+      </Field>
+      <p className="text-[11px] text-[var(--foreground-muted)]">
+        The source is created as a <span className="font-semibold text-amber-400">Draft</span> and sent to the admin / workspace owner for approval. You can edit the content, author, keywords, and citation after it opens.
+      </p>
+    </ModalShell>
   );
 }

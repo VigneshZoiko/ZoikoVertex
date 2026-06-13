@@ -115,7 +115,7 @@ const FILE_TYPE_META: Record<string, { label: string; icon: React.ElementType; c
 
 function fileTypeMeta(fileType: string) {
   const key = Object.keys(FILE_TYPE_META).find(k => fileType?.toLowerCase().startsWith(k));
-  return FILE_TYPE_META[key ?? ''] ?? { label: fileType || "File", icon: File, color: "text-zinc-400" };
+  return FILE_TYPE_META[key ?? ''] ?? { label: fileType || "File", icon: File, color: "text-foreground-muted" };
 }
 
 function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDeleted: () => void }) {
@@ -204,33 +204,33 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
       <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl flex flex-col bg-background border-l border-border shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-success-text/10 rounded-xl">
               <HardDrive className="w-4 h-4 text-success-text" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">Manage Storage</h2>
-              <p className="text-xs text-zinc-400">Select items to free up storage space</p>
+              <h2 className="text-base font-semibold text-foreground">Manage Storage</h2>
+              <p className="text-xs text-foreground-muted">Select items to free up storage space</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name or uploader…"
-              className="w-full pl-9 pr-3 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+              className="w-full pl-9 pr-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
             />
           </div>
 
@@ -239,7 +239,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 text-sm bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-zinc-500 cursor-pointer"
+              className="appearance-none pl-3 pr-8 py-2 text-sm bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-zinc-500 cursor-pointer"
             >
               <option value="all">All types</option>
               <option value="image">Images</option>
@@ -247,23 +247,23 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
               <option value="document">Documents</option>
               <option value="pdf">PDFs</option>
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted pointer-events-none" />
           </div>
         </div>
 
         {/* Selection bar */}
         {filteredItems.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-2.5 bg-zinc-900/50 border-b border-zinc-800 shrink-0">
-            <button onClick={toggleAll} className="flex items-center gap-2 text-sm text-zinc-300 hover:text-white transition-colors">
+          <div className="flex items-center justify-between px-6 py-2.5 bg-card/50 border-b border-border shrink-0">
+            <button onClick={toggleAll} className="flex items-center gap-2 text-sm text-foreground hover:text-foreground transition-colors">
               {allSelected
                 ? <CheckSquare className="w-4 h-4 text-success-text" />
                 : someSelected
-                  ? <CheckSquare className="w-4 h-4 text-zinc-500" />
-                  : <Square className="w-4 h-4 text-zinc-500" />
+                  ? <CheckSquare className="w-4 h-4 text-foreground-muted" />
+                  : <Square className="w-4 h-4 text-foreground-muted" />
               }
               {allSelected ? "Deselect all" : "Select all"}
             </button>
-            <span className="text-xs text-zinc-500">{filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-foreground-muted">{filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''}</span>
           </div>
         )}
 
@@ -271,15 +271,15 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
+              <Loader2 className="w-5 h-5 animate-spin text-foreground-muted" />
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-2">
               <Database className="w-8 h-8 text-zinc-700" />
-              <p className="text-sm text-zinc-500">No media assets found</p>
+              <p className="text-sm text-foreground-muted">No media assets found</p>
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-800/60">
+            <ul className="divide-y divide-border/60">
               {filteredItems.map(item => {
                 const ft = fileTypeMeta(item.file_type);
                 const Icon = ft.icon;
@@ -289,18 +289,18 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
                     key={item.id}
                     onClick={() => toggleOne(item.id)}
                     className={`flex items-center gap-4 px-6 py-3.5 cursor-pointer transition-colors select-none
-                      ${isChecked ? "bg-error-text/5 hover:bg-error-text/8" : "hover:bg-zinc-900/50"}`}
+                      ${isChecked ? "bg-error-text/5 hover:bg-error-text/8" : "hover:bg-card/50"}`}
                   >
                     {/* Checkbox */}
                     <div className="shrink-0">
                       {isChecked
                         ? <CheckSquare className="w-4 h-4 text-error-text" />
-                        : <Square className="w-4 h-4 text-zinc-600" />
+                        : <Square className="w-4 h-4 text-foreground-muted" />
                       }
                     </div>
 
                     {/* Thumbnail / Icon */}
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-surface shrink-0 flex items-center justify-center">
                       {item.file_type?.startsWith("image") && item.url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
@@ -311,15 +311,15 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-200 truncate">{item.title || "Untitled"}</p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-sm font-medium text-foreground truncate">{item.title || "Untitled"}</p>
+                      <p className="text-xs text-foreground-muted">
                         {item.uploader?.full_name || item.uploader?.email || "Unknown"} · {new Date(item.created_at).toLocaleDateString()} · {formatBytes(item.file_size_bytes) || "–"}
                       </p>
                     </div>
 
                     {/* Badges */}
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${ft.color} bg-zinc-900 border-zinc-700`}>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${ft.color} bg-card border-border`}>
                         {ft.label}
                       </span>
                       {item.status !== "available" && (
@@ -339,7 +339,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
         </div>
 
         {/* Footer action bar */}
-        <div className="shrink-0 border-t border-zinc-800 px-6 py-4 bg-zinc-950">
+        <div className="shrink-0 border-t border-border px-6 py-4 bg-background">
           {deleteError && (
             <p className="text-xs text-error-text mb-3 flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />{deleteError}
@@ -347,7 +347,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
           )}
           {showConfirm ? (
             <div className="space-y-3">
-              <p className="text-sm text-zinc-300">
+              <p className="text-sm text-foreground">
                 Permanently delete <strong className="text-white">{selected.size}</strong> item{selected.size !== 1 ? 's' : ''}
                 {totalSelectedSize > 0 && <> (<strong className="text-white">{formatBytes(totalSelectedSize)}</strong>)</>}? This cannot be undone.
               </p>
@@ -363,7 +363,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
                 <button
                   onClick={() => setShowConfirm(false)}
                   disabled={deleting}
-                  className="px-5 h-10 border border-zinc-700 text-zinc-400 hover:text-zinc-200 text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+                  className="px-5 h-10 border border-border text-foreground-muted hover:text-foreground text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -383,7 +383,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
               </button>
               <button
                 onClick={onClose}
-                className="px-5 h-10 border border-zinc-700 text-zinc-400 hover:text-zinc-200 text-sm font-medium rounded-xl transition-colors"
+                className="px-5 h-10 border border-border text-foreground-muted hover:text-foreground text-sm font-medium rounded-xl transition-colors"
               >
                 Close
               </button>
@@ -560,7 +560,7 @@ export default function ResourceMonitoringPage() {
           <AlertTriangle className="w-5 h-5 text-error-text shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-error-text">AI Services Suspended — No Credits</p>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-xs text-foreground-muted mt-0.5">
               Your wallet balance reached $0. AI features are unavailable until you top up or your billing cycle resets
               {billingPeriod && ` on ${formatCycleDate(billingPeriod.end)}`}.
             </p>

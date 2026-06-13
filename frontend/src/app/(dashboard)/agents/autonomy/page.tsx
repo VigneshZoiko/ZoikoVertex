@@ -274,7 +274,7 @@ export default function AutonomyPage() {
           <h1 className="text-2xl font-bold text-foreground mb-1">Autonomy Control Center</h1>
           <p className="text-[#888] text-sm">Govern, limit, monitor, and revoke agent autonomy across the workspace.</p>
         </div>
-        <button onClick={fetchAll} className="p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl text-[#888] hover:text-white transition-all group">
+        <button onClick={fetchAll} className="p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl text-[#888] hover:text-foreground transition-all group">
           <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin text-info-text" : "group-hover:rotate-180 transition-transform duration-500"}`} />
         </button>
       </div>
@@ -460,7 +460,7 @@ export default function AutonomyPage() {
                             <button
                               onClick={() => handleSuspend(agent.id, agent.name)}
                               disabled={!!actionId}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-white border border-error-border rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-foreground border border-error-border rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
                             >
                               {actionId === agent.id + "suspend" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                               Suspend Agent
@@ -470,7 +470,7 @@ export default function AutonomyPage() {
                             <button
                               onClick={() => handleLevelChange(agent.id, "L1")}
                               disabled={!!actionId}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-success-bg hover:bg-success-text text-success-text hover:text-white border border-success-border rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-success-bg hover:bg-success-text text-success-text hover:text-foreground border border-success-border rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
                             >
                               <Unlock className="w-3.5 h-3.5" />
                               Restore to L1
@@ -492,7 +492,7 @@ export default function AutonomyPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-[#888]">Emergency locks immediately stop autonomous agent activity at the selected scope.</p>
-            <button onClick={() => setShowLockForm(!showLockForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-white border border-error-border rounded-xl text-xs font-bold transition-all">
+            <button onClick={() => setShowLockForm(!showLockForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-foreground border border-error-border rounded-xl text-xs font-bold transition-all">
               <ShieldAlert className="w-3.5 h-3.5" />
               Apply Emergency Lock
             </button>
@@ -517,7 +517,7 @@ export default function AutonomyPage() {
               <textarea rows={3} placeholder="Reason for emergency lock (required for audit record)…" value={lockForm.reason} onChange={e => setLockForm(f => ({...f,reason:e.target.value}))}
                 className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-error-border resize-none" />
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowLockForm(false)} className="px-3 py-1.5 text-[#666] hover:text-white text-xs font-bold transition-all"><X className="w-4 h-4" /></button>
+                <button onClick={() => setShowLockForm(false)} className="px-3 py-1.5 text-[#666] hover:text-foreground text-xs font-bold transition-all"><X className="w-4 h-4" /></button>
                 <button onClick={handleCreateLock} disabled={actionId === "lock" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-error-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "lock" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                   Apply Lock
@@ -579,7 +579,7 @@ export default function AutonomyPage() {
                   className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowHITLForm(false)} className="p-1.5 text-[#666] hover:text-white transition-all"><X className="w-4 h-4" /></button>
+                <button onClick={() => setShowHITLForm(false)} className="p-1.5 text-[#666] hover:text-foreground transition-all"><X className="w-4 h-4" /></button>
                 <button onClick={handleCreateHITL} disabled={actionId === "hitl" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "hitl" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create
@@ -642,7 +642,7 @@ export default function AutonomyPage() {
                   className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowNKSForm(false)} className="p-1.5 text-[#666] hover:text-white"><X className="w-4 h-4" /></button>
+                <button onClick={() => setShowNKSForm(false)} className="p-1.5 text-[#666] hover:text-foreground"><X className="w-4 h-4" /></button>
                 <button onClick={handleCreateNKS} disabled={actionId === "nks" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "nks" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create Set

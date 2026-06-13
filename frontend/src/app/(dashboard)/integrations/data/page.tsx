@@ -271,7 +271,7 @@ export default function DataPage() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => { setShowCreateWizard(false); setWizardStep(1); }}
-                className="p-2 bg-surface border border-border hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-white transition-colors"
+                className="p-2 bg-surface border border-border hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -489,7 +489,7 @@ export default function DataPage() {
                   <button
                     type="button"
                     onClick={() => setWizardStep(wizardStep - 1)}
-                    className="px-5 py-2.5 border border-border hover:border-border text-foreground-muted hover:text-white rounded-lg text-xs font-semibold transition-all"
+                    className="px-5 py-2.5 border border-border hover:border-border text-foreground-muted hover:text-foreground rounded-lg text-xs font-semibold transition-all"
                   >
                     Go Back
                   </button>
@@ -776,7 +776,7 @@ export default function DataPage() {
                   <button 
                     onClick={() => fetchLogs(selectedConnector.id)}
                     disabled={fetchingLogs}
-                    className="p-1 hover:bg-surface-hover rounded text-foreground-muted hover:text-white transition-colors"
+                    className="p-1 hover:bg-surface-hover rounded text-foreground-muted hover:text-foreground transition-colors"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${fetchingLogs ? 'animate-spin' : ''}`} />
                   </button>

@@ -374,10 +374,10 @@ function PostPreview({
         {/* ── Threads action bar ── */}
         {isThreads && (
           <div className="flex items-center gap-4 px-3 py-2.5 text-foreground-muted">
-            <Heart className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
-            <MessageCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
-            <Repeat2 className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
-            <Share2 className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+            <Heart className="w-5 h-5 hover:text-foreground cursor-pointer transition-colors" />
+            <MessageCircle className="w-5 h-5 hover:text-foreground cursor-pointer transition-colors" />
+            <Repeat2 className="w-5 h-5 hover:text-foreground cursor-pointer transition-colors" />
+            <Share2 className="w-5 h-5 hover:text-foreground cursor-pointer transition-colors" />
           </div>
         )}
       </div>}
