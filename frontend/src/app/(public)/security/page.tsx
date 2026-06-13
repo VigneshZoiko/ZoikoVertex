@@ -211,40 +211,6 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   );
 }
 
-/* ── Shield SVG ────────────────────────────────────────────────── */
-function Shield() {
-  return (
-    <svg viewBox="0 0 300 360" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id="sg1" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#a0d4f0" stopOpacity="0.7" />
-        </linearGradient>
-        <linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#20E7F2" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#0a6aff" stopOpacity="0.3" />
-        </linearGradient>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="8" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
-      {/* Outer shield */}
-      <path d="M150 10 L280 60 L280 190 Q280 290 150 350 Q20 290 20 190 L20 60 Z"
-        fill="url(#sg2)" stroke="url(#sg1)" strokeWidth="2" opacity="0.85" />
-      {/* Inner shield */}
-      <path d="M150 40 L255 80 L255 185 Q255 265 150 315 Q45 265 45 185 L45 80 Z"
-        fill="rgba(32,231,242,0.08)" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" />
-      {/* Center glow */}
-      <circle cx="150" cy="175" r="55" fill="rgba(32,231,242,0.12)" filter="url(#glow)" />
-      {/* Check mark */}
-      <path d="M115 175 L140 200 L190 150" stroke="#20E7F2" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      {/* Highlight lines */}
-      <path d="M150 40 L255 80" stroke="rgba(255,255,255,0.6)" strokeWidth="1" />
-      <ellipse cx="150" cy="340" rx="60" ry="8" fill="rgba(32,231,242,0.2)" />
-    </svg>
-  );
-}
 
 /* ══════════════════════════════════════════════════════════════════
    PAGE
@@ -307,8 +273,8 @@ export default function SecurityPage() {
 
           {/* Right — shield */}
           <div className="hidden lg:flex items-center justify-center">
-            <div className="w-[340px] h-[380px] drop-shadow-[0_0_60px_rgba(32,231,242,0.3)]">
-              <Shield />
+            <div className="relative w-[420px] h-[420px] drop-shadow-[0_0_80px_rgba(32,231,242,0.25)]">
+              <Image src="/images/security/shield.png" alt="Security shield" fill className="object-contain" sizes="420px" />
             </div>
           </div>
         </div>
