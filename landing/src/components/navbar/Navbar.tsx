@@ -78,6 +78,7 @@ function DropdownMenu({ items, viewAllLabel, viewAllHref, title }: { items: type
 
 export default function Navbar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -90,31 +91,38 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (mobileOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
+  const fontJakarta = "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif";
+
   return (
     <nav
       ref={navRef}
-      style={{ position: "sticky", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(21,34,56,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+      style={{ position: "sticky", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(21,34,56,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
     >
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
         {/* Logo */}
-        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
-          <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={235} height={36} priority />
+        <Link href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} priority />
         </Link>
 
-        {/* Nav links */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        {/* Desktop nav links */}
+        <div className="hidden lg:flex" style={{ alignItems: "center", gap: 0 }}>
           {NAV_ITEMS.map((item) => {
-            const hasPanel = item.hasDropdown;
             const chevron = (
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: openMenu === item.label ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", opacity: 0.6 }}>
                 <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             );
-            const linkStyle = { fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 400, fontSize: 13.4, letterSpacing: "0.01em", color: "#A9B8C7", textDecoration: "none", padding: "25.6px 14px", display: "flex", alignItems: "center", gap: 4, height: 68, transition: "color 0.15s" };
+            const linkStyle = { fontFamily: fontJakarta, fontWeight: 400, fontSize: 13.4, letterSpacing: "0.01em", color: "#A9B8C7", textDecoration: "none", padding: "25.6px 14px", display: "flex", alignItems: "center", gap: 4, height: 68, transition: "color 0.15s" };
             return (
               <div key={item.label} style={{ position: "relative" }}>
-                {item.hasDropdown && hasPanel ? (
+                {item.hasDropdown ? (
                   <button
                     onClick={() => setOpenMenu(openMenu === item.label ? null : item.label)}
                     style={{ ...linkStyle, background: "none", border: "none", cursor: "pointer", color: openMenu === item.label ? "#FFFFFF" : "#A9B8C7" }}
@@ -124,16 +132,10 @@ export default function Navbar() {
                     {item.label}{chevron}
                   </button>
                 ) : (
-                  <Link
-                    href={item.href}
-                    style={linkStyle}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#A9B8C7")}
-                  >
-                    {item.label}{item.hasDropdown && chevron}
+                  <Link href={item.href} style={linkStyle} onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")} onMouseLeave={(e) => (e.currentTarget.style.color = "#A9B8C7")}>
+                    {item.label}
                   </Link>
                 )}
-
                 {openMenu === item.label && item.label === "Platform" && (
                   <DropdownMenu items={PLATFORM_ITEMS} title="Platform" viewAllLabel="Platform Overview →" viewAllHref="/platform" />
                 )}
@@ -145,34 +147,62 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* CTA buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <Link
-            href="https://getzoikovertex.com/login"
-            style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 400, fontSize: 13.4, letterSpacing: "0.01em", color: "#A9B8C7", textDecoration: "none", transition: "color 0.15s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#A9B8C7")}
-          >
+        {/* Desktop CTAs */}
+        <div className="hidden lg:flex" style={{ alignItems: "center", gap: 20 }}>
+          <Link href="https://getzoikovertex.com/login" style={{ fontFamily: fontJakarta, fontWeight: 400, fontSize: 13.4, color: "#A9B8C7", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")} onMouseLeave={(e) => (e.currentTarget.style.color = "#A9B8C7")}>
             Sign in
           </Link>
-          <Link
-            href="/request-demo"
-            style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 600, fontSize: 13.4, color: "#FFFFFF", background: "transparent", padding: "9px 22px", borderRadius: 24, border: "1.5px solid rgba(255,255,255,0.3)", textDecoration: "none", transition: "border-color 0.15s", whiteSpace: "nowrap" }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.6)")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)")}
-          >
+          <Link href="/request-demo" style={{ fontFamily: fontJakarta, fontWeight: 600, fontSize: 13.4, color: "#FFFFFF", background: "transparent", padding: "9px 22px", borderRadius: 24, border: "1.5px solid rgba(255,255,255,0.3)", textDecoration: "none", whiteSpace: "nowrap" }} onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.6)")} onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)")}>
             Request a Demo
           </Link>
-          <Link
-            href="https://getzoikovertex.com/signup"
-            style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 13.4, color: "#000000", background: "#20E7F2", padding: "9px 22px", borderRadius: 24, textDecoration: "none", transition: "background 0.15s", whiteSpace: "nowrap" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#4AECF5")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#20E7F2")}
-          >
+          <Link href="https://getzoikovertex.com/signup" style={{ fontFamily: fontJakarta, fontWeight: 700, fontSize: 13.4, color: "#000000", background: "#20E7F2", padding: "9px 22px", borderRadius: 24, textDecoration: "none", whiteSpace: "nowrap" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#4AECF5")} onMouseLeave={(e) => (e.currentTarget.style.background = "#20E7F2")}>
             Get Started
           </Link>
         </div>
+
+        {/* Mobile: CTA + hamburger */}
+        <div className="flex lg:hidden items-center gap-3">
+          <Link href="/request-demo" style={{ fontFamily: fontJakarta, fontWeight: 700, fontSize: 13, color: "#000000", background: "#20E7F2", padding: "8px 18px", borderRadius: 24, textDecoration: "none", whiteSpace: "nowrap" }}>
+            Request Demo
+          </Link>
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            style={{ padding: "6px", background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, cursor: "pointer", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          >
+            {mobileOpen ? (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 1l16 16M17 1L1 17" stroke="white" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 4h16M1 9h16M1 14h16" stroke="white" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden" style={{ background: "#0d1a2e", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "8px 20px 24px", maxHeight: "calc(100vh - 68px)", overflowY: "auto" }}>
+          {NAV_ITEMS.map((item, i) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", fontFamily: fontJakarta, fontSize: 15, fontWeight: 500, color: "#A9B8C7", textDecoration: "none", borderBottom: i < NAV_ITEMS.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}
+            >
+              {item.label}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M7 3l4 4-4 4" stroke="#A9B8C7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </Link>
+          ))}
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+            <Link href="https://getzoikovertex.com/login" onClick={() => setMobileOpen(false)} style={{ display: "block", textAlign: "center", padding: "12px 24px", fontFamily: fontJakarta, color: "#A9B8C7", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 24, fontSize: 14, textDecoration: "none" }}>
+              Sign in
+            </Link>
+            <Link href="https://getzoikovertex.com/signup" onClick={() => setMobileOpen(false)} style={{ display: "block", textAlign: "center", padding: "12px 24px", fontFamily: fontJakarta, color: "#000", background: "#20E7F2", borderRadius: 24, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+              Get Started
+            </Link>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

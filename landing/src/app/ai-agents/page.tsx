@@ -380,7 +380,7 @@ function OperatingModel() {
         </div>
 
         {/* Stages */}
-        <div className="grid grid-cols-7 gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-6">
           {STAGES.map((s) => (
             <div key={s.num} className="bg-[#0a0f1e] border border-white/8 rounded-xl p-3 flex flex-col items-center text-center">
               <span className="text-white/20 text-xs font-mono mb-2">{s.num}</span>
