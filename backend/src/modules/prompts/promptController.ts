@@ -3,7 +3,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { PromptService } from './PromptService';
-import { PostGovernanceService } from './PostGovernanceService';
+
 import { PromptVersionService } from './PromptVersionService';
 import { PromptTestService } from './PromptTestService';
 import { PromptApprovalService } from './PromptApprovalService';
@@ -3075,7 +3075,6 @@ export class PromptController {
       const safety = await RiskClassifier.assessContentAdvanced(description, platform, workspaceId);
       const assessment = safety.assessment;
       const cats = assessment.categories;
-      const lower = description.toLowerCase();
 
       const policyHits = ENTERPRISE_POLICIES
         .map((p) => ({

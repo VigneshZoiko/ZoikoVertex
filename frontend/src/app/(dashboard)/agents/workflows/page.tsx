@@ -3,79 +3,27 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
-import RoutingStats from "./components/RoutingStats";
-import WorkflowCanvas from "./components/WorkflowCanvas";
 import ActiveOrchestrations from "./components/ActiveOrchestrations";
+import WorkflowRunDetailDrawer from "./components/WorkflowRunDetailDrawer";
 import PublishedContentPanel from "./components/PublishedContentPanel";
-import EscalationPaths from "./components/EscalationPaths";
-import CreateWorkflowModal from "./components/CreateWorkflowModal";
 import {
   RefreshCw,
   GitBranch,
-  ShieldCheck,
   FileCheck2,
   AlertTriangle,
-  Plus,
-  Search,
-  Pause,
   XCircle,
-  Clock,
   AlertCircle,
-  CheckCircle2,
-  FlaskConical,
-  Archive,
-  RotateCcw,
-  Shield,
-  Zap,
-  BookOpen,
-  ScanLine,
-  Users,
-  Bell,
-  ArrowUpCircle,
-  PackageCheck,
-  Timer,
   GitMerge,
-  Loader2,
-  BarChart3,
-  Activity,
-  FileText,
+  Pause,
 } from "lucide-react";
-
-import SimulationPanel from "./components/SimulationPanel";
-import DependencyHealthPanel from "./components/DependencyHealthPanel";
-import EvidencePanel from "./components/EvidencePanel";
-import ApprovalChainPanel from "./components/ApprovalChainPanel";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type WorkflowStatus =
-  | "Draft"
-  | "Testing"
-  | "Pending Approval"
-  | "Approved"
-  | "Active"
-  | "Paused"
-  | "Blocked"
-  | "Deprecated"
-  | "Retired"
-  | "Failed";
-
-type RiskLevel = "Low" | "Medium" | "High" | "Critical";
-
-interface WorkflowRecord {
-  id: string;
-  name: string;
-  status: WorkflowStatus;
-  nodes: number;
-  conditionalGates: number;
-  lastRun: string | null;
-  owner: string;
-  riskLevel: RiskLevel;
-  linkedAgents: string[];
-  activeRuns: number;
-  health: "Healthy" | "Warning" | "Critical" | "Stale";
-  brandIds: string[];
-  updatedAt: string;
+interface ControlStripData {
+  activeWorkflows: number;
+  blockedRuns: number;
+  failedRuns: number;
+  criticalRiskItems: number;
 }
 
 interface ApprovalStats {
@@ -86,29 +34,6 @@ interface ApprovalStats {
     pending_governance?: number;
   };
 }
-
-interface ControlStripData {
-  activeWorkflows: number;
-  pendingApprovals: number;
-  blockedRuns: number;
-  failedRuns: number;
-  slaBreach: number;
-  staleDependencies: number;
-  criticalRiskItems: number;
-}
-
-const WORKFLOW_STATUS_MAP: Record<string, WorkflowStatus> = {
-  draft: "Draft",
-  testing: "Testing",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  active: "Active",
-  paused: "Paused",
-  blocked: "Blocked",
-  deprecated: "Deprecated",
-  retired: "Retired",
-  failed: "Failed",
-};
 
 const INSTANCE_STATUS_MAP: Record<string, string> = {
   pending: "Pending",
@@ -122,13 +47,6 @@ const INSTANCE_STATUS_MAP: Record<string, string> = {
   cancelled: "Failed",
 };
 
-const RISK_LEVEL_MAP: Record<string, RiskLevel> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
-};
-
 function formatRelativeMinutes(date?: string | null) {
   if (!date) return "Just now";
   const diff = Math.max(0, Date.now() - new Date(date).getTime());
@@ -139,28 +57,6 @@ function formatRelativeMinutes(date?: string | null) {
   if (hours < 24) return `${hours}h ${mins % 60}m`;
   const days = Math.floor(hours / 24);
   return `${days}d ${hours % 24}h`;
-}
-
-function mapWorkflowRecord(workflow: any): WorkflowRecord {
-  return {
-    id: workflow.id,
-    name: workflow.name || "Untitled Workflow",
-    status: WORKFLOW_STATUS_MAP[workflow.status] || "Draft",
-    nodes: workflow.nodes ?? workflow.node_count ?? 0,
-    conditionalGates: workflow.conditionalGates ?? workflow.gate_count ?? 0,
-    lastRun:
-      workflow.lastRun ?? workflow.last_run ?? workflow.updated_at ?? null,
-    owner: safeStr(workflow.owner || workflow.owner_name, "Unassigned"),
-    riskLevel:
-      RISK_LEVEL_MAP[
-        (workflow.riskLevel || workflow.risk_level || "").toLowerCase()
-      ] || "Medium",
-    linkedAgents: workflow.linkedAgents || workflow.linked_agents || [],
-    activeRuns: workflow.activeRuns ?? workflow.active_runs_count ?? 0,
-    health: workflow.health || "Healthy",
-    brandIds: workflow.brandIds || workflow.brand_ids || [],
-    updatedAt: workflow.updatedAt || workflow.updated_at || "",
-  };
 }
 
 function mapActiveInstance(instance: any) {
@@ -204,31 +100,14 @@ function mapActiveInstance(instance: any) {
           excerpt: safeStr(instance.post.excerpt, ""),
         }
       : undefined,
-  };
-}
-
-function mapEscalation(event: any) {
-  const severity = `${event.severity || "medium"}`.toLowerCase();
-  const status = `${event.status || ""}`.toLowerCase();
-  return {
-    id: event.id,
-    workflowName: safeStr(event.workflowName || event.run_name || event.category, "Workflow escalation"),
-    trigger: safeStr(event.trigger || event.category, "workflow_event"),
-    handoffTo: safeStr(event.handoffTo || event.owner_name, "Governance queue"),
-    reason: safeStr(event.reason || event.root_cause, "Escalation raised from workflow authority layer."),
-    escalatedAt: safeStr(event.escalatedAt || event.created_at) || new Date().toISOString(),
-    resolved: ["resolved", "closed", "completed"].includes(status),
-    severity:
-      severity === "critical"
-        ? "Critical"
-        : severity === "high"
-          ? "High"
-          : severity === "low"
-            ? "Low"
-            : "Medium",
-    sla: safeStr(event.sla || event.due_at) || undefined,
-    evidenceBundleId: safeStr(event.evidenceBundleId || event.evidence_bundle_id) || undefined,
-    overrideReason: safeStr(event.overrideReason || event.remediation) || undefined,
+    prompt: instance.prompt || instance.execution_prompt || undefined,
+    knowledgeBaseSource:
+      instance.knowledgeBaseSource ||
+      instance.knowledge_base_source ||
+      instance.knowledge_source ||
+      undefined,
+    nextStep:
+      instance.nextStep || instance.next_step || instance.nextAction || instance.next_action || undefined,
   };
 }
 
@@ -244,74 +123,6 @@ function safeNum(v: unknown, fallback = 0): number {
   return v;
 }
 
-// ── Status helpers ─────────────────────────────────────────────────────────
-
-const WORKFLOW_STATUS_STYLES: Record<WorkflowStatus, string> = {
-  Draft: "bg-zinc-500/10 text-foreground-muted border-zinc-500/20",
-  Testing: "bg-sky-500/10 text-sky-400 border-sky-500/20",
-  "Pending Approval": "bg-warning-text/10 text-warning-text border-warning-border/20",
-  Approved: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-  Active: "bg-success-text/10 text-success-text border-success-border/20",
-  Paused: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  Blocked: "bg-error-text/10 text-error-text border-error-border/20",
-  Deprecated: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  Retired: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-  Failed: "bg-red-600/10 text-red-500 border-red-600/20",
-};
-
-const RISK_STYLES: Record<RiskLevel, string> = {
-  Low: "text-success-text",
-  Medium: "text-warning-text",
-  High: "text-orange-400",
-  Critical: "text-error-text",
-};
-
-const HEALTH_STYLES: Record<string, string> = {
-  Healthy: "bg-success-text",
-  Warning: "bg-warning-text",
-  Critical: "bg-error-text",
-  Stale: "bg-gray-400",
-};
-
-// ── Node-type legend items ─────────────────────────────────────────────────
-
-const NODE_LEGEND = [
-  { type: "trigger", label: "Trigger", color: "bg-info-text" },
-  { type: "agent", label: "Agent Action", color: "bg-success-text" },
-  { type: "prompt", label: "Prompt Execution", color: "bg-sky-500" },
-  { type: "knowledge", label: "Knowledge Lookup", color: "bg-violet-500" },
-  { type: "policy", label: "Policy Check", color: "bg-warning-text" },
-  { type: "human", label: "Human Review", color: "bg-error-text" },
-  { type: "approval", label: "Approval Gate", color: "bg-pink-500" },
-  { type: "evidence", label: "Evidence Capture", color: "bg-cyan-500" },
-  { type: "action", label: "Publish / Action", color: "bg-teal-500" },
-  { type: "branch", label: "Branch", color: "bg-orange-500" },
-  { type: "end", label: "End", color: "bg-gray-500" },
-];
-
-// ── Approval stage icons ───────────────────────────────────────────────────
-
-const APPROVAL_STAGES = [
-  {
-    key: "pending_validation",
-    label: "Validation",
-    icon: ScanLine,
-    color: "text-sky-400",
-  },
-  {
-    key: "pending_authorization",
-    label: "Authorization",
-    icon: Shield,
-    color: "text-info-text",
-  },
-  {
-    key: "pending_governance",
-    label: "Governance",
-    icon: ShieldCheck,
-    color: "text-violet-400",
-  },
-];
-
 // ── Control Strip ──────────────────────────────────────────────────────────
 
 function ControlStrip({
@@ -324,8 +135,6 @@ function ControlStrip({
   const totalPending = approvalStats?.counts?.total_pending ?? 0;
   const blocked = data?.blockedRuns ?? 0;
   const failed = data?.failedRuns ?? 0;
-  const breach = data?.slaBreach ?? 0;
-  const stale = data?.staleDependencies ?? 0;
   const critical = data?.criticalRiskItems ?? 0;
 
   const strip = [
@@ -358,20 +167,6 @@ function ControlStrip({
       urgent: failed > 0,
     },
     {
-      label: "SLA Breaches",
-      value: breach,
-      icon: Clock,
-      color: "text-orange-400",
-      urgent: breach > 0,
-    },
-    {
-      label: "Stale Dependencies",
-      value: stale,
-      icon: Archive,
-      color: "text-purple-400",
-      urgent: stale > 0,
-    },
-    {
       label: "Critical Risk",
       value: critical,
       icon: AlertTriangle,
@@ -381,7 +176,7 @@ function ControlStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {strip.map((item) => (
         <div
           key={item.label}
@@ -408,480 +203,6 @@ function ControlStrip({
   );
 }
 
-// ── Workflow Template Library ──────────────────────────────────────────────
-
-function TemplateLibrary({
-  workflows,
-  search,
-  onSearch,
-  onRowClick,
-}: {
-  workflows: WorkflowRecord[];
-  search: string;
-  onSearch: (v: string) => void;
-  onRowClick: (w: WorkflowRecord) => void;
-}) {
-  const filtered = workflows.filter(
-    (w) =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      w.owner.toLowerCase().includes(search.toLowerCase()) ||
-      w.status.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
-      <div className="px-6 py-4 border-b border-[var(--border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--surface-hover)]/30">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-info-text/10 rounded-xl">
-            <GitBranch className="w-4 h-4 text-info-text" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-              Workflow Template Library
-            </h2>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {filtered.length} templates — governed, versioned, and
-              evidence-tracked
-            </p>
-          </div>
-        </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
-          <input
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-info-border/40"
-            placeholder="Search templates, owners, status…"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-hover)]/20">
-            <tr>
-              <th className="px-5 py-3 font-medium text-left">Workflow</th>
-              <th className="px-5 py-3 font-medium text-left">Status</th>
-              <th className="px-5 py-3 font-medium text-left">Risk</th>
-              <th className="px-5 py-3 font-medium text-left">Owner</th>
-              <th className="px-5 py-3 font-medium text-left">Active Runs</th>
-              <th className="px-5 py-3 font-medium text-left">Health</th>
-              <th className="px-5 py-3 font-medium text-left">Nodes / Gates</th>
-              <th className="px-5 py-3 font-medium text-left">Last Run</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="px-5 py-12 text-center text-sm text-[var(--text-muted)]"
-                >
-                  No workflows match your search. Create a workflow or clear
-                  your filter.
-                </td>
-              </tr>
-            )}
-            {filtered.map((w) => (
-              <tr
-                key={w.id}
-                onClick={() => onRowClick(w)}
-                className="hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
-              >
-                <td className="px-5 py-3.5">
-                  <p className="font-medium text-[var(--text-primary)] truncate max-w-[200px]">
-                    {w.name}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                    {w.id}
-                  </p>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${WORKFLOW_STATUS_STYLES[w.status]}`}
-                  >
-                    {w.status}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span
-                    className={`text-xs font-semibold ${RISK_STYLES[w.riskLevel]}`}
-                  >
-                    {w.riskLevel}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-xs text-[var(--text-secondary)]">
-                  {w.owner}
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className="text-sm font-bold text-[var(--text-primary)]">
-                    {w.activeRuns}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className={`w-2 h-2 rounded-full ${HEALTH_STYLES[w.health]}`}
-                    />
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      {w.health}
-                    </span>
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-xs text-[var(--text-secondary)]">
-                  {w.nodes} nodes · {w.conditionalGates} gates
-                </td>
-                <td className="px-5 py-3.5 text-xs text-[var(--text-muted)]">
-                  {w.lastRun
-                    ? new Date(w.lastRun).toLocaleString()
-                    : "Not executed"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ── Approval Gates Panel ───────────────────────────────────────────────────
-
-function ApprovalGatesPanel({
-  approvalStats,
-}: {
-  approvalStats: ApprovalStats | null;
-}) {
-  const total = approvalStats?.counts?.total_pending ?? 0;
-
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-info-text/10 rounded-xl">
-          <FileCheck2 className="w-4 h-4 text-info-text" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Approval Gates
-          </h2>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Role-based gates blocking execution until authorized
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-hover)]/40 border border-[var(--border)]">
-          <span className="text-xs text-[var(--text-secondary)]">
-            Total Pending
-          </span>
-          <span
-            className={`text-lg font-bold ${total > 0 ? "text-warning-text" : "text-success-text"}`}
-          >
-            {total}
-          </span>
-        </div>
-        {APPROVAL_STAGES.map((stage) => {
-          const count =
-            approvalStats?.counts?.[
-              stage.key as keyof typeof approvalStats.counts
-            ] ?? 0;
-          return (
-            <div
-              key={stage.key}
-              className="flex items-center justify-between p-3 rounded-xl border border-[var(--border)]"
-            >
-              <span className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                <stage.icon className={`w-3.5 h-3.5 ${stage.color}`} />
-                {stage.label}
-              </span>
-              <span
-                className={`text-sm font-bold ${count > 0 ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}
-              >
-                {count}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 p-3 rounded-xl bg-info-text/5 border border-info-border/10">
-        <p className="text-[10px] text-info-text leading-relaxed">
-          Approval authority is role-based. Critical paths require three-key
-          quorum. Overrides require reason capture and evidence.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ── Execution Doctrine ─────────────────────────────────────────────────────
-
-function ExecutionDoctrine() {
-  const rules = [
-    {
-      icon: ShieldCheck,
-      color: "text-success-text",
-      title: "No direct production edits",
-      desc: "Active workflows must go through draft → simulate → approve → deploy.",
-    },
-    {
-      icon: Shield,
-      color: "text-info-text",
-      title: "High-risk gates are mandatory",
-      desc: "Critical paths require approval gates, policy checks, and evidence capture.",
-    },
-    {
-      icon: BookOpen,
-      color: "text-sky-400",
-      title: "Grounding required",
-      desc: "Factual, legal, and regulated claims must include knowledge lookup and source trace.",
-    },
-    {
-      icon: AlertCircle,
-      color: "text-error-text",
-      title: "Policy failures block or escalate",
-      desc: "Critical failures stop the workflow. Warnings require mitigation or reason.",
-    },
-    {
-      icon: PackageCheck,
-      color: "text-warning-text",
-      title: "Evidence by default",
-      desc: "Design changes, simulations, approvals, and runtime actions generate evidence automatically.",
-    },
-  ];
-
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-error-text/10 rounded-xl">
-          <AlertTriangle className="w-4 h-4 text-error-text" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Execution Doctrine
-          </h2>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Governance non-negotiables — enforced at runtime
-          </p>
-        </div>
-      </div>
-      <div className="space-y-3">
-        {rules.map((rule) => (
-          <div
-            key={rule.title}
-            className="flex gap-3 p-3 rounded-xl border border-[var(--border)] hover:bg-[var(--surface-hover)]/30 transition-colors"
-          >
-            <rule.icon className={`w-4 h-4 mt-0.5 shrink-0 ${rule.color}`} />
-            <div>
-              <p className="text-xs font-semibold text-[var(--text-primary)]">
-                {rule.title}
-              </p>
-              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                {rule.desc}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Node Type Legend ───────────────────────────────────────────────────────
-
-function NodeTypeLegend() {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-violet-500/10 rounded-xl">
-          <Zap className="w-4 h-4 text-violet-400" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Builder Node Types
-          </h2>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Controlled nodes available in the workflow builder
-          </p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {NODE_LEGEND.map((n) => (
-          <div
-            key={n.type}
-            className="flex items-center gap-2.5 p-2 rounded-lg border border-[var(--border)]"
-          >
-            <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${n.color}`} />
-            <span className="text-[11px] text-[var(--text-secondary)]">
-              {n.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Workflow Lifecycle ─────────────────────────────────────────────────────
-
-function WorkflowLifecycle() {
-  const states: {
-    state: WorkflowStatus;
-    desc: string;
-    icon: React.ElementType;
-  }[] = [
-    {
-      state: "Draft",
-      desc: "Being created, not in production",
-      icon: FlaskConical,
-    },
-    {
-      state: "Testing",
-      desc: "Simulation and policy checks in progress",
-      icon: ScanLine,
-    },
-    {
-      state: "Pending Approval",
-      desc: "Awaiting authorized review before activation",
-      icon: Clock,
-    },
-    {
-      state: "Approved",
-      desc: "Approved, not yet active in production",
-      icon: CheckCircle2,
-    },
-    { state: "Active", desc: "Running production instances", icon: Zap },
-    {
-      state: "Paused",
-      desc: "Temporarily stopped, state preserved",
-      icon: Pause,
-    },
-    {
-      state: "Blocked",
-      desc: "Dependency or policy check failed",
-      icon: XCircle,
-    },
-    {
-      state: "Deprecated",
-      desc: "No longer preferred, historical reference",
-      icon: Archive,
-    },
-    {
-      state: "Retired",
-      desc: "Cannot run new instances, records retained",
-      icon: RotateCcw,
-    },
-  ];
-
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-teal-500/10 rounded-xl">
-          <Timer className="w-4 h-4 text-teal-400" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Workflow Lifecycle States
-          </h2>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Version discipline enforced across all state transitions
-          </p>
-        </div>
-      </div>
-      <div className="space-y-2">
-        {states.map(({ state, desc, icon: Icon }) => (
-          <div key={state} className="flex items-center gap-3 p-2.5 rounded-lg">
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${WORKFLOW_STATUS_STYLES[state]}`}
-            >
-              {state}
-            </span>
-            <span className="text-[11px] text-[var(--text-secondary)]">
-              {desc}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Reporting Metrics ──────────────────────────────────────────────────────
-
-function ReportingMetrics({ stats }: { stats?: any }) {
-  const metrics = [
-    {
-      label: "Completion Rate",
-      value: stats?.completionRate != null ? `${stats.completionRate}%` : "—",
-      desc: "Instances completed successfully",
-    },
-    {
-      label: "Avg Approval Time",
-      value: stats?.avgApprovalTime ?? "—",
-      desc: "From request to decision",
-    },
-    {
-      label: "Blocked-Run Rate",
-      value: stats?.blockedRunRate != null ? `${stats.blockedRunRate}%` : "—",
-      desc: "Stopped by policy or dependency",
-    },
-    {
-      label: "SLA Breach Rate",
-      value: stats?.slaBreachRate != null ? `${stats.slaBreachRate}%` : "—",
-      desc: "Steps completed after deadline",
-    },
-    {
-      label: "Policy Failure Rate",
-      value:
-        stats?.policyFailureRate != null ? `${stats.policyFailureRate}%` : "—",
-      desc: "Warnings and blocks by type",
-    },
-    {
-      label: "Evidence Completeness",
-      value:
-        stats?.evidenceComplete != null ? `${stats.evidenceComplete}%` : "—",
-      desc: "Runs with full evidence bundles",
-    },
-  ];
-
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-success-text/10 rounded-xl">
-          <ArrowUpCircle className="w-4 h-4 text-success-text" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Reporting & Governance Metrics
-          </h2>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Evidence completeness and execution reliability at a glance
-          </p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {metrics.map((m) => (
-          <div
-            key={m.label}
-            className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20"
-          >
-            <p className="text-xl font-bold text-[var(--text-primary)]">
-              {safeStr(m.value)}
-            </p>
-            <p className="text-[10px] font-semibold text-[var(--text-secondary)] mt-0.5">
-              {m.label}
-            </p>
-            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-              {m.desc}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Emergency Pause Banner ─────────────────────────────────────────────────
 
 function EmergencyPauseBanner({ onPause }: { onPause: () => void }) {
@@ -896,486 +217,15 @@ function EmergencyPauseBanner({ onPause }: { onPause: () => void }) {
   );
 }
 
-// ── Workflow Detail Drawer ─────────────────────────────────────────────────
-
-function WorkflowDetailDrawer({
-  workflow,
-  onClose,
-  onRefresh,
-}: {
-  workflow: WorkflowRecord | null;
-  onClose: () => void;
-  onRefresh: () => void;
-}) {
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  // activeVersionId is resolved lazily on first action that needs it
-  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
-  const [versionLoading, setVersionLoading] = useState(false);
-  const [detailTab, setDetailTab] = useState<string>("overview");
-
-  // Resolver function (defined before early return so hooks are unconditional)
-  const resolveVersionId = useCallback(async (): Promise<string | null> => {
-    if (activeVersionId) return activeVersionId;
-    if (!workflow) return null;
-    setVersionLoading(true);
-    try {
-      const res = await api.listWorkflowVersions(workflow.id);
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-        const vid = res.data[0].id as string;
-        setActiveVersionId(vid);
-        setVersionLoading(false);
-        return vid;
-      }
-      setVersionLoading(false);
-      return null;
-    } catch {
-      setVersionLoading(false);
-      return null;
-    }
-  }, [activeVersionId, workflow]);
-
-  // Eagerly resolve version once on mount
-  useEffect(() => { resolveVersionId(); }, [resolveVersionId]);
-
-  if (!workflow) return null;
-
-  const runAction = async (label: string, fn: () => Promise<any>) => {
-    setActionError(null);
-    setActionLoading(label);
-    try {
-      const res = await fn();
-      if (res?.success) {
-        onRefresh();
-        onClose();
-      } else {
-        setActionError(res?.error || `${label} failed.`);
-      }
-    } catch (err: any) {
-      setActionError(err?.message || `${label} failed.`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Version-gated action helper
-  const versionAction =
-    (label: string, fn: (versionId: string) => Promise<any>) => async () => {
-      const versionId = await resolveVersionId();
-      if (!versionId) {
-        setActionError(
-          "Could not resolve workflow version. Create a version draft first.",
-        );
-        return;
-      }
-      await runAction(label, () => fn(versionId));
-    };
-
-  const actions: {
-    label: string;
-    color: string;
-    enabled: (s: WorkflowStatus) => boolean;
-    fn: () => Promise<any>;
-  }[] = [
-    {
-      label: "Simulate",
-      color: "bg-sky-500 hover:bg-sky-600",
-      enabled: (s) => ["Draft", "Testing"].includes(s),
-      fn: versionAction("Simulate", (vid) => api.simulateWorkflowVersion(vid)),
-    },
-    {
-      label: "Submit for Approval",
-      color: "bg-warning-text hover:bg-warning-text",
-      enabled: (s) => ["Draft", "Testing"].includes(s),
-      fn: versionAction("Submit for Approval", (vid) =>
-        api.submitWorkflowForApproval(vid),
-      ),
-    },
-    {
-      label: "Activate",
-      color: "bg-success-text hover:bg-success-text",
-      enabled: (s) => s === "Approved",
-      fn: versionAction("Activate", (vid) => api.activateWorkflowVersion(vid)),
-    },
-    {
-      label: "Pause",
-      color: "bg-orange-500 hover:bg-orange-600",
-      enabled: (s) => s === "Active",
-      fn: versionAction("Pause", (vid) => api.pauseWorkflow(vid)),
-    },
-    {
-      label: "Retire",
-      color: "bg-gray-500 hover:bg-gray-600",
-      enabled: (s) => ["Active", "Paused", "Approved"].includes(s),
-      fn: versionAction("Retire", (vid) => api.retireWorkflow(vid)),
-    },
-    {
-      label: "Rollback",
-      color: "bg-purple-500 hover:bg-purple-600",
-      enabled: (s) => ["Active", "Paused", "Failed"].includes(s),
-      fn: async () => {
-        const versionsRes = await api.listWorkflowVersions(workflow.id);
-        if (!versionsRes?.success || !Array.isArray(versionsRes.data)) {
-          setActionError("Could not load workflow versions for rollback.");
-          return;
-        }
-        const currentVersionId = activeVersionId || versionsRes.data[0]?.id;
-        const targetVersion = versionsRes.data.find(
-          (version: any) =>
-            version.id !== currentVersionId &&
-            ["Approved", "Active"].includes(version.state),
-        );
-        if (!targetVersion?.id) {
-          setActionError(
-            "No approved or active prior version is available for rollback.",
-          );
-          return;
-        }
-        await runAction("Rollback", () =>
-          api.post(`/api/v1/agents/workflows/${workflow.id}/rollback`, {
-            target_version_id: targetVersion.id,
-            reason: "Manual rollback from Workflows dashboard",
-          }),
-        );
-      },
-    },
-    {
-      label: "Export Evidence",
-      color: "bg-teal-500 hover:bg-teal-600",
-      enabled: () => true,
-      fn: async () => {
-        setActionError(null);
-        setActionLoading("Export Evidence");
-        try {
-          // Prefer runtime evidence from a completed instance; otherwise fall
-          // back to the workflow's evidence bundles (no run required). Always
-          // produces a download instead of a hard error when nothing has run.
-          let evidencePayload: any = null;
-          let fileSuffix = workflow.id;
-
-          const instancesRes = await api.get(
-            `/api/v1/agents/workflows/instances?workflow_id=${workflow.id}&limit=1`,
-          );
-          if (instancesRes?.success && instancesRes?.data?.length) {
-            const instanceId = instancesRes.data[0].id as string;
-            const evidenceRes = await api.getWorkflowEvidence(instanceId);
-            const d = evidenceRes?.data;
-            const hasData = Array.isArray(d) ? d.length > 0 : !!d;
-            if (evidenceRes?.success && hasData) {
-              evidencePayload = d;
-              fileSuffix = `${workflow.id}-${instanceId}`;
-            }
-          }
-
-          if (!evidencePayload) {
-            // Workflow-level evidence bundles (gathered by workflow_id).
-            const fullRes = await api.exportWorkflow(workflow.id);
-            if (!fullRes?.success || !fullRes?.data) {
-              setActionError(fullRes?.error || "Failed to export evidence.");
-              setActionLoading(null);
-              return;
-            }
-            const bundles = fullRes.data.evidence_bundles || [];
-            evidencePayload = {
-              workflow: fullRes.data.workflow,
-              evidence_bundles: bundles,
-              evidence_refs: fullRes.data.metrics?.evidence_refs || [],
-              note: bundles.length === 0
-                ? "No evidence captured yet — this workflow has no completed runs."
-                : undefined,
-            };
-          }
-
-          const blob = new Blob([JSON.stringify(evidencePayload, null, 2)], {
-            type: "application/json",
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `evidence-${fileSuffix}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch (err: any) {
-          setActionError(err?.message || "Failed to export evidence.");
-        } finally {
-          setActionLoading(null);
-        }
-      },
-    },
-    {
-      label: "Export Full JSON",
-      color: "bg-cyan-500 hover:bg-cyan-600",
-      enabled: () => true,
-      fn: async () => {
-        setActionError(null);
-        setActionLoading("Export Full JSON");
-        try {
-          const res = await api.exportWorkflow(workflow.id);
-          if (res?.success && res?.data) {
-            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `workflow-${workflow.id}-export.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          } else {
-            setActionError(res?.error || "Export failed.");
-          }
-        } catch (err: any) {
-          setActionError(err?.message || "Export failed.");
-        } finally {
-          setActionLoading(null);
-        }
-      },
-    },
-    {
-      label: "Export Approvals CSV",
-      color: "bg-cyan-500 hover:bg-cyan-600",
-      enabled: () => true,
-      fn: async () => {
-        setActionError(null);
-        setActionLoading("Export Approvals CSV");
-        try {
-          const res = await api.exportApprovalsCsv(workflow.id);
-          if (res?.success && res?.data) {
-            const blob = new Blob([String(res.data)], { type: "text/csv" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `approvals-${workflow.id}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-          } else {
-            setActionError(res?.error || "Approvals export failed.");
-          }
-        } catch (err: any) {
-          setActionError(err?.message || "Approvals export failed.");
-        } finally {
-          setActionLoading(null);
-        }
-      },
-    },
-  ];
-
-  const availableActions = actions.filter((a) => a.enabled(workflow.status));
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md h-full bg-[var(--surface)] border-l border-[var(--border)] overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-[var(--surface)] border-b border-[var(--border)] px-6 py-4 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1">
-              Workflow
-            </p>
-            <h2 className="text-base font-semibold text-[var(--text-primary)] leading-tight truncate">
-              {workflow.name}
-            </h2>
-            <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-mono">
-              {workflow.id}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 mt-0.5"
-          >
-            <XCircle className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Sub-tab navigation */}
-        <div className="flex border-b border-[var(--border)]">
-          {[
-            { key: "overview", label: "Overview", icon: null },
-            { key: "simulation", label: "Simulation", icon: BarChart3 },
-            { key: "dependencies", label: "Dependencies", icon: Activity },
-            { key: "evidence", label: "Evidence", icon: FileText },
-            { key: "approval", label: "Approval", icon: Shield },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button key={tab.key} onClick={() => setDetailTab(tab.key)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap ${
-                  detailTab === tab.key
-                    ? "text-[var(--text-primary)] border-b-2 border-[var(--text-primary)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] border-b-2 border-transparent"
-                }`}>
-                {Icon && <Icon className="w-3.5 h-3.5" />}
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="px-6 py-5 space-y-5">
-          {detailTab === "overview" && (
-            <>
-              {/* Status + Risk */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <span
-                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${WORKFLOW_STATUS_STYLES[workflow.status]}`}
-                >
-                  {workflow.status}
-                </span>
-                <span
-                  className={`text-xs font-semibold ${RISK_STYLES[workflow.riskLevel]}`}
-                >
-                  {workflow.riskLevel} Risk
-                </span>
-                <span className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                  <span
-                    className={`w-2 h-2 rounded-full ${HEALTH_STYLES[workflow.health]}`}
-                  />
-                  {workflow.health}
-                </span>
-              </div>
-
-              {/* Meta */}
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Owner", value: workflow.owner },
-                  { label: "Active Runs", value: String(workflow.activeRuns) },
-                  { label: "Nodes", value: String(workflow.nodes) },
-                  { label: "Gates", value: String(workflow.conditionalGates) },
-                  {
-                    label: "Last Run",
-                    value: workflow.lastRun
-                      ? new Date(workflow.lastRun).toLocaleDateString()
-                      : "Never",
-                  },
-                  {
-                    label: "Updated",
-                    value: workflow.updatedAt
-                      ? new Date(workflow.updatedAt).toLocaleDateString()
-                      : "—",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20"
-                  >
-                    <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider">
-                      {item.label}
-                    </p>
-                    <p className="text-sm font-semibold text-[var(--text-primary)] mt-1 truncate">
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Lifecycle actions */}
-              {availableActions.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-                    Lifecycle Actions
-                    {versionLoading && (
-                      <span className="ml-2 text-info-text normal-case font-normal">
-                        Resolving version…
-                      </span>
-                    )}
-                  </p>
-                  {actionError && (
-                    <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                      {safeStr(actionError)}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {availableActions.map((action) => (
-                      <button
-                        key={action.label}
-                        disabled={actionLoading !== null || versionLoading}
-                        onClick={action.fn}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
-                      >
-                        {actionLoading === action.label && (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        )}
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* No actions available */}
-              {availableActions.length === 0 && (
-                <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20 text-xs text-[var(--text-muted)]">
-                  No lifecycle actions are available for a{" "}
-                  <strong className="text-[var(--text-secondary)]">
-                    {workflow.status}
-                  </strong>{" "}
-                  workflow.
-                </div>
-              )}
-
-              {/* Linked agents */}
-              {workflow.linkedAgents.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-                    Linked Agents
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {workflow.linkedAgents.map((a, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 rounded-full bg-info-text/10 border border-info-border/20 text-info-text text-xs font-medium"
-                      >
-                        {typeof a === "string" ? a : String(a)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {detailTab === "simulation" && (
-            <SimulationPanel versionId={activeVersionId} />
-          )}
-
-          {detailTab === "dependencies" && (
-            <DependencyHealthPanel workflowId={workflow.id} />
-          )}
-
-          {detailTab === "evidence" && (
-            <EvidencePanel workflowId={workflow.id} />
-          )}
-
-          {detailTab === "approval" && (
-            <ApprovalChainPanel versionId={activeVersionId} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function WorkflowsPage() {
   const [stats, setStats] = useState<any>(undefined);
-  const [graph, setGraph] = useState<any>(undefined);
   const [active, setActive] = useState<any[]>([]);
   const [publishedContent, setPublishedContent] = useState<any[] | undefined>(undefined);
-  const [escalations, setEscalations] = useState<any[] | undefined>(undefined);
-  const [workflows, setWorkflows] = useState<WorkflowRecord[]>([]);
-  const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(
-    null,
-  );
+  const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [selectedWorkflow, setSelectedWorkflow] =
-    useState<WorkflowRecord | null>(null);
+  const [selectedRun, setSelectedRun] = useState<any>(null);
   const [emergencyPauseModal, setEmergencyPauseModal] = useState(false);
   const [emergencyPauseLoading, setEmergencyPauseLoading] = useState(false);
   const [emergencyMessage, setEmergencyMessage] = useState<string | null>(null);
@@ -1384,32 +234,21 @@ export default function WorkflowsPage() {
     setLoading(true);
     const responses = await Promise.allSettled([
       api.get("/api/v1/agents/workflows/stats"),
-      api.get("/api/v1/agents/workflows/graph"),
       api.get("/api/v1/agents/workflows/active"),
-      api.get("/api/v1/agents/workflows/escalations"),
-      api.get("/api/v1/agents/workflows"),
       api.get("/api/v1/agents/workflows/approvals/stats"),
       api.get("/api/v1/agents/workflows/published-content"),
     ]);
     const [
       statsRes,
-      graphRes,
       activeRes,
-      escalationsRes,
-      workflowsRes,
       approvalsRes,
       publishedRes,
     ] = responses.map((r) =>
       r.status === "fulfilled" ? r.value : { success: false, data: null },
     );
     if (statsRes.success) setStats(statsRes.data);
-    if (graphRes.success) setGraph(graphRes.data);
     if (activeRes.success)
       setActive((activeRes.data || []).map(mapActiveInstance));
-    if (escalationsRes.success)
-      setEscalations((escalationsRes.data || []).map(mapEscalation));
-    if (workflowsRes.success)
-      setWorkflows((workflowsRes.data || []).map(mapWorkflowRecord));
     if (approvalsRes.success) setApprovalStats(approvalsRes.data || null);
     if (publishedRes.success) setPublishedContent(publishedRes.data || []);
     else setPublishedContent([]);
@@ -1488,13 +327,6 @@ export default function WorkflowsPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text rounded-xl text-sm font-semibold text-foreground transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Create Workflow
-          </button>
         </div>
       </div>
 
@@ -1511,64 +343,22 @@ export default function WorkflowsPage() {
         </div>
       )}
 
-      <CreateWorkflowModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={() => {
-          fetchAll();
-        }}
-      />
-
-      <WorkflowDetailDrawer
-        workflow={selectedWorkflow}
-        onClose={() => setSelectedWorkflow(null)}
-        onRefresh={fetchAll}
-      />
-
-      {/* ── Control Strip ── */}
+      {/* ── Indicators ── */}
       <ControlStrip data={stats} approvalStats={approvalStats} />
 
-      {/* ── Routing Stats ── */}
-      <RoutingStats data={stats} />
-
-      {/* ── Template Library ── */}
-      <TemplateLibrary
-        workflows={workflows}
-        search={search}
-        onSearch={setSearch}
-        onRowClick={setSelectedWorkflow}
-      />
-
-      {/* ── Workflow Canvas ── */}
-      {/* Read-only: visualizes the agent-driven flow. Users inspect nodes to
-          learn the workflow; they cannot move, add, connect, or delete nodes. */}
-      <WorkflowCanvas graph={graph} readOnly />
-
-      {/* ── Governance Panels Row ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <ApprovalGatesPanel approvalStats={approvalStats} />
-        <ExecutionDoctrine />
-        <NodeTypeLegend />
-      </div>
-
-      {/* ── Lifecycle + Metrics Row ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <WorkflowLifecycle />
-        <ReportingMetrics stats={stats} />
-      </div>
-
-      {/* ── Published Content (from the Publish Hub) ── */}
+      {/* ── Published Content ── */}
       <PublishedContentPanel data={publishedContent} />
 
-      {/* ── Live Orchestrations + Escalations ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <div className="xl:col-span-3">
-          <ActiveOrchestrations data={active} onActionComplete={fetchAll} />
-        </div>
-        <div className="xl:col-span-2">
-          <EscalationPaths escalations={escalations} />
-        </div>
-      </div>
+      {/* ── Live Workflow Runs ── */}
+      <ActiveOrchestrations
+        data={active}
+        onActionComplete={fetchAll}
+        onRowClick={setSelectedRun}
+      />
+      <WorkflowRunDetailDrawer
+        run={selectedRun}
+        onClose={() => setSelectedRun(null)}
+      />
 
       <ConfirmActionModal
         open={emergencyPauseModal}
