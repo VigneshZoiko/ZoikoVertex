@@ -546,7 +546,8 @@ function EnterpriseRisk() {
           </p>
         </div>
 
-        <div className="border border-white/[0.08] rounded-2xl overflow-hidden bg-[#0a0f1c]">
+        <div className="overflow-x-auto rounded-2xl border border-white/[0.08]">
+        <div className="min-w-[640px] bg-[#0a0f1c]">
           {/* Header */}
           <div className="grid grid-cols-[2fr_1.6fr_2.2fr_1.4fr] px-6 py-4 border-b border-white/[0.08]">
             {["ENTERPRISE RISK", "CONTROL", "MECHANISM", "SYSTEM STATE"].map((h) => (
@@ -571,6 +572,7 @@ function EnterpriseRisk() {
               </div>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </section>
