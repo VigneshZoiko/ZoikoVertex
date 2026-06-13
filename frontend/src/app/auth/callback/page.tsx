@@ -16,6 +16,17 @@ export default function AuthCallbackPage() {
   const [resent, setResent] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  const sendOtp = async (e: string) => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+      await fetch(`${backendUrl}/api/v1/auth/otp/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e.trim() }),
+      });
+    } catch {}
+  };
+
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
@@ -51,18 +62,7 @@ export default function AuthCallbackPage() {
 
     poll();
     return () => { cancelled = true; };
-  }, []);
-
-  const sendOtp = async (e: string) => {
-    try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
-      await fetch(`${backendUrl}/api/v1/auth/otp/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: e.trim() }),
-      });
-    } catch {}
-  };
+  }, [router]);
 
   const handleChange = (index: number, value: string) => {
     if (!/^\d?$/.test(value)) return;
@@ -235,7 +235,7 @@ export default function AuthCallbackPage() {
 
             {/* Resend */}
             <p style={{ fontSize: "12px", color: "#475569", margin: "0 0 24px" }}>
-              Didn't receive it?{" "}
+              Didn&apos;t receive it?{" "}
               <span onClick={handleResend} style={{ color: resent ? "#20E7F2" : "#38bdf8", cursor: "pointer", fontWeight: "500" }}>
                 {resent ? "Code sent!" : "Resend code"}
               </span>
