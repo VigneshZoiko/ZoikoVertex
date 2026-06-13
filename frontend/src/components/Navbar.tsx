@@ -80,6 +80,7 @@ function DropdownMenu({ items, viewAllLabel, viewAllHref, title }: { items: type
 
 export default function Navbar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -92,6 +93,11 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
   return (
     <nav
       ref={navRef}
@@ -101,11 +107,11 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href={LANDING} style={{ display: "flex", alignItems: "center" }}>
-          <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={235} height={36} priority />
+          <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} priority />
         </Link>
 
-        {/* Nav links */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        {/* Nav links — desktop only */}
+        <div className="hidden lg:flex" style={{ alignItems: "center", gap: 0 }}>
           {NAV_ITEMS.map((item) => {
             const hasPanel = item.hasDropdown;
             const chevron = (
@@ -147,8 +153,8 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* CTA buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        {/* CTA buttons — desktop only */}
+        <div className="hidden lg:flex" style={{ alignItems: "center", gap: 20 }}>
           <Link
             href="/login"
             style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 400, fontSize: 13.4, letterSpacing: "0.01em", color: "#A9B8C7", textDecoration: "none", transition: "color 0.15s" }}
@@ -174,7 +180,61 @@ export default function Navbar() {
             Get Started
           </Link>
         </div>
+
+        {/* Mobile: Get Started pill + hamburger */}
+        <div className="flex lg:hidden items-center gap-3">
+          <Link
+            href="/signup"
+            style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 13, color: "#000000", background: "#20E7F2", padding: "8px 18px", borderRadius: 24, textDecoration: "none", whiteSpace: "nowrap" }}
+          >
+            Get Started
+          </Link>
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            style={{ padding: 6, background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, cursor: "pointer", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {mobileOpen ? (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 1l16 16M17 1L1 17" stroke="white" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 4h16M1 9h16M1 14h16" stroke="white" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden" style={{ background: "#0d1a2e", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "8px 20px 24px", maxHeight: "calc(100vh - 68px)", overflowY: "auto" }}>
+          {NAV_ITEMS.map((item, i) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontSize: 15, fontWeight: 500, color: "#A9B8C7", textDecoration: "none", borderBottom: i < NAV_ITEMS.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}
+            >
+              {item.label}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M7 3l4 4-4 4" stroke="#A9B8C7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </Link>
+          ))}
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              style={{ display: "block", textAlign: "center", padding: "12px 24px", fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", color: "#A9B8C7", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 24, fontSize: 14, textDecoration: "none" }}
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/signup"
+              onClick={() => setMobileOpen(false)}
+              style={{ display: "block", textAlign: "center", padding: "12px 24px", fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", color: "#000", background: "#20E7F2", borderRadius: 24, fontSize: 14, fontWeight: 700, textDecoration: "none" }}
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
