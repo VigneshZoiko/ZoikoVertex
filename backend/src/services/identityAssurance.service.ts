@@ -30,7 +30,7 @@ export async function triggerRecertification(params: { workspace_id: string; ten
       tenant_id: params.tenant_id,
       workspace_id: params.workspace_id,
       actor_id: actor.actor_id,
-      reviewer_actor_id: 'security_admin_id', // Would be dynamically assigned
+      reviewer_actor_id: null,
       role_id: actor.current_roles[0] || 'ADMIN',
       status: 'PENDING',
       due_at: ninetyDaysFromNow.toISOString(),
@@ -78,7 +78,7 @@ export async function reviewCertification(params: { certification_id: string; st
 
     await createAuditEvent({
       workspace_id: workspaceId,
-      tenant_id: (data as Record<string, unknown>).tenant_id as string || 'default',
+      tenant_id: (data as Record<string, unknown>).tenant_id as string || (data as Record<string, unknown>).workspace_id as string,
       event_category: 'user_identity',
       event_type: 'identity.revoked',
       event_title: `Certification revocation for actor ${actorId}`,
@@ -130,27 +130,4 @@ export async function calculateIdentityAnomalyScore(params: { workspace_id: stri
   };
 }
 
-export async function anchorChainHead(params: { workspace_id: string }) {
-  // Fetch latest ledger entry
-  const { data: latest, error } = await supabaseAdmin
-    .from('identity_ledger_entries')
-    .select('hash, ledger_entry_id')
-    .eq('workspace_id', params.workspace_id)
-    .order('timestamp_utc', { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
-  if (error) throw error;
-  if (!latest) return null;
-
-  // Mock anchoring to external ledger (e.g. AWS QLDB, Ethereum, RFC 3161)
-  const anchorReceipt = {
-    provider: 'Zoiko Anchor Service',
-    chain_head: latest.hash,
-    ledger_entry_id: latest.ledger_entry_id,
-    timestamp: new Date().toISOString(),
-    transaction_id: `0x${crypto.randomBytes(32).toString('hex')}`
-  };
-
-  return anchorReceipt;
-}

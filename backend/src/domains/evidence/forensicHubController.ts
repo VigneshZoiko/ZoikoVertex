@@ -3,11 +3,9 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import * as forensicService from '../../services/forensicHub.service';
 import { buildAuthContext } from '../../shared/serviceAuth';
 
-const DEFAULT_WORKSPACE_ID = 'WRK-001';
-
 function getTenantId(req: AuthRequest): string {
   const tenantId = (req.user as any)?.tenant_id;
-  return tenantId && tenantId !== 'default' ? tenantId : (req.user?.workspace_id || DEFAULT_WORKSPACE_ID);
+  return tenantId && tenantId !== 'default' ? tenantId : (req.user?.workspace_id || '');
 }
 
 // ─── GET /api/forensic/cases ──────────────────────────────────────────────────
@@ -36,9 +34,11 @@ export async function createCase(req: AuthRequest, res: Response, next: NextFunc
     if (!case_type || !title) {
       return res.status(400).json({ success: false, error: 'case_type and title are required' });
     }
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
     const auth = buildAuthContext(req.user!);
     const result = await forensicService.createCase({
-      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      workspace_id: workspaceId,
       case_type, title, summary, severity, source, source_event_ids,
       owner_user_id, sla_due_at, actor_id: req.user!.id,
       tenant_id: getTenantId(req),
@@ -315,10 +315,12 @@ export async function preserveToVault(req: AuthRequest, res: Response, next: Nex
     if (!evidence_ids || !evidence_ids.length || !preservation_reason) {
       return res.status(400).json({ success: false, error: 'evidence_ids and preservation_reason are required' });
     }
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
     const auth = buildAuthContext(req.user!);
     const result = await forensicService.preserveToVault({
       case_id: caseId, evidence_ids, retention_class: retention_class || 'standard',
-      preservation_reason, actor_id: req.user!.id, workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      preservation_reason, actor_id: req.user!.id, workspace_id: workspaceId,
     }, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {

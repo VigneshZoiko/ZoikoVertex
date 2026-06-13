@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { supabaseAdmin } from '../../shared/supabase';
 import { preserveEvidence } from '../../services/evidenceVault.service';
 import { logToDatabase } from '../../shared/databaseLogger';

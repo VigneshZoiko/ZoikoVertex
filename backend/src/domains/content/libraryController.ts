@@ -6,6 +6,7 @@ import { moderate } from '../../modules/safety/moderationService';
 import { scanImage, type KeywordRule } from '../../modules/safety/imageScanner';
 import { v4 as uuidv4 } from 'uuid';
 import { trackUsage } from '../monitoring/usageController';
+import { createAuditEvent } from '../../services/auditTrail.service';
 
 /**
  * Extracts the storage object path from a Supabase Storage public URL.
@@ -399,6 +400,26 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           link: '/queue',
           read: false,
         });
+
+      // Emit audit event so Evidence Intelligence Worker can auto-create a forensic case
+      try {
+        await createAuditEvent({
+          workspace_id: workspaceId,
+          tenant_id: workspaceId,
+          event_category: 'content_lifecycle',
+          event_type: scan.isVideo ? 'media.video_pending_review' : 'media.safety_violation',
+          event_title: scan.isVideo
+            ? `Video Upload Pending Review: ${title}`
+            : `Media Safety Violation: ${title}`,
+          event_summary: scan.reason || 'Content flagged by automated safety scanner and routed to review queue.',
+          actor: { actor_id: userId, actor_type: 'human' },
+          object: { object_type: 'media_asset', object_id: mediaId },
+          risk_level: scan.isVideo ? 'medium' : 'high',
+          status: scan.isVideo ? 'pending' : 'blocked',
+          evidence_state: 'not_preserved',
+          retention_class: 'STANDARD',
+        } as any);
+      } catch { /* non-blocking — review queue item already created */ }
     }
 
     logger.info({

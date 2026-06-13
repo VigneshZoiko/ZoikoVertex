@@ -79,6 +79,7 @@ type NavItem = {
   roles: string[];
   badge?: boolean;
   dirty?: boolean;
+  soon?: boolean;
   plan?: Feature;   // minimum feature required; omit = available on all plans
 };
 
@@ -219,14 +220,6 @@ const NAV_GROUPS: NavGroup[] = [
         badge: true,
         plan: "review_queue" as Feature,
       },
-      {
-        name: "Quality Audit",
-        href: "/governance/qa",
-        icon: ShieldCheck,
-        // QA surface — validators, auditors, compliance
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","AUDITOR","COMPLIANCE_REVIEWER"],
-        plan: "review_queue" as Feature,
-      },
     ],
   },
 
@@ -311,14 +304,6 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
         plan: "approvals" as Feature,
       },
-      {
-        name: "Evidence Vault",
-        href: "/governance/evidence",
-        icon: Archive,
-        // Preserved evidence — governance, auditors, compliance
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"],
-        plan: "evidence_vault" as Feature,
-      },
     ],
   },
 
@@ -354,7 +339,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         name: "Legal Holds",
-        href: "/evidence/evidence-vault/holds",
+        href: "/evidence/legal-holds",
         icon: Gavel,
         // Legal hold management — auditors and compliance
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"],
@@ -424,10 +409,16 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"],
       },
       {
-        name: "Roles & Units",
+        name: "Roles",
         href: "/access/roles",
         icon: Building2,
-        // Permission configuration — workspace owner and admin only
+        roles: ["ADMIN","WORKSPACE_OWNER"],
+      },
+      {
+        name: "Business Units",
+        href: "/access/units",
+        icon: Building2,
+        soon: true,
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
     ],
@@ -769,6 +760,11 @@ export default function Sidebar() {
                           {item.name === "Notifications" && unreadCount > 0 && (
                             <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--error-text)] text-[10px] font-black text-white shrink-0 animate-pulse transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                          )}
+                          {item.soon && (
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/20 shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[40px]"}`}>
+                              Soon
                             </span>
                           )}
                         </>

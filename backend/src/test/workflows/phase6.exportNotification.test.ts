@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mock supabaseAdmin (must use vi.hoisted since vi.mock is hoisted to top) ─

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Response, NextFunction } from 'express';
 import OpenAI from 'openai';
 import { env } from '../../config/env';

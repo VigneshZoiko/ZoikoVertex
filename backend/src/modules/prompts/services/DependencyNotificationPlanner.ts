@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { supabaseAdmin } from '../../../shared/supabase';
 import { ReverseDependencyService, ReverseTargetType } from './ReverseDependencyService';
 import { DependencyHealthService, DependencyHealthResult, DependencySeverity } from '../DependencyHealthService';

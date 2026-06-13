@@ -1183,6 +1183,7 @@ function GuardrailGovernanceTab({
       })
       .catch(() => setError("Failed to load guardrails."))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptId, versionId]);
 
   const saveRules = async (updated: GovernanceRule[]) => {

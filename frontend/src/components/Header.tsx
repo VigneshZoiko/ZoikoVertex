@@ -58,7 +58,6 @@ const allRoutes: SearchItem[] = [
   { label: "Brand Library", href: "/governance/brand-library", icon: <FileText className="w-4 h-4" />, keywords: "brand guidelines assets identity" },
   { label: "Collusion Monitor", href: "/governance/collusion-monitor", icon: <Shield className="w-4 h-4" />, keywords: "detect fraud suspicious activity" },
   { label: "Review Queue", href: "/review-queue", icon: <MessageSquare className="w-4 h-4" />, keywords: "approve reject pending review items" },
-  { label: "Quality Assurance", href: "/governance/qa", icon: <Shield className="w-4 h-4" />, keywords: "quality check audit verify" },
   { label: "Validation", href: "/validation", icon: <Shield className="w-4 h-4" />, keywords: "validate verify test approve" },
   { label: "Approvals", href: "/governance/approvals", icon: <Shield className="w-4 h-4" />, keywords: "approve pending requests chain" },
   { label: "Rules Engine", href: "/governance/rules", icon: <Settings className="w-4 h-4" />, keywords: "automation conditions triggers logic" },
@@ -79,7 +78,7 @@ const allRoutes: SearchItem[] = [
   { label: "Role Access", href: "/access/roles", icon: <Users className="w-4 h-4" />, keywords: "permissions roles access control rbac" },
   { label: "External Access", href: "/access/external", icon: <Users className="w-4 h-4" />, keywords: "external users guests invite" },
   { label: "Partner Access", href: "/access/partners", icon: <Users className="w-4 h-4" />, keywords: "partners collaboration external org" },
-  { label: "Access Units", href: "/access/units", icon: <Users className="w-4 h-4" />, keywords: "units groups departments organize" },
+  { label: "Business Units (Coming Soon)", href: "/access/units", icon: <Users className="w-4 h-4" />, keywords: "units groups departments organize business" },
 
   // Admin
   { label: "Workspace Settings", href: "/admin/settings", icon: <Settings className="w-4 h-4" />, keywords: "configure preferences customize workspace" },

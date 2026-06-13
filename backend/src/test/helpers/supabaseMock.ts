@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-memory Supabase mock for Prompt Governance tests.
 //

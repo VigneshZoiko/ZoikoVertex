@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { preserveEvidence } from '../../services/evidenceVault.service';
@@ -411,9 +411,12 @@ Evidence records are:
         });
         aiOutput = completion.choices[0].message.content || '';
       } else {
-        // Fallback mock output for tests / environments without keys
-        logger.warn('[PromptGovernanceAgent] No API keys configured. Using governed fallback response.');
-        aiOutput = `Governed response matching requested topic. [Approved for platform release under Prompt v${version.version_number}]`;
+        logger.error('[PromptGovernanceAgent] No LLM provider API key configured (GROQ_API_KEY)');
+        return this.blockAndLog(
+          req, 'LLM_PROVIDER_UNAVAILABLE',
+          'No LLM provider is configured. Set GROQ_API_KEY to enable governed generation.',
+          'high', version.id, version.version_number,
+        );
       }
 
       // 9. Post-processing Output Verification

@@ -407,7 +407,7 @@ function sortedJson(obj: unknown): string {
 
 export async function createAuditEvent(input: AuditEventInput, auth?: AuthContext): Promise<AuditEvent> {
   requireAnyPermission(auth, 'audit:view');
-  const tenantId = input.tenant_id || 'default';
+  const tenantId = input.tenant_id || input.workspace_id;
   const chainId = input.chain_id || 'primary';
   const idempotencyKey = input.idempotency_key || uuidv4();
   const timestampUtc = input.timestamp_utc || new Date().toISOString();
@@ -747,14 +747,10 @@ export async function verifyChainIntegrity(
   start_block?: number,
   end_block?: number,
 ) {
-  const tenantId = 'default';
-  const chainId = 'primary';
-
   const events = await supabaseAdmin
     .from('audit_events')
     .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('chain_id', chainId)
+    .eq('workspace_id', workspace_id)
     .order('block_number', { ascending: true });
 
   const { data, error } = events;
@@ -836,8 +832,8 @@ export async function verifyChainIntegrity(
   }
 
   return {
-    chain_id: chainId,
-    tenant_id: tenantId,
+    chain_id: workspace_id,
+    tenant_id: workspace_id,
     total_blocks: results.length,
     verified_blocks: results.filter(r => r.chain_verified).length,
     failed_blocks: results.filter(r => !r.chain_verified).length,
@@ -943,7 +939,7 @@ export async function preserveEvents(params: {
       .from('vault_evidence_items')
       .insert({
         item_id: itemId, schema_version: '1.0',
-        tenant_id: params.org_id || 'default', workspace_id: params.workspace_id,
+        tenant_id: params.org_id || params.workspace_id, workspace_id: params.workspace_id,
         data_residency: 'auto',
         source_type: 'audit_event', source_id: event.event_id,
         source_system: 'audit_trail',

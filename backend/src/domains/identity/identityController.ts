@@ -18,7 +18,7 @@ const ProvisionSchema = z.object({
   password: z.string().min(8),
   full_name: z.string().optional(),
   role: z.enum(VALID_ROLES),
-  workspace_id: z.string().uuid(),
+  workspace_id: z.string().uuid().optional(),
 });
 
 const ResendVerificationSchema = z.object({
@@ -29,7 +29,66 @@ const IDENTITY_SERVICE = 'Identity';
 
 export const provisionUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { email, password, full_name, role, workspace_id } = ProvisionSchema.parse(req.body);
+    const { email, password, full_name, role, workspace_id: bodyWorkspaceId } = ProvisionSchema.parse(req.body);
+
+    // Non-superadmins must provision within their own workspace (multi-tenancy enforcement)
+    const workspace_id = req.user?.is_superadmin
+      ? (bodyWorkspaceId ?? req.user?.workspace_id)
+      : req.user?.workspace_id;
+
+    if (!workspace_id) {
+      return res.status(400).json({ error: 'Workspace context missing. Please reload and try again.' });
+    }
+
+    // 1. Create user with email auto-confirmed so they can log in immediately with the temp password
+    const { data: createData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name },
+    });
+
+    if (authError) {
+      if (authError.message?.toLowerCase().includes('already been registered')) {
+        return res.status(409).json({ error: 'A user with this email already exists.' });
+      }
+      throw authError;
+    }
+
+    const userId = createData.user.id;
+
+    // 2. Ensure user exists in public.users
+    const { error: userError } = await supabaseAdmin
+      .from('users')
+      .upsert({ id: userId, email, full_name: full_name ?? email.split('@')[0] });
+
+    if (userError) throw userError;
+
+    // 3. Set role in workspace_members
+    const { error: memberError } = await supabaseAdmin
+      .from('workspace_members')
+      .upsert({ workspace_id, user_id: userId, role });
+
+    if (memberError) throw memberError;
+
+    // 4. Send welcome email with credentials (fire-and-forget — don't fail provision if email fails)
+    sendEmail({
+      to: email,
+      subject: 'Your ZoikoVertex account is ready',
+      text: [
+        `Hi ${full_name ?? email.split('@')[0]},`,
+        ``,
+        `Your ZoikoVertex account has been provisioned and is ready to use.`,
+        ``,
+        `Email: ${email}`,
+        `Temporary Password: ${password}`,
+        `Role: ${role.replace(/_/g, ' ')}`,
+        ``,
+        `Please log in and change your password as soon as possible.`,
+        ``,
+        `— The ZoikoVertex Team`,
+      ].join('\n'),
+    }).catch(() => {});
 
     await logAuditEvent({
       workspaceId: workspace_id,
@@ -39,59 +98,9 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
       metadata: { email, role, workspace_id }
     });
 
-    // 1. Create user via generateLink — creates the user AND returns a verification URL in one call
-    const { data: linkData, error: authError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      password,
-      options: { data: { full_name } },
-    });
-
-    if (authError) throw authError;
-
-    const userId = linkData.user.id;
-    const verificationUrl = linkData.properties?.action_link ?? '';
-
-    // 2. Send branded verification email via Resend
-    if (verificationUrl) {
-      await sendEmail({
-        to: email,
-        subject: 'Verify your ZoikoVertex account',
-        text: [
-          `Hi ${full_name ?? email.split('@')[0]},`,
-          ``,
-          `You have been provisioned an account on ZoikoVertex. Please verify your email to activate it.`,
-          ``,
-          verificationUrl,
-          ``,
-          `This link expires in 24 hours.`,
-          ``,
-          `— The ZoikoVertex Team`,
-        ].join('\n'),
-      });
-    }
-
-    // 3. Ensure user exists in public.users (needed for team member lookups)
-    const { error: userError } = await supabaseAdmin
-      .from('users')
-      .upsert({ id: userId, email, full_name: full_name ?? email.split('@')[0] });
-
-    if (userError) throw userError;
-
-    // 4. Set role in workspace_members
-    const { error: memberError } = await supabaseAdmin
-      .from('workspace_members')
-      .upsert({
-        workspace_id,
-        user_id: userId,
-        role: role
-      });
-
-    if (memberError) throw memberError;
-
     res.status(201).json({
       success: true,
-      message: 'User provisioned successfully. Please check your email to verify your account.',
+      message: 'User provisioned successfully. They can log in immediately with the provided credentials.',
       data: { userId }
     });
   } catch (error) {

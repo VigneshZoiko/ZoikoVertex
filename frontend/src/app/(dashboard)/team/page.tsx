@@ -74,6 +74,11 @@ export default function TeamPage() {
   const [confirmDelete, setConfirmDelete]     = useState<string | null>(null); // user id
   const [deleting, setDeleting]               = useState<string | null>(null);
 
+  // Inline role change
+  const [editingRoleFor, setEditingRoleFor]   = useState<string | null>(null);
+  const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
+  const roleEditRef                           = useRef<HTMLDivElement>(null);
+
   // Plan-gating helpers
   const effectivePlan = isSuperAdmin ? "ENTERPRISE" : (planType?.toUpperCase() ?? "FREE");
   const availableRoles = new Set(PLAN_ROLES[effectivePlan] ?? PLAN_ROLES.FREE);
@@ -86,11 +91,14 @@ export default function TeamPage() {
   };
   const selectedRoleName = ROLE_ARCHITECTURE.find(r => r.id === role)?.name ?? role;
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (roleEditRef.current && !roleEditRef.current.contains(e.target as Node)) {
+        setEditingRoleFor(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -133,6 +141,24 @@ export default function TeamPage() {
     }
   }, [isLoading, currentUserRole, isSuperAdmin, fetchData]);
 
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setEditingRoleFor(null);
+    setRoleChangeLoading(userId);
+    try {
+      const res = await api.patch(`/api/v1/team/members/${userId}/role`, { role: newRole });
+      if (res.success) {
+        setMembers(prev => prev.map(m => m.id === userId ? { ...m, role: newRole } : m));
+        setMessage({ type: "success", text: `Role updated to ${newRole.replace(/_/g, " ")}.` });
+      } else {
+        setMessage({ type: "error", text: res.error?.message || "Failed to update role." });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to update role. Please try again." });
+    } finally {
+      setRoleChangeLoading(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormLoading(true);
@@ -146,10 +172,9 @@ export default function TeamPage() {
       } catch {
         setMessage({ type: "error", text: "Failed to submit request. Please try again." });
       }
-    } else if (currentUserRole === "ADMIN" || isSuperAdmin) {
+    } else if (currentUserRole === "ADMIN" || currentUserRole === "WORKSPACE_OWNER" || isSuperAdmin) {
       try {
         await api.post("/api/v1/users/provision", {
-          workspace_id: workspaceId || "00000000-0000-0000-0000-000000000000",
           full_name: fullName, email, role, password,
         });
         setMessage({ type: "success", text: "User provisioned successfully!" });
@@ -169,7 +194,6 @@ export default function TeamPage() {
         setFormLoading(true);
         try {
           await api.post("/api/v1/users/provision", {
-            workspace_id: workspaceId,
             full_name: req.full_name,
             email: req.email,
             role: req.role,
@@ -343,7 +367,7 @@ export default function TeamPage() {
                 >
                   {formLoading
                     ? <RefreshCw className="w-4 h-4 animate-spin" />
-                    : (currentUserRole === "ADMIN" || isSuperAdmin ? "Provision Account Immediately" : "Submit for Admin Approval")}
+                    : (currentUserRole === "ADMIN" || currentUserRole === "WORKSPACE_OWNER" || isSuperAdmin ? "Provision Account Immediately" : "Submit for Admin Approval")}
                 </button>
               </div>
             </form>
@@ -469,19 +493,69 @@ export default function TeamPage() {
                           </div>
                         </td>
 
-                        {/* Role badge */}
+                        {/* Role badge — click to change for eligible members */}
                         <td className="px-4 py-4">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
-                            member.role === "ADMIN" || member.role === "WORKSPACE_OWNER"
-                              ? "bg-error-text/10 border border-error-border/20 text-error-text"
-                              : member.role?.includes("ADMIN") || member.role?.includes("OWNER")
-                              ? "bg-error-text/10 border border-error-border/20 text-error-text"
-                              : member.role?.includes("MANAGER") || member.role?.includes("REVIEWER")
-                              ? "bg-warning-text/10 border border-warning-border/20 text-warning-text"
-                              : "bg-info-text/10 border border-info-border/20 text-info-text"
-                          }`}>
-                            {(member.role || "MEMBER").replace(/_/g, " ")}
-                          </span>
+                          {canManageMembers && !isSelf && !isOwner ? (
+                            <div className="relative inline-block" ref={editingRoleFor === member.id ? roleEditRef : null}>
+                              <button
+                                onClick={() => setEditingRoleFor(editingRoleFor === member.id ? null : member.id)}
+                                disabled={roleChangeLoading === member.id}
+                                title="Click to change role"
+                                className={`px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1 ${
+                                  member.role === "ADMIN" || member.role?.includes("ADMIN") || member.role?.includes("OWNER")
+                                    ? "bg-error-text/10 border border-error-border/20 text-error-text"
+                                    : member.role?.includes("MANAGER") || member.role?.includes("REVIEWER")
+                                    ? "bg-warning-text/10 border border-warning-border/20 text-warning-text"
+                                    : "bg-info-text/10 border border-info-border/20 text-info-text"
+                                }`}
+                              >
+                                {roleChangeLoading === member.id
+                                  ? <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                  : <>{(member.role || "MEMBER").replace(/_/g, " ")} <ChevronDown className="w-2.5 h-2.5 opacity-60" /></>}
+                              </button>
+                              {editingRoleFor === member.id && (
+                                <div className="absolute z-50 left-0 top-full mt-1 w-52 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
+                                  <div className="max-h-56 overflow-y-auto py-1">
+                                    {ROLE_GROUPS.map(({ group, roles: groupRoles }) => (
+                                      <div key={group}>
+                                        <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] bg-[var(--surface)]/60 border-b border-[var(--border)]/50">{group}</div>
+                                        {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER").map(r => {
+                                          const locked = isRoleLocked(r.id);
+                                          return (
+                                            <button
+                                              key={r.id}
+                                              type="button"
+                                              disabled={locked}
+                                              onClick={() => handleRoleChange(member.id, r.id)}
+                                              className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left transition-colors ${
+                                                locked ? "opacity-40 cursor-not-allowed" :
+                                                member.role === r.id ? "bg-info-text/15 text-info-text" :
+                                                "hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
+                                              }`}
+                                            >
+                                              <span>{r.name}</span>
+                                              {member.role === r.id && <Check className="w-3 h-3 text-info-text shrink-0" />}
+                                              {locked && <Lock className="w-2.5 h-2.5 text-warning-text/60 shrink-0" />}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
+                              member.role === "ADMIN" || member.role?.includes("ADMIN") || member.role?.includes("OWNER")
+                                ? "bg-error-text/10 border border-error-border/20 text-error-text"
+                                : member.role?.includes("MANAGER") || member.role?.includes("REVIEWER")
+                                ? "bg-warning-text/10 border border-warning-border/20 text-warning-text"
+                                : "bg-info-text/10 border border-info-border/20 text-info-text"
+                            }`}>
+                              {(member.role || "MEMBER").replace(/_/g, " ")}
+                            </span>
+                          )}
                         </td>
 
                         {/* Status */}
