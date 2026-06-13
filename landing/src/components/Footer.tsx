@@ -74,7 +74,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer style={{ background: "#080f1e" }} className="px-6 pt-16 pb-8">
+    <footer style={{ background: "#071B2C" }} className="px-6 pt-16 pb-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-6 gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
