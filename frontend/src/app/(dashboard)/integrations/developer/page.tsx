@@ -1,6 +1,6 @@
 "use client";
 
-import { Terminal, Key, Webhook, Database, Activity, Code2, Cpu, ShieldAlert } from "lucide-react";
+import { Terminal, Key, Webhook, Activity } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function DeveloperConsolePage() {
@@ -9,11 +9,6 @@ export default function DeveloperConsolePage() {
   const devOptions = [
     { name: "API Management", desc: "Manage platform access keys and OAuth credentials.", icon: Key, status: "Active", href: "/integrations/api" },
     { name: "Webhook Endpoints", desc: "Configure real-time event notifications for external systems.", icon: Webhook, status: "Configure", href: "/integrations/api?tab=webhooks" },
-    { name: "Sandbox Environment", desc: "Test agent workflows and content generation without live publishing.", icon: Database, status: "Isolated", href: null },
-    { name: "Execution Logs", desc: "Detailed technical trace of AI decision engine and API calls.", icon: Activity, status: "Healthy", href: null },
-    { name: "SDK & Documentation", desc: "Access the ZoikoVertex library and integration guides.", icon: Code2, status: "v1.4.2", href: null },
-    { name: "Resource Quotas", desc: "Monitor rate limits and compute usage for your API keys.", icon: Cpu, status: "42% Used", href: null },
-    { name: "Security Audit Logs", desc: "Low-level system access and identity verification trails.", icon: ShieldAlert, status: "Encrypted", href: null },
     { name: "System Diagnostics", desc: "Check health of individual platform nodes and database clusters.", icon: Activity, status: "Online", href: "/integrations/health" },
   ];
 
