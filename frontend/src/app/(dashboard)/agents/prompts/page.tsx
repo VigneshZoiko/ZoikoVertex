@@ -369,34 +369,33 @@ function RegistryTab({
 
   return (
     <div className="p-6">
-      {/* Table */}
-      <div className="w-full overflow-hidden">
-        <table className="w-full text-left table-fixed">
+      {/* Table — scrolls horizontally on narrow viewports; each column keeps a
+          comfortable min width so headers/values never collide. */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full text-left table-fixed min-w-[1260px]">
           <colgroup>
-            <col style={{ width: "13%" }} />
-            <col style={{ width: "14%" }} />
-            <col style={{ width: "9%" }} />
-            <col style={{ width: "9%" }} />
-            <col style={{ width: "11%" }} />
-            <col style={{ width: "9%" }} />
-            <col style={{ width: "11%" }} />
-            <col style={{ width: "10%" }} />
-            <col style={{ width: "6%" }} />
-            <col style={{ width: "8%" }} />
+            <col style={{ width: "170px" }} />
+            <col style={{ width: "190px" }} />
+            <col style={{ width: "130px" }} />
+            <col style={{ width: "130px" }} />
+            <col style={{ width: "150px" }} />
+            <col style={{ width: "150px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "120px" }} />
+            <col style={{ width: "110px" }} />
           </colgroup>
           <thead>
             <tr className="border-b border-border bg-card/60">
               {[
-                { label: "Prompt Name", width: "13%" },
-                { label: "Purpose", width: "14%" },
-                { label: "Workflow Name", width: "9%" },
-                { label: "Linked Agent", width: "9%" },
-                { label: "Knowledge Source", width: "11%" },
-                { label: "Last Used", width: "9%" },
-                { label: "Status", width: "11%" },
-                { label: "Last Test Result", width: "10%" },
-                { label: "Failed/Blocked", width: "6%" },
-                { label: "Actions", width: "8%" }
+                { label: "Prompt Name", width: "170px" },
+                { label: "Purpose", width: "190px" },
+                { label: "Workflow Name", width: "130px" },
+                { label: "Linked Agent", width: "130px" },
+                { label: "Knowledge Source", width: "150px" },
+                { label: "Last Used", width: "150px" },
+                { label: "Status", width: "110px" },
+                { label: "Failed / Blocked", width: "120px" },
+                { label: "Actions", width: "110px" }
               ].map((h) => (
                 <th key={h.label} style={{ width: h.width }} className="py-4 px-3 text-[10px] font-black text-foreground-muted uppercase tracking-widest text-center">{h.label}</th>
               ))}
@@ -436,7 +435,6 @@ function RegistryTab({
                   <span className="text-[11px] text-foreground-muted whitespace-nowrap">{formatDateTime(p.metadata?.last_used_at) || formatDateTime(p.last_deployed) || "—"}</span>
                 </td>
                 <td className="py-4 px-3 text-center"><SimplifiedStatusBadge p={p} /></td>
-                <td className="py-4 px-3 text-center"><TestBadge result={p.last_test} /></td>
                 <td className="py-4 px-3 text-center">
                   <span className="text-xs text-foreground-muted">{failedBlockedCount(p) > 0 ? failedBlockedCount(p) : "—"}</span>
                 </td>
@@ -471,7 +469,7 @@ function RegistryTab({
             })}
             {prompts.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
+                <td colSpan={9} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
               </tr>
             )}
           </tbody>

@@ -14,7 +14,7 @@ import * as builderService from '../../services/workflowBuilder.service';
 import * as threeKeyService from '../../services/workflowThreeKey.service';
 import * as exportService from '../../services/workflowExport.service';
 import * as notificationService from '../../services/workflowNotification.service';
-import { enrichPublishInstance, getRecentPublishedContent } from '../../services/workflowPublishLink.service';
+import { enrichInstancesWithReview, getRecentPublishedContent } from '../../services/workflowPublishLink.service';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 import { executeInstance } from '../../modules/workflow-engine/executor';
 
@@ -487,8 +487,10 @@ export const getActiveOrchestrations = async (req: AuthRequest, res: Response, n
       limit: getQueryNumber(req, 'limit', 50),
       offset: getQueryNumber(req, 'offset', 0),
     });
-    // Expand publish-hub-linked instances so the agent + post show in the UI.
-    res.json({ success: true, data: (result.instances || []).map(enrichPublishInstance) });
+    // Expand publish-hub-linked instances so the agent + post show in the UI,
+    // then resolve KB collection + human review (reviewer, role, comment) data.
+    const data = await enrichInstancesWithReview(result.instances || [], workspaceId);
+    res.json({ success: true, data });
   } catch (err) {
     logger.error({ err }, 'Failed to get active orchestrations');
     next(err);
@@ -522,6 +524,8 @@ export const getWorkflowStats = async (req: AuthRequest, res: Response, next: Ne
         slaBreach:            cs.slaBreach,
         staleDependencies:    cs.staleDependencies,
         criticalRiskItems:    cs.criticalRiskItems,
+        highRiskRuns:         cs.highRiskRuns,
+        completedToday:       cs.completedToday,
       },
     });
   } catch (err) {

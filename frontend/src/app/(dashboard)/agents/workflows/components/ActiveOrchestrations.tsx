@@ -21,6 +21,12 @@ interface Orchestration {
   sla?: string;
   post?: { platform?: string; excerpt?: string };
   startedAt?: string;
+  kbCollection?: string;
+  reviewerName?: string;
+  reviewerRole?: string;
+  reviewDecision?: string;
+  reviewComment?: string;
+  reviewedAt?: string;
 }
 
 const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {

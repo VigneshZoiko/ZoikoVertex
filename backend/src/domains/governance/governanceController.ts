@@ -660,6 +660,52 @@ async function syncWorkflowInstanceStatus(intentId: string, status: string): Pro
   }
 }
 
+// Best-effort: stamp who made the review decision + their comment, so the
+// Workflows run detail (Approvals tab) can attribute the decision. These
+// columns (reviewer_id / reviewer_feedback / reviewed_at) come from a later
+// migration that may not be applied on every environment — so this is kept
+// separate from the status update above and must never break the decision.
+// Persist a review status + comment. `decision_id` comes from a later migration
+// that may not be applied everywhere, so it's attempted but never required —
+// status + feedback (the comment) always persist, which is what the run detail
+// reads back. Without this split, a missing decision_id failed the whole write.
+async function setIntentStatus(intentId: string, status: string, feedback: string | null, decisionId?: string) {
+  if (decisionId) {
+    const { error } = await supabaseAdmin
+      .from('publish_intents')
+      .update({ status, feedback, decision_id: decisionId })
+      .eq('id', intentId);
+    if (!error) return;
+  }
+  await supabaseAdmin
+    .from('publish_intents')
+    .update({ status, feedback })
+    .eq('id', intentId);
+}
+
+async function recordReviewer(intentId: string, reviewerId: string, reason?: string) {
+  try {
+    // Try the richer columns first; on environments where reviewer_feedback /
+    // reviewed_at aren't migrated yet this errors, so fall back to reviewer_id
+    // alone (which is always present). The comment itself lives in `feedback`,
+    // written by the status update, so attribution is never lost.
+    const { error } = await supabaseAdmin
+      .from('publish_intents')
+      .update({ reviewer_id: reviewerId, reviewer_feedback: reason || null, reviewed_at: new Date().toISOString() })
+      .eq('id', intentId);
+    if (!error) return;
+    const { error: fbErr } = await supabaseAdmin
+      .from('publish_intents')
+      .update({ reviewer_id: reviewerId })
+      .eq('id', intentId);
+    if (fbErr) {
+      logger.warn({ err: fbErr.message, intentId }, '[review-action] reviewer attribution skipped');
+    }
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err), intentId }, '[review-action] reviewer attribution failed');
+  }
+}
+
 export const reviewActionIntent = async (
   req: AuthRequest,
   res: Response,
@@ -696,17 +742,13 @@ export const reviewActionIntent = async (
       // Same governed path the manual approval + auto-publish use.
       const decision = await evaluateIntent(intentId, '', workspaceId);
       if (!decision.governance_cleared) {
-        await supabaseAdmin
-          .from('publish_intents')
-          .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decision.decision_id, feedback: `Blocked by Decision Engine: ${decision.decision_class}` })
-          .eq('id', intentId);
+        await setIntentStatus(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`, decision.decision_id);
+        await recordReviewer(intentId, userId, reason);
         await syncWorkflowInstanceStatus(intentId, 'blocked');
         return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
       }
-      await supabaseAdmin
-        .from('publish_intents')
-        .update({ status: 'APPROVED', decision_id: decision.decision_id, feedback: reason || null })
-        .eq('id', intentId);
+      await setIntentStatus(intentId, 'APPROVED', reason || null, decision.decision_id);
+      await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'completed');
       internalEventBus.emit('execution.requested', { intentId, orgId: workspaceId });
       return res.status(200).json({ success: true, data: { status: 'APPROVED' } });
@@ -720,6 +762,7 @@ export const reviewActionIntent = async (
         .from('publish_intents')
         .update({ status: 'REJECTED', feedback: reason || null })
         .eq('id', intentId);
+      await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'failed');
       return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
     }
@@ -729,6 +772,7 @@ export const reviewActionIntent = async (
       .from('publish_intents')
       .update({ status: 'RETURNED', feedback: reason || null })
       .eq('id', intentId);
+    await recordReviewer(intentId, userId, reason);
     await syncWorkflowInstanceStatus(intentId, 'cancelled');
     return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
