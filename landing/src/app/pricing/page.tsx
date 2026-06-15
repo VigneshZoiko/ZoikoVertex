@@ -1,5 +1,3 @@
-import Footer from "@/components/footer/Footer";
-
 import {
    PriceHero,
    PricingComparison,
@@ -14,7 +12,6 @@ export default function Pricing() {
         <PricingComparison />
         <PricingFAQ />
       </div>
-      <Footer />
     </main>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import Footer from "@/components/Footer";
 import {
   Database, Settings, Users, Bot, ShieldCheck, FileKey,
   Lock, Globe, Cookie, FileText, Cpu, Shield, ChevronRight,
@@ -625,7 +624,6 @@ export default function PrivacyPage() {
         </div>
       </div>
 
-      <Footer />
     </div>
   );
 }
