@@ -56,9 +56,8 @@ function DropdownMenu({ items, viewAllLabel, viewAllHref, title }: { items: type
     <div style={{ position: "absolute", left: -120, top: 45, width: items.length > 5 ? 680 : 620, background: "#152238", border: "1px solid rgba(32,231,242,0.12)", borderRadius: 14, boxShadow: "0px 0px 0px 1px rgba(32,231,242,0.05), 0px 20px 60px 0px rgba(0,0,0,0.55)", zIndex: 100, overflow: "hidden" }}>
       <div style={{ height: 44, background: "rgba(32,231,242,0.04)", borderBottom: "0.8px solid rgba(32,231,242,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px" }}>
         <span style={{ fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace", fontWeight: 500, fontSize: 10.4, letterSpacing: "12%", textTransform: "uppercase" as const, color: "#20E7F2" }}>{title}</span>
-        <Link href={viewAllHref} style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 600, fontSize: 12.5, color: "#20E7F2", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+        <Link href={viewAllHref} style={{ fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 600, fontSize: 12.5, color: "#20E7F2", textDecoration: "none" }}>
           {viewAllLabel}
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.29 5.5h6.42M6.42 2.29l3.21 3.21-3.21 3.21" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </Link>
       </div>
       <div style={{ padding: "24px 28.8px 28px", display: "grid", gridTemplateColumns: `repeat(${items.length > 5 ? 4 : 3}, 1fr)`, rowGap: 28, columnGap: 16 }}>
