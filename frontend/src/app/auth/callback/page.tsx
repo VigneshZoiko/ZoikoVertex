@@ -108,9 +108,20 @@ export default function AuthCallbackPage() {
         window.location.href = `/login?email=${encodeURIComponent(email.trim())}`;
         return;
       }
-      if (response.ok && res.success) {
-        document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
-        window.location.href = "/onboarding";
+        if (response.ok && res.success) {
+          // If user already exists, sign them in directly
+          if (res.data?.existing_user && res.data?.temp_password) {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password: res.data.temp_password,
+            });
+            if (!signInError) {
+              window.location.href = "/dashboard";
+              return;
+            }
+          }
+          document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
+          window.location.href = "/onboarding";
       } else {
         setError(res.error || "Verification failed");
       }

@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
+import { supabaseAdmin } from '../../shared/supabase';
 import { sendOtp, verifyOtp, markOtpVerified } from '../../services/otp.service';
 
 const EmailSchema = z.object({
@@ -45,6 +47,27 @@ export const verifyOtpCode = async (req: Request, res: Response, next: NextFunct
     }
 
     markOtpVerified(email);
+
+    // Check if the user already has a Supabase Auth account
+    const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = listData?.users?.find((u) => u.email === email);
+
+    if (existingUser) {
+      // User exists — generate temp password so they can sign in immediately
+      const tempPassword = crypto.randomBytes(16).toString('hex');
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+        password: tempPassword,
+        email_confirm: true,
+      });
+
+      if (!updateError) {
+        return res.json({
+          success: true,
+          message: 'Email verified.',
+          data: { email, existing_user: true, temp_password: tempPassword },
+        });
+      }
+    }
 
     res.json({
       success: true,
