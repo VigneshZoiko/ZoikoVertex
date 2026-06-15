@@ -227,7 +227,7 @@ import {
   KnowledgeController,
 } from './modules/knowledge/knowledgeController';
 import { PromptController } from './modules/prompts/promptController';
-import { getResourceUsage } from './domains/monitoring/usageController';
+import { getResourceUsage, getTokenQuota, getStorageQuota, purchaseStorageAddon } from './domains/monitoring/usageController';
 import {
   getWalletData, updateAutoTopup, calculateFees, createDepositSession, stripeWebhook, simulateDeposit, syncDepositSession,
   getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings,
@@ -1047,7 +1047,10 @@ app.post('/api/v1/operations/evidence/:bundleId/lock', authenticate, lockEvidenc
 app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
 
 // Monitoring Routes
-app.get('/api/v1/monitoring/usage', authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
+app.get('/api/v1/monitoring/usage',         authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
+app.get('/api/v1/monitoring/quota',         authenticate, scopeGuard('read:analytics', '*'), getTokenQuota);
+app.get('/api/v1/monitoring/storage-quota', authenticate, scopeGuard('read:analytics', '*'), getStorageQuota);
+app.post('/api/v1/monitoring/storage-addon', authenticate, purchaseStorageAddon);
 
 // Billing & Wallet
 app.use('/api/v1/billing/webhook', express.raw({ type: 'application/json' }));

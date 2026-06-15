@@ -20,7 +20,6 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  FolderKanban,
   Eye,
   ThumbsUp,
   MessageCircle,
@@ -634,8 +633,6 @@ function PublishPageInner() {
   const [userTimezone, setUserTimezone] = useState("UTC");
 
   // Campaign linking (active campaigns only)
-  const [publishCampaigns, setPublishCampaigns] = useState<{id: string; name: string}[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState("");
 
   // AI Recommendations State
   const [suggestedTimes, setSuggestedTimes] = useState<any[]>([]);
@@ -674,10 +671,6 @@ function PublishPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUrls, assetUrl, assetTitle]);
 
-  // Load campaigns for linking
-  useEffect(() => {
-    api.get("/api/v1/campaigns?status=ACTIVE").then(r => setPublishCampaigns(r.data || [])).catch(() => {});
-  }, []);
 
   // Mark draft as dirty whenever meaningful content exists
   useEffect(() => {
@@ -695,7 +688,6 @@ function PublishPageInner() {
     setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
     setSuggestedTimes([]); setActiveRevisionId(null);
     setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
-    setSelectedCampaignId("");
     setIsDirty(false);
     setMessage({
       type: "success",
@@ -1279,7 +1271,6 @@ function PublishPageInner() {
         targetAccountIds: selectedAccountIds,
         platformPostTypes,
         userId: user.id,
-        campaign_id: selectedCampaignId || null,
       };
 
       const result = await api.post("/api/v1/governance/submit", payload);
@@ -1295,8 +1286,7 @@ function PublishPageInner() {
       setSuggestedTimes([]); setActiveRevisionId(null);
       setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
       setCustomTime(""); setSelectedTime("immediate");
-      setSelectedCampaignId("");
-      setIsDirty(false);
+        setIsDirty(false);
       fetchUserData();
       // Poll for publish result — backend needs a moment to process
       const t1 = setTimeout(() => fetchRecentPosts(), 3000);
@@ -1390,7 +1380,6 @@ function PublishPageInner() {
             mediaUrl: mediaUrl || undefined,
             platform,
             scheduledTime,
-            campaignId: selectedCampaignId || null,
           })
         )
       );
@@ -1677,42 +1666,6 @@ function PublishPageInner() {
         {/* Main Composer - Left Side */}
         <div className="lg:col-span-7 space-y-4">
 
-          {/* ── Campaign Selector (top) — temporarily hidden ────────────────── */}
-          {/* TODO: re-enable when campaign linking is ready for publishing hub
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                <FolderKanban className="w-3.5 h-3.5 text-info-text" />
-                Campaign <span className="text-[var(--foreground-muted)] font-normal">(optional)</span>
-              </label>
-              <Link href="/campaigns" className="text-[11px] text-info-text hover:text-info-text transition-colors">
-                Manage campaigns →
-              </Link>
-            </div>
-            {publishCampaigns.length === 0 ? (
-              <p className="text-xs text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5">
-                No active campaigns — launch one from Campaigns first.
-              </p>
-            ) : (
-              <select
-                value={selectedCampaignId}
-                onChange={e => setSelectedCampaignId(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border transition-colors"
-              >
-                <option value="">Select a campaign…</option>
-                {publishCampaigns.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            )}
-            {selectedCampaignId && (
-              <p className="text-[11px] text-success-text mt-2 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                Post will be linked to this campaign and can be boosted after publishing.
-              </p>
-            )}
-          </div>
-          */}
 
           {/* ── Post To — Account Dropdown (top) ───────────────────────────── */}
           <AccountDropdown
@@ -2239,54 +2192,6 @@ function PublishPageInner() {
             );
           })()}
 
-          {/* Active Campaign linking — temporarily hidden
-          {(() => {
-            const mediaType = assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : "");
-            const count = selectedUrls.length || (media ? 1 : 0);
-            const violations = getPlatformViolations();
-            const hasBlocking = violations.some(v => {
-              const { blocked } = getCompatibility(v.platform, v.postType, count, mediaType, mediaMeta);
-              return blocked;
-            });
-
-            return (
-              <div className={`hidden bg-[var(--card)] border rounded-2xl p-4 space-y-3 transition-all ${
-                hasBlocking ? "border-error-border/30 opacity-50" : "border-[var(--border)]"
-              }`}>
-                <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                  <FolderKanban className="w-3.5 h-3.5 text-info-text" />
-                  Link to Campaign
-                  {hasBlocking && (
-                    <span className="ml-auto text-[10px] text-error-text font-semibold">Fix media issues first</span>
-                  )}
-                </h3>
-                {publishCampaigns.length === 0 ? (
-                  <p className="text-xs text-[var(--foreground-muted)]">No active campaigns — launch one from Campaigns first.</p>
-                ) : (
-                  <select
-                    value={selectedCampaignId}
-                    onChange={e => setSelectedCampaignId(e.target.value)}
-                    disabled={hasBlocking}
-                    title={hasBlocking ? "Fix media format errors above before linking to a campaign" : undefined}
-                    className={`w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border transition-colors ${
-                      hasBlocking ? "cursor-not-allowed opacity-50" : ""
-                    }`}
-                  >
-                    <option value="">None (organic post only)</option>
-                    {publishCampaigns.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                )}
-                {!hasBlocking && selectedCampaignId && (
-                  <p className="text-[11px] text-success-text">
-                    ✓ This post will be linked to the campaign and can be boosted as a paid ad after publishing.
-                  </p>
-                )}
-              </div>
-            );
-          })()}
-          */}
 
           {/* Platform constraint warnings moved above campaign selector */}
 
