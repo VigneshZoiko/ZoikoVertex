@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import Footer from "@/components/footer/Footer";
 import {
   Brain, Pencil, Send, MessageCircle, TrendingUp,
   Users, CheckSquare, BookOpen, Code2, FileText, UserCheck,
@@ -839,7 +838,6 @@ export default function AIAgentsPage() {
         <FAQ />
         <CTA />
       </div>
-      <Footer />
     </main>
   );
 }

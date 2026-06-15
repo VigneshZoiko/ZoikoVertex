@@ -9,8 +9,6 @@ import {
     SolutionTrustBar,
     SolutionFAQ
   } from "@/components/Solution/solution";
-import Footer from "@/components/footer/Footer";
-
 export default function SolutionPage() {
   return (
     <main>
@@ -25,7 +23,6 @@ export default function SolutionPage() {
        <SolutionTrustBar />
        <SolutionFAQ />
       </div>
-      <Footer />
     </main>
   );
 }

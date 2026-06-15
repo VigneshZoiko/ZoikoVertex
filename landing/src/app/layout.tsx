@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import Navbar from "@/components/navbar/Navbar";
+import Footer from "@/components/footer/Footer";
 import Script from "next/script";
 import "./globals.css";
 
@@ -80,6 +81,7 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           {children}
+          <Footer />
         </Providers>
       </body>
     </html>

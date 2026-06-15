@@ -15,4 +15,3 @@ export { default as StackComparison } from "./StackComparison";
 export { default as TrustModel } from "./TrustModel";
 export { default as Testimonials } from "./Testimonials";
 export { default as FooterCTA } from "../footer/FooterCTA";
-export { default as Footer } from "../footer/Footer";

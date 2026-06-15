@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Footer from "@/components/Footer";
 import {
   Users, CheckSquare, FileText, Lock, Bot,
   ShieldCheck, GitBranch, AlertTriangle,
@@ -620,7 +619,6 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      <Footer />
     </div>
   );
 }
