@@ -83,7 +83,7 @@ export default function AboutTeam() {
 
   return (
     <section className="bg-[#080812] py-20 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
+      <div ref={ref} className="max-w-[1200px] mx-auto">
 
         {/* Header — 2 col */}
         <div
@@ -174,11 +174,6 @@ export default function AboutTeam() {
                 {member.roleDetail && (
                   <p className="text-white/30 text-xs">
                     {member.roleDetail}
-                  </p>
-                )}
-                {member.name === "Lennox G. McLeod" && (
-                  <p className="text-white/30 text-xs">
-                    Founder & Executive Chairman
                   </p>
                 )}
 

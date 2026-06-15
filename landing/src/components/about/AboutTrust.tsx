@@ -55,7 +55,7 @@ export default function AboutTrust() {
 
   return (
     <section className="bg-[#050A17] py-20 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
+      <div ref={ref} className="max-w-[1200px] mx-auto">
 
         {/* Header — 2 col */}
         <div

@@ -46,7 +46,7 @@ export default function AboutHero() {
 
         {/* RIGHT — Content */}
         <div
-          className={`transition-all mb-[60] duration-700 ease-out ${
+          className={`transition-all mb-[60px] duration-700 ease-out ${
             visible
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-10"

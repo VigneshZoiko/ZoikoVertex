@@ -32,7 +32,9 @@ export default function AboutStats() {
             key={stat.label}
             className={`flex flex-col items-center justify-center gap-2 py-8 px-6 text-center
               hover:bg-white/[0.02] transition-all duration-500 ease-out
-              ${i < STATS.length - 1 ? "border-r border-white/10" : ""}
+              ${i % 2 === 0 && i < STATS.length - 1 ? "border-r border-white/10" : ""}
+              ${i % 2 === 1 && i < STATS.length - 1 ? "md:border-r md:border-white/10" : ""}
+              ${i < 2 ? "border-b border-white/10 md:border-b-0" : ""}
               ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
             style={{ transitionDelay: `${i * 100}ms` }}
           >

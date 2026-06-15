@@ -121,7 +121,7 @@ export default function AboutModules() {
 
   return (
     <section className="bg-[#0C1529] py-20 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
+      <div ref={ref} className="max-w-[1200px] mx-auto">
 
         {/* Header — 2 col */}
         <div
@@ -141,7 +141,7 @@ export default function AboutModules() {
             </h2>
           </div>
           <p className="text-white/40 text-sm leading-relaxed">
-            ZoikoVertex is structured as six governed layers — each with a defined
+            ZoikoVertex is structured as eight governed layers — each with a defined
             structural role in the execution chain. Together they form the world&apos;s first
             Governed Execution Infrastructure platform.
           </p>
