@@ -86,39 +86,26 @@ export default function Breadcrumbs() {
           </Link>
         </li>
         
-        {segments.map((segment, index) => {
-          const isLast = index === segments.length - 1;
-          const href = `/${segments.slice(0, index + 1).join('/')}`;
-          
-          // Handle dynamic IDs (simple check: if it looks like a UUID or number)
-          const isId = /^[0-9a-fA-F-]{36}$|^\d+$/.test(segment);
-          const name = isId ? 'Details' : (routeMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1));
-
+        {(() => {
+          const lastSegment = segments[segments.length - 1];
+          const isId = /^[0-9a-fA-F-]{36}$|^\d+$/.test(lastSegment);
+          const name = isId ? 'Details' : (routeMap[lastSegment] || lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1));
           return (
-            <React.Fragment key={href}>
+            <React.Fragment key={lastSegment}>
               <li className="text-[var(--border)]">
                 <ChevronRight className="w-4 h-4 shrink-0" />
               </li>
               <li>
-                {isLast ? (
-                  <span 
-                    className="text-[var(--foreground)] font-semibold px-2 py-1 bg-[var(--surface-hover)] rounded-md"
-                    aria-current="page"
-                  >
-                    {name}
-                  </span>
-                ) : (
-                  <Link 
-                    href={href}
-                    className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors"
-                  >
-                    {name}
-                  </Link>
-                )}
+                <span
+                  className="text-[var(--foreground)] font-semibold px-2 py-1 bg-[var(--surface-hover)] rounded-md"
+                  aria-current="page"
+                >
+                  {name}
+                </span>
               </li>
             </React.Fragment>
           );
-        })}
+        })()}
       </ol>
     </nav>
   );

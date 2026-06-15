@@ -902,7 +902,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
         const r = await api.post("/api/v1/campaigns", payload);
         if (r.data?.id) setCampaignId(r.data.id);
       }
-      onClose();
+      onCreated();
     } catch { setError("Failed to save draft"); }
     finally { setSaving(false); }
   };
