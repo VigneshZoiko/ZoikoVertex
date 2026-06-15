@@ -1,82 +1,59 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { logger } from '../shared/logger';
-import { randomUUID } from 'crypto';
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000;
-const SLA_HOURS = 24;
+const POLL_INTERVAL = 5 * 60 * 1000; // every 5 minutes
+let workerRunning = false;
 
-async function checkSlaBreaches() {
-  const cutoff = new Date(Date.now() - SLA_HOURS * 60 * 60 * 1000).toISOString();
+async function checkSlaBreaches(): Promise<void> {
+  const now = new Date().toISOString();
 
-  const { data: overdue, error } = await supabaseAdmin
+  const { data: breached, error } = await supabaseAdmin
     .from('publish_intents')
-    .select('id, workspace_id, creator_id, content, platform')
+    .select('id, workspace_id, sla_due_at, status')
     .eq('status', 'PENDING_REVIEW')
-    .lt('created_at', cutoff)
-    .limit(50);
+    .lt('sla_due_at', now)
+    .is('sla_breached_at', null);
 
   if (error) {
-    logger.error({ error }, '[SLAWorker] Query failed');
+    logger.error({ error }, '[sla-breach] Failed to query breached intents');
     return;
   }
 
-  if (!overdue || overdue.length === 0) return;
+  if (!breached || breached.length === 0) return;
 
-  logger.info({ count: overdue.length }, '[SLAWorker] Overdue items found');
-
-  for (const item of overdue) {
-    const contentPreview = (item.content || '(no content)').slice(0, 80);
-
-    // Notify the creator that their item breached SLA
+  for (const intent of breached) {
     try {
-      await supabaseAdmin.from('notifications').insert({
-        id: randomUUID(),
-        user_id: item.creator_id,
-        title: '⏰ Review SLA Breached',
-        body: `Your ${item.platform || 'content'} has been waiting over ${SLA_HOURS}h for review.`,
-        type: 'WARNING',
-        link: `/publish?revisionId=${item.id}`,
-        read: false,
-      });
-    } catch { /* non-blocking */ }
+      await supabaseAdmin
+        .from('publish_intents')
+        .update({ sla_breached_at: now })
+        .eq('id', intent.id);
 
-    // Notify workspace admins
-    try {
-      const { data: admins } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('workspace_id', item.workspace_id)
-        .in('role', ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN', 'SECURITY_ADMIN']);
+      logger.warn(
+        { intentId: intent.id, workspaceId: intent.workspace_id, sla_due_at: intent.sla_due_at },
+        '[sla-breach] Publish intent SLA breached',
+      );
+    } catch (err) {
+      logger.error({ err, intentId: intent.id }, '[sla-breach] Error marking intent as breached');
+    }
+  }
 
-      if (admins) {
-        for (const admin of admins) {
-          try {
-            await supabaseAdmin.from('notifications').insert({
-              id: randomUUID(),
-              user_id: admin.id,
-              title: '🚨 SLA Breach — Review Overdue',
-              body: `"${contentPreview}" has been waiting over ${SLA_HOURS}h.`,
-              type: 'WARNING',
-              link: '/review-queue',
-              read: false,
-            });
-          } catch { /* single admin notification failure is non-blocking */ }
-        }
-      }
-    } catch { /* non-blocking */ }
+  logger.info({ count: breached.length }, '[sla-breach] SLA breach pass complete');
+}
+
+async function runPass(): Promise<void> {
+  if (workerRunning) return;
+  workerRunning = true;
+  try {
+    await checkSlaBreaches();
+  } catch (err) {
+    logger.error({ err }, '[sla-breach] Worker pass error');
+  } finally {
+    workerRunning = false;
   }
 }
 
-export function startSlaBreachWorker() {
-  logger.info('[SLAWorker] Starting SLA breach monitor');
-
-  checkSlaBreaches().catch(err =>
-    logger.error({ err }, '[SLAWorker] Initial pass failed')
-  );
-
-  setInterval(() => {
-    checkSlaBreaches().catch(err =>
-      logger.error({ err }, '[SLAWorker] Scheduled pass failed')
-    );
-  }, POLL_INTERVAL_MS);
+export function startSlaBreachWorker(): void {
+  logger.info('[sla-breach] Starting (poll every 5m)');
+  runPass();
+  setInterval(runPass, POLL_INTERVAL);
 }

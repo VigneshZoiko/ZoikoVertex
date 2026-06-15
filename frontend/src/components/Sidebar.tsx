@@ -395,10 +395,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 
-  // ── Access Control — identity & permissions ───────────────────────────────
+  // ── Access & Organization — identity & permissions ────────────────────────
   {
     id: "access",
-    label: "Access Control",
+    label: "Access & Organization",
     icon: Shield,
     items: [
       {
@@ -409,16 +409,9 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"],
       },
       {
-        name: "Roles",
+        name: "Roles & Units",
         href: "/access/roles",
         icon: Building2,
-        roles: ["ADMIN","WORKSPACE_OWNER"],
-      },
-      {
-        name: "Business Units",
-        href: "/access/units",
-        icon: Building2,
-        soon: true,
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
     ],

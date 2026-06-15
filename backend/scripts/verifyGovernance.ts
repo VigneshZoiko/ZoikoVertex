@@ -12,7 +12,7 @@
  *
  * Exits 0 on success, 2 on any failure, 1 on infrastructure error.
  */
-/* eslint-disable no-console */
+ 
 import { spawn } from 'child_process';
 import * as path from 'path';
 
