@@ -1,3 +1,14 @@
+import Link from "next/link";
+
+const LINK_HREFS: Record<string, string> = {
+  "About ZoikoVertex": "/about",
+  "Vision & Mission": "/vision-and-mission",
+  "Security": "/security",
+  "Privacy Policy": "/privacy",
+  "Terms of Service": "/terms",
+  "Platform Overview": "/platform",
+  "Pricing": "/pricing",
+};
 
 export default function Footer() {
   const cols = [
@@ -109,12 +120,12 @@ export default function Footer() {
               <ul className="space-y-2.5">
                 {col.links.map((l) => (
                   <li key={l}>
-                    <a
-                      href="#"
+                    <Link
+                      href={LINK_HREFS[l] ?? "#"}
                       className="text-white/70 text-xs font-medium hover:text-white transition-colors"
                     >
                       {l}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
