@@ -30,6 +30,7 @@ export default function ChatbotWidget() {
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const idRef = useRef(2);
 
   useEffect(() => {
     if (open) {
@@ -40,14 +41,14 @@ export default function ChatbotWidget() {
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
-    const userMsg: Message = { id: Date.now(), role: "user", text: text.trim() };
+    const userMsg: Message = { id: idRef.current++, role: "user", text: text.trim() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setTyping(true);
 
     setTimeout(() => {
       const reply: Message = {
-        id: Date.now() + 1,
+        id: idRef.current++,
         role: "bot",
         text: getBotReply(text.trim()),
       };
