@@ -36,7 +36,7 @@
  *
  * Exits 0 on success, 2 on assertion failure, 1 on infrastructure error.
  */
-/* eslint-disable no-console */
+ 
 import * as crypto from 'crypto';
 import { Client } from 'pg';
 

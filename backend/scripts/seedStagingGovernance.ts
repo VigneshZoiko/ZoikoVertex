@@ -12,7 +12,6 @@
  * Writes a 'prompt.governance_seed.bootstrapped' audit event for every use case.
  */
 import * as crypto from 'crypto';
-import { Client } from 'pg';
 import { Client as PgClient } from 'pg';
 import { GOVERNED_PROMPT_SEEDS } from '../src/modules/prompts/governedPromptSeeds';
 

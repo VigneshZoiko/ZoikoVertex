@@ -11,7 +11,7 @@
  * Requires the prior migrations applied (prompts.use_case_key, prompt_constraint_shadows,
  * prompt_evidence_links). Does not flip PROMPT_GOVERNANCE_ENFORCED.
  */
-/* eslint-disable no-console */
+ 
 import { supabaseAdmin } from '../src/shared/supabase';
 import { PromptAuditService } from '../src/modules/prompts/PromptAuditService';
 import { buildGovernedPromptFixtures, GOVERNED_PROMPT_SEEDS } from '../src/modules/prompts/governedPromptSeeds';

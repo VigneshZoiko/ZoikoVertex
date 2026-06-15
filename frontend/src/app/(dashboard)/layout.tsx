@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import ChatbotWidget from "@/components/ChatbotWidget";
 import PendingApproval from "@/components/PendingApproval";
 import SuspendedOverlay from "@/components/SuspendedOverlay";
 import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
@@ -191,6 +192,7 @@ export default function DashboardLayout({
             </main>
           </div>
         </div>
+      <ChatbotWidget />
       </DraftGuardProvider>
     </NotificationProvider>
   );
