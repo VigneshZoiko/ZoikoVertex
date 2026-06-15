@@ -9,7 +9,7 @@ import { errorHandler } from './shared/errorHandler';
 
 // Controllers
 import { provisionUser, resendVerificationEmail } from './domains/identity/identityController';
-import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
+import { generateContent, generateAdCopy, analyzeImage } from './domains/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue, reviewActionIntent } from './domains/governance/governanceController';
 import {
   getAuditTrail, getAuditStats, 
@@ -436,6 +436,7 @@ const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'CO
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN');
 
 app.post('/api/v1/ai/generate', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateContent);
+app.post('/api/v1/ai/generate-ad-copy', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateAdCopy);
 app.post('/api/v1/ai/analyze-image', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), analyzeImage);
 app.post('/api/v1/qa/check', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), performQualityCheck);
 // ─── Exception Routes (v2 — Full wireframe) ────────────────────────────

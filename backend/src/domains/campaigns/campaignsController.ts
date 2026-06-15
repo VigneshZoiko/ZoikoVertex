@@ -226,15 +226,40 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
     // Enrich with connected account name + ad account name
     let meta_account_name: string | null = null;
     let meta_ad_account_name: string | null = null;
+    let meta_access_token: string | null = null;
     if (data.selected_meta_account_id) {
       const { data: acct } = await supabaseAdmin
         .from('connected_accounts')
-        .select('account_name, ad_account_name, ad_account_id')
+        .select('account_name, ad_account_name, ad_account_id, access_token')
         .eq('id', data.selected_meta_account_id)
         .single();
       if (acct) {
         meta_account_name    = acct.account_name    || null;
         meta_ad_account_name = acct.ad_account_name || acct.ad_account_id || null;
+        meta_access_token    = acct.access_token    || null;
+      }
+    }
+
+    // Auto-delete if campaign was deleted in Meta
+    if (data.meta_campaign_id && meta_access_token) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 2000);
+        const metaRes = await fetch(
+          `https://graph.facebook.com/v19.0/${data.meta_campaign_id}?fields=id,status&access_token=${meta_access_token}`,
+          { signal: ctrl.signal }
+        );
+        clearTimeout(timer);
+        const metaData = await metaRes.json() as { error?: { code: number; message: string } };
+        if (metaData.error) {
+          await supabaseAdmin.from('campaigns').delete().eq('id', data.id).eq('workspace_id', workspaceId);
+          return res.status(404).json({
+            error: 'This campaign was deleted in Meta Ads Manager and has been removed.',
+            meta_deleted: true,
+          });
+        }
+      } catch {
+        // Meta unreachable or timed out — serve cached data
       }
     }
 
