@@ -1,4 +1,3 @@
-import Footer from "@/components/footer/Footer";
 import { RequestDemoHero, RequestDemoNext, RequestDemoFAQ } from "@/components/demo/demo";
 
 export default function RequestDemoPage() {
@@ -7,7 +6,6 @@ export default function RequestDemoPage() {
       <RequestDemoHero />
       <RequestDemoNext />
       <RequestDemoFAQ />
-      <Footer />
     </main>
   );
 }

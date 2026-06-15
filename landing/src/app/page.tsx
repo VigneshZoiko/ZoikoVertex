@@ -15,7 +15,6 @@ import {
   TrustModel,
   Testimonials,
   FooterCTA,
-  Footer,
 } from "@/components/landing";
 
 export default function LandingPage() {
@@ -37,7 +36,6 @@ export default function LandingPage() {
       <TrustModel />  {/* light #F5F7FA */}
       <Testimonials />{/* dark  #152238 */}
       <FooterCTA />   {/* dark  gradient */}
-      <Footer />      {/* dark  #080f1e */}
     </main>
   );
 }

@@ -12,8 +12,6 @@ import { PlatformSection,
     SecurityTrustSection,
     FAQSection
   } from "@/components/Platform/platform";
-import Footer from "@/components/footer/Footer";
-
 export default function PlatformPage() {
   return (
     <main>
@@ -32,7 +30,6 @@ export default function PlatformPage() {
          <SecurityTrustSection />
          <FAQSection />
       </div>
-      <Footer />
     </main>
   );
 }

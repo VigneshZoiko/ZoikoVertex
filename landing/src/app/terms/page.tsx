@@ -310,19 +310,6 @@ export default function TermsPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 px-6 py-8 mt-8">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} ZoikoVertex. All rights reserved.
-          </p>
-          <div className="flex items-center gap-6 text-xs text-white/30">
-            <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white/60 transition-colors">Terms of Service</Link>
-            <a href="mailto:legal@zoikogroup.com" className="hover:text-white/60 transition-colors">Contact</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
