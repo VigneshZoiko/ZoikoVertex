@@ -48,14 +48,25 @@ export const verifyOtpCode = async (req: Request, res: Response, next: NextFunct
 
     markOtpVerified(email);
 
-    // Check if the user already has a Supabase Auth account
-    const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = listData?.users?.find((u) => u.email === email);
+    // Check if the user already has a Supabase Auth account by querying the public.users table.
+    // This is more reliable than paginating through GoTrue's listUsers() — a record
+    // in public.users means they completed onboarding and have an auth_id.
+    let existingUserId: string | null = null;
+    try {
+      const { data: userRecord } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      if (userRecord?.id) {
+        existingUserId = userRecord.id;
+      }
+    } catch {}
 
-    if (existingUser) {
+    if (existingUserId) {
       // User exists — generate temp password so they can sign in immediately
       const tempPassword = crypto.randomBytes(16).toString('hex');
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUserId, {
         password: tempPassword,
         email_confirm: true,
       });

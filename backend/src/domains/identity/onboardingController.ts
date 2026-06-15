@@ -119,19 +119,22 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
       // If user already exists (e.g. retry after onboarding failure), reuse them
       if (createError.message?.toLowerCase().includes('already exists') ||
           createError.message?.toLowerCase().includes('already registered')) {
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-        const existing = listData?.users?.find((u) => u.email === email);
-        if (!existing) {
+        const { data: userRecord } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+        if (!userRecord?.id) {
           return res.status(409).json({ exists: true, message: 'An account with this email already exists. Please sign in instead.' });
         }
         // Reset password so user can sign in
-        await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+        await supabaseAdmin.auth.admin.updateUserById(userRecord.id, {
           password: tempPassword,
           email_confirm: true,
           user_metadata: { full_name: name },
         });
         // Proceed — the user already exists, just set up org/workspace
-        const userId = existing.id;
+        const userId = userRecord.id;
 
         // 2. Upsert into public.users
         await supabaseAdmin.from('users').upsert(
