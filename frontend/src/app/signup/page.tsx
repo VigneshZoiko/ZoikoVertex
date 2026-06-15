@@ -196,30 +196,23 @@ export default function SignupPage() {
         body: JSON.stringify({
           email: email.trim(),
           code,
+          newPassword: password,
           fullName: `${firstName} ${lastName}`.trim(),
-          companyName: company,
         }),
       });
       const res = await response.json().catch(() => ({}));
-      if (response.status === 409 && res.exists) {
-        router.push(`/login?email=${encodeURIComponent(email.trim())}`);
-        return;
-      }
       if (response.ok && res.success) {
-        // If user already exists, sign them in directly
-        if (res.data?.existing_user && res.data?.temp_password) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password: res.data.temp_password,
-          });
-          if (!signInError) {
-            document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
-            window.location.href = "/dashboard";
-            return;
-          }
+        // Auth user was created at OTP verify — sign in with their chosen password
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) {
+          setVerifyError("Account created but sign-in failed. Please try logging in.");
+          return;
         }
-        document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
-        window.location.href = `/onboarding?email=${encodeURIComponent(email.trim())}`;
+        document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
+        window.location.href = `/onboarding`;
       } else {
         setVerifyError(res.error || "Verification failed. Please try again.");
       }

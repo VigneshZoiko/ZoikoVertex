@@ -411,7 +411,7 @@ export default function OnboardingPage() {
       const isOtpUser = document.cookie.includes("zv_otp_verified=1") && !document.cookie.includes("zv_auth=1");
 
       if (isOtpUser) {
-        // OTP-only path: create auth user + org + workspace together
+        // OTP-only path (OAuth users who haven't signed in yet): create org + workspace
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
         const response = await fetch(`${backendUrl}/api/v1/onboarding/complete`, {
           method: "POST",
@@ -440,7 +440,6 @@ export default function OnboardingPage() {
             setError("Workspace created but sign-in failed. Please try logging in.");
             return;
           }
-          // Set auth cookie (supabase.ts listener should handle this, but ensure it's set)
           document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
         }
       } else {

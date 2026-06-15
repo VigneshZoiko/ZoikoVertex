@@ -94,7 +94,7 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
  *  Creates auth user + org + workspace in one step. */
 export const completeOnboarding = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { email, fullName, company_name, workspace_name } = req.body;
+    const { email, fullName, company_name, workspace_name, password } = req.body;
     if (!email?.trim()) return res.status(400).json({ error: 'Email is required' });
     if (!company_name?.trim()) return res.status(400).json({ error: 'Company name is required' });
     if (!workspace_name?.trim()) return res.status(400).json({ error: 'Workspace name is required' });
@@ -105,12 +105,12 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
     }
 
     const name = fullName || email.split('@')[0];
-    const tempPassword = crypto.randomBytes(16).toString('hex');
+    const userPassword = password || crypto.randomBytes(16).toString('hex');
 
     // 1. Create Supabase Auth user
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: tempPassword,
+      password: userPassword,
       email_confirm: true,
       user_metadata: { full_name: name },
     });
@@ -129,7 +129,7 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
         }
         // Reset password so user can sign in
         await supabaseAdmin.auth.admin.updateUserById(userRecord.id, {
-          password: tempPassword,
+          password: userPassword,
           email_confirm: true,
           user_metadata: { full_name: name },
         });
@@ -168,7 +168,7 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
 
         return res.status(201).json({
           success: true,
-          data: { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', temp_password: tempPassword },
+          data: { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', temp_password: userPassword, is_own_password: !!password },
         });
       }
 
@@ -213,7 +213,7 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
 
     res.status(201).json({
       success: true,
-      data: { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', temp_password: tempPassword },
+      data: { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', temp_password: userPassword, is_own_password: !!password },
     });
   } catch (err) {
     logger.error(`[Onboarding] completeOnboarding error: ${err}`);
