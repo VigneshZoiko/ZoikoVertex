@@ -97,22 +97,24 @@ export default function PlatformAnalytics() {
     setConfirmDialog({ type: 'restrict', orgId, orgName: org?.name || 'Unknown' });
   };
 
-  const handleUpgradePlan = async () => {
+  const handleChangePlan = async () => {
     if (!upgradeOrgId) return;
     const orgName = organizations.find(o => o.id === upgradeOrgId)?.name || 'this organization';
-    if (!confirm(`Upgrade ${orgName} to ${upgradePlanType} plan?`)) return;
+    if (!confirm(`Change ${orgName} plan to ${upgradePlanType}?`)) return;
     setActionLoading(upgradeOrgId);
     setUpgradeOrgId(null);
-    setOrganizations(current => current.map(o =>
-      o.id === upgradeOrgId ? { ...o, plan_type: upgradePlanType, status: 'ACTIVE' } : o
-    ));
     try {
-      await api.put(`/api/v1/superadmin/organizations/${upgradeOrgId}/plan`, { planType: upgradePlanType });
-      setSuccess(`Organization upgraded to ${upgradePlanType}.`);
+      const result = await api.put(`/api/v1/superadmin/organizations/${upgradeOrgId}/plan`, { planType: upgradePlanType });
+      if (result.success) {
+        setSuccess(`Organization plan changed to ${upgradePlanType}.`);
+      } else {
+        setError(result.error || "Failed to change plan.");
+      }
     } catch {
-      setError("Failed to upgrade plan.");
+      setError("Failed to change plan.");
     } finally {
       setActionLoading(null);
+      fetchData();
     }
   };
 
@@ -392,7 +394,7 @@ export default function PlatformAnalytics() {
                         ) : null}
                         {org.status !== 'DELETED' && (
                           <button
-                            onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type === 'ENTERPRISE' ? 'ENTERPRISE' : org.plan_type === 'GROWTH' ? 'ENTERPRISE' : 'GROWTH'); }}
+                            onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type); }}
                             disabled={!!actionLoading}
                             className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-info-text border border-[var(--border)] rounded transition-colors"
                             title="Upgrade Plan"
@@ -489,13 +491,14 @@ export default function PlatformAnalytics() {
       {upgradeOrgId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Upgrade Plan</h3>
+            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Change Plan</h3>
             <p className="text-xs text-[var(--foreground-muted)] mb-4">
               {organizations.find(o => o.id === upgradeOrgId)?.name}
             </p>
             <div className="flex flex-col gap-1.5 mb-4">
               {[
-                { value: 'STARTER', label: 'Vertex Starter (FREE)' },
+                { value: 'FREE', label: 'Free' },
+                { value: 'STARTER', label: 'Vertex Starter' },
                 { value: 'GROWTH', label: 'Vertex Growth ($399/mo)' },
                 { value: 'ENTERPRISE', label: 'Vertex Enterprise ($999/mo)' },
               ].map(p => (
@@ -527,12 +530,12 @@ export default function PlatformAnalytics() {
                 Cancel
               </button>
               <button
-                onClick={handleUpgradePlan}
+                onClick={handleChangePlan}
                 disabled={!!actionLoading}
                 className="px-3 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpCircle className="w-3.5 h-3.5" />}
-                Upgrade
+                Save
               </button>
             </div>
           </div>

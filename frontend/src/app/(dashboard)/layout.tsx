@@ -45,6 +45,14 @@ export default function DashboardLayout({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Super Admin redirect ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (!pathname.startsWith('/superadmin')) {
+      router.replace('/superadmin/analytics');
+    }
+  }, [isSuperAdmin, pathname, router]);
+
   // ── No workspace → verify API before redirecting (guards against stale RoleContext) ─
   // Email-signup users always have a workspace created at signup time. If the API
   // returns NO_WORKSPACE for them, it's likely a transient cache/timing issue — retry
