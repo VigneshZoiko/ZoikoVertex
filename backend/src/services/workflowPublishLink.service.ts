@@ -13,6 +13,7 @@ import { supabaseAdmin } from '../shared/supabase';
 import { logger } from '../shared/logger';
 import { moderate } from '../modules/safety/moderationService';
 import { PostGovernanceService } from '../modules/prompts/PostGovernanceService';
+import { syncAgentRunFromCheck } from './operationsRunRecorder.service';
 
 const PUBLISHING_WORKFLOW_NAME = 'Publishing Workflow';
 
@@ -371,6 +372,18 @@ export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<
       { workspaceId, instanceId: instance?.id, platform, agentId: agent?.id, agentName: agent?.name, postId },
       '[publish-link] linked post to Publishing Workflow',
     );
+
+    // Mirror the agent check verdict onto the post's Operations run so a post
+    // the workflow shows as Blocked / Needs-Review reads the same in Agent
+    // Operations (status + the violation reason in the Evidence column).
+    if (postId && check && (check.verdict === 'block' || check.verdict === 'review')) {
+      await syncAgentRunFromCheck(postId, {
+        verdict: check.verdict,
+        risk: check.risk,
+        reason: buildGovernanceReason({ check, governance: check.governance }),
+      });
+    }
+
     return instance?.id ?? null;
   } catch (err) {
     logger.warn(

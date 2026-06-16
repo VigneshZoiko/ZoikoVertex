@@ -15,6 +15,7 @@
 import { supabaseAdmin } from "../../shared/supabase";
 import { moderate } from "../safety/moderationService";
 import { RuntimeVariableGovernanceService } from "../prompts/RuntimeVariableGovernanceService";
+import { recordWorkflowPolicyOutcome } from "../../services/operationsRunRecorder.service";
 import { logger } from "../../shared/logger";
 import type {
   StepHandler,
@@ -276,6 +277,18 @@ const policyCheckHandler: StepHandler = async (ctx): Promise<StepResult> => {
   } catch (err) {
     logger.warn({ err }, "[workflow-engine] policy_result persist failed");
   }
+
+  // Bridge the verdict onto the Operations run so a flagged post is reflected
+  // in the Operations list badge and run-detail Policy tab (which read
+  // agent_runs.policy_result + the policy_results table, not the table above).
+  // Non-blocking by contract; never affects the verdict-driven flow below.
+  await recordWorkflowPolicyOutcome({
+    instanceId: ctx.instanceId,
+    verdict: verdict.verdict,
+    overallRisk: verdict.overallRisk,
+    blockedTerms: verdict.matches.map((m) => m.pattern),
+    evidenceId: verdict.evidenceId,
+  });
 
   const bagPatch = {
     lastModeration: {

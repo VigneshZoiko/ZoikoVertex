@@ -9,14 +9,10 @@ import {
   CheckCircle2,
   Loader2,
   ShieldCheck,
-  ShieldAlert,
   Play,
   Pause,
-  PauseCircle,
-  PlayCircle,
   Square,
   RotateCcw,
-  ArrowUpRight,
   Clock,
   AlertTriangle,
   XCircle,
@@ -25,7 +21,6 @@ import {
   Clock3,
   Download,
   Ban,
-  ShieldX,
   Trash2,
   Search,
   ChevronDown,
@@ -49,7 +44,6 @@ import {
   Lock,
   Unlock,
   UserCheck,
-  Siren,
   Radio,
   CheckSquare,
   WifiOff,
@@ -236,19 +230,11 @@ function shortId(id: string): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function actionGate(run: AgentRun, action: RuntimeActionType) {
-  return run.action_gates?.find((gate) => gate.action === action) || {
-    action,
-    allowed: Boolean(run.permitted_actions?.includes(action)),
-    reason: "Action is not currently permitted",
-  };
-}
-
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
       className="p-1 hover:bg-surface-hover rounded text-foreground-muted hover:text-foreground transition-colors"
       title="Copy ID"
     >
@@ -1327,26 +1313,6 @@ export default function AgentOperationsPage() {
     }
   };
 
-  const handleQueueEscalate = async (item: QueueItem) => {
-    if (!item.run_id) {
-      setError("This queue item is not linked to a runnable task.");
-      return;
-    }
-    // Route through the governed reason-capture modal (same path as run-level
-    // escalation) instead of window.prompt, so escalation captures a reason,
-    // shows impact, and creates a linked incident server-side.
-    setConfirmAction({
-      type: "escalate",
-      runId: item.run_id,
-      label: "Escalate Queue Item",
-      description: "Escalate the linked run and open a tracked incident?",
-      impactPreview: "Creates a linked incident, records an immutable control action, and notifies operator surfaces in real time.",
-      requireReason: true,
-      confirmLabel: "Escalate",
-      confirmClass: "bg-rose-500 hover:bg-rose-600",
-    } as typeof confirmAction);
-  };
-
   const handleQueueCancel = async (item: QueueItem) => {
     if (!item.run_id) {
       setError("This queue item is not linked to a runnable task.");
@@ -1506,7 +1472,6 @@ export default function AgentOperationsPage() {
   const filteredRuns = runs;
   const totalPages = Math.max(1, Math.ceil(totalRuns / PAGE_SIZE));
 
-  const criticalCount = runs.filter((r) => r.severity === "critical" || ["FAILED", "POLICY_BLOCKED", "QUARANTINED", "ESCALATED"].includes(r.status)).length;
 
   // Doc 6 §2/§3 — queue segmentation derived values (hoisted out of JSX).
   const queueTypes = Array.from(new Set(queues.map((q) => q.queue_type))).sort();
@@ -1625,19 +1590,6 @@ export default function AgentOperationsPage() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* ── Critical Items Alert ── */}
-      {criticalCount > 0 && (
-        <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-2.5 text-rose-400 text-sm">
-            <Siren className="w-4 h-4" />
-            <span>{criticalCount} critical item{criticalCount > 1 ? "s" : ""} require immediate attention</span>
-          </div>
-          <button onClick={() => setStatusFilter("FAILED")} className="text-xs px-2.5 py-1 border border-rose-500/30 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors">
-            Open Critical Items
-          </button>
         </div>
       )}
 
@@ -1789,18 +1741,17 @@ export default function AgentOperationsPage() {
             /* ── List View ── */
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
-                <span>Actions</span>
               </div>
               <div className="divide-y divide-border">
                 {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   return (
-                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1821,76 +1772,18 @@ export default function AgentOperationsPage() {
                       <div><StatusBadge status={run.status} /></div>
                       {/* Policy */}
                       <div><PolicyBadge result={run.policy_result} /></div>
-                      {/* Evidence */}
-                      <div><EvidenceBadge status={run.evidence_status} /></div>
-                      {/* Actions */}
-                      <div className="flex items-center gap-0.5">
-                        <button onClick={() => handleViewRun(run)} className="p-1.5 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors" title="View Run Detail"><Eye className="w-3.5 h-3.5" /></button>
-                        {run.status === "RUNNING" && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "pause", runId: run.id, label: "Pause Run", description: `Pause "${run.agent_name}"?`, impactPreview: "Agent will halt at current step. In-progress tool calls may be interrupted.", confirmLabel: "Pause Run", confirmClass: "bg-amber-500 hover:bg-amber-600" })}
-                            className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors" title="Pause"><Pause className="w-3.5 h-3.5" /></button>
-                        )}
-                        {run.status === "PAUSED" && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "resume", runId: run.id, label: "Resume Run", description: `Resume "${run.agent_name}"? Policy and dependency checks will run.`, confirmLabel: "Resume Run", confirmClass: "bg-emerald-500 hover:bg-emerald-600" })}
-                            className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors" title="Resume"><Play className="w-3.5 h-3.5" /></button>
-                        )}
-                        {["RUNNING", "QUEUED", "PAUSED", "SCHEDULED"].includes(run.status) && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "stop", runId: run.id, label: "Stop Run", description: `Stop "${run.agent_name}"?`, impactPreview: "Downstream deliveries will be cancelled. Output will be invalidated.", confirmLabel: "Stop Run" })}
-                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Stop"><Square className="w-3.5 h-3.5" /></button>
-                        )}
-                        {run.status === "FAILED" && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "retry", runId: run.id, label: "Retry Run", description: `Retry "${run.agent_name}"? Original failure evidence is preserved. A new linked attempt will be created. For external channels, state how duplicate delivery will be prevented.`, confirmLabel: "Retry Run", confirmClass: "bg-blue-500 hover:bg-blue-600", requireReason: true } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
-                        )}
-                        {["RUNNING", "WAITING_HUMAN_REVIEW", "PAUSED", "POLICY_BLOCKED"].includes(run.status) && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "quarantine", runId: run.id, label: "Quarantine Output", description: `Quarantine "${run.agent_name}" output?`, impactPreview: "Output locked. Publishing blocked. Visibility restricted. Evidence event created.", confirmLabel: "Quarantine", confirmClass: "bg-rose-600 hover:bg-rose-700" })}
-                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Quarantine"><ShieldX className="w-3.5 h-3.5" /></button>
-                        )}
-                        {run.status !== "STOPPED" && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "escalate", runId: run.id, label: "Escalate", description: `Escalate "${run.agent_name}"? An escalation record with severity and notification routing will be created.`, confirmLabel: "Escalate", confirmClass: "bg-orange-500 hover:bg-orange-600" })}
-                            className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400 hover:text-orange-300 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
-                        )}
-                        {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "restricted_mode", runId: run.id, label: "Restricted Operations Mode", description: `Place "${run.agent_name}" in restricted mode?`, impactPreview: "Blocks new autonomous external actions; review, remediation, and approval remain available until cleared.", confirmLabel: "Activate Restricted Mode", confirmClass: "bg-amber-600 hover:bg-amber-700", requireReason: true } as typeof confirmAction)}
-                            className={`p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors ${!actionGate(run, "restricted_mode").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
-                            title="Restricted Mode" disabled={!actionGate(run, "restricted_mode").allowed}><ShieldAlert className="w-3.5 h-3.5" /></button>
-                        )}
-                        {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW", "SCHEDULED"].includes(run.status) && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "hold", runId: run.id, label: "Hold Run", description: `Hold "${run.agent_name}"? The run will pause at its current step.`, impactPreview: "Agent will halt at current step. Use Release Hold to resume.", confirmLabel: "Hold Run", confirmClass: "bg-amber-500 hover:bg-amber-600", requireReason: true } as typeof confirmAction)}
-                            className={`p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors ${!actionGate(run, "hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
-                            title="Hold" disabled={!actionGate(run, "hold").allowed}><PauseCircle className="w-3.5 h-3.5" /></button>
-                        )}
-                        {run.status === "PAUSED" && (
-                          <>
-                            <button
-                              onClick={() => checkStaleAndAct(run.id, { type: "release_hold", runId: run.id, label: "Release Hold", description: `Release "${run.agent_name}" from hold?`, impactPreview: "Policy and dependency checks will re-run before the agent continues.", confirmLabel: "Release Hold", confirmClass: "bg-emerald-500 hover:bg-emerald-600", requireReason: true } as typeof confirmAction)}
-                              className={`p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors ${!actionGate(run, "release_hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
-                              title="Release Hold" disabled={!actionGate(run, "release_hold").allowed}><PlayCircle className="w-3.5 h-3.5" /></button>
-                          </>
-                        )}
-                        {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && run.severity === "critical" && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "emergency_pause", runId: run.id, label: "Emergency Pause", description: `Emergency pause "${run.agent_name}"? This immediately suspends all execution.`, impactPreview: "Immediate suspension. In-progress tool calls may be interrupted. Requires elevated permission.", confirmLabel: "Emergency Pause", confirmClass: "bg-rose-600 hover:bg-rose-700", requireReason: true } as typeof confirmAction)}
-                            className={`p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors ${!actionGate(run, "emergency_pause").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
-                            title="Emergency Pause" disabled={!actionGate(run, "emergency_pause").allowed}><Siren className="w-3.5 h-3.5" /></button>
-                        )}
-                        {run.status === "STOPPED" && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "start", runId: run.id, label: "Start Run", description: `Start "${run.agent_name}"? The stopped run will be moved back to running.`, impactPreview: "The run resumes active execution from a stopped state.", confirmLabel: "Start Run", confirmClass: "bg-emerald-500 hover:bg-emerald-600", requireReason: true } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors" title="Start"><Play className="w-3.5 h-3.5" /></button>
-                        )}
-                        {["STOPPED", "COMPLETED", "FAILED", "CANCELLED", "QUARANTINED"].includes(run.status) && (
-                          <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "remove", runId: run.id, label: "Archive Run", description: `Archive "${run.agent_name}"? The run is removed from the active list but its full history (timeline, policy results, incidents, evidence) is preserved permanently for audit.`, impactPreview: "Non-destructive: the run is archived and hidden from active views. Audit history and evidence are retained.", confirmLabel: "Archive Run", confirmClass: "bg-rose-600 hover:bg-rose-700", requireReason: false } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Archive"><Trash2 className="w-3.5 h-3.5" /></button>
+                      {/* Evidence — show the violation/flag reason when the run was blocked or flagged */}
+                      <div>
+                        {run.next_action && ["blocked", "warning"].includes(String(run.policy_result || "").toLowerCase()) ? (
+                          <span
+                            title={run.next_action}
+                            className={`inline-flex items-start gap-1 text-[10px] leading-tight font-medium ${String(run.policy_result).toLowerCase() === "blocked" ? "text-rose-400" : "text-amber-400"} line-clamp-2`}
+                          >
+                            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">{run.next_action}</span>
+                          </span>
+                        ) : (
+                          <EvidenceBadge status={run.evidence_status} />
                         )}
                       </div>
                     </div>
@@ -2004,7 +1897,7 @@ export default function AgentOperationsPage() {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-2.5 border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-2.5 border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
                 <span>Task</span>
                 <span>Priority</span>
                 <span>Assignee</span>
@@ -2016,7 +1909,7 @@ export default function AgentOperationsPage() {
                   const sla = formatTimeRemaining(item.due_at);
                   const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
-                    <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
+                    <div key={item.id} className={`grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-foreground">{item.queue_type.replace(/_/g, " ")}</p>
                         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
@@ -2043,7 +1936,6 @@ export default function AgentOperationsPage() {
                           <button onClick={() => handleQueueRetry(item)} disabled={resolved} className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400/70 hover:text-blue-400 transition-colors disabled:opacity-30" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
                         )}
                         <button onClick={() => handleQueueHold(item)} disabled={resolved} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-30" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueEscalate(item)} disabled={resolved} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors disabled:opacity-30" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleQueueResolve(item)} disabled={resolved} className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400/70 hover:text-emerald-400 transition-colors disabled:opacity-30" title="Resolve with note"><CheckSquare className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleQueueCancel(item)} disabled={resolved} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors disabled:opacity-30" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
                       </div>

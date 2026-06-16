@@ -10,7 +10,7 @@ import { alertSecOpsAuditFailure } from '../../shared/alertSecOps';
 import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
 import { logAuditEvent } from './evidenceController';
-import { recordPublishIntentRun } from '../../services/operationsRunRecorder.service';
+import { recordPublishIntentRun, syncAgentRunFromIntent } from '../../services/operationsRunRecorder.service';
 import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
 import { moderate } from '../../modules/safety/moderationService';
 
@@ -260,12 +260,14 @@ export const submitIntent = async (
             .from('publish_intents')
             .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decision.decision_id, feedback: `Blocked by Decision Engine: ${decision.decision_class}` })
             .eq('id', row.id);
+          await syncAgentRunFromIntent(row.id, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`);
           continue;
         }
         await supabaseAdmin
           .from('publish_intents')
           .update({ decision_id: decision.decision_id })
           .eq('id', row.id);
+        await syncAgentRunFromIntent(row.id, 'APPROVED');
         internalEventBus.emit('execution.requested', { intentId: row.id, orgId: targetWorkspaceId });
         autoPublished++;
         logger.info({ intentId: row.id }, '[Governance] auto-published (100% clean + L4+ autonomous agent)');
@@ -745,11 +747,13 @@ export const reviewActionIntent = async (
         await setIntentStatus(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`, decision.decision_id);
         await recordReviewer(intentId, userId, reason);
         await syncWorkflowInstanceStatus(intentId, 'blocked');
+        await syncAgentRunFromIntent(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`);
         return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
       }
       await setIntentStatus(intentId, 'APPROVED', reason || null, decision.decision_id);
       await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'completed');
+      await syncAgentRunFromIntent(intentId, 'APPROVED');
       internalEventBus.emit('execution.requested', { intentId, orgId: workspaceId });
       return res.status(200).json({ success: true, data: { status: 'APPROVED' } });
     }
@@ -764,6 +768,7 @@ export const reviewActionIntent = async (
         .eq('id', intentId);
       await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'failed');
+      await syncAgentRunFromIntent(intentId, 'REJECTED', reason ? `Rejected: ${reason}` : 'Rejected by reviewer');
       return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
     }
 
@@ -774,6 +779,7 @@ export const reviewActionIntent = async (
       .eq('id', intentId);
     await recordReviewer(intentId, userId, reason);
     await syncWorkflowInstanceStatus(intentId, 'cancelled');
+    await syncAgentRunFromIntent(intentId, 'RETURNED');
     return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
     next(error);

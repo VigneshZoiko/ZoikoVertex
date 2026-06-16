@@ -324,16 +324,12 @@ function SimplifiedStatusBadge({ p }: { p: PromptRecord }) {
 function RegistryTab({
   prompts,
   onViewPrompt,
-  onPausePrompt,
-  onResumePrompt,
   onRetirePrompt,
   onActivatePrompt,
   canManage,
 }: {
   prompts: PromptRecord[];
   onViewPrompt: (p: PromptRecord) => void;
-  onPausePrompt: (p: PromptRecord) => void;
-  onResumePrompt: (p: PromptRecord) => void;
   onRetirePrompt: (p: PromptRecord) => void;
   onActivatePrompt: (p: PromptRecord) => void;
   canManage: boolean;
@@ -394,8 +390,7 @@ function RegistryTab({
                 { label: "Knowledge Source", width: "150px" },
                 { label: "Last Used", width: "150px" },
                 { label: "Status", width: "110px" },
-                { label: "Failed / Blocked", width: "120px" },
-                { label: "Actions", width: "110px" }
+                { label: "Failed / Blocked", width: "120px" }
               ].map((h) => (
                 <th key={h.label} style={{ width: h.width }} className="py-4 px-3 text-[10px] font-black text-foreground-muted uppercase tracking-widest text-center">{h.label}</th>
               ))}
@@ -438,38 +433,12 @@ function RegistryTab({
                 <td className="py-4 px-3 text-center">
                   <span className="text-xs text-foreground-muted">{failedBlockedCount(p) > 0 ? failedBlockedCount(p) : "—"}</span>
                 </td>
-                <td className="py-4 px-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <button title="View" onClick={() => onViewPrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all">
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                    {canManage && s === "PRODUCTION_ACTIVE" && (
-                      <button title="Pause" onClick={() => onPausePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-foreground-muted hover:text-orange-400 hover:border-orange-500/30 transition-all">
-                        <PauseCircle className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {canManage && s === "PAUSED" && (
-                      <button title="Play (resume)" onClick={() => onResumePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all">
-                        <Play className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {canManage && retired ? (
-                      <button title="Activate (bring back)" onClick={() => onActivatePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition-all">
-                        <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
-                    ) : canManage && !["PRODUCTION_ACTIVE", "PAUSED"].includes(s) ? (
-                      <button title="Retire" onClick={() => onRetirePrompt(p)} className="flex items-center justify-center w-7 h-7 bg-background border border-border rounded-lg text-foreground-muted hover:text-rose-400 hover:border-rose-500/30 transition-all">
-                        <Archive className="w-3.5 h-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
               </tr>
               );
             })}
             {prompts.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
+                <td colSpan={8} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
               </tr>
             )}
           </tbody>
@@ -2128,9 +2097,6 @@ function PromptDetailDrawer({
                     {prompt.status === "PRODUCTION_ACTIVE" && (
                       <button onClick={() => onLifecycleAction(prompt.id, 'retire')} className="px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-500/20 transition-all">Retire</button>
                     )}
-                    {prompt.status === "PAUSED" && (
-                      <button onClick={() => onLifecycleAction(prompt.id, 'resume')} className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all">Start</button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -2202,24 +2168,63 @@ function GovernanceTestCenterTab({
   prompts: PromptRecord[];
   onRunTests: (versionId: string) => void;
 }) {
-  // Sub-tab navigation removed — the Test Center shows the Overview view only.
-  const section: string = "overview";
+  // Sub-tab navigation: Overview KPIs + the governed test / eval / drift surfaces.
+  const [section, setSection] = useState<string>("overview");
+  const SECTIONS: { id: string; label: string }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "test_runs", label: "Test Runs" },
+    { id: "adversarial", label: "Adversarial" },
+    { id: "evaluation", label: "Evaluation" },
+    { id: "drift", label: "Drift" },
+    { id: "simulation", label: "Policy Simulation" },
+  ];
 
   // ── KPI data ──
-  const withTests = prompts.filter((p) => p.last_test);
-  const passed = withTests.filter((p) => p.last_test?.pass_fail === "PASS").length;
-  const failed = withTests.filter((p) => p.last_test?.pass_fail === "FAIL").length;
-  const passRate = withTests.length > 0 ? Math.round((passed / withTests.length) * 100) : 0;
+  // Driven by prompt.metadata, which the runtime governance pipeline reliably
+  // stamps on every real post check (usage_count / block_count / fail_count /
+  // last_decision) — the same source the Registry uses. This makes blocked /
+  // flagged posts show here, instead of depending only on last_test.
+  const activity = prompts.map((p) => {
+    const m = p.metadata || {};
+    const uses = (m.usage_count as number) || 0;
+    const blocks = ((m.block_count as number) || 0) + ((m.fail_count as number) || 0);
+    const decision = (m.last_decision as string) ||
+      (p.last_test?.pass_fail === "FAIL" ? "BLOCK" : p.last_test?.pass_fail === "PASS" ? "APPROVE" : null);
+    const reason = (m.last_reason as string) || "";
+    const lastUsed = (m.last_used_at as string) || p.last_test?.run_at || null;
+    return { p, uses, blocks, decision, reason, lastUsed };
+  });
+  const totalTests = activity.reduce((s, a) => s + a.uses, 0) || prompts.filter((p) => p.last_test).length;
+  const failed = activity.reduce((s, a) => s + a.blocks, 0);
+  const passRate = totalTests > 0 ? Math.max(0, Math.round(((totalTests - failed) / totalTests) * 100)) : 0;
+  const runRows = activity.filter((a) => a.uses > 0 || a.blocks > 0 || a.decision);
 
   const KPI_CARDS = [
-    { label: "Total Tests", value: withTests.length, color: "text-foreground" },
+    { label: "Total Checks", value: totalTests, color: "text-foreground" },
     { label: "Pass Rate", value: `${passRate}%`, color: "text-emerald-400" },
-    { label: "Failed Tests", value: failed, color: "text-rose-400" },
+    { label: "Blocked / Failed", value: failed, color: "text-rose-400" },
     { label: "Drift Alerts", value: "0", color: "text-foreground-muted" },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Sub-tab navigation */}
+      <div className="flex items-center gap-1.5 flex-wrap border-b border-border pb-3">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSection(s.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${
+              section === s.id
+                ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
+                : "text-foreground-muted border border-transparent hover:text-foreground hover:bg-surface"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       {/* Overview — KPI Cards */}
       {section === "overview" && (
         <div className="grid grid-cols-4 gap-4">
@@ -2229,9 +2234,9 @@ function GovernanceTestCenterTab({
               <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest mt-1">{k.label}</div>
             </div>
           ))}
-          {withTests.length === 0 && (
+          {totalTests === 0 && failed === 0 && (
             <div className="col-span-4 p-8 text-center text-sm text-foreground-muted bg-card border border-border rounded-2xl">
-              No governance test data available yet.
+              No governance checks recorded yet. Publish a post to run the governed checks.
             </div>
           )}
         </div>
@@ -2240,40 +2245,51 @@ function GovernanceTestCenterTab({
       {/* Test Runs */}
       {section === "test_runs" && (
         <div className="space-y-3">
-          {prompts.filter((p) => p.last_test).length === 0 ? (
+          {runRows.length === 0 ? (
             <div className="p-8 text-center text-sm text-foreground-muted bg-card border border-border rounded-2xl">
-              No governance test data available yet.
+              No governance checks recorded yet.
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-card/60">
-                    {["Prompt", "Test Type", "Status", "Score", "Last Run", "Action"].map((h) => (
+                    {["Prompt", "Last Decision", "Blocked / Failed", "Checks", "Last Reason", "Last Run", "Action"].map((h) => (
                       <th key={h} className="py-3 px-5 text-[10px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {prompts.filter((p) => p.last_test).map((p) => (
-                    <tr key={p.id} className="hover:bg-surface/30 transition-colors">
-                      <td className="py-4 px-5"><span className="text-sm font-bold text-foreground max-w-[200px] truncate block">{p.name}</span></td>
-                      <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted">{p.last_test?.suite_name ?? "Standard"}</span></td>
-                      <td className="py-4 px-5"><TestBadge result={p.last_test} /></td>
-                      <td className="py-4 px-5"><span className="text-[11px] font-bold text-foreground">{p.last_test?.score ?? "—"}%</span></td>
-                      <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted whitespace-nowrap">{p.last_test?.run_at ? new Date(p.last_test.run_at).toLocaleDateString() : "—"}</span></td>
-                      <td className="py-4 px-5">
-                        <button
-                          onClick={() => p.active_version_id && onRunTests(p.active_version_id)}
-                          disabled={!p.active_version_id}
-                          className="p-2 bg-background border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                          title="Run Tests"
-                        >
-                          <Play className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {runRows.map(({ p, uses, blocks, decision, reason, lastUsed }) => {
+                    const dec = String(decision || "").toUpperCase();
+                    const decCfg = dec === "BLOCK"
+                      ? { label: "Blocked", cls: "bg-rose-500/10 text-rose-400 border-rose-500/20" }
+                      : dec === "REVIEW"
+                        ? { label: "Review", cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" }
+                        : dec === "APPROVE"
+                          ? { label: "Passed", cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" }
+                          : { label: "—", cls: "bg-surface text-foreground-muted border-border" };
+                    return (
+                      <tr key={p.id} className="hover:bg-surface/30 transition-colors">
+                        <td className="py-4 px-5"><span className="text-sm font-bold text-foreground max-w-[200px] truncate block">{p.name}</span></td>
+                        <td className="py-4 px-5"><span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded border ${decCfg.cls}`}>{decCfg.label}</span></td>
+                        <td className="py-4 px-5"><span className={`text-[11px] font-bold ${blocks > 0 ? "text-rose-400" : "text-foreground-muted"}`}>{blocks > 0 ? blocks : "—"}</span></td>
+                        <td className="py-4 px-5"><span className="text-[11px] font-bold text-foreground">{uses || "—"}</span></td>
+                        <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted max-w-[260px] truncate block" title={reason}>{reason || "—"}</span></td>
+                        <td className="py-4 px-5"><span className="text-[10px] text-foreground-muted whitespace-nowrap">{lastUsed ? new Date(lastUsed).toLocaleDateString() : "—"}</span></td>
+                        <td className="py-4 px-5">
+                          <button
+                            onClick={() => p.active_version_id && onRunTests(p.active_version_id)}
+                            disabled={!p.active_version_id}
+                            className="p-2 bg-background border border-border rounded-lg text-foreground-muted hover:text-foreground hover:border-border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Run Tests"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2783,15 +2799,18 @@ export default function PromptsPage() {
   const systemPrompts = prompts.filter(isSystemGoverned);
   // Computed health metrics
   const productionCount = systemPrompts.filter((p) => p.status === "PRODUCTION_ACTIVE").length;
-  const draftsPending = systemPrompts.filter((p) => p.status === "REVIEW_REQUESTED").length;
-  const failedTests = systemPrompts.filter((p) => p.last_test?.pass_fail === "FAIL").length;
-
-  const PRIMARY_TABS: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
-    { id: "registry", label: "Registry", icon: MessageSquareCode },
-    { id: "test_center", label: "Governance Test Center", icon: FlaskConical },
-    { id: "approvals", label: "Reviews", icon: FileCheck },
-    { id: "evidence", label: "Evidence", icon: History },
-  ];
+  // Pending review = prompts explicitly awaiting review OR whose last runtime
+  // governance decision flagged the content for review.
+  const draftsPending = systemPrompts.filter(
+    (p) => p.status === "REVIEW_REQUESTED" || String(p.metadata?.last_decision || "").toUpperCase() === "REVIEW",
+  ).length;
+  // Aggregate the SAME signal the per-row Failed/Blocked column shows
+  // (metadata block_count + fail_count) so the card and rows never disagree.
+  // Fall back to the last_test FAIL flag for prompts with no metadata counters.
+  const failedTests = systemPrompts.reduce((sum, p) => {
+    const counted = (p.metadata?.block_count || 0) + (p.metadata?.fail_count || 0);
+    return sum + (counted > 0 ? counted : p.last_test?.pass_fail === "FAIL" ? 1 : 0);
+  }, 0);
 
   return (
     <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-background min-h-screen">
@@ -2870,67 +2889,18 @@ export default function PromptsPage() {
         })}
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex items-center gap-1 overflow-x-auto">
-        {PRIMARY_TABS.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
-                  : "text-foreground-muted hover:text-foreground hover:bg-surface"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Tab content */}
       <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
         {activeTab === "registry" && (
           <RegistryTab
             prompts={systemPrompts}
             onViewPrompt={setSelectedPrompt}
-            onPausePrompt={(p) => handleLifecycleAction(p.id, "pause")}
-            onResumePrompt={(p) => handleLifecycleAction(p.id, "resume")}
             onRetirePrompt={(p) => handleLifecycleAction(p.id, "retire")}
             onActivatePrompt={(p) => handleLifecycleAction(p.id, "reactivate")}
             canManage={canManagePrompts}
           />
         )}
-        {activeTab === "test_center" && (
-          <GovernanceTestCenterTab
-            prompts={prompts}
-            onRunTests={(versionId) => handleVersionAction(versionId, "run_tests")}
-          />
-        )}
-        {activeTab === "approvals" && <ApprovalsTab prompts={prompts} approvalStats={approvalStats} onApprovalAction={handleApprovalAction} canWaive={canWaive} onWaive={handleWaive} onExportPromptEvidence={handleExportPromptEvidence} />}
-        {activeTab === "evidence" && (
-          <EvidenceTab
-            prompts={prompts}
-            auditStats={auditStats}
-            onExportPromptEvidence={handleExportPromptEvidence}
-          />
-        )}
       </div>
-
-      {/* Prompt detail drawer */}
-      {selectedPrompt && (
-        <PromptDetailDrawer
-          prompt={selectedPrompt}
-          onClose={() => setSelectedPrompt(null)}
-          onLifecycleAction={handleLifecycleAction}
-          onVersionAction={handleVersionAction}
-          onExportEvidence={handleExportPromptEvidence}
-          role={role || ''}
-        />
-      )}
 
       {/* A4 — post-deployment confirmation */}
       {deployConfirm && (
