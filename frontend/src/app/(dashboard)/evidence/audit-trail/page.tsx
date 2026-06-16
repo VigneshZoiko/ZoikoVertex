@@ -69,6 +69,7 @@ export default function AuditTrailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("");
   const [risk, setRisk] = useState("");
   const [status, setStatus] = useState("");
@@ -76,11 +77,16 @@ export default function AuditTrailPage() {
   const [chainOk, setChainOk] = useState<boolean | null>(null);
   const [verifying, setVerifying] = useState(false);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
       const p = new URLSearchParams();
-      if (search) p.set("search", search);
+      if (debouncedSearch) p.set("search", debouncedSearch);
       if (category) p.set("event_category", category);
       if (risk) p.set("risk_level", risk);
       if (status) p.set("status", status);
@@ -89,7 +95,7 @@ export default function AuditTrailPage() {
       if (res.success) { setEvents(res.data?.events || []); setTotal(res.data?.total || 0); }
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
-  }, [search, category, risk, status]);
+  }, [debouncedSearch, category, risk, status]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 

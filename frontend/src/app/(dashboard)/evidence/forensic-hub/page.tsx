@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRoles } from "@/lib/hooks/useRoles";
@@ -103,7 +103,12 @@ export default function ForensicHubPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchData();
+  }, []);
 
   useEffect(() => {
     api.get(`/api/forensic/cases?${new URLSearchParams(

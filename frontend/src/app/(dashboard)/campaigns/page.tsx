@@ -408,18 +408,6 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
       setAdAcctId(r.data?.ad_account_id || null);
       if (r.data?.error) setApiError(r.data.error);
 
-      // Auto-load 24h event counts for all pixels in parallel (background)
-      if (pxList.length > 0) {
-        pxList.forEach(px => {
-          setStatsLoading(s => ({ ...s, [px.id]: true }));
-          api.get(`/api/v1/campaigns/meta/pixels/${px.id}/stats`)
-            .then(sr => {
-              if (sr.data) setStatsMap(m => ({ ...m, [px.id]: sr.data }));
-            })
-            .catch(() => {/* non-fatal */})
-            .finally(() => setStatsLoading(s => ({ ...s, [px.id]: false })));
-        });
-      }
     } catch { setApiError("Failed to load pixels. Check your Meta account connection."); }
     finally  { setLoading(false); }
   }, []);

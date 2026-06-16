@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import {
   Archive,
@@ -129,7 +129,12 @@ export default function EvidenceVaultPage() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchAll();
+  }, []);
 
   const buildPack = async () => {
     if (!packScope.trim()) return;
