@@ -751,6 +751,9 @@ export async function enrichInstancesWithReview(
     const collections = Array.from(
       new Set(titles.map((t) => collectionByTitle.get(t)).filter(Boolean)),
     ) as string[];
+    // kbSourceTitles is intentionally omitted from the returned object (folded
+    // into kbCollection below); the binding is unused by design.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { kbSourceTitles, ...rest } = inst;
     return {
       ...rest,
