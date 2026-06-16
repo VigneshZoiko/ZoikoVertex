@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   TrendingUp, TrendingDown, BarChart3,
   ShieldCheck, CheckCircle2, AlertTriangle,
@@ -172,7 +172,11 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [expandedPlatforms, setExpandedPlatforms] = useState<Record<string, boolean>>({});
 
+  const fetchedRef = useRef(false);
+
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     async function fetchData() {
       try {
         const [analyticsRes, campRes, platformRes] = await Promise.allSettled([

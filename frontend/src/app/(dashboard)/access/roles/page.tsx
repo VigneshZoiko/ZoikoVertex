@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Shield,
   Search,
@@ -226,7 +226,12 @@ function UnitsTab() {
     }
   };
 
-  useEffect(() => { fetchUnits(); }, []); // fetchUnits is stable — defined once, no deps
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchUnits();
+  }, []);
 
   const handleCreate = async () => {
     if (!name.trim()) return;

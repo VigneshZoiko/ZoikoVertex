@@ -1013,10 +1013,10 @@ export default function InboxPage() {
     }
   };
 
-  // Auto-sync on mount and every 2 minutes
+  // Auto-sync on mount and every 2 minutes (skip when tab is hidden)
   useEffect(() => {
     handleSync();
-    const id = setInterval(() => { handleSync(); }, 120_000);
+    const id = setInterval(() => { if (document.visibilityState === 'visible') handleSync(); }, 120_000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
