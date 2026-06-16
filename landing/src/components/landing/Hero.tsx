@@ -69,7 +69,7 @@ export default function Hero() {
           <div className="flex flex-wrap gap-2">
             {[
               { label: "AI-agent workflows", icon: Zap },
-              { label: "Approval-controlled execution", icon: CheckSquare },
+              { label: "Approval-controlled execution", icon: Users },
               { label: "ROI evidence", icon: BarChart2 },
               { label: "Audit-ready governance", icon: Shield },
             ].map(({ label, icon: Icon }) => (
