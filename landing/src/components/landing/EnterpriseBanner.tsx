@@ -5,28 +5,28 @@ export default function EnterpriseBanner() {
   const features = [
     {
       title: "Advertising rule enforcement",
-      desc: "Every agent action is checked against platform-specific advertising rules, brand tone standards, and sector compliance requirements before execution.",
+      desc: "Automatically applied before live publication — brand safety screening across all generated and deployed content, every time.",
       icon: Shield,
     },
     {
       title: "Jurisdiction-aware multi-market control",
-      desc: "ZoikoVertex applies the correct regulatory framework per market — automatically. Different rules for different regions, enforced at the agent level.",
+      desc: "Different advertising laws, different rules. ZoikoVertex applies the correct compliance framework per market, per channel, per sector automatically.",
       icon: Globe,
     },
     {
       title: "Confidence scoring on every decision",
-      desc: "Agents only act autonomously when confidence thresholds are met. Lower-confidence decisions are routed to human review before any action is taken.",
+      desc: "Lower-confidence actions trigger approval workflows. Higher-confidence actions execute within policy. The system never operates outside its boundaries.",
       icon: BarChart2,
     },
     {
       title: "Full audit logs and action histories",
-      desc: "Every agent decision, approval, and execution is logged with full traceability. Exportable for legal review, finance audit, and board reporting.",
+      desc: "Every allocation decision, creative choice, and campaign action is logged, timestamped, and traceable for internal review, legal audit, or board escalation.",
       icon: FileText,
     },
   ];
 
   return (
-    <section className="bg-[#080812] py-24 px-6" id="enterprise">
+    <section className="py-24 px-6" style={{ background: "#070C1E" }} id="enterprise">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 items-stretch">
         <div className="space-y-5">
           <div className="rounded-2xl overflow-hidden">
@@ -41,8 +41,9 @@ export default function EnterpriseBanner() {
           <div
             className="rounded-2xl p-6"
             style={{
-              background: "#0d1228",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "linear-gradient(135deg, #1A2A5E 0%, #121E42 100%)",
+              border: "1px solid rgba(99,102,241,0.3)",
+              boxShadow: "0 24px 60px 0 rgba(0,0,0,0.45)",
             }}
           >
             <p className="text-white font-bold text-sm text-center mb-1">
