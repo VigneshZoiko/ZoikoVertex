@@ -676,34 +676,34 @@ app.get('/api/v1/governance/risk/gaps', authenticate, govGuard, scopeGuard('read
 app.post('/api/v1/governance/risk/emergency-pause', authenticate, govGuard, scopeGuard('read:governance', '*'), triggerEmergencyPause);
 
 // Safety Layer Overview (Document 01) endpoints
-app.get('/api/safety/overview', authenticate, getSafetyOverview);
-app.get('/api/safety/components', authenticate, getSafetyComponents);
-app.get('/api/safety/queue/summary', authenticate, getSafetyQueueSummary);
-app.get('/api/safety/recent-decisions', authenticate, getSafetyRecentDecisions);
-app.post('/api/safety/actions/review-critical-queue', authenticate, reviewCriticalQueue);
-app.post('/api/safety/actions/request-emergency-pause', authenticate, requestEmergencyPause);
+app.get('/api/safety/overview',                       authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetyOverview);
+app.get('/api/safety/components',                     authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetyComponents);
+app.get('/api/safety/queue/summary',                  authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetyQueueSummary);
+app.get('/api/safety/recent-decisions',               authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetyRecentDecisions);
+app.post('/api/safety/actions/review-critical-queue', authenticate, govGuard, scopeGuard('write:governance', '*'), reviewCriticalQueue);
+app.post('/api/safety/actions/request-emergency-pause', authenticate, govGuard, scopeGuard('write:governance', '*'), requestEmergencyPause);
 // Safety Layer Risk Intake & Triage (Document 02) endpoints
-app.get('/api/safety/signals', authenticate, getSafetySignals);
-app.get('/api/safety/signals/:id', authenticate, getSafetySignalDetail);
-app.post('/api/safety/signals', authenticate, createManualSignal);
-app.post('/api/safety/signals/:id/classify', authenticate, classifySafetySignal);
-app.post('/api/safety/signals/:id/route', authenticate, routeSafetySignal);
-app.post('/api/safety/signals/:id/merge', authenticate, mergeSafetySignals);
-app.post('/api/safety/signals/:id/split', authenticate, splitSafetySignal);
-app.post('/api/safety/signals/:id/close', authenticate, closeSafetySignal);
-app.get('/api/safety/actions/history', authenticate, getSafetyActionsHistory);
+app.get('/api/safety/signals',                authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetySignals);
+app.get('/api/safety/signals/:id',            authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetySignalDetail);
+app.post('/api/safety/signals',               authenticate, govGuard, scopeGuard('write:governance', '*'), createManualSignal);
+app.post('/api/safety/signals/:id/classify',  authenticate, govGuard, scopeGuard('write:governance', '*'), classifySafetySignal);
+app.post('/api/safety/signals/:id/route',     authenticate, govGuard, scopeGuard('write:governance', '*'), routeSafetySignal);
+app.post('/api/safety/signals/:id/merge',     authenticate, govGuard, scopeGuard('write:governance', '*'), mergeSafetySignals);
+app.post('/api/safety/signals/:id/split',     authenticate, govGuard, scopeGuard('write:governance', '*'), splitSafetySignal);
+app.post('/api/safety/signals/:id/close',     authenticate, govGuard, scopeGuard('write:governance', '*'), closeSafetySignal);
+app.get('/api/safety/actions/history',        authenticate, acctView, scopeGuard('read:governance', '*'),  getSafetyActionsHistory);
 
 // Safety Layer Policy Control Matrix & Guardrail Enforcement endpoints
-app.get('/api/safety/policies/summary', authenticate, getPolicySummary);
-app.get('/api/safety/policies', authenticate, getPolicies);
-app.post('/api/safety/policies', authenticate, createPolicy);
-app.post('/api/safety/policies/simulate', authenticate, simulatePolicy);
-app.get('/api/safety/enforcement/events', authenticate, getEnforcementEvents);
+app.get('/api/safety/policies/summary',     authenticate, acctView, scopeGuard('read:governance', '*'),  getPolicySummary);
+app.get('/api/safety/policies',             authenticate, acctView, scopeGuard('read:governance', '*'),  getPolicies);
+app.post('/api/safety/policies',            authenticate, govGuard, scopeGuard('write:governance', '*'), createPolicy);
+app.post('/api/safety/policies/simulate',   authenticate, govGuard, scopeGuard('write:governance', '*'), simulatePolicy);
+app.get('/api/safety/enforcement/events',   authenticate, acctView, scopeGuard('read:governance', '*'),  getEnforcementEvents);
 
 // Safety Layer Human Review, Escalation & Approval Console endpoints
-app.get('/api/safety/reviews', authenticate, getReviewQueue);
-app.get('/api/safety/reviews/:id', authenticate, getReviewDetail);
-app.post('/api/safety/reviews/:id/decision', authenticate, submitReviewDecision);
+app.get('/api/safety/reviews',              authenticate, acctView, scopeGuard('read:governance', '*'),  getReviewQueue);
+app.get('/api/safety/reviews/:id',          authenticate, acctView, scopeGuard('read:governance', '*'),  getReviewDetail);
+app.post('/api/safety/reviews/:id/decision', authenticate, acctWrite, scopeGuard('write:governance', '*'), submitReviewDecision);
 
 // Forensic Analysis Engine
 app.get('/api/v1/governance/forensic/summary', authenticate, govGuard, scopeGuard('read:governance', '*'), getForensicSummary);
@@ -828,12 +828,15 @@ app.put('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general'), s
 app.delete('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), cancelScheduledPost);
 
 // Protected Library Routes
-app.get('/api/v1/library', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);
-app.post('/api/v1/library/upload', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), addToLibrary);
-app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), deleteFromLibrary);
-app.get('/api/v1/library/scan-logs', authenticate, (req, res) => {
+const mediaReadGuard  = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','PUBLISHER','REVIEWER','VALIDATOR','AUDITOR','VIEWER','EXTERNAL_COLLABORATOR','GOVERNANCE_ADMIN','SUPERADMIN');
+const mediaWriteGuard = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','PUBLISHER','SUPERADMIN');
+const mediaDeleteGuard = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','SUPERADMIN');
+app.get('/api/v1/library', authenticate, mediaReadGuard, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);
+app.post('/api/v1/library/upload', authenticate, mediaWriteGuard, planRateLimit('general'), scopeGuard('write:content', '*'), addToLibrary);
+app.delete('/api/v1/library/:id', authenticate, mediaDeleteGuard, planRateLimit('general'), scopeGuard('write:content', '*'), deleteFromLibrary);
+app.get('/api/v1/library/scan-logs', authenticate, requireRole('ADMIN','WORKSPACE_OWNER','DEVELOPER','GOVERNANCE_ADMIN','SUPERADMIN'), scopeGuard('read:content', '*'), (req: any, res: any) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-  res.json({ success: true, data: readRecentScans(limit) });
+  res.json({ success: true, data: readRecentScans(limit, req.user?.workspace_id) });
 });
 
 // Protected User Routes
@@ -1540,26 +1543,28 @@ import {
 } from './domains/inbox/inboxSettingsController';
 
 // Static routes before parameterized :id routes
-app.get('/api/v1/inbox/settings/auto-reply',           authenticate, listAutoReplyRules);
-app.post('/api/v1/inbox/settings/auto-reply',          authenticate, createAutoReplyRule);
-app.patch('/api/v1/inbox/settings/auto-reply/:id',     authenticate, updateAutoReplyRule);
-app.post('/api/v1/inbox/settings/auto-reply/:id/delete', authenticate, deleteAutoReplyRule);
-app.get('/api/v1/inbox/messages',                      authenticate, listInboxMessages);
-app.post('/api/v1/inbox/messages/delete',              authenticate, deleteInboxMessages);
-app.get('/api/v1/inbox/escalations',                   authenticate, getEscalationQueue);
-app.post('/api/v1/inbox/escalations/:escalationId/resolve', authenticate, resolveEscalation);
-app.post('/api/v1/inbox/sync',                         authenticate, syncPlatformMessages);
-app.get('/api/v1/inbox/messages/:id',                  authenticate, getInboxMessage);
-app.post('/api/v1/inbox/messages/:id/reply',           authenticate, createReply);
-app.post('/api/v1/inbox/messages/:id/reply/generate',  authenticate, generateAiDraft);
-app.post('/api/v1/inbox/messages/:replyId/reply/send', authenticate, sendReply);
-app.post('/api/v1/inbox/messages/:id/assign',          authenticate, assignMessage);
-app.patch('/api/v1/inbox/messages/:id/status',         authenticate, updateMessageStatus);
-app.post('/api/v1/inbox/messages/:id/escalate',        authenticate, escalateMessage);
-app.post('/api/v1/inbox/messages/:id/archive',         authenticate, archiveMessage);
-app.post('/api/v1/inbox/messages/:id/notes',           authenticate, addInboxNote);
-app.get('/api/v1/inbox/messages/:id/audit',            authenticate, getMessageAudit);
-app.get('/api/v1/inbox/messages/:id/post-preview',     authenticate, getPostPreview);
+const inboxGuard      = requireRole('ADMIN','WORKSPACE_OWNER','AGENT_OPERATOR','CAMPAIGN_MANAGER','PUBLISHER','GOVERNANCE_ADMIN','SUPERADMIN');
+const inboxWriteGuard = requireRole('ADMIN','WORKSPACE_OWNER','AGENT_OPERATOR','CAMPAIGN_MANAGER','PUBLISHER','GOVERNANCE_ADMIN','SUPERADMIN');
+app.get('/api/v1/inbox/settings/auto-reply',           authenticate, inboxGuard, scopeGuard('read:content', '*'),  listAutoReplyRules);
+app.post('/api/v1/inbox/settings/auto-reply',          authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), createAutoReplyRule);
+app.patch('/api/v1/inbox/settings/auto-reply/:id',     authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), updateAutoReplyRule);
+app.post('/api/v1/inbox/settings/auto-reply/:id/delete', authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), deleteAutoReplyRule);
+app.get('/api/v1/inbox/messages',                      authenticate, inboxGuard, scopeGuard('read:content', '*'),  listInboxMessages);
+app.post('/api/v1/inbox/messages/delete',              authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), deleteInboxMessages);
+app.get('/api/v1/inbox/escalations',                   authenticate, inboxGuard, scopeGuard('read:content', '*'),  getEscalationQueue);
+app.post('/api/v1/inbox/escalations/:escalationId/resolve', authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), resolveEscalation);
+app.post('/api/v1/inbox/sync',                         authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), syncPlatformMessages);
+app.get('/api/v1/inbox/messages/:id',                  authenticate, inboxGuard, scopeGuard('read:content', '*'),  getInboxMessage);
+app.post('/api/v1/inbox/messages/:id/reply',           authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), createReply);
+app.post('/api/v1/inbox/messages/:id/reply/generate',  authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), generateAiDraft);
+app.post('/api/v1/inbox/messages/:replyId/reply/send', authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), sendReply);
+app.post('/api/v1/inbox/messages/:id/assign',          authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), assignMessage);
+app.patch('/api/v1/inbox/messages/:id/status',         authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), updateMessageStatus);
+app.post('/api/v1/inbox/messages/:id/escalate',        authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), escalateMessage);
+app.post('/api/v1/inbox/messages/:id/archive',         authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), archiveMessage);
+app.post('/api/v1/inbox/messages/:id/notes',           authenticate, inboxWriteGuard, scopeGuard('write:content', '*'), addInboxNote);
+app.get('/api/v1/inbox/messages/:id/audit',            authenticate, inboxGuard, scopeGuard('read:content', '*'),  getMessageAudit);
+app.get('/api/v1/inbox/messages/:id/post-preview',     authenticate, inboxGuard, scopeGuard('read:content', '*'),  getPostPreview);
 // Meta webhook endpoints (no auth — verified by hub.verify_token / X-Hub-Signature-256)
 app.get('/api/v1/inbox/webhook/meta',  verifyMetaWebhook);
 app.post('/api/v1/inbox/webhook/meta', handleMetaWebhook);

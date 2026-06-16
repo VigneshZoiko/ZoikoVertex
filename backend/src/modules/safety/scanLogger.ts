@@ -11,6 +11,7 @@ import { logger } from '../../shared/logger';
 
 export interface ScanLogEntry {
   ts: string;
+  workspace_id?: string;
   mediaId?: string;
   imageUrl: string;
   mimeType: string;
@@ -47,14 +48,17 @@ export function logScanResult(entry: ScanLogEntry): void {
   }
 }
 
-export function readRecentScans(limit = 50): ScanLogEntry[] {
+export function readRecentScans(limit = 50, workspaceId?: string): ScanLogEntry[] {
   try {
     if (!fs.existsSync(LOG_FILE)) return [];
-    const lines = fs.readFileSync(LOG_FILE, 'utf8')
+    const all = fs.readFileSync(LOG_FILE, 'utf8')
       .split('\n')
       .filter(Boolean)
-      .slice(-limit);
-    return lines.map(l => JSON.parse(l)).reverse();
+      .map(l => JSON.parse(l) as ScanLogEntry);
+    const filtered = workspaceId
+      ? all.filter(e => e.workspace_id === workspaceId)
+      : all;
+    return filtered.slice(-limit).reverse();
   } catch {
     return [];
   }
