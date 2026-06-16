@@ -185,7 +185,10 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     logger.info(`[Social] Handling LinkedIn callback for workspace: ${workspaceId}, flow: ${flowType || 'personal'}`);
 
-    const credentials = Buffer.from(`${env.LINKEDIN_CLIENT_ID}:${env.LINKEDIN_CLIENT_SECRET}`).toString('base64');
+    const isPageFlow = flowType === 'page';
+    const liClientId     = isPageFlow ? env.LINKEDIN_CLIENT_ID     : (env.LINKEDIN_PERSONAL_CLIENT_ID     || env.LINKEDIN_CLIENT_ID);
+    const liClientSecret = isPageFlow ? env.LINKEDIN_CLIENT_SECRET  : (env.LINKEDIN_PERSONAL_CLIENT_SECRET  || env.LINKEDIN_CLIENT_SECRET);
+    const credentials = Buffer.from(`${liClientId}:${liClientSecret}`).toString('base64');
     const redirectUri = env.LINKEDIN_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/linkedin/callback`;
 
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
@@ -198,8 +201,8 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
         grant_type: 'authorization_code',
         code: code as string,
         redirect_uri: redirectUri,
-        client_id: env.LINKEDIN_CLIENT_ID || '',
-        client_secret: env.LINKEDIN_CLIENT_SECRET || '',
+        client_id: liClientId || '',
+        client_secret: liClientSecret || '',
       }),
     });
 

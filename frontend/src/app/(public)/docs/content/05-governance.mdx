@@ -1,0 +1,184 @@
+<div id="governance-overview">
+
+## Governance Overview
+
+Governance is the **control layer** that ensures every piece of content and every agent action has been properly reviewed, approved, and attributed before it reaches the outside world.
+
+### How It Works
+
+<UL items={[
+  "Every content submission triggers an evaluation against your configured Approval Rules",
+  "The system determines which approvers are required and in what order",
+  "Content cannot be published until all required approvals are collected",
+  "Any violation — policy breach, missing approval, or risk threshold breach — causes the system to **fail closed**: the action is blocked, not passed",
+  "All governance decisions are immutable once recorded",
+]} />
+
+<Note type="info">Governance rules are configured through the ZoikoVertex UI — no code changes required. Rules take effect immediately upon saving.</Note>
+
+</div>
+
+---
+
+<div id="approval-rules">
+
+## Approval Rules
+
+Approval Rules define when content must be reviewed and who must review it before it can be published.
+
+### Rule Builder Components
+
+<T
+  headers={["Component", "Options"]}
+  rows={[
+    ["Trigger Condition", "Content type (post/campaign/ad), platform (Meta/LinkedIn/etc.), keyword match in copy, spend threshold exceeded, AI-generated flag, agent-created flag"],
+    ["Approver Type", "Named individual, role-based (any holder of specified role), quorum (N of M), sequential (A then B), unanimous"],
+    ["SLA Deadline", "Time allowed from submission to approval (hours). Default: 4 hours for posts, 24 hours for campaigns."],
+    ["On SLA Breach", "Notify Governance Admin, auto-escalate to next approver tier, or block until manually cleared"],
+    ["On Rejection", "Return to creator with mandatory reason, archive for compliance record, or escalate to Governance Admin"],
+    ["Risk Threshold Override", "If risk score exceeds threshold, route to GOVERNANCE_ADMIN regardless of standard approval chain"],
+  ]}
+/>
+
+### Example Rule Configurations
+
+<UL items={[
+  "**All content → any Approver** — simple baseline rule; everything needs at least one approved",
+  "**AI-generated content → VALIDATOR + APPROVER sequential** — extra validation before final approval",
+  "**Spend over £1,000 → Campaign Manager + Governance Admin quorum 2/2** — high-spend campaigns need dual sign-off",
+  "**Keywords: [medication, clinical trial, cure] → Compliance Reviewer mandatory** — regulated content requires specialist review",
+]} />
+
+<Note type="warning">Approval rules are enforced at the Decision Engine level. They cannot be bypassed by any user role or agent, regardless of autonomy level.</Note>
+
+</div>
+
+---
+
+<div id="policy-center">
+
+## Policy Center & Brand Standards
+
+### Policy Center
+
+The Policy Center stores and manages compliance policies. Policies are version-controlled, searchable, and attached to Approval Rules.
+
+<T
+  headers={["Policy Type", "Examples"]}
+  rows={[
+    ["Regulatory", "FCA financial promotions rules (COBS 4), HIPAA patient data restrictions, ASA advertising standards"],
+    ["Legal", "Copyright and IP usage rules, endorsement disclosure requirements, comparative advertising limits"],
+    ["Internal", "Spokesperson approval requirements, executive communication lockdown rules, M&A silent periods"],
+    ["Platform", "Meta ad policies, LinkedIn professional standards, Google Ads restricted content categories"],
+    ["Crisis", "Topics that trigger crisis protocol — auto-pause all active campaigns, notify crisis team"],
+  ]}
+/>
+
+### Brand Standards
+
+Brand Standards is the single source of truth for your organisation's brand voice, visual identity, and content guidelines.
+
+<UL items={[
+  "Brand voice and tone guidelines (formal, informal, conversational, authoritative)",
+  "Approved vocabulary and banned phrases",
+  "Visual standards — logo usage rules, approved colour palette, font specifications",
+  "Approved creative templates with pre-cleared assets",
+  "Platform-specific guidelines per social channel",
+  "Competitor mention policy",
+]} />
+
+</div>
+
+---
+
+<div id="risk-safety">
+
+## Risk, Safety & Signals
+
+### Risk Scoring
+
+Every content submission and agent action receives an automated **Risk Score** (0–100) combining:
+
+<UL items={[
+  "**Policy match score** — how closely the content aligns with or violates active policies",
+  "**Brand compliance score** — alignment with brand voice and visual standards",
+  "**Platform risk score** — likelihood of ad disapproval based on platform-specific rules",
+  "**Creator history score** — historical rejection rate for this creator",
+  "**Spend exposure score** — risk-adjusted spend value of the campaign",
+]} />
+
+<T
+  headers={["Score Range", "Classification", "Action"]}
+  rows={[
+    ["0–29", "Low Risk", "Normal approval chain"],
+    ["30–59", "Medium Risk", "Additional reviewer automatically added to chain"],
+    ["60–79", "High Risk", "COMPLIANCE_REVIEWER mandatory before standard approval chain"],
+    ["80–100", "Critical Risk", "GOVERNANCE_ADMIN review required. Standard chain suspended until cleared."],
+  ]}
+/>
+
+### Content Safety Scanner
+
+An always-on scanner reviews all content before it enters the approval queue. It detects:
+
+<UL items={[
+  "Hate speech, discrimination, exclusionary language",
+  "Misinformation patterns and unverifiable factual claims",
+  "NSFW content (images and text)",
+  "Regulatory trigger phrases (financial promises, medical claims)",
+  "Crisis keywords that should trigger crisis protocol",
+  "Personally identifiable information (PII) in ad copy",
+]} />
+
+### Signals Intelligence
+
+Signals provides real-time intelligence feeds relevant to your content strategy and risk posture:
+
+<T
+  headers={["Signal Type", "Source", "Possible Action"]}
+  rows={[
+    ["Brand Sentiment", "Social listening across connected platforms", "Alert team if negative sentiment spikes"],
+    ["Competitor Activity", "Public post monitoring of specified competitor accounts", "Notify Campaign Manager"],
+    ["Platform Policy Updates", "Official platform developer newsfeeds", "Flag for Governance Admin review"],
+    ["Regulatory Alerts", "Regulatory body RSS and announcement feeds", "Auto-add to Policy Center review queue"],
+    ["Crisis Indicators", "Keyword monitoring + sentiment spike detection", "Trigger crisis protocol, pause campaigns"],
+  ]}
+/>
+
+</div>
+
+---
+
+<div id="collusion-forensic">
+
+## Collusion Monitor & Forensic Investigation
+
+### Collusion Monitor
+
+The Collusion Monitor detects patterns of **coordinated inauthentic behaviour** and governance circumvention within your workspace:
+
+<UL items={[
+  "**Circular approval** — User A approves User B's content, User B approves User A's content, with no independent review",
+  "**Rubber-stamping** — an approver approves content in under 5 seconds without apparent review",
+  "**Agent-human collusion** — agent and its creator approve each other's submissions in a loop",
+  "**Split circumvention** — content is broken into fragments to avoid per-piece governance thresholds",
+]} />
+
+Detected patterns raise a Risk Alert in the Evidence Vault and notify the Governance Admin.
+
+### Forensic Investigation
+
+For formal investigations, go to **Governance → Forensic Investigation**. Create a case by specifying scope:
+
+<UL items={[
+  "**Actor-based** — all actions by a specific user or agent",
+  "**Content-based** — all actions related to a specific post, campaign, or asset",
+  "**Time-boxed** — all actions within a specified date range",
+  "**Event-based** — all actions related to a specific governance event",
+]} />
+
+The system automatically pulls all relevant Evidence Vault records into the case file. Cases can be **Referred** to external bodies (regulators, legal team) with a full signed evidence export (PDF + JSON + chain-of-custody document).
+
+<Note type="info">Evidence Packs include a cryptographic hash of every included record. Any tampering with exported records is detectable by comparing the hash. Available on Enterprise plans.</Note>
+
+</div>

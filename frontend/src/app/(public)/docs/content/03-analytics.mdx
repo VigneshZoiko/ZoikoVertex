@@ -1,0 +1,126 @@
+<div id="analytics-overview">
+
+## Analytics Overview
+
+The Analytics Engine aggregates campaign and content performance data from all connected platforms into a single, real-time, cross-platform dashboard.
+
+### Dashboard Views
+
+<T
+  headers={["View", "Contents"]}
+  rows={[
+    ["Executive Summary", "Total reach, total spend, blended ROAS, best-performing campaign, top platform — one number per KPI"],
+    ["Campaign Performance", "Per-campaign breakdown: impressions, clicks, CTR, conversions, CPA, ROAS, spend vs. budget"],
+    ["Content Performance", "Per-post: reach, impressions, engagement rate, saves, shares, link clicks"],
+    ["Audience Insights", "Demographics breakdown (age, gender, location) across paid and organic audiences"],
+    ["Platform Comparison", "Side-by-side metric comparison across Meta, Google, LinkedIn, X, YouTube"],
+  ]}
+/>
+
+### Key Metrics Reference
+
+<T
+  headers={["Metric", "Definition"]}
+  rows={[
+    ["Reach", "Unique accounts that saw your content at least once"],
+    ["Impressions", "Total times your content was displayed (includes multiple views by same user)"],
+    ["Engagement Rate", "(Likes + Comments + Shares + Saves) ÷ Reach × 100"],
+    ["CTR (Click-Through Rate)", "Clicks ÷ Impressions × 100"],
+    ["CPA (Cost Per Acquisition)", "Total spend ÷ Conversions"],
+    ["ROAS (Return on Ad Spend)", "Conversion Value ÷ Total Spend"],
+    ["CPM (Cost Per Mille)", "Cost per 1000 impressions"],
+    ["Frequency", "Average number of times each person saw the ad"],
+  ]}
+/>
+
+</div>
+
+---
+
+<div id="roi-attribution">
+
+## ROI & Attribution
+
+### Attribution Models
+
+<T
+  headers={["Model", "How It Works", "Best For"]}
+  rows={[
+    ["Last Click", "100% of conversion credit given to the last ad clicked", "Direct response campaigns with short conversion windows"],
+    ["First Click", "100% credit to the first touchpoint", "Brand awareness measurement"],
+    ["Linear", "Equal credit distributed across all touchpoints", "Multi-touch journeys"],
+    ["Time Decay", "More credit to touchpoints closer to conversion", "Campaigns with longer consideration cycles"],
+    ["Data-Driven", "ML model weights credit based on actual conversion paths in your account", "Accounts with 50+ conversions/week (Enterprise)"],
+  ]}
+/>
+
+### Conversion Tracking
+
+<UL items={[
+  "Meta pixel installation verified from Campaigns → Meta Pixels",
+  "Google conversion tracking via Google Ads API",
+  "Custom conversion events: purchase, lead form, sign-up, page view, scroll depth",
+  "Offline conversion import (CSV upload) for enterprise accounts",
+]} />
+
+### Spend vs. Performance Benchmarks
+
+ZoikoVertex compares your campaign performance against anonymised industry benchmarks (your sector and region) to contextualise whether your CTR, CPA, and ROAS are above or below the market average.
+
+</div>
+
+---
+
+<div id="content-perf">
+
+## Content Performance
+
+### Post Scoring
+
+Every published post receives an **Engagement Score** (0–100) calculated 24 hours, 7 days, and 30 days post-publish. The score factors in: engagement rate, reach growth rate, save rate, and share rate — weighted by platform norms.
+
+### Best Time to Post
+
+ZoikoVertex analyses your historical post performance by day and hour to recommend optimal publish windows per platform. Recommendations are shown in the Publishing Hub when setting a schedule time.
+
+### Hashtag and Keyword Analysis
+
+<UL items={[
+  "Top performing hashtags from your posts over the last 90 days",
+  "Competitor hashtag comparison (requires Social Listening add-on)",
+  "Keyword co-occurrence map — which topics appear together in your top posts",
+]} />
+
+</div>
+
+---
+
+<div id="custom-reports">
+
+## Custom Reports
+
+### Report Builder
+
+Go to **Analytics → Custom Reports**. Click **New Report**. Select:
+
+<UL items={[
+  "**Data sources** — campaigns, posts, inbox, audience, or combined",
+  "**Dimensions** — platform, campaign, content type, team member, date range",
+  "**Metrics** — any combination of available KPIs",
+  "**Visualisation** — bar chart, line chart, data table, scorecard",
+  "**Date range** — preset (7d/30d/90d/12m) or custom range",
+]} />
+
+### Scheduled Delivery
+
+Set a report to run automatically and email a PDF or CSV to specified recipients. Frequencies: daily, weekly, monthly, or custom cron. Recipients do not need a ZoikoVertex account to receive emailed reports.
+
+### Export Formats
+
+<UL items={[
+  "**PDF** — branded report with charts and tables",
+  "**CSV** — raw data for further analysis in Excel/Sheets",
+  "**JSON** — structured data for integration with BI tools (Looker, Tableau, Power BI)",
+]} />
+
+</div>

@@ -1,0 +1,169 @@
+<div id="platform-accounts">
+
+## Platform Accounts
+
+<T
+  headers={["Platform", "Capabilities", "Auth Method", "Status"]}
+  rows={[
+    ["Meta (Facebook/Instagram)", "Campaigns, ad boosts, organic posts, Social Inbox, Pixel management", "OAuth 2.0 → Meta Business login", "Full support"],
+    ["Google Ads", "Search and Display campaigns, budget management", "OAuth 2.0 → Google Account", "Full support"],
+    ["LinkedIn", "Organic posts, Social Inbox comments and DMs", "OAuth 2.0 → LinkedIn OAuth", "Full support"],
+    ["X / Twitter", "Organic posts, Social Inbox mentions and DMs", "OAuth 2.0 → Twitter OAuth", "Full support"],
+    ["YouTube", "Organic video posts and community posts", "OAuth 2.0 → Google Account", "Full support"],
+    ["Pinterest", "Organic Pin creation and board management", "OAuth 2.0 → Pinterest OAuth", "Full support"],
+    ["Threads", "Organic posts and inbox replies", "OAuth 2.0 → Instagram OAuth", "Full support"],
+  ]}
+/>
+
+### Connecting a Platform Account
+
+<UL items={[
+  "Go to **Integrations → Platform Accounts**",
+  "Click **Connect** next to the platform",
+  "Authenticate via OAuth — you are redirected to the platform's authorisation page",
+  "Select the pages, ad accounts, or profiles you want to connect",
+  "Return to ZoikoVertex — the account is now active",
+]} />
+
+### Token Health Monitoring
+
+OAuth tokens expire. ZoikoVertex monitors token expiry and alerts the DEVELOPER or ADMIN role 7 days before a token expires. Expired tokens cause the connected platform to show as Disconnected and all publishing and campaign actions for that platform are blocked until the token is refreshed.
+
+<Note type="info">For Meta and Google Ads, the **agency's own ad accounts are used for all campaigns**. Clients do not connect their own accounts.</Note>
+
+</div>
+
+---
+
+<div id="rest-api">
+
+## REST API
+
+### Base URL
+
+<CodeBlock>{`https://your-instance.zoikovertex.com/api/v1`}</CodeBlock>
+
+### Authentication
+
+All API calls require a Bearer token in the Authorization header:
+
+<CodeBlock>{`Authorization: Bearer <your-api-key>`}</CodeBlock>
+
+API keys are created in **Integrations → API & Webhooks**. Each key has a scope (read-only or read/write) and can be revoked at any time.
+
+### Key Endpoint Groups
+
+<T
+  headers={["Group", "Base Path", "Example Endpoints"]}
+  rows={[
+    ["Campaigns", "/campaigns", "GET /campaigns, POST /campaigns, PATCH /campaigns/:id/pause"],
+    ["Posts", "/posts", "GET /posts, POST /posts, PATCH /posts/:id/submit"],
+    ["Inbox", "/inbox", "GET /inbox/conversations, POST /inbox/reply"],
+    ["Analytics", "/analytics", "GET /analytics/campaigns, GET /analytics/posts"],
+    ["Agents", "/agents", "GET /agents, POST /agents/:id/execute"],
+    ["Governance", "/governance", "GET /governance/approvals, POST /governance/approvals/:id/approve"],
+    ["AI", "/ai", "POST /ai/generate-ad-copy, POST /ai/generate-post-copy"],
+    ["Audit", "/audit", "GET /audit/trail, GET /audit/evidence"],
+  ]}
+/>
+
+### Rate Limits
+
+<T
+  headers={["Plan", "Requests/min", "Requests/day"]}
+  rows={[
+    ["Starter", "60", "5,000"],
+    ["Core", "120", "20,000"],
+    ["Professional", "300", "100,000"],
+    ["Enterprise", "1,000", "Unlimited"],
+  ]}
+/>
+
+<Note type="info">Rate limit headers are returned on every response: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`.</Note>
+
+</div>
+
+---
+
+<div id="webhooks">
+
+## Webhooks
+
+Webhooks deliver real-time event notifications to your external systems when specific events occur in ZoikoVertex.
+
+### Available Events
+
+<T
+  headers={["Event", "Description"]}
+  rows={[
+    ["content.published", "A post went live on a connected platform"],
+    ["content.rejected", "A governance reviewer rejected a post"],
+    ["content.approval_requested", "Content entered the approval queue"],
+    ["campaign.activated", "A campaign went live on Meta or Google"],
+    ["campaign.paused", "A campaign was paused"],
+    ["campaign.failed", "A campaign submission to Meta/Google failed"],
+    ["approval.completed", "All required approvals were collected"],
+    ["agent.escalation", "An agent escalated an action for human review"],
+    ["agent.executed", "An agent completed an execution step"],
+    ["evidence.alert", "A new risk or compliance alert was raised"],
+    ["inbox.new_message", "A new message arrived in the Social Inbox"],
+    ["user.invited", "A new user was invited to the workspace"],
+  ]}
+/>
+
+### Webhook Payload Shape
+
+<CodeBlock>{`{
+  "event": "content.published",
+  "workspace_id": "ws_abc123",
+  "timestamp": "2026-06-15T10:30:00.000Z",
+  "actor": { "type": "user", "id": "u_xyz", "name": "Vignesh" },
+  "data": { ... event-specific payload ... }
+}`}</CodeBlock>
+
+### Delivery Guarantees
+
+<UL items={[
+  "Your endpoint must respond with HTTP 200 within 5 seconds",
+  "Failed deliveries are retried up to 3 times with exponential backoff (5s, 25s, 125s)",
+  "After 3 failures, the event is marked as Dead Letter and can be manually replayed from the Webhooks dashboard",
+  "Webhook signatures are included in the `X-Zoiko-Signature` header (HMAC-SHA256)",
+]} />
+
+</div>
+
+---
+
+<div id="data-connectors">
+
+## Data Connectors & Health
+
+### Available Connectors
+
+<T
+  headers={["Connector", "What It Does"]}
+  rows={[
+    ["BigQuery", "Exports campaign and post performance data to your BigQuery dataset on a configurable schedule (hourly/daily)"],
+    ["Snowflake", "Same as BigQuery — exports to Snowflake schema"],
+    ["Amazon Redshift", "Exports to Redshift cluster"],
+    ["Slack", "Posts governance notifications, approval requests, and alerts to specified Slack channels"],
+    ["Microsoft Teams", "Same as Slack — for Teams users"],
+    ["Zapier", "Triggers Zaps from ZoikoVertex events — connects to 5,000+ apps"],
+    ["Custom HTTP", "Raw event stream in JSON to any HTTP endpoint — your own internal tooling"],
+  ]}
+/>
+
+### Integration Health Dashboard
+
+Go to **Integrations → Integration Health**. Every connected service shows:
+
+<UL items={[
+  "**Status** — Green (Operational), Amber (Degraded), Red (Down), Grey (Disconnected)",
+  "**OAuth token expiry** — days remaining before re-auth required",
+  "**API response time** — rolling 24h average latency to the platform API",
+  "**Rate limit headroom** — current usage vs. your platform API rate limits",
+  "**Last successful sync** — timestamp of the last successful data operation",
+  "**Error log** — last 50 errors for the integration with full error messages",
+]} />
+
+</div>
