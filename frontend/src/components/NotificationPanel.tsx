@@ -159,6 +159,7 @@ export default function NotificationPanel() {
                                 <Link
                                   key={i}
                                   href={action.href}
+                                  onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
                                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center transition-colors ${
                                     action.primary
                                       ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]'
@@ -190,10 +191,8 @@ export default function NotificationPanel() {
 
                   const handleCardClick = () => {
                     if (!notif.read) markAsRead(notif.id);
-                    if (navHref) {
-                      setIsOpen(false);
-                      router.push(navHref);
-                    }
+                    setIsOpen(false);
+                    if (navHref) router.push(navHref);
                   };
 
                   return (
@@ -228,7 +227,7 @@ export default function NotificationPanel() {
 
             {/* Footer */}
             <div className="px-5 py-3 border-t border-[var(--border)] text-center bg-[var(--surface-hover)]/40 backdrop-blur-md">
-              <Link href="/admin/notifications" className="text-[11px] text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors font-bold uppercase tracking-widest flex items-center justify-center gap-1 group">
+              <Link href="/admin/notifications" onClick={() => setIsOpen(false)} className="text-[11px] text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors font-bold uppercase tracking-widest flex items-center justify-center gap-1 group">
                 View full history
                 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
               </Link>

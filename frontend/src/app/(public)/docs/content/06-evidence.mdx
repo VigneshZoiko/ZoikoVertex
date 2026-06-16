@@ -1,0 +1,146 @@
+<div id="audit-trail">
+
+## Audit Trail
+
+The Audit Trail is a **complete, append-only log of every action** taken in ZoikoVertex — by humans, agents, and the system itself. Nothing is ever deleted from the Audit Trail.
+
+### What Is Logged
+
+<T
+  headers={["Category", "Events Logged"]}
+  rows={[
+    ["Authentication", "Every login, logout, failed login, session expiry, password change, 2FA events"],
+    ["Content", "Create, edit, submit, approve, reject, publish, archive, delete for every post and campaign asset"],
+    ["Campaigns", "Create, edit, submit, activate, pause, resume, complete, delete — including all spend changes"],
+    ["Agent Actions", "Every agent execution: decision made, action taken, output produced, prompt version used"],
+    ["Governance", "Every approval, rejection, escalation, annotation, rule change, policy update"],
+    ["Configuration", "Every settings change — who changed what, previous value, new value"],
+    ["Access", "Every role assignment, role removal, API key creation, API key revocation"],
+    ["API Calls", "Every authenticated API call: endpoint, user identity, timestamp, response code"],
+  ]}
+/>
+
+### Filtering and Search
+
+<UL items={[
+  "Filter by actor (user name, agent name, system)",
+  "Filter by event type or category",
+  "Filter by date range",
+  "Full-text search across all log fields",
+  "Export filtered results as CSV or JSON",
+]} />
+
+<Note type="success">The Audit Trail satisfies logging requirements for SOC 2 Type II, ISO 27001, FCA COBS 4, HIPAA, and GDPR Article 30 out of the box.</Note>
+
+</div>
+
+---
+
+<div id="evidence-vault">
+
+## Evidence Vault
+
+The Evidence Vault stores **structured, signed evidence records** that are legally defensible and suitable for regulatory submission, legal discovery, or litigation support.
+
+### Evidence Record Types
+
+<T
+  headers={["Type", "What It Captures"]}
+  rows={[
+    ["Approval Record", "Who approved, when (ms precision), what content or action, which policy version was active at time of approval, digital signature"],
+    ["Rejection Record", "Who rejected, when, mandatory rejection reason, reviewer identity, content state at time of rejection"],
+    ["Agent Decision", "Agent identity, model used, prompt version, input provided, output generated, autonomy level active"],
+    ["Policy Acknowledgement", "User confirmed reading a policy before performing a restricted action — timestamped and signed"],
+    ["Emergency Action", "Emergency lock trigger, crisis protocol activation — identity, time, written justification"],
+    ["Escalation Record", "Why escalated, from whom, to whom, stated reason, outcome and resolution"],
+    ["Collusion Alert", "Pattern detected, actors involved, evidence references, risk score"],
+  ]}
+/>
+
+### Evidence Integrity
+
+Every record includes:
+
+<UL items={[
+  "A **SHA-256 cryptographic hash** of the record contents",
+  "A **server-side timestamp** (cannot be altered client-side)",
+  "The **identity token** of the actor (human or agent)",
+  "A **chain-of-custody reference** linking to related records",
+]} />
+
+<Note type="warning">Evidence Vault records are append-only. They cannot be modified or deleted. Attempting to alter a record is detectable via hash mismatch and is itself logged.</Note>
+
+### Evidence Packs
+
+Generate a bundled Evidence Pack for any investigation or regulatory submission. Packs contain:
+
+<UL items={[
+  "All relevant Vault records in machine-readable JSON",
+  "Human-readable PDF report with signatures",
+  "Chain-of-custody document listing every access to the records",
+  "A root hash covering the entire pack — any tampering invalidates the root",
+]} />
+
+</div>
+
+---
+
+<div id="legal-holds">
+
+## Legal Holds
+
+Legal Holds freeze all Evidence Vault records related to a specific scope — preventing any automatic deletion, archival, or data retention policy from affecting records while legal proceedings are active.
+
+### Creating a Legal Hold
+
+<UL items={[
+  "Go to Evidence → Legal Holds → New Hold",
+  "Name the hold and provide a legal reference (case number, matter name)",
+  "Define the scope: by actor, by content, by date range, by campaign, or a combination",
+  "Assign a Hold Manager (must be GOVERNANCE_ADMIN or WORKSPACE_OWNER)",
+  "Set an estimated review date (can be extended)",
+  "The system immediately prevents any retention policy from affecting in-scope records",
+]} />
+
+### Releasing a Hold
+
+Releasing a Legal Hold requires:
+
+<UL items={[
+  "A written release justification",
+  "Approval from the Hold Manager",
+  "If the hold was placed by an external request (regulator, court), a reference to the release authority",
+]} />
+
+The release action is itself logged in the Evidence Vault.
+
+<Note type="warning">Legal Holds are available on Enterprise plans only. Consult your legal team before placing or releasing any hold in a live legal proceeding.</Note>
+
+</div>
+
+---
+
+<div id="identity-ledger">
+
+## Identity Ledger
+
+The Identity Ledger maintains a **permanent, immutable record of every identity** that has ever existed in your workspace — human users, AI agents, and API keys — and every action taken under each identity.
+
+### What the Ledger Records
+
+<T
+  headers={["Identity Type", "Recorded Information"]}
+  rows={[
+    ["Human User", "Name, email, all roles ever held (with date ranges), all actions taken, all login events, suspension/removal events"],
+    ["AI Agent", "Name, all versions with configs, all executions, all autonomy level changes, suspension/retirement events"],
+    ["API Key", "Key name, creating user, scope, creation timestamp, all API calls made, revocation event"],
+  ]}
+/>
+
+### Non-Deletability
+
+Even when a user is suspended or removed from the workspace, their Identity Ledger record is **preserved permanently**. This is required for post-departure audit investigations — you must be able to reconstruct who did what, even after they leave.
+
+<Note type="info">The Identity Ledger satisfies FCA SM&CR individual accountability requirements, where regulated firms must maintain records of senior managers' decisions and actions.</Note>
+
+</div>

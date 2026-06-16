@@ -14,7 +14,7 @@
  * and (for --live) GEMINI_API_KEY / GROQ_API_KEY set. Read-only: no writes
  * beyond the audit/evidence rows the resolver itself records.
  */
-/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
+ 
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../src/config/env';

@@ -49,12 +49,9 @@ export default function proxy(request: NextRequest) {
   const hasAuthCookie = request.cookies.has("zv_auth");
   const hasOtpVerified = request.cookies.has("zv_otp_verified");
 
-  // If unauthenticated, allow root to render the landing page.
+  // Root always redirects to /login (the page itself handles session-based redirects)
   if (pathname === "/") {
-    if (hasAuthCookie) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-    return NextResponse.next();
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Require OTP verification for onboarding (OTP-only users don't have zv_auth yet)
@@ -73,8 +70,11 @@ export default function proxy(request: NextRequest) {
   }
 
   // Bounce already-authenticated users away from auth pages
+  // The page itself handles super admin redirects (to /superadmin/analytics)
+  // and regular user redirects (to /dashboard).
+  // Just let it through — the client-side check is more accurate.
   if (AUTH_ONLY_ROUTES.has(pathname) && hasAuthCookie) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.next();
   }
 
   // Security headers on every response

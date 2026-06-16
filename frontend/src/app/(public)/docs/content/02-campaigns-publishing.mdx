@@ -1,0 +1,237 @@
+<div id="campaigns-detail">
+
+## Campaigns
+
+Campaigns are paid advertising initiatives on Meta (Facebook/Instagram) and Google Ads, managed entirely within ZoikoVertex. The agency's own connected ad accounts are used for all client campaigns.
+
+### Creating a Campaign — Six-Step Wizard
+
+<T
+  headers={["Step", "What You Configure"]}
+  rows={[
+    ["1. Platform", "Meta Ads or Google Ads"],
+    ["2. Campaign Type", "AWARENESS, TRAFFIC, ENGAGEMENT, LEADS, or SALES"],
+    ["3. Budget & Schedule", "Daily or lifetime budget, currency, start date, optional end date"],
+    ["4. Targeting", "Age range, gender, locations (city / country / radius), interests, custom audiences"],
+    ["5. Ad Creative", "Headline (max 255 chars), body copy, call-to-action, image or video upload"],
+    ["6. Review & Submit", "Save as DRAFT, submit for governance review, or (if rules allow) publish immediately"],
+  ]}
+/>
+
+### Campaign Statuses
+
+<T
+  headers={["Status", "Meaning", "Next Actions"]}
+  rows={[
+    ["DRAFT", "Saved locally. Not submitted to Meta/Google yet.", "Edit, Submit for Review, Delete"],
+    ["PENDING_REVIEW", "Awaiting internal governance approval.", "Approver can Approve or Reject"],
+    ["APPROVED", "Governance cleared. Awaiting publish.", "Publish Now or Schedule"],
+    ["ACTIVE", "Live on the ad platform and spending.", "Pause, View Stats"],
+    ["PAUSED", "Spend stopped. Campaign data preserved.", "Resume, Edit, Delete"],
+    ["SCHEDULED", "Approved and set to go live at a future date.", "Edit schedule, Cancel"],
+    ["COMPLETED", "End date reached.", "Duplicate as new campaign"],
+    ["REJECTED", "Denied in governance review.", "View rejection reason, Edit, Resubmit"],
+    ["FAILED", "Technical failure at Meta/Google API.", "Retry, View error detail"],
+  ]}
+/>
+
+### AI Ad Copy Generation
+
+On Step 5 of the campaign wizard, click the AI wand icon next to the ad copy field. Enter a brief prompt (product, audience, goal) and optional length instructions. ZoikoVertex calls the Groq API (Llama 3.3 70B) and inserts the generated copy into the editor. Regenerate as many times as needed — each attempt is free.
+
+### Meta Ads — Advanced Controls
+
+<UL items={[
+  "**Ad-level pause/resume** — toggle individual ads inside a campaign without pausing the campaign itself",
+  "**Auto-deletion sync** — if a campaign is deleted directly in Meta Ads Manager, ZoikoVertex detects the deletion on next page load and removes the local record automatically",
+  "**Boost detection** — virtual boost ads (created by Meta's Boost Post) are detected and displayed as read-only items; they cannot be individually paused via the ZoikoVertex API",
+  "**Pixel tracking** — go to Campaigns → Meta Pixels to manage your pixel IDs and verify installation",
+]} />
+
+### Google Ads Integration
+
+Create Search and Display campaigns. ZoikoVertex manages ad group, keyword, and creative submission via the Google Ads API. Campaigns created in ZoikoVertex appear in your Google Ads Manager account within minutes of activation.
+
+<Note type="warning">Campaign budgets set in ZoikoVertex are applied at the ad account level. Changes made directly in Meta Ads Manager or Google Ads Manager will not sync back to ZoikoVertex automatically — always manage budgets from ZoikoVertex to maintain a consistent record.</Note>
+
+</div>
+
+---
+
+<div id="publishing-detail">
+
+## Publishing Hub
+
+The Publishing Hub is the central interface for creating, scheduling, and governing organic social content before it goes live.
+
+### Post Editor
+
+<UL items={[
+  "**Platform selector** — choose one or more: Facebook, Instagram, LinkedIn, X/Twitter, YouTube, Pinterest, Threads",
+  "**Copy editor** — character count with per-platform limits enforced (X: 280 chars, LinkedIn: 3000 chars, etc.)",
+  "**AI Generate** — describe what you want; AI generates platform-appropriate copy via Groq",
+  "**Media picker** — select from Media Vault or upload directly (images, video, GIFs)",
+  "**Schedule** — set a specific date and time or use AI-recommended optimal posting times",
+  "**Submit for Review** — routes to your configured approval chain before any publish attempt",
+]} />
+
+### Post Statuses
+
+<T
+  headers={["Status", "Meaning", "Who Acts Next"]}
+  rows={[
+    ["DRAFT", "In progress. Not submitted yet.", "Creator"],
+    ["PENDING_REVIEW", "Submitted and waiting for governance approval.", "Reviewer / Validator / Approver"],
+    ["CHANGES_REQUESTED", "Reviewer asked for revision without formal rejection.", "Creator"],
+    ["APPROVED", "All required approvals collected. Ready to publish.", "Publisher or Scheduler"],
+    ["SCHEDULED", "Approved and queued for a future publish time.", "System (auto-publishes at scheduled time)"],
+    ["PUBLISHED", "Live on the platform.", "View, Archive"],
+    ["REJECTED", "Denied in governance. Returned with reason.", "Creator (revise and resubmit)"],
+    ["FAILED", "Publish attempt failed at platform API level.", "Creator or Admin (retry)"],
+  ]}
+/>
+
+### AI Content Generation in Detail
+
+Click the wand icon in the post editor. A panel opens with two fields:
+
+<UL items={[
+  "**Prompt** — describe the content: product name, audience, tone, goal, key message",
+  "**Length** — short (under 100 chars), medium (100–280), long (280+), or platform default",
+]} />
+
+ZoikoVertex submits the prompt to **POST /api/v1/ai/generate-ad-copy** (authenticated, plan-rate-limited). The Groq API returns up to 5 variations. Click any variation to insert it into the editor.
+
+### Publish Queue
+
+Approved posts enter the Publish Queue. The queue shows next scheduled post, platform distribution, and any pending failures requiring retry. Admins and Publishers can re-order, reschedule, or remove posts from the queue.
+
+<Note type="info">Governance approval is checked at publish time, not just at submission time. If a policy changes between approval and publishing, the post will be flagged and held for re-review.</Note>
+
+</div>
+
+---
+
+<div id="calendar-detail">
+
+## Calendar & Review Queue
+
+### Content Calendar
+
+A time-based view of all scheduled posts, active campaigns, and governance deadlines. Toggle between month, week, and day views.
+
+<UL items={[
+  "Click any item to open its full detail view",
+  "Drag and drop to reschedule posts that have not yet been submitted for approval",
+  "Colour-coded by status: SCHEDULED (cyan), PENDING_REVIEW (amber), PUBLISHED (green), FAILED (red)",
+  "Filter by platform, campaign, assignee, or content type",
+  "Export calendar view as CSV or PDF for reporting",
+]} />
+
+### Review Queue
+
+The Review Queue is where Reviewers, Validators, and Approvers action governance submissions. It shows all items awaiting action, sorted by SLA urgency.
+
+<T
+  headers={["Action", "Who Can Take It", "What Happens"]}
+  rows={[
+    ["Approve", "APPROVER, GOVERNANCE_ADMIN", "Passes this stage of the approval chain. If it's the final stage, post becomes APPROVED."],
+    ["Request Changes", "REVIEWER, VALIDATOR, APPROVER", "Status becomes CHANGES_REQUESTED. Creator is notified with the reviewer's comment."],
+    ["Reject", "APPROVER, GOVERNANCE_ADMIN", "Post becomes REJECTED. Rejection reason is mandatory and stored in the Evidence Vault."],
+    ["Escalate", "Any reviewer role", "Routes the item to a Governance Admin or senior approver."],
+    ["Annotate", "Any reviewer role", "Adds a compliance note to the submission record — does not change status."],
+  ]}
+/>
+
+<Note type="warning">Approval decisions are legally binding actions. Each one is written to the immutable Evidence Vault and cannot be altered after the fact.</Note>
+
+</div>
+
+---
+
+<div id="inbox-detail">
+
+## Social Inbox
+
+The Social Inbox aggregates all incoming messages, comments, mentions, and DMs from connected social platforms into a single governed, attributable workspace.
+
+### Three-Panel Layout
+
+<T
+  headers={["Panel", "Contents"]}
+  rows={[
+    ["Left — Conversation List", "All conversations sorted by recency. Unread count badge per conversation. Platform icon (FB, IG, LI, X, etc.). Assignment status chip. SLA urgency indicator."],
+    ["Centre — Thread View", "Full conversation thread with timestamps. Reply composer at bottom. Attach media, use AI-suggested replies, or type manually. Conversation status controls."],
+    ["Right — Contact & Metadata", "Sender profile, platform metadata, conversation history, tags, assignment history, and all actions taken on this conversation."],
+  ]}
+/>
+
+### Conversation Management
+
+<UL items={[
+  "**Assign** — route a conversation to a specific team member",
+  "**Status** — Open, Pending (waiting on customer), Resolved, Escalated",
+  "**Tag** — custom labels for filtering and reporting (e.g. complaint, praise, inquiry, escalation)",
+  "**Priority** — Low, Normal, High, Urgent",
+]} />
+
+### SLA Tracking
+
+<T
+  headers={["Metric", "Description"]}
+  rows={[
+    ["First Response Time", "Time from message received to first reply sent"],
+    ["Resolution Time", "Time from conversation opened to status set to Resolved"],
+    ["SLA Breach Alert", "Notification fires when 80% of the SLA window has elapsed"],
+    ["SLA Breach Log", "Breaches are logged in the Audit Trail and Evidence Vault"],
+  ]}
+/>
+
+### AI-Assisted Replies
+
+Click the AI wand in the reply composer. ZoikoVertex analyses the conversation context, the sender's platform, and your brand voice guidelines, and generates up to 3 reply options. Select one to insert into the composer. All AI-generated replies are flagged as "AI Draft" until a human edits or approves them.
+
+<Note type="info">All replies sent from the Social Inbox are attributed to the sending user in the Audit Trail — the system never sends replies autonomously without at least D2 autonomy level configured.</Note>
+
+</div>
+
+---
+
+<div id="media-vault">
+
+## Media Vault
+
+The Media Vault is the centralised asset library for all images, videos, GIFs, and documents used across campaigns and posts.
+
+### Uploading Assets
+
+<UL items={[
+  "Upload from your device or import from a URL",
+  "Supported formats: JPEG, PNG, WebP, GIF, MP4, MOV, PDF, SVG",
+  "Max file size: 100MB for video, 10MB for images",
+  "Automatic metadata extraction: dimensions, duration, file size, format",
+]} />
+
+### Version Control
+
+Every asset can have multiple versions. When you upload a new version of an existing asset, all previous versions are preserved and accessible. Posts and campaigns reference a specific version — updating an asset does not retroactively change already-published content.
+
+### Brand Compliance Lock
+
+BRAND_REVIEWER roles can **lock** assets that have been officially approved. Locked assets:
+
+<UL items={[
+  "Cannot be overwritten or deleted by any role other than BRAND_REVIEWER or ADMIN",
+  "Are flagged as Brand-Approved in the asset picker",
+  "Appear at the top of search results when selecting assets for campaigns",
+]} />
+
+### Searching and Filtering
+
+<UL items={[
+  "Search by file name, tag, or content description",
+  "Filter by file type, brand-lock status, upload date, uploader",
+  "Bulk-select for download, tagging, or deletion",
+]} />
+
+</div>

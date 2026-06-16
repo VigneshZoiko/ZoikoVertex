@@ -244,12 +244,12 @@ export default function DataPage() {
             await fetchLogs(id);
           }
           count++;
-          if (count > 8) {
+          if (count > 3) {
             clearInterval(syncIntervalRef.current!);
             syncIntervalRef.current = null;
             setSyncingId(null);
           }
-        }, 2000);
+        }, 5000);
       }
     } catch (err) {
       console.error(err);

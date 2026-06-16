@@ -61,7 +61,7 @@ export default function AboutGEI() {
 
         {/* LEFT — Full height image, text centered */}
         <div
-          className={`relative overflow-hidden pl-40 transition-all duration-700 ease-out ${
+          className={`relative overflow-hidden lg:pl-40 transition-all duration-700 ease-out ${
             visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
           style={{ transitionDelay: "100ms", minHeight: "360px" }}
@@ -74,8 +74,8 @@ export default function AboutGEI() {
             className="object-cover"
           />
 
-          {/* Dark overlay */}
-          <div className="absolute inset-0" />
+          {/* Dark overlay — improves text legibility over image */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0C1529]/85 via-[#0C1529]/50 to-transparent" />
 
           {/* Content — vertically and horizontally centered */}
           <div className="relative z-10 h-full flex flex-col justify-center px-8 py-8">

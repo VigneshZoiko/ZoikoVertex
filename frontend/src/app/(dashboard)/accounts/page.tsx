@@ -371,7 +371,7 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
-        const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
+        const clientId = process.env.NEXT_PUBLIC_LINKEDIN_PERSONAL_CLIENT_ID || process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin" }));
         const scope = encodeURIComponent("openid profile email w_member_social");

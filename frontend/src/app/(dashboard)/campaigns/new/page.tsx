@@ -20,14 +20,16 @@ interface MetaPixel { id: string; name: string; }
 
 interface WizardData {
   // Step 1
-  name:      string;
-  platforms: string[];
-  objective: string;
+  name:            string;
+  platforms:       string[];
+  meta_placements: string[];   // ["facebook","instagram"]
+  objective:       string;
   // Pixel (only for CONVERSIONS objective)
   tracking_pixel_id:   string;
   tracking_pixel_name: string;
   conversion_event:    string;
   // Step 2
+  budget_type:       string;   // "daily" | "total"
   budget_total:      string;
   budget_currency:   string;
   start_at:          string;
@@ -55,9 +57,9 @@ interface WizardData {
 }
 
 const DEFAULT: WizardData = {
-  name: "", platforms: [], objective: "",
+  name: "", platforms: [], meta_placements: ["facebook", "instagram"], objective: "",
   tracking_pixel_id: "", tracking_pixel_name: "", conversion_event: "PURCHASE",
-  budget_total: "", budget_currency: "USD",
+  budget_type: "daily", budget_total: "", budget_currency: "USD",
   start_at: "", end_at: "",
   budget_owner_id: "", budget_owner_name: "",
   geography: [], age_min: "18", age_max: "65", gender: "ALL",
@@ -185,8 +187,11 @@ export default function NewCampaignPage() {
       const t  = c.targeting || {};
       const cr = c.creative  || {};
       setData({
-        name: c.name || "", platforms: c.platforms || [], objective: c.objective || "",
-        budget_total: c.budget_total?.toString() || "", budget_currency: c.budget_currency || "USD",
+        name: c.name || "", platforms: c.platforms || [],
+        meta_placements: c.meta_placements || ["facebook", "instagram"],
+        objective: c.objective || "",
+        budget_type: c.budget_daily ? "daily" : "total",
+        budget_total: (c.budget_total ?? c.budget_daily)?.toString() || "", budget_currency: c.budget_currency || "USD",
         start_at: c.start_at?.split("T")[0] || "", end_at: c.end_at?.split("T")[0] || "",
         budget_owner_id: c.budget_owner_id || "", budget_owner_name: c.budget_owner_name || "",
         geography: t.geography || [], age_min: t.age_min?.toString() || "18", age_max: t.age_max?.toString() || "65",
@@ -223,6 +228,19 @@ export default function NewCampaignPage() {
         ? (d[key] as string[]).filter(x => x !== val)
         : [...(d[key] as string[]), val],
     }));
+  }, []);
+
+  // Toggle Facebook / Instagram placement; keeps data.platforms in sync with Meta
+  const togglePlacement = useCallback((placement: string) => {
+    setData(d => {
+      const next = d.meta_placements.includes(placement)
+        ? d.meta_placements.filter(p => p !== placement)
+        : [...d.meta_placements, placement];
+      const platforms = next.length > 0
+        ? d.platforms.includes("Meta") ? d.platforms : [...d.platforms, "Meta"]
+        : d.platforms.filter(p => p !== "Meta");
+      return { ...d, meta_placements: next, platforms };
+    });
   }, []);
 
   const cls = (key: keyof WizardData) =>
@@ -284,16 +302,15 @@ export default function NewCampaignPage() {
       }
       if (step === 2) {
         const budgetVal = data.budget_total ? parseFloat(data.budget_total) : null;
+        const isDaily   = data.budget_type === "daily";
         Object.assign(payload, {
-          // The wizard only collects one budget field — treat it as daily so Meta
-          // publisher creates a daily-budget ad set (lifetime requires end_at).
-          budget_daily:     data.end_at ? null : budgetVal,
-          budget_total:     data.end_at ? budgetVal : null,
-          budget_currency:  data.budget_currency,
-          budget_pacing:    'EVEN',
-          start_at:         data.start_at || null,
-          end_at:           data.end_at   || null,
-          budget_owner_id:  data.budget_owner_id   || undefined,
+          budget_daily:      isDaily ? budgetVal : null,
+          budget_total:      isDaily ? null : budgetVal,
+          budget_currency:   data.budget_currency,
+          budget_pacing:     'EVEN',
+          start_at:          data.start_at || null,
+          end_at:            data.end_at   || null,
+          budget_owner_id:   data.budget_owner_id   || undefined,
           budget_owner_name: data.budget_owner_name || undefined,
         });
       }
@@ -457,46 +474,79 @@ export default function NewCampaignPage() {
                 {fieldErr("name")}
               </div>
 
-              {/* Platform */}
+              {/* Platform — Message Destination */}
               <div>
-                <label className={lbl}>Run ads on</label>
+                <label className={lbl}>Ad Placement</label>
                 <div className="flex gap-3">
-                  <button type="button"
-                    onClick={() => toggleArr("platforms", "Meta")}
-                    className={`flex-1 p-4 rounded-xl border text-left transition-all ${
-                      data.platforms.includes("Meta")
-                        ? "bg-white border-white/20 text-zinc-900"
-                        : "bg-card border-border text-foreground-muted hover:border-border"
-                    }`}>
-                    <p className="text-sm font-bold">Meta</p>
-                    <p className="text-[11px] opacity-70 mt-0.5">Facebook & Instagram</p>
-                  </button>
+                  {[
+                    { id: "facebook",  label: "Facebook",  sub: "Feed, Stories & Reels" },
+                    { id: "instagram", label: "Instagram", sub: "Feed, Stories & Reels" },
+                  ].map(p => {
+                    const selected = data.meta_placements.includes(p.id);
+                    return (
+                      <button key={p.id} type="button" onClick={() => togglePlacement(p.id)}
+                        className={`flex-1 flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${
+                          selected
+                            ? "bg-accent-subtle border-accent/40 text-foreground"
+                            : "bg-card border-border text-foreground-muted hover:border-white/20 hover:text-foreground"
+                        }`}>
+                        {/* Checkbox circle */}
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                          selected ? "border-accent bg-accent" : "border-foreground-muted/50"
+                        }`}>
+                          {selected && (
+                            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                              <path d="M1 3.5L3.5 6L8 1" stroke="var(--color-background,#0d1a30)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold">{p.label}</p>
+                          <p className="text-[11px] opacity-70 mt-0.5">{p.sub}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
+                {data.meta_placements.length === 0 && (
+                  <p className="text-xs text-warning-text mt-1.5 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Select at least one placement
+                  </p>
+                )}
               </div>
 
               {/* Goal */}
               <div>
                 <label className={lbl}>Campaign Goal <span className="text-error-text">*</span></label>
                 <div className="space-y-2">
-                  {GOALS.map(g => (
-                    <button key={g.value} type="button" onClick={() => set("objective", g.value)}
-                      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
-                        data.objective === g.value
-                          ? "bg-white border-white/20 text-zinc-900"
-                          : "bg-card border-border text-foreground-muted hover:border-border hover:text-foreground-muted"
-                      }`}>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        data.objective === g.value ? "bg-surface/10" : "bg-surface-hover"
-                      }`}>
-                        <g.icon className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{g.label}</p>
-                        <p className="text-[11px] opacity-70">{g.desc}</p>
-                      </div>
-                      {data.objective === g.value && <CheckCircle2 className="w-4 h-4 ml-auto shrink-0" />}
-                    </button>
-                  ))}
+                  {GOALS.map(g => {
+                    const selected = data.objective === g.value;
+                    return (
+                      <button key={g.value} type="button" onClick={() => set("objective", g.value)}
+                        className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                          selected
+                            ? "bg-accent-subtle border-accent/40 text-foreground"
+                            : "bg-card border-border text-foreground-muted hover:border-white/20 hover:text-foreground"
+                        }`}>
+                        {/* Radio circle */}
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                          selected ? "border-accent bg-accent" : "border-foreground-muted/50"
+                        }`}>
+                          {selected && <div className="w-1.5 h-1.5 rounded-full bg-background" />}
+                        </div>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                          selected ? "bg-accent/15" : "bg-surface-hover"
+                        }`}>
+                          <g.icon className={`w-4 h-4 ${selected ? "text-accent" : ""}`} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold">{g.label}</p>
+                          <p className="text-[11px] opacity-70">{g.desc}</p>
+                        </div>
+                        {selected && <CheckCircle2 className="w-4 h-4 shrink-0 text-accent" />}
+                      </button>
+                    );
+                  })}
                 </div>
                 {fieldErr("objective")}
                 {data.objective === "CONVERSIONS" && (
@@ -570,7 +620,38 @@ export default function NewCampaignPage() {
 
               {/* Budget */}
               <div>
-                <label className={lbl}>Total Budget <span className="text-error-text">*</span></label>
+                {/* Budget type toggle */}
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={lbl} style={{ marginBottom: 0 }}>
+                    Budget Amount <span className="text-error-text">*</span>
+                  </label>
+                  <a
+                    href="https://www.facebook.com/business/help/190490051321426"
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-[11px] text-info-text hover:underline"
+                  >
+                    Learn more ↗
+                  </a>
+                </div>
+                <div className="flex gap-1 p-1 bg-surface rounded-xl border border-border mb-3">
+                  {[
+                    { value: "daily", label: "Per Day" },
+                    { value: "total", label: "Total" },
+                  ].map(bt => (
+                    <button
+                      key={bt.value}
+                      type="button"
+                      onClick={() => set("budget_type", bt.value)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        data.budget_type === bt.value
+                          ? "bg-accent text-background shadow-sm"
+                          : "text-foreground-muted hover:text-foreground"
+                      }`}
+                    >
+                      {bt.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex gap-2">
                   <select value={data.budget_currency} onChange={e => set("budget_currency", e.target.value)}
                     className={`${inp} ${ok} w-24`}>
@@ -579,9 +660,15 @@ export default function NewCampaignPage() {
                   <input type="number" min="1" value={data.budget_total}
                     onChange={e => set("budget_total", e.target.value)}
                     onBlur={e => touch("budget_total", e.target.value)}
-                    className={`${cls("budget_total")} flex-1`} placeholder="1,000" />
+                    className={`${cls("budget_total")} flex-1`}
+                    placeholder={data.budget_type === "daily" ? "e.g. 50 per day" : "e.g. 1,000 total"} />
                 </div>
                 {fieldErr("budget_total")}
+                {data.budget_type === "daily" && data.budget_total && (
+                  <p className="text-[11px] text-foreground-muted mt-1">
+                    Daily budget — Meta will spend up to {data.budget_currency} {data.budget_total} per day.
+                  </p>
+                )}
                 {needsTwoApprovals && (
                   <div className="flex items-center gap-2 mt-2 p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />

@@ -38,7 +38,7 @@ async function run() {
       console.error('CREATE ERROR:', createError.message);
       process.exit(1);
     }
-    // @ts-expect-error
+    // @ts-expect-error: createUser returns nested data structure; assign top-level user object
     user = newUser;
     console.log('User created:', user?.id);
   }

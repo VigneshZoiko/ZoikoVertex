@@ -104,13 +104,25 @@ export default function AuthCallbackPage() {
       const res = await response.json().catch(() => ({}));
       if (response.status === 409 && res.exists) {
         await supabase.auth.signOut();
-        document.cookie = "zv_auth=; path=/; SameSite=Strict; max-age=0";
+        document.cookie = "zv_auth=; path=/; SameSite=Lax; max-age=0";
         window.location.href = `/login?email=${encodeURIComponent(email.trim())}`;
         return;
       }
-      if (response.ok && res.success) {
-        document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
-        window.location.href = "/onboarding";
+        if (response.ok && res.success) {
+          // If user already exists, sign them in directly
+          if (res.data?.existing_user && res.data?.temp_password) {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password: res.data.temp_password,
+            });
+            if (!signInError) {
+              document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
+              window.location.href = "/dashboard";
+              return;
+            }
+          }
+          document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
+          window.location.href = "/onboarding";
       } else {
         setError(res.error || "Verification failed");
       }
@@ -244,8 +256,8 @@ export default function AuthCallbackPage() {
             {/* Change email */}
             <span onClick={async () => {
               await supabase.auth.signOut();
-              document.cookie = "zv_auth=; path=/; SameSite=Strict; max-age=0";
-              document.cookie = "zv_otp_verified=; path=/; SameSite=Strict; max-age=0";
+              document.cookie = "zv_auth=; path=/; SameSite=Lax; max-age=0";
+              document.cookie = "zv_otp_verified=; path=/; SameSite=Lax; max-age=0";
               window.location.href = "/signup";
             }} style={{ fontSize: "12px", color: "#475569", cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(71,85,105,0.3)" }}>
               Use a different email

@@ -2790,7 +2790,7 @@ export default function PromptsPage() {
     fetchPrompts();
     // Light poll so the live "Working" (green) state appears and clears on its
     // own as prompts govern posts — silent so it never flashes the loader.
-    const poll = setInterval(() => fetchPrompts({ silent: true }), 15000);
+    const poll = setInterval(() => { if (document.visibilityState === 'visible') fetchPrompts({ silent: true }); }, 60000);
     return () => clearInterval(poll);
   }, [fetchPrompts]);
 

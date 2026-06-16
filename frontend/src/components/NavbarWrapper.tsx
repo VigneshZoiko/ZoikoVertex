@@ -15,7 +15,6 @@ const PUBLIC_ROUTES = [
   ...AUTH_LAYOUT_ROUTES,
   "/privacy",
   "/terms",
-  "/docs",
 ];
 
 export default function NavbarWrapper() {

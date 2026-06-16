@@ -18,7 +18,7 @@ export default function Accountability() {
   ];
 
   return (
-    <section style={{ background: "#152238" }} className="py-24 px-6">
+    <section style={{ background: "#1F2E55" }} className="py-24 px-6">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-start">
         <div>
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
@@ -61,7 +61,7 @@ export default function Accountability() {
 
         <div
           className="rounded-2xl overflow-hidden"
-          style={{ background: "#1a2840", border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ background: "linear-gradient(135deg, #1A2A5E 0%, #121E42 100%)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "16px", boxShadow: "0 24px 60px 0 rgba(0,0,0,0.45)" }}
         >
           <div
             className="flex items-center justify-between px-6 py-4"
@@ -73,7 +73,7 @@ export default function Accountability() {
               Live
             </span>
           </div>
-          <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.06)", background: "#1E2F55" }}>
             {metrics.map((m) => (
               <div key={m.label} className="flex items-center justify-between px-6 py-4">
                 <span className="text-white/70 text-sm">{m.label}</span>

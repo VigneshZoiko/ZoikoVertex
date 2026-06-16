@@ -1,0 +1,222 @@
+<div id="agents-overview">
+
+## Agents Overview
+
+AI agents in ZoikoVertex are **governed autonomous workers** — not chatbots. They are identity-bearing actors with defined roles, scoped permissions, an auditable autonomy level, and a complete, immutable trace of every decision they make.
+
+### Agent Identity
+
+<UL items={[
+  "Every agent has a unique system ID, name, avatar, and type designation",
+  "Agent actions are attributed in all audit logs as *[Agent Name] via [Workspace]*",
+  "Agents cannot impersonate human identities — all agentic activity is clearly labelled",
+  "Agents have their own scope permissions separate from any human user's permissions",
+  "Agents can be suspended, quarantined, or rolled back to a previous version at any time",
+]} />
+
+### What Makes ZoikoVertex Agents Different
+
+<T
+  headers={["Standard AI Tools", "ZoikoVertex Agents"]}
+  rows={[
+    ["Black-box inference — no trace of what happened", "Full decision trace — every input, output, and decision logged"],
+    ["No identity — actions attributed to the account", "Named agent identity — legally separable from human actors"],
+    ["No approval gates — executes immediately", "Governance gates — can require human approval at each step"],
+    ["Cannot be audited", "Full evidence vault records, suitable for legal discovery"],
+    ["Cannot be rolled back", "Every config change versioned — rollback to any prior state instantly"],
+  ]}
+/>
+
+### Agent Types
+
+<T
+  headers={["Type", "Primary Capability"]}
+  rows={[
+    ["Content Agent", "Drafts captions, threads, articles, campaign copy, email copy"],
+    ["Research Agent", "Analyses trends, competitor signals, and brand sentiment"],
+    ["Optimisation Agent", "Recommends posting times, channel sequencing, budget adjustments"],
+    ["Governance Agent", "Checks claims for policy compliance, flags risk, annotates submissions"],
+    ["Response Agent", "Drafts replies for the Social Inbox, suggests escalation"],
+    ["Compliance Agent", "Reviews content against regulatory requirements and flags violations"],
+    ["Performance Insight Agent", "Analyses campaign data and proposes data-backed optimisations"],
+  ]}
+/>
+
+</div>
+
+---
+
+<div id="agent-studio">
+
+## Agent Studio
+
+Agent Studio is where Agent Architects create, configure, and deploy individual AI agents. Every configuration change creates a new version — no changes are destructive.
+
+### Creating an Agent — Step by Step
+
+<T
+  headers={["Step", "What to Configure"]}
+  rows={[
+    ["1. Name & Type", "Display name, description, and type (Content, Research, Optimisation, etc.)"],
+    ["2. Autonomy Level", "D0 to D3 — D0 is the default; higher levels require Governance Admin approval"],
+    ["3. Permitted Actions", "Draft, Recommend, Analyze, Schedule, Publish, Reply, Moderate, Escalate, Report, Export"],
+    ["4. Prohibited Actions", "Actions explicitly blocked regardless of autonomy level — cannot be bypassed"],
+    ["5. Channel Scope", "Which social platforms the agent can act on: LinkedIn, X, Facebook, Instagram, YouTube, Blog/CMS, Internal"],
+    ["6. Knowledge Bases", "Which knowledge bases the agent can query when generating content"],
+    ["7. Governance Gates", "Which actions require human approval before execution"],
+    ["8. Rate Limits", "Max actions per hour, max spend per day (for campaign-capable agents)"],
+    ["9. Active Hours", "Restrict agent activity to specific hours/days"],
+    ["10. Deploy", "Deploy to Staging (safe sandbox) or Production"],
+  ]}
+/>
+
+### Versioning and Rollback
+
+<UL items={[
+  "Every save creates a new version with a timestamp and the name of the saving user",
+  "Version history shows a full diff of what changed between any two versions",
+  "Rollback to any previous version in one click — rollback is itself versioned and audited",
+  "Production agents cannot be downgraded in autonomy level without Governance Admin approval",
+]} />
+
+### Agent Templates
+
+ZoikoVertex ships with 8 pre-built agent templates to accelerate deployment:
+
+<UL items={[
+  "Content Research Agent — reads knowledge bases, produces briefs. No publishing.",
+  "Content Drafting Agent — drafts posts and captions. No external actions.",
+  "Social Response Agent — drafts inbox replies. No auto-reply by default.",
+  "Scheduling Recommendation Agent — recommends timing. No posting.",
+  "Compliance Review Agent — flags policy issues. No content creation.",
+  "Performance Insight Agent — analyses campaigns. Read-only analytics.",
+  "SMB Starter Agent — simple draft + recommend for small teams.",
+  "Enterprise Governance Agent — cross-brand policy review, evidence bundling.",
+]} />
+
+</div>
+
+---
+
+<div id="workflows">
+
+## Workflow Orchestration
+
+Workflows are multi-step, multi-agent pipelines that automate complex operations with configurable governance checkpoints.
+
+### Built-In Workflow Types
+
+<T
+  headers={["Workflow", "Typical Steps"]}
+  rows={[
+    ["Content Pipeline", "Brief → Draft (AI) → Brand Review → Governance Approval → Schedule → Publish"],
+    ["Campaign Launch", "Brief → Creative (AI) → Targeting → Legal Review → Budget Approval → Activate"],
+    ["Crisis Response", "Signal Detected → Alert Team → Pause Campaigns → Assess → Draft Response → Approve → Publish"],
+    ["Campaign Handoff", "Source Agent releases ownership → Handoff review → Target Agent takes control"],
+    ["Compliance Sweep", "Scheduled scan → Flag violations → Route to Compliance Reviewer → Remediation → Evidence record"],
+  ]}
+/>
+
+### Approval Gates Within Workflows
+
+Each step in a workflow can be configured with an approval gate:
+
+<UL items={[
+  "**Single approver** — one specific named individual must approve",
+  "**Role gate** — any holder of a specified role may approve",
+  "**Quorum gate** — a defined number of approvers must approve (e.g. 2 of 3)",
+  "**Sequential gate** — Approver A must approve before Approver B is asked",
+  "**Unanimous gate** — all configured approvers must approve",
+]} />
+
+### Workflow Monitoring
+
+The Agent Operations view shows live status of every running workflow: current step, time elapsed, approvals collected vs. required, and any blockers. Agents and Operators can inject a comment, escalate a stuck step, or terminate a workflow entirely.
+
+</div>
+
+---
+
+<div id="autonomy-controls">
+
+## Autonomy Controls
+
+Autonomy Controls is the Human-in-the-Loop (HITL) configuration centre — the mechanism by which humans stay in control of agents at all times.
+
+### Emergency Lock
+
+The Emergency Lock button (red, on the Autonomy Controls page) **immediately suspends all agent execution across the entire workspace.** All in-progress tasks are paused and queued for human review. An audit record is created with the identity of the person who triggered the lock.
+
+<Note type="warning">Only WORKSPACE_OWNER and ADMIN roles can trigger and lift the Emergency Lock. Lifting the lock requires a written justification that is stored in the Evidence Vault.</Note>
+
+### Negative Knowledge
+
+Configure topics, phrases, and content categories that agents must **never engage with**, regardless of autonomy level:
+
+<UL items={[
+  "Specific competitor names or products",
+  "Regulatory topics requiring specialist sign-off (e.g. medical claims, financial projections)",
+  "Crisis or sensitive subject areas",
+  "Custom banned phrases from your legal or compliance team",
+]} />
+
+Negative Knowledge is enforced at the Decision Engine level. An agent attempting to generate content that matches a Negative Knowledge rule will receive a silent policy block and log an evidence record — the agent cannot reason around or bypass this constraint.
+
+</div>
+
+---
+
+<div id="knowledge">
+
+## Knowledge Bases
+
+Knowledge Bases are curated information stores that agents query when generating content, making decisions, or answering questions about your brand.
+
+### Knowledge Base Types
+
+<T
+  headers={["Type", "Typical Contents", "Who Manages"]}
+  rows={[
+    ["Brand Voice", "Tone guidelines, vocabulary, writing style rules, dos and don'ts, example posts", "KNOWLEDGE_MANAGER"],
+    ["Product Catalogue", "Product names, descriptions, prices, USPs, technical specs, availability", "KNOWLEDGE_MANAGER"],
+    ["Campaign History", "Past campaign objectives, performance summaries, creative learnings, audience insights", "CAMPAIGN_MANAGER"],
+    ["Compliance Rules", "Legal restrictions, regulatory requirements, banned phrases, required disclosures", "GOVERNANCE_ADMIN"],
+    ["Audience Profiles", "Persona definitions, demographic data, psychographics, engagement patterns", "KNOWLEDGE_MANAGER"],
+    ["FAQ Library", "Frequently asked questions and approved answers for Social Inbox response agents", "KNOWLEDGE_MANAGER"],
+  ]}
+/>
+
+### Versioning Knowledge
+
+Every change to a knowledge base entry creates a new version. Agents are pinned to a specific version of a knowledge base until an Agent Architect explicitly updates the reference. This prevents unexpected behaviour when policies are updated mid-campaign.
+
+</div>
+
+---
+
+<div id="prompt-governance">
+
+## Prompt Governance
+
+Prompt Governance manages the full lifecycle of all AI system prompts used by agents — from creation and review, through versioning and approval, to retirement.
+
+### Prompt Lifecycle
+
+<T
+  headers={["Stage", "Who Acts", "What Happens"]}
+  rows={[
+    ["Draft", "Agent Architect", "Prompt written and saved. Not active yet."],
+    ["Under Review", "Governance Admin", "Reviewed for policy compliance, safety, and alignment with brand standards."],
+    ["Approved", "Governance Admin", "Prompt is active and agents can be assigned to use it."],
+    ["Deprecated", "Agent Architect / Governance Admin", "Retired from active use. All prior outputs referencing this prompt are preserved in the Evidence Vault."],
+    ["Rejected", "Governance Admin", "Denied — reason is mandatory and stored. Architect can revise and resubmit."],
+  ]}
+/>
+
+### Prompt Audit Records
+
+Every time an agent runs using a prompt, a Prompt Execution Record is written to the Evidence Vault. It includes: the prompt version used, the input provided to the agent, and the output produced. This record is immutable.
+
+<Note type="warning">Private model chain-of-thought is never exposed in ZoikoVertex. Only decision traces (what was decided and acted upon) are visible — not internal model reasoning steps.</Note>
+
+</div>

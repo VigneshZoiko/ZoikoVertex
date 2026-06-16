@@ -1,328 +1,898 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import {
+  Users, Database, Bot, Building2, Ban, CreditCard,
+  Shield, FileText, Cookie, Lock, Globe,
+  FileKey, ChevronDown, ChevronRight, ShieldCheck,
+} from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Terms of Service | ZoikoVertex",
-  description: "Terms of Service for ZoikoVertex — Governed Autonomous Agentic-Intelligence Social Media Management Platform.",
-};
+/* ── DATA ────────────────────────────────────────────────────────── */
 
-const SECTIONS = [
+const TOC: { id: string; title: string; num: number | null }[] = [
+  { id: "acceptance",       title: "Acceptance of Terms",              num: 1  },
+  { id: "eligibility",      title: "Eligibility & Users",              num: 2  },
+  { id: "accounts",         title: "Accounts & Workspaces",            num: 3  },
+  { id: "subscriptions",    title: "Subscriptions & Billing",          num: 4  },
+  { id: "enterprise",       title: "Enterprise Agreements",            num: 5  },
+  { id: "content",          title: "Customer Content",                 num: 6  },
+  { id: "ai-workflows",     title: "AI-Assisted Workflows",            num: 7  },
+  { id: "platform-rights",  title: "Platform Rights & IP",             num: 8  },
+  { id: "acceptable-use",   title: "Acceptable Use",                   num: 9  },
+  { id: "third-party",      title: "Third-Party Integrations",         num: 10 },
+  { id: "security",         title: "Security Responsibilities",        num: 11 },
+  { id: "privacy-data",     title: "Privacy & Data Processing",        num: 12 },
+  { id: "audit-logs",       title: "Audit Logs & Evidence",            num: 13 },
+  { id: "availability",     title: "Service Availability",             num: 14 },
+  { id: "support",          title: "Support & Communications",         num: 15 },
+  { id: "suspension",       title: "Suspension & Termination",         num: 16 },
+  { id: "disclaimers",      title: "Disclaimers",                      num: 17 },
+  { id: "liability",        title: "Limitation of Liability",          num: 18 },
+  { id: "indemnification",  title: "Indemnification",                  num: 19 },
+  { id: "governing-law",    title: "Governing Law & Disputes",         num: 20 },
+  { id: "changes",          title: "Changes to These Terms",           num: 21 },
+  { id: "contact-info",     title: "Contact Information",              num: 22 },
+  { id: "faq",              title: "FAQ",                              num: null },
+  { id: "related",          title: "Related Pages",                    num: null },
+];
+
+const GLANCE = [
   {
-    title: "1. Acceptance of Terms",
-    content: `By accessing or using the ZoikoVertex platform ("Platform"), you ("User", "Customer", or "Organisation") agree to be bound by these Terms of Service ("Terms"). If you are accepting these Terms on behalf of an organisation, you represent and warrant that you have the authority to bind that organisation.
-
-If you do not agree to these Terms, you may not access or use the Platform. These Terms apply to all users including workspace administrators, team members, agents, and any other individuals who access the Platform under a licensed account.`,
+    icon: Users,
+    iconBg: "bg-blue-100 text-blue-600",
+    label: "WHO CAN USE ZOIKOVERTEX",
+    text: "ZoikoVertex is a B2B platform for organizations, enterprise teams, agencies, and authorized professional users. Customer administrators are responsible for users they invite.",
   },
   {
-    title: "2. Description of Service",
-    content: `ZoikoVertex is a governed autonomous agentic-intelligence social media management platform designed for enterprise and regulated industries. The Platform enables organisations to plan, create, review, approve, publish, and govern social media content across connected platforms including Facebook, Instagram, LinkedIn, X (Twitter), Pinterest, Threads, and YouTube.
-
-ZoikoVertex operates across three functional layers:
-
-**Control Plane**
-Governance, identity management, policy enforcement, approval routing, and role-based access control.
-
-**Data Plane**
-Platform connector management, content ingestion, webhook processing, execution dispatch, and action attribution.
-
-**Intelligence Plane**
-AI agent reasoning, content optimisation, performance scoring, and ROI forecasting.
-
-The Platform is provided as a Software-as-a-Service (SaaS) product under the subscription plan selected by the Customer.`,
+    icon: Database,
+    iconBg: "bg-yellow-100 text-yellow-600",
+    label: "YOUR CONTENT STAYS YOURS",
+    text: "Customers retain ownership of customer content. ZoikoVertex needs a limited license to host, process, and use content only to provide, secure, support, and improve the service.",
   },
   {
-    title: "3. Account Registration & Workspaces",
-    content: `To use ZoikoVertex, you must register an account and create or join a workspace. You agree to:
-
-- Provide accurate, current, and complete information during registration
-- Maintain the security of your login credentials and not share them with unauthorised individuals
-- Notify us immediately of any unauthorised access or suspected breach of your account
-- Accept responsibility for all activity that occurs under your account or workspace
-
-Workspace administrators are responsible for managing access, roles, and permissions for all members within their workspace. ZoikoVertex is not liable for losses resulting from unauthorised use of your account.`,
+    icon: Bot,
+    iconBg: "bg-green-100 text-green-600",
+    label: "AI OUTPUTS NEED HUMAN REVIEW",
+    text: "AI-assisted features are assistive tools. Users must review, verify, and approve AI outputs before publication, reliance, or external distribution. AI does not replace human judgment.",
   },
   {
-    title: "4. Subscription Plans & Billing",
-    content: `ZoikoVertex is offered under the following subscription tiers: Starter, Core, Professional, and Enterprise. Features available to you depend on the plan your organisation has subscribed to.
-
-**Feature Gating**
-Certain features — including Approval Workflow Engine, Evidence Vault, Agent Autonomy levels D2 and D3, and Evidence Packs — are available only on Professional and Enterprise plans. Access to these features will be restricted if your plan does not include them.
-
-**Billing**
-Subscription fees are billed in advance on a monthly or annual basis. All fees are non-refundable except where required by applicable law. You authorise ZoikoVertex to charge your designated payment method for all applicable subscription fees.
-
-**Changes to Plans**
-ZoikoVertex reserves the right to change subscription pricing with 30 days' notice. Continued use of the Platform after a price change takes effect constitutes acceptance of the new pricing.
-
-**Suspension for Non-Payment**
-If payment is not received when due, ZoikoVertex may suspend or terminate access to the Platform.`,
+    icon: Building2,
+    iconBg: "bg-purple-100 text-purple-600",
+    label: "ENTERPRISE AGREEMENTS MAY OVERRIDE",
+    text: "Signed enterprise agreements, order forms, DPAs, and SLAs may supplement or override these online Terms where expressly stated in writing.",
   },
   {
-    title: "5. Connected Social Media Platforms",
-    content: `ZoikoVertex connects to third-party social media platforms via OAuth 2.0. By connecting a platform account, you:
-
-- Authorise ZoikoVertex to act on your behalf within the permissions you grant during the OAuth authorisation flow
-- Confirm that you have the legal right and authority to connect the account and publish content on it
-- Accept that ZoikoVertex's ability to publish or retrieve data depends on the access level granted and the policies of the connected platform
-
-**Supported platforms** include Facebook, Instagram (Business & Creator), LinkedIn (Profiles & Pages), X (Twitter), Pinterest, Threads, and YouTube.
-
-ZoikoVertex is not responsible for changes to third-party platform APIs, access restrictions imposed by those platforms, or content that fails to publish due to platform-side errors or policy violations. You may revoke platform access at any time from within ZoikoVertex or from the connected platform's security settings.`,
+    icon: Ban,
+    iconBg: "bg-red-100 text-red-600",
+    label: "MISUSE HAS CONSEQUENCES",
+    text: "Prohibited use, non-payment, security risk, legal risk, or breach of these Terms may result in suspension or termination of access.",
   },
   {
-    title: "6. AI Agents & Autonomous Actions",
-    content: `ZoikoVertex incorporates AI agents that can operate at varying levels of autonomy defined by the platform's Agent Autonomy Framework:
-
-**D0 — Insight Only**
-The agent provides recommendations and analysis. No content is created or published without explicit human action.
-
-**D1 — Approval Required**
-The agent drafts and prepares actions that must be approved by an authorised human before execution.
-
-**D2 — Conditional Autonomy**
-The agent may execute actions within defined policy constraints without human approval per action, but subject to governance rules and HITL (Human-in-the-Loop) triggers.
-
-**D3 — Full Autonomy**
-The agent operates within defined constraints with full execution authority, subject to policy enforcement and real-time risk monitoring.
-
-Agent autonomy levels are gated by subscription plan and must be explicitly configured by workspace administrators. You accept that:
-
-- AI-generated content may contain errors, inaccuracies, or content that requires human review before publication
-- You remain solely responsible for all content published from your workspace regardless of whether it was generated or assisted by an AI agent
-- ZoikoVertex's governance framework is designed to reduce but cannot eliminate the risk of inappropriate content being published
-- Emergency pause controls and HITL rules must be configured appropriately for your organisation's risk tolerance`,
-  },
-  {
-    title: "7. Approval Workflows & Governance",
-    content: `ZoikoVertex provides an Approval Workflow Engine for organisations that require human review before content is published. Use of this feature does not transfer legal or regulatory compliance obligations from the Customer to ZoikoVertex.
-
-Workspace administrators are responsible for:
-
-- Configuring approval routing rules appropriate to their organisation's requirements
-- Ensuring reviewers and approvers are adequately trained
-- Maintaining oversight of governance policies and enforcement rules
-- Monitoring the Governance Queue and acting on pending approvals within required timeframes
-
-ZoikoVertex provides governance tooling as infrastructure. Compliance with applicable laws, regulations, and platform policies remains the sole responsibility of the Customer.`,
-  },
-  {
-    title: "8. Evidence Vault & Audit Records",
-    content: `The Evidence Vault provides tamper-evident audit logs, governance artefacts, and evidence packs to support legal defensibility and regulatory compliance requirements.
-
-Evidence records generated by ZoikoVertex are provided as a best-effort service. While we implement cryptographic integrity controls and immutable logging, ZoikoVertex does not warrant that evidence records will be accepted as legally admissible evidence in any jurisdiction or proceeding.
-
-Customers are responsible for:
-
-- Configuring retention policies appropriate to their regulatory requirements
-- Exporting and preserving evidence packs required for any specific legal or regulatory obligation
-- Applying legal holds where required prior to anticipated litigation or audit
-
-ZoikoVertex retains governance artefacts for a minimum of 12 months. Extended retention is available on Enterprise plans.`,
-  },
-  {
-    title: "9. User Responsibilities & Acceptable Use",
-    content: `You agree to use ZoikoVertex only for lawful purposes and in accordance with these Terms. You must not:
-
-- Publish content that infringes intellectual property rights, including copyright, trademark, or proprietary rights of any third party
-- Publish content that is defamatory, harassing, threatening, obscene, or otherwise unlawful
-- Use ZoikoVertex to engage in spam, misleading advertising, or deceptive practices
-- Attempt to reverse engineer, decompile, or extract source code from the Platform
-- Use the Platform to train competing AI models or extract data for competing services
-- Circumvent, disable, or interfere with security or governance controls
-- Share access credentials or allow unauthorised individuals to access your workspace
-- Use the Platform in any way that violates the terms of service of any connected social media platform
-
-ZoikoVertex reserves the right to suspend or terminate access for violations of these terms without prior notice.`,
-  },
-  {
-    title: "10. Intellectual Property",
-    content: `**ZoikoVertex IP**
-The Platform, including its software, design, trademarks, and documentation, is owned by ZoikoVertex and protected by applicable intellectual property laws. These Terms do not grant you any ownership rights in the Platform.
-
-**Customer Content**
-You retain ownership of all content you create, upload, or publish through the Platform. By using the Platform, you grant ZoikoVertex a limited, non-exclusive licence to process, store, and transmit your content solely as necessary to provide the service.
-
-**AI-Generated Content**
-Content generated by ZoikoVertex AI agents is produced on your behalf and under your instruction. Responsibility for ensuring AI-generated content is accurate, appropriate, and legally compliant rests with you.
-
-**Feedback**
-If you provide suggestions or feedback about the Platform, you grant ZoikoVertex the right to use such feedback without restriction or compensation.`,
-  },
-  {
-    title: "11. Confidentiality",
-    content: `Each party agrees to keep confidential any non-public information disclosed by the other party in connection with the Platform that is designated as confidential or reasonably should be understood to be confidential.
-
-This obligation does not apply to information that:
-
-- Was already publicly known at the time of disclosure
-- Becomes publicly known through no fault of the receiving party
-- Was independently developed without reference to the confidential information
-- Is required to be disclosed by law or legal process
-
-ZoikoVertex will not disclose Customer workspace data, content, or governance records to third parties except as described in our Privacy Policy or as required by law.`,
-  },
-  {
-    title: "12. Data Protection & Privacy",
-    content: `Your use of ZoikoVertex is subject to our Privacy Policy, which is incorporated into these Terms by reference. The Privacy Policy describes how we collect, use, store, and protect your data.
-
-For enterprise customers operating under GDPR, CCPA, or equivalent data protection regulations, ZoikoVertex is available to enter into a Data Processing Agreement (DPA) upon request. Contact us at legal@zoikogroup.com to request a DPA.`,
-  },
-  {
-    title: "13. Disclaimers & Limitation of Liability",
-    content: `**As-Is Service**
-ZoikoVertex is provided "as is" and "as available" without warranties of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose, or non-infringement.
-
-**Uptime**
-We strive for high availability but do not warrant uninterrupted or error-free operation. Scheduled maintenance and unforeseen outages may affect availability.
-
-**AI Accuracy**
-ZoikoVertex AI agents may produce content that is inaccurate, incomplete, or inappropriate. We do not warrant the accuracy, reliability, or suitability of AI-generated content for any purpose.
-
-**Limitation of Liability**
-To the maximum extent permitted by applicable law, ZoikoVertex's total liability for any claim arising out of or related to these Terms or the Platform shall not exceed the fees paid by you in the three months preceding the claim. In no event shall ZoikoVertex be liable for indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunity.`,
-  },
-  {
-    title: "14. Indemnification",
-    content: `You agree to indemnify, defend, and hold harmless ZoikoVertex and its officers, directors, employees, and contractors from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to:
-
-- Your use of the Platform in violation of these Terms
-- Content you publish or instruct agents to publish through the Platform
-- Your violation of any applicable law or third-party rights
-- Any breach of your representations or warranties under these Terms`,
-  },
-  {
-    title: "15. Termination",
-    content: `**By You**
-You may cancel your subscription at any time through your workspace billing settings. Cancellation takes effect at the end of the current billing period. No refunds are issued for unused portions of a billing period.
-
-**By ZoikoVertex**
-We may suspend or terminate your access to the Platform immediately and without prior notice if:
-
-- You violate these Terms or our Acceptable Use Policy
-- Your payment obligations are not met
-- We are required to do so by law or regulatory obligation
-
-**Effect of Termination**
-Upon termination, your right to access the Platform ceases immediately. Your data will be retained for 90 days following termination, during which you may export it. After 90 days, data will be deleted in accordance with our retention policy, unless subject to a legal hold.`,
-  },
-  {
-    title: "16. Modifications to Terms",
-    content: `ZoikoVertex reserves the right to modify these Terms at any time. When we make material changes, we will notify workspace administrators by email or via an in-platform notice at least 14 days before the changes take effect.
-
-Continued use of the Platform after revised Terms take effect constitutes your acceptance of those changes. If you do not agree to the revised Terms, you must stop using the Platform before the effective date.`,
-  },
-  {
-    title: "17. Governing Law & Disputes",
-    content: `These Terms are governed by and construed in accordance with the laws of India, without regard to conflict of law principles. Any dispute arising out of or in connection with these Terms shall first be attempted to be resolved through good-faith negotiation between the parties.
-
-If negotiation fails, disputes shall be resolved by binding arbitration in accordance with applicable arbitration rules. Nothing in this clause prevents either party from seeking emergency injunctive relief from a court of competent jurisdiction.`,
-  },
-  {
-    title: "18. Contact Us",
-    content: `If you have questions about these Terms or need to contact us regarding your subscription, data, or a legal matter, please reach out:
-
-**ZoikoVertex**
-Email: legal@zoikogroup.com
-Privacy enquiries: privacy@zoikogroup.com
-Website: https://zoikovertex.com`,
+    icon: CreditCard,
+    iconBg: "bg-amber-100 text-amber-600",
+    label: "SUBSCRIPTIONS AUTO-RENEW",
+    text: "Subscriptions renew automatically unless cancelled before the renewal date. Free trials may convert to paid plans. Billing, cancellation, and refund rules must be reviewed before subscribing.",
   },
 ];
 
-export default function TermsPage() {
+const FAQ_ITEMS = [
+  {
+    q: "What are the ZoikoVertex Terms of Service?",
+    a: "These Terms govern your access to and use of the ZoikoVertex platform, including accounts, subscriptions, customer content, AI-assisted workflows, acceptable use, integrations, audit logs, suspension, termination, and enterprise agreements.",
+  },
+  {
+    q: "Who can use ZoikoVertex?",
+    a: "ZoikoVertex is designed for business and organizational use by enterprise teams, agencies, multi-brand organizations, and professional users. Users must have authority to act on behalf of their organization and meet applicable age requirements.",
+  },
+  {
+    q: "Who owns content uploaded to ZoikoVertex?",
+    a: "Customers retain ownership of their customer content. ZoikoVertex receives only a limited license to host, process, and transmit content as needed to provide, secure, support, and improve the service.",
+  },
+  {
+    q: "Can users rely on AI-assisted outputs without review?",
+    a: "No. AI-assisted features are assistive tools that support human judgment — they do not replace it. Users must review, verify, and approve AI outputs before publication, reliance, or external distribution.",
+  },
+  {
+    q: "What uses of ZoikoVertex are prohibited?",
+    a: "Prohibited uses include unlawful, deceptive, harmful, infringing, or abusive activity; impersonation; bypassing security or governance controls; unauthorized scraping or model extraction; and using ZoikoVertex in industries or jurisdictions where prohibited by applicable law.",
+  },
+  {
+    q: "How do ZoikoVertex subscriptions and cancellations work?",
+    a: "Subscriptions are billed on a monthly, annual, usage-based, or custom enterprise basis. They renew automatically unless cancelled before the renewal date. Cancellation takes effect at the end of the current paid period. Specific billing, refund, and cancellation terms must be confirmed at checkout and in the order form.",
+  },
+  {
+    q: "Do enterprise customers have separate terms?",
+    a: "Yes. Enterprise customers may have signed agreements — including master agreements, order forms, DPAs, and SLAs — that supplement or override these online Terms where expressly stated. Signed enterprise agreements take priority over these Terms.",
+  },
+  {
+    q: "How do these Terms relate to the Privacy Policy and DPA?",
+    a: "These Terms govern platform access and use. The Privacy Policy governs ZoikoVertex's handling of personal information. The Data Processing Addendum governs enterprise processing of customer personal data inside workspaces. All three documents apply in enterprise relationships.",
+  },
+];
+
+/* ── SUB-COMPONENTS ──────────────────────────────────────────────── */
+
+function Badge({ label, variant }: { label: string; variant: string }) {
+  const styles: Record<string, string> = {
+    blue:   "border-blue-300 text-blue-700 bg-blue-50",
+    gray:   "border-gray-300 text-gray-500 bg-gray-50",
+    amber:  "border-amber-300 text-amber-700 bg-amber-50",
+    orange: "border-orange-300 text-orange-700 bg-orange-50",
+    purple: "border-purple-300 text-purple-700 bg-purple-50",
+    teal:   "border-teal-300 text-teal-700 bg-teal-50",
+    red:    "border-red-300 text-red-700 bg-red-50",
+    indigo: "border-indigo-300 text-indigo-700 bg-indigo-50",
+    green:  "border-green-300 text-green-700 bg-green-50",
+  };
   return (
-    <div className="min-h-full bg-[#0a0a0f] text-white">
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border tracking-wide ${styles[variant] ?? styles.gray}`}>
+      {label}
+    </span>
+  );
+}
 
-      {/* Header */}
-      <header className="border-b border-white/10 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold tracking-tight text-white">
-            ZoikoVertex
-          </Link>
-          <span className="text-xs text-white/40 font-medium uppercase tracking-widest">Legal</span>
+function SectionHeading({
+  id, title, badge, num,
+}: {
+  id: string; title: string; badge?: { label: string; variant: string }; num: number;
+}) {
+  return (
+    <>
+      <p className="sm:hidden text-[9px] font-mono font-bold uppercase tracking-[0.22em] text-gray-400 mb-2">
+        Section {String(num).padStart(2, "0")}
+      </p>
+      <h2
+        id={id}
+        className="text-[22px] font-black text-gray-900 tracking-tight scroll-mt-24 flex items-center flex-wrap gap-1.5"
+      >
+        {title}
+        {badge && (
+          <span className="hidden sm:inline">
+            <Badge label={badge.label} variant={badge.variant} />
+          </span>
+        )}
+      </h2>
+      {badge && (
+        <div className="mt-2 sm:hidden">
+          <Badge label={badge.label} variant={badge.variant} />
         </div>
-      </header>
+      )}
+    </>
+  );
+}
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
+function Body({ children }: { children: React.ReactNode }) {
+  return <p className="mt-3 text-[14.5px] text-gray-700 leading-[1.75]">{children}</p>;
+}
 
-        {/* Title */}
-        <div className="mb-12">
-          <p className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-3">Legal</p>
-          <h1 className="text-4xl font-black tracking-tight text-white mb-4">Terms of Service</h1>
-          <p className="text-white/50 text-sm">
-            Last updated: <span className="text-white/70">May 2025</span>
-          </p>
-          <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 leading-relaxed">
-            These Terms of Service govern your access to and use of the ZoikoVertex platform. By creating an account or using any part of the platform, you agree to be bound by these Terms. Please read them carefully before use.
-          </div>
-        </div>
+function BulletList({ items }: { items: string[] }) {
+  return (
+    <ul className="space-y-2.5 mt-3">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-3">
+          <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-[#20E7F2] shrink-0" />
+          <span className="text-[14px] text-gray-700 leading-relaxed">{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-        {/* Sections */}
-        <div className="space-y-10">
-          {SECTIONS.map((section) => (
-            <section key={section.title}>
-              <h2 className="text-lg font-bold text-white mb-3">{section.title}</h2>
-              <div className="text-white/60 text-sm leading-relaxed space-y-3">
-                {section.content.split("\n\n").map((para, i) => {
-                  const lines = para.split("\n");
-                  return (
-                    <div key={i}>
-                      {lines.map((line, j) => {
-                        const isBullet = line.startsWith("- ");
-                        const isBold = line.startsWith("**") && line.includes("**", 2);
-                        if (isBullet) {
-                          return (
-                            <div key={j} className="flex gap-2 mt-1">
-                              <span className="text-indigo-400 shrink-0 mt-px">—</span>
-                              <span>{line.slice(2).replace(/\*\*(.*?)\*\*/g, "$1")}</span>
-                            </div>
-                          );
-                        }
-                        if (isBold && lines.length > 1 && j < lines.length - 1) {
-                          const boldText = line.replace(/\*\*(.*?)\*\*/g, "$1");
-                          return (
-                            <p key={j} className="font-semibold text-white/80 mt-3 first:mt-0">
-                              {boldText}
-                            </p>
-                          );
-                        }
-                        return (
-                          <p key={j} className={j > 0 ? "mt-2" : ""}>
-                            {line.replace(/\*\*(.*?)\*\*/g, "$1")}
-                          </p>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-6 border-b border-white/5" />
-            </section>
+function CalloutBox({
+  lead, text, variant = "teal",
+}: {
+  lead: string; text: string; variant?: "teal" | "amber" | "indigo";
+}) {
+  const s = {
+    teal:   "border-[#20E7F2] bg-sky-50/60",
+    amber:  "border-amber-400 bg-amber-50/60",
+    indigo: "border-indigo-400 bg-indigo-50/60",
+  };
+  return (
+    <div className={`mt-5 border-l-4 ${s[variant]} px-5 py-4 rounded-r-xl`}>
+      <p className="text-[13.5px] text-gray-800 leading-relaxed">
+        <span className="font-bold">{lead}</span> {text}
+      </p>
+    </div>
+  );
+}
+
+function InfoBox({ lead, text }: { lead: string; text: string }) {
+  return (
+    <div className="mt-5 flex gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
+      <span className="text-amber-500 text-base shrink-0 mt-0.5">ⓘ</span>
+      <p className="text-[13.5px] text-gray-800 leading-relaxed">
+        <span className="font-bold">{lead}</span> {text}
+      </p>
+    </div>
+  );
+}
+
+function DataTable({
+  headers, rows,
+}: {
+  headers: string[];
+  rows: (string | React.ReactNode)[][];
+}) {
+  return (
+    <div className="mt-4 overflow-x-auto rounded-xl border border-gray-100">
+      <table className="w-full text-sm" style={{ minWidth: "420px" }}>
+        <thead>
+          <tr className="bg-[#0d1424]">
+            {headers.map((h) => (
+              <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-widest text-white/50 whitespace-nowrap">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
+              {row.map((cell, j) => (
+                <td key={j} className={`px-4 py-3.5 text-[13px] text-gray-700 leading-relaxed align-top ${j === 0 ? "font-medium text-gray-800" : ""}`}>
+                  {cell}
+                </td>
+              ))}
+            </tr>
           ))}
-        </div>
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-        {/* Footer note */}
-        <div className="mt-16 p-6 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl text-center">
-          <p className="text-sm text-white/50">
-            These Terms apply to the ZoikoVertex platform available at{" "}
-            <span className="text-indigo-400">zoikovertex.com</span> and any associated subdomains or services operated by Zoiko Group.
-          </p>
-        </div>
-      </main>
+function NumberedTable({
+  header, rows,
+}: {
+  header: string;
+  rows: { num: number; label: string; desc: string }[];
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-gray-100 overflow-hidden">
+      <div className="bg-[#0d1424] px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">{header}</p>
+      </div>
+      <table className="w-full">
+        <tbody>
+          {rows.map(({ num, label, desc }) => (
+            <tr key={num} className="border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
+              <td className="px-4 py-3.5 text-[13px] font-bold text-gray-400 w-8 align-top">{num}</td>
+              <td className="px-4 py-3.5 text-[13px] font-medium text-gray-800 align-top w-44">{label}</td>
+              <td className="hidden sm:table-cell px-4 py-3.5 text-[13px] text-gray-600 leading-relaxed align-top">{desc}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 px-6 py-8 mt-8">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} ZoikoVertex. All rights reserved.
+function Divider() {
+  return <hr className="my-10 border-gray-100" />;
+}
+
+function FaqSection() {
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  return (
+    <div id="faq" className="scroll-mt-24">
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">FAQ</p>
+      <h3 className="text-[20px] font-black text-gray-900 mb-1">Frequently Asked Questions</h3>
+      <p className="text-[13.5px] text-gray-500 mb-5">Quick answers to common questions about the ZoikoVertex Terms of Service.</p>
+      <div className="border border-gray-100 rounded-xl overflow-hidden">
+        {FAQ_ITEMS.map(({ q, a }, i) => (
+          <div key={q} className="border-b border-gray-100 last:border-b-0">
+            <button
+              onClick={() => setOpenIdx(openIdx === i ? null : i)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/60 transition-colors"
+            >
+              <span className="text-[13.5px] font-medium text-gray-800 pr-4">{q}</span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${openIdx === i ? "rotate-180" : ""}`} />
+            </button>
+            {openIdx === i && (
+              <div className="px-5 pb-4">
+                <p className="text-[13px] text-gray-500 leading-relaxed">{a}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── PAGE ────────────────────────────────────────────────────────── */
+
+export default function TermsPage() {
+  const [activeId, setActiveId] = useState(TOC[0].id);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) { setActiveId(entry.target.id); break; }
+        }
+      },
+      { rootMargin: "-20% 0px -70% 0px" }
+    );
+    TOC.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observerRef.current!.observe(el);
+    });
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#f5f6f8]">
+
+      {/* ── HERO ─────────────────────────────────────────────────── */}
+      <section className="bg-[#080d1a] pt-[68px]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-14 sm:py-20">
+
+          {/* Mobile breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.15em] text-white/30 mb-6 flex-wrap sm:hidden">
+            <span>ZoikoVertex</span>
+            <ChevronRight className="w-3 h-3 shrink-0" />
+            <span>Trust &amp; Legal</span>
+            <ChevronRight className="w-3 h-3 shrink-0" />
+            <span className="text-white/60">Terms of Service</span>
+          </div>
+
+          <h1 className="text-[clamp(2rem,5vw,3.5rem)] font-black text-white tracking-tight leading-tight mb-4">
+            Terms of Service
+          </h1>
+          <p className="text-[15px] text-white/50 max-w-[600px] leading-relaxed">
+            These Terms govern access to and use of ZoikoVertex — including accounts, subscriptions, customer content, AI-assisted workflows, acceptable use, integrations, audit logs, suspension, termination, and enterprise agreements.
           </p>
-          <div className="flex items-center gap-6 text-xs text-white/30">
-            <Link href="/privacy" className="hover:text-white/60 transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white/60 transition-colors">Terms of Service</Link>
-            <a href="mailto:legal@zoikogroup.com" className="hover:text-white/60 transition-colors">Contact</a>
+
+          {/* Mobile: metadata + CTAs + pre-publication notice */}
+          <div className="sm:hidden">
+            <div className="border-t border-white/10 mt-8 pt-6 mb-6 space-y-3">
+              {[
+                { label: "EFFECTIVE",     value: "[To be confirmed by legal]" },
+                { label: "LAST UPDATED",  value: "[To be confirmed by legal]" },
+                { label: "ENTITY",        value: "Zoiko Tech Inc. · Zoiko Group" },
+                { label: "LEGAL CONTACT", value: "[legal@zoikovertex.com]" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-baseline gap-2 text-[11px] flex-wrap">
+                  <span className="font-mono font-bold text-white/30 tracking-wider shrink-0">{label}</span>
+                  <span className="text-white/65">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2.5 mb-8">
+              <button className="inline-flex items-center gap-2 bg-[#20E7F2] text-[#080d1a] font-bold px-6 py-3 rounded-full text-[13px] w-fit">
+                <FileText className="w-4 h-4" />
+                Contact Legal
+              </button>
+              <div className="flex gap-2.5 flex-wrap">
+                <button className="inline-flex items-center gap-2 border border-white/25 text-white/80 font-semibold px-5 py-2.5 rounded-full text-[13px]">
+                  <FileKey className="w-4 h-4" />
+                  View DPA
+                </button>
+                <button className="inline-flex items-center gap-2 border border-white/25 text-white/80 font-semibold px-5 py-2.5 rounded-full text-[13px]">
+                  <Shield className="w-4 h-4" />
+                  Privacy Policy
+                </button>
+              </div>
+            </div>
+
+            <div className="border border-amber-400/30 bg-amber-400/[0.08] rounded-xl px-4 py-4 flex gap-3">
+              <span className="text-amber-400 shrink-0 mt-0.5 text-base">⚠</span>
+              <p className="text-[11px] font-mono leading-relaxed text-amber-300/80">
+                <span className="font-bold text-amber-300">Pre-publication notice for legal and product review.</span>{" "}
+                These Terms must be finalized by counsel before publication. Legal entity, subscription mechanics, AI provider terms, customer content rights, acceptable use boundaries, enterprise agreement hierarchy, suspension triggers, termination consequences, liability caps, indemnification scope, and governing law must all be confirmed. All bracketed fields require legal sign-off. Do not publish until all launch blockers are resolved.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── TERMS AT A GLANCE ─────────────────────────────────── */}
+      <section className="bg-[#eef0f4] py-16 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto">
+
+          {/* Mobile heading */}
+          <div className="sm:hidden mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-4 h-4 text-[#20E7F2]" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#20E7F2]">Terms at a Glance</p>
+            </div>
+            <h2 className="text-[2rem] font-black text-gray-900 tracking-tight leading-tight mb-3">
+              Plain English, first.
+            </h2>
+            <p className="text-[14px] text-gray-500 leading-relaxed">
+              Six things you should understand about the ZoikoVertex Terms of Service before reading the full text.
+            </p>
+          </div>
+
+          {/* Desktop heading */}
+          <div className="hidden sm:block text-center mb-10">
+            <h2 className="text-[clamp(1.8rem,4vw,2.6rem)] font-black text-gray-900 tracking-tight mb-2">
+              Terms at a Glance
+            </h2>
+            <p className="text-[14px] text-gray-500 max-w-[560px] mx-auto leading-relaxed">
+              Six things you should understand about the ZoikoVertex Terms of Service before reading the full text.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {GLANCE.map(({ icon: Icon, iconBg, label, text }) => (
+              <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-white/80 flex items-start gap-4">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1.5">{label}</p>
+                  <p className="text-[13px] text-gray-600 leading-relaxed">{text}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* ── MAIN: SIDEBAR + CONTENT ───────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 lg:py-12">
+        <div className="flex gap-12 items-start">
+
+          {/* LEFT — sticky TOC (desktop only) */}
+          <aside className="hidden lg:block w-56 shrink-0 sticky top-[88px]">
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Contents</p>
+            <nav className="space-y-0.5">
+              {TOC.map((item) => {
+                const isActive = activeId === item.id;
+                const isSpecial = item.num === null;
+                return (
+                  <a
+                    key={item.id}
+                    href={`#${item.id}`}
+                    className={`flex items-start gap-2 py-1.5 rounded-lg text-[11.5px] transition-colors leading-snug ${
+                      isActive
+                        ? isSpecial
+                          ? "text-[#0d8d9a] font-semibold border-l-2 border-[#20E7F2] pl-2.5 rounded-l-none"
+                          : "text-[#0d8d9a] font-semibold bg-[#20E7F2]/10 px-2.5"
+                        : "text-gray-400 hover:text-gray-700 hover:bg-gray-100 px-2.5"
+                    }`}
+                  >
+                    {item.num !== null && (
+                      <span className={`text-[10px] font-mono shrink-0 mt-0.5 ${isActive ? "text-[#20E7F2]" : "text-gray-300"}`}>
+                        {String(item.num).padStart(2, "0")}
+                      </span>
+                    )}
+                    {item.title}
+                  </a>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* RIGHT — content */}
+          <main className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+
+            {/* 1. Acceptance of Terms */}
+            <SectionHeading id="acceptance" title="Acceptance of Terms" badge={{ label: "All users", variant: "blue" }} num={1} />
+            <Body>By creating an account, accessing the platform, accepting a trial, executing an order form, or otherwise using ZoikoVertex, you agree to be bound by these Terms of Service and any policies or documents incorporated by reference.</Body>
+            <Body>If you are accepting these Terms on behalf of an organization, you represent that you have the authority to bind that organization. If you do not accept these Terms, you must stop using ZoikoVertex immediately.</Body>
+            <CalloutBox lead="Customer responsibility for authorized users." text="Customers are responsible for ensuring all authorized users, external collaborators, agencies, and contractors accessing their workspace comply with these Terms." />
+
+            <Divider />
+
+            {/* 2. Eligibility & Users */}
+            <SectionHeading id="eligibility" title="Eligibility and Authorized Users" badge={{ label: "B2B platform", variant: "gray" }} num={2} />
+            <Body>ZoikoVertex is designed primarily for business and organizational use by enterprise teams, agencies, multi-brand organizations, and professional users. Users must meet the minimum age required by applicable law and have authority to act on behalf of their organization where required.</Body>
+            <BulletList items={[
+              "Users must be at least [minimum age — to be confirmed by legal] years old",
+              "Customer administrators are responsible for user roles, permissions, and workspace access",
+              "Credential sharing, impersonation, and unauthorized workspace access are prohibited",
+              "External collaborators, agencies, contractors, and freelancers must be managed by the customer",
+              "ZoikoVertex reserves the right to verify eligibility and decline or terminate accounts",
+            ]} />
+
+            <Divider />
+
+            {/* 3. Accounts & Workspaces */}
+            <SectionHeading id="accounts" title="Accounts, Workspaces, and Administration" badge={{ label: "Admin", variant: "amber" }} num={3} />
+            <Body>Account holders must provide accurate and complete information and keep it current. Customers control workspace configuration, role assignments, approval authority, brand governance settings, and administrative permissions within their account.</Body>
+            <BulletList items={[
+              "Users must protect account credentials and use appropriate authentication",
+              "Suspected unauthorized access must be reported to ZoikoVertex immediately",
+              "Customers are responsible for activity occurring under accounts they control",
+              "Departed users and external collaborators should be removed promptly",
+              "Role-based access, workspace boundaries, and approval authority operate as configured by the customer administrator",
+            ]} />
+            <CalloutBox lead="Administrative visibility." text="Customer administrators may see user activity, workflow records, approval history, and audit events within their workspace depending on permissions and plan configuration." />
+
+            <Divider />
+
+            {/* 4. Subscriptions & Billing */}
+            <SectionHeading id="subscriptions" title="Plans, Subscriptions, Billing, and Cancellation" badge={{ label: "Financial", variant: "orange" }} num={4} />
+            <Body>Access to ZoikoVertex is provided through paid subscription plans. Plan features, limits, prices, credits, add-ons, overages, and usage-based charges may vary by tier or order form. By subscribing, customers authorize ZoikoVertex or its payment processor to charge applicable fees and taxes.</Body>
+            <DataTable
+              headers={["TOPIC", "REQUIRED UNDERSTANDING"]}
+              rows={[
+                ["Billing Cycle",         "Monthly, annual, usage-based, or custom enterprise billing as specified in the order form or checkout."],
+                ["Auto-Renewal",          "Subscriptions renew automatically unless cancelled before the renewal date. Renewal period, billing timing, and notice are disclosed at checkout or in the order form."],
+                ["Free Trials",           "Free trials may convert to paid plans on the conversion date. Customers must cancel before the trial ends to avoid charges. [Trial length and conversion mechanics to be confirmed.]"],
+                ["Cancellation",          "Customers may cancel through the admin console or by contacting support. Cancellation takes effect at the end of the current paid period unless otherwise stated."],
+                ["Refunds",               "[Refund policy to be confirmed by legal and aligned with applicable law and checkout terms.]"],
+                ["Taxes",                 "Customers are responsible for applicable taxes, including sales tax, VAT, GST, withholding, and similar charges, unless ZoikoVertex is required by law to collect them."],
+                ["Non-Payment",           "Failure to pay may result in account suspension. Outstanding fees remain due after suspension or termination."],
+                ["Data After Cancellation","Customers should export data before cancellation takes effect. [Export window, retention, and deletion timing to be confirmed.]"],
+              ]}
+            />
+            <InfoBox lead="Legal confirmation required." text="All subscription mechanics — including billing cycles, renewal timing, trial conversion, cancellation methods, refund position, tax handling, and data-deletion timelines — must be confirmed before publication and aligned with checkout flows and order forms." />
+
+            <Divider />
+
+            {/* 5. Enterprise Agreements */}
+            <SectionHeading id="enterprise" title="Enterprise Agreements and Order Forms" badge={{ label: "Enterprise", variant: "purple" }} num={5} />
+            <Body>Enterprise customers may enter into signed agreements, order forms, Data Processing Addenda, Service-Level Agreements, statements of work, or written amendments that supplement or override these online Terms where expressly stated.</Body>
+            <NumberedTable
+              header="AGREEMENT HIERARCHY — CONTROLS FROM HIGHEST TO LOWEST PRIORITY"
+              rows={[
+                { num: 1, label: "Master / Enterprise Agreement", desc: "Controls core negotiated legal terms where expressly agreed in writing." },
+                { num: 2, label: "Order Form",                    desc: "Defines plan, term, fees, users, usage, support, renewal, and customer-specific terms." },
+                { num: 3, label: "Data Processing Addendum",      desc: "Governs qualifying processing of customer personal information." },
+                { num: 4, label: "Service-Level Agreement",       desc: "Applies only where expressly included in the order form or written agreement." },
+                { num: 5, label: "Online Terms of Service",       desc: "Default terms for platform use unless modified by written agreement." },
+                { num: 6, label: "Product Policies & Docs",       desc: "Operational rules, feature guidance, acceptable use, and implementation details." },
+              ]}
+            />
+            <CalloutBox lead="Conflict resolution." text="In the event of a conflict between documents, the highest-priority document in this hierarchy controls on that specific point, unless expressly agreed otherwise in writing." />
+            <div className="sm:hidden mt-5">
+              <button className="inline-flex items-center gap-2 bg-[#20E7F2] text-[#080d1a] font-bold px-5 py-2.5 rounded-full text-[13px]">
+                <FileKey className="w-4 h-4" />
+                View Data Processing Addendum
+              </button>
+            </div>
+
+            <Divider />
+
+            {/* 6. Customer Content */}
+            <SectionHeading id="content" title="Customer Content" badge={{ label: "Your data", variant: "teal" }} num={6} />
+            <Body>Customer content may include marketing drafts, campaign materials, brand assets, prompts, AI-assisted outputs, approval comments, publishing instructions, performance data, evidence records, audit logs, and workflow records submitted to or created within ZoikoVertex.</Body>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  icon: Lock,
+                  label: "You retain ownership",
+                  desc: "Customers retain ownership of their customer content, subject to the license needed to provide the service.",
+                },
+                {
+                  icon: FileText,
+                  label: "Limited platform license",
+                  desc: "ZoikoVertex has a limited right to host, store, process, transmit, and use content only to operate, secure, support, and improve the service.",
+                },
+                {
+                  icon: Users,
+                  label: "Customer responsibility",
+                  desc: "Customers must have all rights, permissions, consents, and lawful basis required to upload and use their content in ZoikoVertex.",
+                },
+              ].map(({ icon: Icon, label, desc }) => (
+                <div key={label} className="border border-gray-100 rounded-xl p-4">
+                  <div className="w-7 h-7 rounded-lg bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center mb-3">
+                    <Icon className="w-3.5 h-3.5 text-[#0d8d9a]" />
+                  </div>
+                  <p className="text-[13px] font-bold text-gray-800 mb-1">{label}</p>
+                  <p className="text-[12px] text-gray-500 leading-relaxed">{desc}</p>
+                </div>
+              ))}
+            </div>
+            <BulletList items={[
+              "Customers remain responsible for content they approve, publish, export, distribute, or connect to third-party platforms",
+              "Customers must not submit content that infringes rights, violates law, or breaches third-party terms",
+              "Export and deletion timelines after cancellation or termination are described in Section 16 and confirmed by legal before publication",
+            ]} />
+
+            <Divider />
+
+            {/* 7. AI-Assisted Workflows */}
+            <SectionHeading id="ai-workflows" title="AI-Assisted Workflows and User Responsibility" badge={{ label: "High scrutiny", variant: "red" }} num={7} />
+            <Body>ZoikoVertex supports AI-assisted marketing workflows. These features are assistive tools designed to support — not replace — human judgment, legal review, compliance review, brand review, regulatory review, and customer responsibility.</Body>
+            <div className="mt-5 bg-[#0d1424] rounded-2xl p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center shrink-0">
+                  <Shield className="w-4 h-4 text-blue-300" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-white">AI-Assisted Workflow Rules</p>
+                  <p className="text-[11px] text-white/40">These rules apply to all AI-assisted features in ZoikoVertex.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { label: "REVIEW BEFORE USE",                  text: "Users must review, edit, verify, and approve AI-assisted outputs before reliance, publication, export, or external distribution." },
+                  { label: "AI OUTPUT LIMITATIONS",              text: "AI outputs may be inaccurate, incomplete, biased, outdated, or unsuitable. ZoikoVertex does not warrant their accuracy, completeness, or fitness for any purpose." },
+                  { label: "NOT PROFESSIONAL ADVICE",            text: "AI outputs are not legal, financial, medical, tax, employment, regulatory, or professional advice of any kind." },
+                  { label: "CUSTOMER RESPONSIBILITY FOR INPUTS", text: "Customers are responsible for all prompts, inputs, datasets, content, and instructions submitted into AI-assisted workflows." },
+                  { label: "OUTPUT OWNERSHIP",                   text: "[AI output ownership, provider restrictions, prompt retention, and training position — to be confirmed by legal and aligned with Privacy Policy, DPA, and provider terms.]" },
+                  { label: "PROHIBITED AI USES",                 text: "High-risk, deceptive, discriminatory, manipulative, unlawful, infringing, unsafe, or security-abusive AI uses are strictly prohibited. See Section 9." },
+                ].map(({ label, text }) => (
+                  <div key={label} className="bg-white/[0.04] border border-white/[0.07] rounded-xl p-4">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/35 mb-1.5">{label}</p>
+                    <p className="text-[12px] text-white/60 leading-relaxed">{text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <CalloutBox lead="Governance principle." text="ZoikoVertex is designed so that AI assists work — not replaces accountability. Human review, approval authority, and organizational responsibility remain with the customer at all times. See our Responsible AI page for platform design principles." />
+
+            <Divider />
+
+            {/* 8. Platform Rights & IP */}
+            <SectionHeading id="platform-rights" title="Platform Rights and Intellectual Property" badge={{ label: "ZoikoVertex IP", variant: "indigo" }} num={8} />
+            <Body>ZoikoVertex and its licensors own the platform, software, interfaces, workflows, designs, documentation, trademarks, service marks, logos, templates, analytics systems, governance tools, and all related technology. Customers receive only a limited, non-exclusive, non-transferable right to access and use the service in accordance with these Terms and any applicable order form.</Body>
+            <BulletList items={[
+              "No right to copy, reverse engineer, decompile, scrape, or extract the platform beyond permitted access",
+              "No right to resell, sublicense, or create competing products through unauthorized use of the platform",
+              "No right to remove, alter, or obscure any proprietary notices",
+              "Feedback, suggestions, and ideas submitted to ZoikoVertex may be used without compensation or obligation unless otherwise agreed in writing",
+              "No ownership rights are transferred except as expressly stated",
+            ]} />
+
+            <Divider />
+
+            {/* 9. Acceptable Use */}
+            <SectionHeading id="acceptable-use" title="Acceptable Use" badge={{ label: "Prohibited activity", variant: "orange" }} num={9} />
+            <Body>Users must not use ZoikoVertex in any manner that is unlawful, deceptive, harmful, infringing, discriminatory, malicious, abusive, or contrary to these Terms. The following uses are expressly prohibited.</Body>
+            <div className="mt-5 bg-[#0d1424] rounded-2xl overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-red-500/20 border border-red-400/30 flex items-center justify-center shrink-0">
+                  <Ban className="w-3.5 h-3.5 text-red-300" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-white">Prohibited Uses</p>
+                  <p className="text-[11px] text-white/40">Any of the following may result in immediate suspension or termination of access.</p>
+                </div>
+              </div>
+              <ul className="px-5 py-4 space-y-3">
+                {[
+                  "Unlawful, deceptive, fraudulent, harmful, or abusive use of the platform or its features",
+                  "Impersonation, false affiliation, misleading endorsement, phishing, scams, spam, social engineering, or unauthorized tracking",
+                  "Attempting to bypass permissions, approval controls, rate limits, security controls, workspace boundaries, or access restrictions",
+                  "Uploading prohibited, unnecessary, highly sensitive, or unlawfully obtained data without express contractual authorization",
+                  "Using AI-assisted features for manipulation, unlawful targeting, discrimination, political misinformation, regulated professional advice, or unsafe automation",
+                  "Unauthorized resale, sublicensing, scraping, harvesting, model extraction, or competitive misuse of the platform or its outputs",
+                  "Transmitting malware, viruses, disruptive code, or content that damages systems, data, or other users",
+                  "Using ZoikoVertex in industries, activities, or jurisdictions where such use is prohibited by applicable law or expressly restricted by ZoikoVertex policy",
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="text-red-400 shrink-0 text-sm font-bold mt-0.5">✕</span>
+                    <span className="text-[13px] text-white/60 leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <Divider />
+
+            {/* 10. Third-Party Integrations */}
+            <SectionHeading id="third-party" title="Third-Party Services and Integrations" badge={{ label: "External platforms", variant: "green" }} num={10} />
+            <Body>ZoikoVertex may connect with third-party services including social networks, advertising platforms, analytics tools, identity providers, CRM systems, storage platforms, AI providers, payment processors, and collaboration tools. These services are governed by their own terms, APIs, availability, data practices, and platform policies.</Body>
+            <BulletList items={[
+              "Customers authorize data exchange when connecting third-party accounts to ZoikoVertex",
+              "ZoikoVertex is not responsible for third-party downtime, API restrictions, policy changes, content removals, ad rejections, or account restrictions",
+              "Customers remain responsible for connected account permissions, credentials, configuration, and published activity",
+              "Third-party platform rules — including advertising policies, content standards, and API terms — apply to customer activity conducted through ZoikoVertex",
+            ]} />
+
+            <Divider />
+
+            {/* 11. Security Responsibilities */}
+            <SectionHeading id="security" title="Security Responsibilities" badge={{ label: "Shared model", variant: "blue" }} num={11} />
+            <Body>ZoikoVertex is designed to maintain reasonable administrative, technical, and organizational safeguards appropriate to a B2B AI marketing operations platform. Security is a shared responsibility between ZoikoVertex and its customers.</Body>
+            <CalloutBox variant="teal"  lead="ZoikoVertex responsibility:" text="Maintain platform security controls, access management, monitoring, secure development practices, and incident readiness as described in our Security page." />
+            <CalloutBox variant="amber" lead="Customer responsibility:"  text="Protect credentials, use appropriate authentication, assign correct roles, remove departed users, monitor external collaborators, secure connected third-party accounts, and notify ZoikoVertex promptly of suspected unauthorized access." />
+            <InfoBox lead="No security guarantee." text="No system can provide absolute security. ZoikoVertex does not guarantee that the platform will be free of unauthorized access, data breaches, vulnerabilities, or security incidents." />
+
+            <Divider />
+
+            {/* 12. Privacy & Data Processing */}
+            <SectionHeading id="privacy-data" title="Privacy, Cookies, and Data Processing" badge={{ label: "Related documents", variant: "teal" }} num={12} />
+            <Body>The collection, use, sharing, retention, and protection of personal information in connection with ZoikoVertex is governed by our Privacy Policy. Cookie choices are managed through our Cookie Preferences page. Enterprise processing of customer personal information is governed by the Data Processing Addendum.</Body>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { icon: Lock,    title: "Privacy Policy",           desc: "Explains how ZoikoVertex collects, uses, shares, retains, and protects personal information.", href: "/privacy" },
+                { icon: Cookie,  title: "Cookie Preferences",       desc: "Manage non-essential cookie settings including analytics and marketing cookies.",              href: "#" },
+                { icon: FileKey, title: "Data Processing Addendum", desc: "Governs processing of customer personal information under enterprise agreements.",             href: "#" },
+              ].map(({ icon: Icon, title, desc, href }) => (
+                <Link key={title} href={href} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50/60 transition-colors group block">
+                  <div className="w-7 h-7 rounded-lg bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center mb-3">
+                    <Icon className="w-3.5 h-3.5 text-[#0d8d9a]" />
+                  </div>
+                  <p className="text-[13px] font-bold text-gray-800 group-hover:text-[#0d8d9a] transition-colors mb-1">{title}</p>
+                  <p className="text-[12px] text-gray-500 leading-relaxed">{desc}</p>
+                </Link>
+              ))}
+            </div>
+
+            <Divider />
+
+            {/* 13. Audit Logs & Evidence */}
+            <SectionHeading id="audit-logs" title="Audit Logs, Evidence Records, and Administrative Visibility" badge={{ label: "Platform records", variant: "purple" }} num={13} />
+            <Body>ZoikoVertex may generate workflow records, approval history, audit logs, evidence records, security logs, administrative activity records, and system events in connection with platform use.</Body>
+            <BulletList items={[
+              "Customer administrators, approvers, reviewers, and auditors may have visibility into workspace activity depending on their role and plan configuration",
+              "Records may be used for security, troubleshooting, governance, support, legal compliance, enforcement, dispute resolution, and customer reporting",
+              "Retention may vary by customer settings, order form, DPA, applicable legal requirements, platform security needs, and operational obligations",
+              "Customers should export or archive records they need before cancellation or termination takes effect",
+            ]} />
+            <CalloutBox lead="Evidence records." text="ZoikoVertex is designed to create audit records naturally as workflow activity occurs. See our Auditability page for platform design principles around evidence." />
+
+            <Divider />
+
+            {/* 14. Service Availability */}
+            <SectionHeading id="availability" title="Service Availability, Changes, and Beta Features" badge={{ label: "Expectations", variant: "gray" }} num={14} />
+            <Body>ZoikoVertex will make reasonable efforts to provide reliable platform access. However, no uptime commitment is made unless expressly backed by a signed Service-Level Agreement included in a customer&apos;s order form or written agreement.</Body>
+            <BulletList items={[
+              "ZoikoVertex may update features, APIs, integrations, interfaces, workflows, plans, pricing, or platform behavior with reasonable notice where practicable",
+              "Beta, preview, experimental, or early-access features are provided as-is and may be incomplete, unstable, changed, or withdrawn without notice",
+              "Scheduled maintenance, emergency incidents, security events, or third-party API changes may temporarily affect access or functionality",
+              "ZoikoVertex may discontinue the service or specific features with appropriate notice as determined by applicable law and customer agreement",
+            ]} />
+
+            <Divider />
+
+            {/* 15. Support & Communications */}
+            <SectionHeading id="support" title="Support, Maintenance, and Communications" badge={{ label: "Contact", variant: "green" }} num={15} />
+            <Body>Support channels and response expectations may vary by plan, tier, order form, or enterprise agreement. No guaranteed response time is provided unless expressly included in a signed SLA or order form.</Body>
+            <BulletList items={[
+              "Customers must maintain accurate administrator, billing, security, and support contact information",
+              "ZoikoVertex may send service, security, billing, product, maintenance, legal, and administrative communications to the addresses on record",
+              "Customers are responsible for ensuring notices reach the appropriate personnel within their organization",
+            ]} />
+
+            <Divider />
+
+            {/* 16. Suspension & Termination */}
+            <SectionHeading id="suspension" title="Suspension and Termination" badge={{ label: "Account restrictions", variant: "orange" }} num={16} />
+            <Body>ZoikoVertex may suspend or terminate access to the platform in response to the following:</Body>
+            <BulletList items={[
+              "Non-payment of applicable fees after the applicable grace period",
+              "Breach of these Terms, acceptable use requirements, or applicable law",
+              "Security risk, unauthorized access, or suspicious platform activity",
+              "Legal risk, regulatory requirement, or third-party platform enforcement action",
+              "Misuse of AI-assisted features, prohibited use, or excessive platform burden",
+            ]} />
+            <CalloutBox lead="Post-termination." text="Following termination — customer-initiated or by ZoikoVertex — access ends as of the effective termination date. Customers should export required data before termination. Outstanding fees remain payable. Audit logs, evidence records, and workflow data are handled according to the DPA, order form, and applicable legal requirements. [Exact export window and deletion timeline to be confirmed by legal.]" />
+
+            <Divider />
+
+            {/* 17. Disclaimers */}
+            <SectionHeading id="disclaimers" title="Disclaimers" badge={{ label: "As-is service", variant: "gray" }} num={17} />
+            <Body>To the fullest extent permitted by applicable law, ZoikoVertex is provided on an &quot;as is&quot; and &quot;as available&quot; basis without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose, title, and non-infringement.</Body>
+            <Body>ZoikoVertex does not warrant:</Body>
+            <BulletList items={[
+              "Uninterrupted, error-free, secure, or risk-free platform operation unless backed by a signed SLA",
+              "Specific marketing performance, revenue, engagement, conversions, ROI, or campaign outcomes",
+              "Accuracy, completeness, suitability, non-infringement, or freedom from bias of any AI-assisted output",
+              "That connected third-party platforms will function, approve content, or maintain their policies",
+              "That the platform satisfies any legal, regulatory, or compliance requirement applicable to the customer's business",
+            ]} />
+            <CalloutBox variant="amber" lead="No professional advice." text="Nothing in ZoikoVertex or its outputs constitutes legal, financial, medical, tax, employment, regulatory, or professional advice. Customers remain solely responsible for review by qualified professionals." />
+
+            <Divider />
+
+            {/* 18. Limitation of Liability */}
+            <SectionHeading id="liability" title="Limitation of Liability" badge={{ label: "Liability cap", variant: "orange" }} num={18} />
+            <Body>To the fullest extent permitted by applicable law, ZoikoVertex&apos;s total cumulative liability to a customer arising out of or relating to these Terms or the service shall not exceed [liability cap — to be determined by counsel based on pricing, insurance, jurisdiction, and enterprise strategy].</Body>
+            <Body>ZoikoVertex shall not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, including lost profits, lost revenue, lost goodwill, lost data, business interruption, or marketing losses, even if advised of the possibility of such damages.</Body>
+            <InfoBox lead="Legal confirmation required." text="Liability cap, exclusions, exceptions required by applicable law, DPA-related liability alignment, and enterprise-negotiation strategy must be confirmed by counsel before publication." />
+
+            <Divider />
+
+            {/* 19. Indemnification */}
+            <SectionHeading id="indemnification" title="Indemnification" badge={{ label: "Customer obligations", variant: "purple" }} num={19} />
+            <Body>Customers agree to indemnify, defend, and hold harmless ZoikoVertex, its affiliates, officers, directors, employees, agents, and licensors from and against claims, liabilities, damages, costs, and expenses (including reasonable legal fees) arising from or related to:</Body>
+            <BulletList items={[
+              "Customer content, including intellectual property infringement, privacy violations, or rights violations",
+              "Unlawful marketing, advertising, or campaign activity conducted through the platform",
+              "Misuse of AI-assisted features or violation of acceptable use requirements",
+              "Breach of customer representations, warranties, or obligations under these Terms",
+              "Unauthorized access caused by customer failure to manage credentials, roles, or collaborators",
+              "Third-party platform policy violations arising from customer activity",
+              "Agency-client disputes arising from use of customer workspaces",
+            ]} />
+
+            <Divider />
+
+            {/* 20. Governing Law & Disputes */}
+            <SectionHeading id="governing-law" title="Governing Law and Dispute Resolution" badge={{ label: "Legal framework", variant: "blue" }} num={20} />
+            <Body>These Terms shall be governed by and construed in accordance with the laws of [governing jurisdiction — to be confirmed by legal], without regard to conflict of law principles.</Body>
+            <InfoBox lead="Legal confirmation required." text="Governing law, venue, court or arbitration forum, informal dispute process, class-action and jury-trial waiver appropriateness, injunctive relief provisions, consumer-law exceptions, and enterprise-agreement override must all be confirmed by counsel before publication." />
+            <BulletList items={[
+              "Disputes should first be addressed through the informal notice and resolution process described in the final published Terms",
+              "ZoikoVertex may seek injunctive or equitable relief for IP infringement, platform misuse, security breaches, or confidentiality violations without following any informal dispute process",
+              "Enterprise agreements may include separate dispute resolution provisions that override these online Terms",
+            ]} />
+
+            <Divider />
+
+            {/* 21. Changes to These Terms */}
+            <SectionHeading id="changes" title="Changes to These Terms" badge={{ label: "Updates", variant: "green" }} num={21} />
+            <Body>ZoikoVertex may update these Terms from time to time. When material changes are made, ZoikoVertex will provide notice through the platform, email, or other appropriate means as required by applicable law. The effective date at the top of these Terms will be updated accordingly.</Body>
+            <BulletList items={[
+              "Continued use of ZoikoVertex after the effective date of updated Terms constitutes acceptance of the updated Terms",
+              "If you do not accept updated Terms, you must stop using ZoikoVertex before the updated Terms take effect",
+              "Enterprise agreement exceptions may apply where written agreements include change-notification or consent requirements",
+              "Prior versions may be archived for enterprise review where operationally supported",
+            ]} />
+
+            <Divider />
+
+            {/* 22. Contact Information */}
+            <SectionHeading id="contact-info" title="Contact Information" badge={{ label: "Get in touch", variant: "teal" }} num={22} />
+            <Body>For legal inquiries, enterprise contracting, and Terms-related questions, use the following contact routes.</Body>
+            <div className="mt-5 bg-[#0d1424] rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-white/[0.05]">
+                {[
+                  { label: "LEGAL EMAIL",           value: "[legal@zoikovertex.com — to be confirmed]",              link: false, href: "" },
+                  { label: "PRIVACY CONTACT",        value: "View Privacy Policy",                                    link: true,  href: "/privacy" },
+                  { label: "REGISTERED ADDRESS",     value: "[Zoiko Tech Inc. — registered address to be confirmed by legal]", link: false, href: "" },
+                  { label: "ENTERPRISE CONTRACTING", value: "Contact Enterprise Sales",                               link: true,  href: "#" },
+                  { label: "CUSTOMER SUPPORT",       value: "[Support route and response expectations — to be confirmed]", link: false, href: "" },
+                  { label: "DATA PROCESSING",        value: "View Data Processing Addendum",                          link: true,  href: "#" },
+                ].map(({ label, value, link, href }) => (
+                  <div key={label} className="bg-[#0d1424] px-5 py-4">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-1">{label}</p>
+                    {link ? (
+                      <Link href={href} className="text-[13px] text-[#20E7F2] hover:underline">{value}</Link>
+                    ) : (
+                      <p className="text-[13px] text-amber-400/80 italic">{value}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-row gap-3 flex-wrap">
+              <button className="inline-flex items-center gap-2 bg-[#20E7F2] text-[#080d1a] font-bold px-6 py-3 rounded-full text-[13px] hover:bg-[#20E7F2]/90 transition-colors">
+                <FileText className="w-4 h-4" />
+                Contact Legal
+              </button>
+              <button className="inline-flex items-center gap-2 border border-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-full text-[13px] hover:border-gray-300 transition-colors">
+                <FileKey className="w-4 h-4" />
+                View DPA
+              </button>
+            </div>
+
+            <Divider />
+
+            <FaqSection />
+
+            <Divider />
+
+            {/* Related Pages */}
+            <div id="related" className="scroll-mt-24">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Related</p>
+              <h3 className="text-[20px] font-black text-gray-900 mb-6">Related Legal and Trust Pages</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { icon: Lock,    title: "Privacy Policy",           desc: "How ZoikoVertex collects, uses, and protects personal information.",                    href: "/privacy"  },
+                  { icon: FileKey, title: "Data Processing Addendum", desc: "Enterprise data processing terms for customer personal information.",                   href: "#"         },
+                  { icon: Shield,  title: "Security",                 desc: "Platform access controls, audit logs, data protection, and enterprise security review.", href: "/security" },
+                  { icon: Globe,   title: "Responsible AI",           desc: "AI-assisted workflow boundaries, human oversight, and governance principles.",           href: "#"         },
+                ].map(({ icon: Icon, title, desc, href }) => (
+                  <Link key={title} href={href} className="flex flex-col gap-3 p-4 rounded-xl hover:bg-[#20E7F2]/5 transition-colors group">
+                    <div className="w-8 h-8 rounded-lg bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center">
+                      <Icon className="w-3.5 h-3.5 text-[#0d8d9a]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-gray-800 group-hover:text-[#0d8d9a] transition-colors">{title}</p>
+                      <p className="mt-0.5 text-[11.5px] text-gray-500 leading-relaxed">{desc}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

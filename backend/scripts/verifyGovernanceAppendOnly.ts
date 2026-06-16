@@ -28,7 +28,7 @@
  * Usage:
  *   npx ts-node scripts/verifyGovernanceAppendOnly.ts
  */
-/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
+ 
 import { supabaseAdmin } from '../src/shared/supabase';
 
 interface CheckResult {

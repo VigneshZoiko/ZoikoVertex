@@ -38,7 +38,6 @@ export const CHANNELS = [
   { id: 'x', label: 'X (Twitter)', icon: '✖', maxChars: 280 },
   { id: 'facebook', label: 'Facebook', icon: '👤', maxChars: 63206 },
   { id: 'instagram', label: 'Instagram', icon: '📷', maxChars: 2200 },
-  { id: 'tiktok', label: 'TikTok', icon: '♪', maxChars: 2200 },
   { id: 'youtube', label: 'YouTube', icon: '▶', maxChars: 5000 },
   { id: 'blog_cms', label: 'Blog / CMS', icon: '📝', maxChars: 50000 },
   { id: 'internal', label: 'Internal Only', icon: '🏢', maxChars: 100000 },

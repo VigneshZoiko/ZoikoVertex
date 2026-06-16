@@ -11,7 +11,6 @@ import {
   ImageIcon,
   Calendar,
   ClipboardCheck,
-  ShieldCheck,
   ListChecks,
   Gavel,
   AlertOctagon,
@@ -55,6 +54,7 @@ import {
   Lock,
   Sparkles,
   BarChart3,
+  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -186,6 +186,14 @@ const NAV_GROUPS: NavGroup[] = [
         dirty: true,
         plan: "publishing" as Feature,
       },
+      {
+        name: "Returned Items",
+        href: "/returned",
+        icon: RotateCcw,
+        // Returned/revision-requested content — creators, publishers, admins
+        roles: ["ADMIN","WORKSPACE_OWNER","CREATOR","PUBLISHER","CAMPAIGN_MANAGER","GOVERNANCE_ADMIN"],
+        badge: true,
+      },
     ],
   },
 
@@ -289,14 +297,6 @@ const NAV_GROUPS: NavGroup[] = [
         plan: "governance" as Feature,
       },
       {
-        name: "Policy Control Matrix",
-        href: "/governance/policies",
-        icon: ShieldCheck,
-        // Policy rules — governance admin manages, compliance reviews
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
-        plan: "governance" as Feature,
-      },
-      {
         name: "Approval Console",
         href: "/governance/reviews",
         icon: ClipboardCheck,
@@ -395,10 +395,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 
-  // ── Access Control — identity & permissions ───────────────────────────────
+  // ── Access & Organization — identity & permissions ────────────────────────
   {
     id: "access",
-    label: "Access Control",
+    label: "Access & Organization",
     icon: Shield,
     items: [
       {
@@ -409,16 +409,9 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"],
       },
       {
-        name: "Roles",
+        name: "Roles & Units",
         href: "/access/roles",
         icon: Building2,
-        roles: ["ADMIN","WORKSPACE_OWNER"],
-      },
-      {
-        name: "Business Units",
-        href: "/access/units",
-        icon: Building2,
-        soon: true,
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
     ],
@@ -501,6 +494,7 @@ export default function Sidebar() {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
 
   const [pendingCount, setPendingCount] = useState(0);
+  const [returnedCount, setReturnedCount] = useState(0);
   const [supportTicketCount, setSupportTicketCount] = useState(0);
   const prevRoleRef = useRef<string | null>(null);
 
@@ -525,6 +519,15 @@ export default function Sidebar() {
     }
   }, []);
 
+  const fetchReturnedCount = useCallback(async () => {
+    try {
+      const result = await api.get("/api/v1/review-queue/stats");
+      if (result.success) setReturnedCount(result.data?.awaiting_revision || 0);
+    } catch {
+      setReturnedCount(0);
+    }
+  }, []);
+
   const fetchSupportTicketCount = useCallback(async () => {
     try {
       const result = await api.get("/api/v1/superadmin/tickets/count");
@@ -542,8 +545,9 @@ export default function Sidebar() {
     if (role && role !== prevRoleRef.current) {
       prevRoleRef.current = role;
       fetchPendingCount(role);
+      fetchReturnedCount();
     }
-  }, [roleLoading, role, fetchPendingCount]);
+  }, [roleLoading, role, fetchPendingCount, fetchReturnedCount]);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -747,9 +751,14 @@ export default function Sidebar() {
 
                       const badges = (
                         <>
-                          {item.badge && pendingCount > 0 && (
+                          {item.badge && item.href !== "/returned" && pendingCount > 0 && (
                             <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-black text-[#080E1A] shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {pendingCount}
+                            </span>
+                          )}
+                          {item.href === "/returned" && returnedCount > 0 && (
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-black text-white shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                              {returnedCount > 9 ? "9+" : returnedCount}
                             </span>
                           )}
                           {item.name === "Support Queue" && supportTicketCount > 0 && (

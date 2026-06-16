@@ -143,6 +143,12 @@ body {
   color: inherit;
 }
 
+/* ─── Ticker animation ───────────────────────────────────────────────────── */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
 /* ─── Page Transition ────────────────────────────────────────────────────── */
 @keyframes page-enter {
   from {

@@ -196,6 +196,7 @@ export async function scanImage(
 
     logScanResult({
       ts: new Date().toISOString(),
+      workspace_id: workspaceId,
       mediaId,
       imageUrl,
       mimeType,

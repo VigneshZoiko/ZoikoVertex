@@ -31,7 +31,7 @@ const WORKFLOW_TYPES = [
   { value: "custom",            label: "Custom" },
 ];
 
-const PLATFORMS = ["linkedin", "x", "facebook", "instagram", "tiktok", "youtube", "blog", "internal"];
+const PLATFORMS = ["linkedin", "x", "facebook", "instagram", "youtube", "blog", "internal"];
 
 export default function CreateWorkflowModal({ open, onClose, onCreated }: CreateWorkflowModalProps) {
   const [name, setName]               = useState("");

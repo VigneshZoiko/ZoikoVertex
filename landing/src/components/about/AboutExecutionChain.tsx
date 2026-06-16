@@ -61,7 +61,7 @@ export default function AboutExecutionChain() {
 
   return (
     <section className="bg-[#0C1529] py-20 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
+      <div ref={ref} className="max-w-[1200px] mx-auto">
 
         {/* Header */}
         <div
@@ -86,80 +86,51 @@ export default function AboutExecutionChain() {
           </p>
         </div>
 
-        {/* Chain — 7 cards with connectors */}
+        {/* Chain — 7 cards responsive grid */}
         <div
-          className={`relative flex items-stretch gap-0 transition-all duration-700 ease-out ${
+          className={`grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 transition-all duration-700 ease-out ${
             visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
           style={{ transitionDelay: "200ms" }}
         >
           {CHAIN.map((step, i) => (
-            <div key={step.number} className="flex items-stretch flex-1">
-
-              {/* Card */}
+            <div
+              key={step.number}
+              className={`flex flex-col gap-3 p-4 items-center text-center rounded-2xl transition-all duration-300 cursor-default
+                ${step.highlighted
+                  ? "bg-[#0E1B35] border-2 border-[#1E2F55]"
+                  : "bg-[#0E1B35] border border-[#1E2F55] hover:border-[#00C8F066] hover:bg-[#00C8F026]"
+                }
+                ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+              style={{ transitionDelay: `${200 + i * 80}ms` }}
+            >
+              {/* Number circle */}
               <div
-                className={`flex-1 flex flex-col gap-3 p-4 items-center rounded-2xl transition-all duration-300 cursor-default
-                  ${step.highlighted
-                    ? "bg-[#0E1B35] border-2 border-[#1E2F55]"
-                    : "bg-[#0E1B35] border border-[#1E2F55] hover:border-[#00C8F066] hover:bg-[#00C8F026]"
-                  }
-                  ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
-                style={{ transitionDelay: `${200 + i * 80}ms` }}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300"
+                style={{
+                  background: "#0C1529",
+                  border: "1px solid #1E2F55",
+                  color: "#FFFFFF73",
+                }}
               >
-                {/* Number circle */}
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black transition-all duration-300"
-                  style={
-                    step.highlighted
-                      ? {
-                            background: "#0C1529",
-                          border: "1#1E2F55",
-                          color: "#FFFFFF73",
-                         
-                        }
-                      : {
-                          background: "#0C1529",
-                          border: "1#1E2F55",
-                          color: "#FFFFFF73",
-                        }
-                  }
-                >
-                  {step.number}
-                </div>
-
-                {/* Title */}
-                <h3
-                  className="text-sm font-black leading-snug"
-                  style={{ color: step.highlighted ? "#ffffff" : "rgba(255,255,255,0.75)" }}
-                >
-                  {step.title}
-                </h3>
-
-                {/* Description */}
-                <p
-                  className="text-xs leading-relaxed"
-                  style={{ color: step.highlighted ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.25)" }}
-                >
-                  {step.description}
-                </p>
+                {step.number}
               </div>
 
-              {/* Connector arrow between cards */}
-              {i < CHAIN.length - 1 && (
-                <div className="flex items-center justify-center px-1 shrink-0">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="rgba(255,255,255,0.15)"
-                    strokeWidth="2"
-                  >
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </div>
-              )}
+              {/* Title */}
+              <h3
+                className="text-sm font-black leading-snug"
+                style={{ color: step.highlighted ? "#ffffff" : "rgba(255,255,255,0.75)" }}
+              >
+                {step.title}
+              </h3>
 
+              {/* Description */}
+              <p
+                className="text-xs leading-relaxed"
+                style={{ color: step.highlighted ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.25)" }}
+              >
+                {step.description}
+              </p>
             </div>
           ))}
         </div>

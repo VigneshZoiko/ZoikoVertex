@@ -1,6 +1,5 @@
-import Footer from "@/components/footer/Footer";
-import { 
-  ResourcesHero, 
+import {
+  ResourcesHero,
   ResourcesEditorPick,
   ResourcesTrustLibrary,
   ResourcesToolkit,
@@ -15,7 +14,6 @@ export default function ResourcesPage() {
       <ResourcesTrustLibrary />
       <ResourcesToolkit />
       <ResourcesLearningPaths />
-      <Footer />
     </main>
   );
 }

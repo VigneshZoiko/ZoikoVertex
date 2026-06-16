@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, AlertCircle, Layers, Cpu, TrendingDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 
 interface CampaignStats {
@@ -47,7 +47,11 @@ export default function CommandCenterPage() {
   const [ops, setOps] = useState<OpsStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchedRef = useRef(false);
+
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     async function fetchData() {
       try {
         const [campRes, opsRes] = await Promise.allSettled([

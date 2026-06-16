@@ -6,6 +6,7 @@ import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase, isSupabaseReady } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 function GoogleIcon() {
   return (
@@ -45,9 +46,14 @@ function LoginForm() {
 
   useEffect(() => {
     if (!isSupabaseReady) { setChecking(false); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setChecking(false);
       if (session) {
+        const result = await api.get('/api/v1/user/context').catch(() => ({} as any));
+        if (result?.success && result.data?.is_superadmin) {
+          router.replace('/superadmin/analytics');
+          return;
+        }
         const next = searchParams.get("next");
         router.replace(next && next.startsWith("/") ? next : "/dashboard");
       }
@@ -75,6 +81,11 @@ function LoginForm() {
       if (authError) throw authError;
       if (session) {
         document.cookie = "zv_auth=1; path=/; SameSite=Strict; max-age=3600";
+        const result = await api.get('/api/v1/user/context').catch(() => ({} as any));
+        if (result?.success && result.data?.is_superadmin) {
+          router.replace('/superadmin/analytics');
+          return;
+        }
       }
       const next = searchParams.get("next");
       router.replace(next && next.startsWith("/") ? next : "/dashboard");

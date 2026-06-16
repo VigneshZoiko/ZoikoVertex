@@ -28,6 +28,8 @@ const envSchema = z.object({
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
   LINKEDIN_REDIRECT_URI: z.string().optional(),
+  LINKEDIN_PERSONAL_CLIENT_ID: z.string().optional(),
+  LINKEDIN_PERSONAL_CLIENT_SECRET: z.string().optional(),
   PINTEREST_CLIENT_ID: z.string().optional(),
   PINTEREST_CLIENT_SECRET: z.string().optional(),
   PINTEREST_REDIRECT_URI: z.string().optional(),

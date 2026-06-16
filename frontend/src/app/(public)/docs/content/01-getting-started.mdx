@@ -1,0 +1,168 @@
+<div id="what-is">
+
+## What is ZoikoVertex?
+
+ZoikoVertex is a **governed autonomous agentic-intelligence social media management platform** built for enterprises and regulated industries — financial services, healthcare, pharma, legal, and public sector.
+
+Unlike standard social media tools, every action in ZoikoVertex is **policy-aware, attributable to a human or agent identity, reversible under audit, and defensible in legal discovery.** It is built as infrastructure — not just SaaS.
+
+### Three-Plane Architecture
+
+<T
+  headers={["Plane", "Purpose", "Key Components"]}
+  rows={[
+    ["Control Plane", "Governance, identity, policy enforcement, approval routing", "Governance Engine, Policy Center, Approval Rules, Identity Ledger"],
+    ["Data Plane", "Connector ingestion, scheduled publishing, attribution, analytics", "Social Inbox, Publishing Hub, Calendar, Media Vault, Analytics Engine"],
+    ["Intelligence Plane", "Agent reasoning, optimisation, ROI forecasting, risk scoring", "Agent Studio, Workflow Engine, AI Campaigns, Prompt Governance"],
+  ]}
+/>
+
+### 15 Bounded Contexts
+
+ZoikoVertex is built on 15 bounded contexts with no direct cross-context database access. Every interaction flows through defined APIs with full audit attribution.
+
+<UL items={[
+  "Identity & Access — users, roles, authentication, API keys",
+  "Governance Engine — policies, approval rules, decision trees",
+  "Campaign Management — Meta/Google campaigns and boost ads",
+  "Publishing Hub — organic post scheduling, approval, publication",
+  "Social Inbox — multi-platform message ingestion and reply",
+  "Media Vault — asset management, version control, brand compliance",
+  "Analytics Engine — performance data, attribution, ROI reporting",
+  "Agent Runtime — agent execution, decision tracing, autonomy enforcement",
+  "Workflow Orchestration — multi-step, multi-agent pipelines",
+  "Knowledge Management — brand voice, product data, policy library",
+  "Evidence Vault — immutable records, legal holds, forensic export",
+  "Audit Trail — append-only action log with full attribution",
+  "Integration Layer — OAuth connectors, webhooks, data connectors",
+  "Notification & Alerting — SLA alerts, risk signals, governance notifications",
+  "Superadmin — multi-workspace platform administration",
+]} />
+
+### Core Design Principles
+
+<UL items={[
+  "**Governance fails closed** — agents degrade to Assistive Mode on any policy failure, never proceed without authorisation",
+  "**Autonomy is earned** — agents progress through D0 to D3 trust levels with governance review at each step",
+  "**Evidence is a product asset** — every action produces immutable, legally defensible audit records",
+  "**Human accountability is explicit** — every approval is attributed to a named, authenticated identity",
+  "**Zero-bypass architecture** — no role or agent can circumvent the governed execution path",
+  "**Private chain-of-thought** — model reasoning is never exposed; only decision traces (what was decided and acted upon) are visible",
+]} />
+
+<Note type="info">ZoikoVertex is designed so that compliance officers, legal teams, and executives can trust the platform — not just the marketing team.</Note>
+
+</div>
+
+---
+
+<div id="first-steps">
+
+## First Steps
+
+A new workspace can be fully configured in under 30 minutes following this sequence.
+
+### Step 1 — Connect Ad Accounts
+Go to **Integrations → Platform Accounts**. Connect Meta (Facebook/Instagram) and Google Ads via OAuth. For agencies: your agency's ad accounts are used for all client campaigns — clients do not connect their own.
+
+<Note type="warning">If no ad accounts are connected, campaigns save as DRAFT and cannot be published. Connect at least one platform before creating campaigns.</Note>
+
+### Step 2 — Invite Your Team
+Go to **Access & Organisation → Users & Access**. Click **Invite User**, enter their email, and assign one of the 20 available roles. They receive a secure sign-up link (expires in 48 hours).
+
+<Note type="info">Assign the minimum role needed. A Creator cannot approve content; an Approver cannot modify campaigns — this separation is intentional and required for governance compliance.</Note>
+
+### Step 3 — Configure Governance Rules
+Go to **Governance → Approval Rules**. At minimum, create one rule: *all content submitted for publishing requires approval by at least one Approver.* You can build more granular rules from there.
+
+### Step 4 — Upload Brand Standards
+Go to **Governance → Brand Standards**. Upload your brand voice guide, approved vocabulary list, and visual identity rules. These become the policy baseline for AI agent content generation.
+
+### Step 5 — Create Your First Campaign
+Go to **Campaigns → New Campaign**. The six-step wizard covers: platform, campaign type, budget, targeting, creative, and review. Save as Draft to submit for governance review, or publish directly if your rules allow it.
+
+### Step 6 — Schedule Organic Content
+Go to **Publishing Hub**. Create a post, generate AI copy, attach media, set a publish time, and submit for approval. Once approved, the post is scheduled automatically.
+
+<Note type="success">All six steps above can be completed in under 30 minutes for an initial workspace setup.</Note>
+
+</div>
+
+---
+
+<div id="architecture">
+
+## Platform Architecture
+
+### Agent Autonomy Levels
+
+Every AI agent in ZoikoVertex operates at one of four autonomy levels. Moving from a lower level to a higher level requires explicit governance approval.
+
+<T
+  headers={["Level", "Name", "What the Agent Can Do", "Who Can Grant"]}
+  rows={[
+    ["D0", "Insight Only", "Surfaces recommendations and analysis. Zero execution capability. Human decides everything.", "Default — no grant required"],
+    ["D1", "Approval Required", "Plans full actions, prepares execution packages, but blocks before every step pending explicit human approval.", "Agent Architect or Governance Admin"],
+    ["D2", "Conditional Autonomy", "Executes independently within defined policy constraints. Any violation auto-escalates for human review before continuing.", "Governance Admin only"],
+    ["D3", "Full Autonomy", "Executes fully within constraints. All decisions logged and reversible. Emergency lock can halt all D3 agents instantly.", "Workspace Owner + Governance Admin. Enterprise plan only."],
+  ]}
+/>
+
+### Commercial Tiers
+
+<T
+  headers={["Feature", "Starter", "Core", "Professional", "Enterprise"]}
+  rows={[
+    ["Users", "Up to 5", "Up to 15", "Up to 50", "Unlimited"],
+    ["Campaigns (Meta/Google)", "✓", "✓", "✓", "✓"],
+    ["Publishing Hub", "✓", "✓", "✓", "✓"],
+    ["Social Inbox", "✓", "✓", "✓", "✓"],
+    ["Analytics Engine", "Basic", "Standard", "Full", "Full + Custom"],
+    ["Approval Workflows", "—", "Basic", "Full multi-step", "Full + SLA enforcement"],
+    ["AI Agents", "—", "—", "D0 / D1", "D0 through D3"],
+    ["Evidence Vault", "—", "—", "Read-only", "Full + Legal Export Packs"],
+    ["Collusion Monitor", "—", "—", "—", "✓"],
+    ["Forensic Investigation", "—", "—", "—", "✓"],
+    ["SSO / SAML", "—", "—", "—", "✓"],
+    ["Dedicated CSM", "—", "—", "—", "✓"],
+  ]}
+/>
+
+</div>
+
+---
+
+<div id="roles-ref">
+
+## User Roles Reference
+
+ZoikoVertex uses a 20-role RBAC system. Roles are assigned per workspace and determine which sections are visible and what actions can be taken. Assign the minimum role needed — separation of duties is a core governance requirement.
+
+<T
+  headers={["Role", "Category", "Can Do", "Cannot Do"]}
+  rows={[
+    ["ADMIN", "Administration", "Everything except billing and workspace deletion", "Billing changes, workspace deletion"],
+    ["WORKSPACE_OWNER", "Administration", "Billing, plan changes, workspace deletion, all admin actions", "—"],
+    ["GOVERNANCE_ADMIN", "Governance", "Configure approval rules, policies, approve escalations, override risk flags", "Billing, workspace deletion"],
+    ["AGENT_ARCHITECT", "Agents", "Create, configure, and version agents, workflows, and prompts", "Deploy to production — requires Agent Operator"],
+    ["AGENT_OPERATOR", "Agents", "Deploy agents, monitor operations feed, manage autonomy levels", "Create or modify agent definitions"],
+    ["KNOWLEDGE_MANAGER", "Content", "Create, version, and approve knowledge base content", "Deploy agents or run campaigns"],
+    ["CAMPAIGN_MANAGER", "Campaigns", "Create, launch, pause, resume, and delete campaigns", "Approve governance submissions"],
+    ["CREATOR", "Content", "Create posts and campaign assets, submit for governance review", "Approve, publish, or reject content"],
+    ["REVIEWER", "Governance", "Review and annotate submitted content, flag for revision", "Issue final approval or reject"],
+    ["VALIDATOR", "Governance", "Validate content against brand and policy standards", "Issue final approval or reject"],
+    ["APPROVER", "Governance", "Issue final approval for content publication", "Create content or run campaigns"],
+    ["PUBLISHER", "Content", "Schedule and publish approved content", "Create content or approve submissions"],
+    ["COMPLIANCE_REVIEWER", "Compliance", "Access Risk, Evidence, and Audit features, annotate records", "Modify content or configuration"],
+    ["AUDITOR", "Compliance", "Read-only access to all audit and evidence features", "Modify anything — strictly read-only"],
+    ["SECURITY_ADMIN", "Security", "User access management, API keys, security settings, IP allowlists", "Content creation or governance decisions"],
+    ["PRIVACY_ADMIN", "Privacy", "Data retention rules, consent records, GDPR/CCPA controls", "Content creation or campaign management"],
+    ["BRAND_REVIEWER", "Content", "Lock and unlock media assets, approve brand compliance", "Issue content approval or run campaigns"],
+    ["DEVELOPER", "Integration", "Create/revoke API keys, configure webhooks, view integration health", "Content creation or governance decisions"],
+    ["VIEWER", "Read-only", "View all sections in read-only mode", "Create, edit, approve, or delete anything"],
+  ]}
+/>
+
+<Note type="warning">Roles with approval authority (APPROVER, GOVERNANCE_ADMIN, VALIDATOR) cannot also hold CREATOR or CAMPAIGN_MANAGER roles in regulated deployments — this dual-role separation is enforced by Governance Admins.</Note>
+
+</div>

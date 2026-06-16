@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import ChatbotWidget from "@/components/ChatbotWidget";
 import PendingApproval from "@/components/PendingApproval";
 import SuspendedOverlay from "@/components/SuspendedOverlay";
 import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
@@ -44,6 +45,14 @@ export default function DashboardLayout({
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Super Admin redirect ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (!pathname.startsWith('/superadmin')) {
+      router.replace('/superadmin/analytics');
+    }
+  }, [isSuperAdmin, pathname, router]);
 
   // ── No workspace → verify API before redirecting (guards against stale RoleContext) ─
   // Email-signup users always have a workspace created at signup time. If the API
@@ -183,6 +192,7 @@ export default function DashboardLayout({
             </main>
           </div>
         </div>
+      <ChatbotWidget />
       </DraftGuardProvider>
     </NotificationProvider>
   );

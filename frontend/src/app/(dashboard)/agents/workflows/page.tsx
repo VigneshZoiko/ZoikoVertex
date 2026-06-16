@@ -253,7 +253,7 @@ export default function WorkflowsPage() {
     let cancelled = false;
     const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchAll(); };
     safeFetch();
-    const interval = setInterval(safeFetch, 20000);
+    const interval = setInterval(safeFetch, 60000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [fetchAll]);
 
@@ -285,7 +285,7 @@ export default function WorkflowsPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-success-text/10 border border-success-border/20 rounded-full text-xs font-medium text-success-text">
             <span className="w-1.5 h-1.5 bg-success-text rounded-full animate-pulse" />
-            Auto-refresh 20s
+            Auto-refresh 60s
           </div>
           <button
             onClick={fetchAll}

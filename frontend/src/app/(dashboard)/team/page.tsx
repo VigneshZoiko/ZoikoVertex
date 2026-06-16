@@ -239,7 +239,7 @@ export default function TeamPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Team Access</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Access & Organization</h1>
           <p className="text-[var(--foreground-muted)] text-sm">Provision and manage RBAC roles for your workspace.</p>
         </div>
       </div>

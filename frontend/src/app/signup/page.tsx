@@ -123,7 +123,6 @@ export default function SignupPage() {
   const [resendTimer, setResendTimer] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
-  const verified = false;
 
   /* Resend countdown */
   useEffect(() => {
@@ -197,18 +196,23 @@ export default function SignupPage() {
         body: JSON.stringify({
           email: email.trim(),
           code,
+          newPassword: password,
           fullName: `${firstName} ${lastName}`.trim(),
-          companyName: company,
         }),
       });
       const res = await response.json().catch(() => ({}));
-      if (response.status === 409 && res.exists) {
-        router.push(`/login?email=${encodeURIComponent(email.trim())}`);
-        return;
-      }
       if (response.ok && res.success) {
-        document.cookie = "zv_otp_verified=1; path=/; SameSite=Lax; max-age=3600";
-        window.location.href = `/onboarding?email=${encodeURIComponent(email.trim())}`;
+        // Auth user was created at OTP verify — sign in with their chosen password
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) {
+          setVerifyError("Account created but sign-in failed. Please try logging in.");
+          return;
+        }
+        document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
+        window.location.href = `/onboarding`;
       } else {
         setVerifyError(res.error || "Verification failed. Please try again.");
       }
@@ -475,7 +479,7 @@ export default function SignupPage() {
               margin: "0 0 14px",
               letterSpacing: "-0.3px",
             }}>
-              {verified ? "Email verified!" : "Check your inbox"}
+              {"Check your inbox"}
             </h2>
 
             {/* Subtitle */}
@@ -486,13 +490,10 @@ export default function SignupPage() {
               lineHeight: "1.6",
               margin: "0 0 26px",
             }}>
-              {verified
-                ? "You're all set. Redirecting you now…"
-                : <>We sent a 6-digit verification code to<br /><span style={{ color: "#cbd5e1", fontWeight: "500" }}>{email}</span></>}
+              <>We sent a 6-digit verification code to<br /><span style={{ color: "#cbd5e1", fontWeight: "500" }}>{email}</span></>
             </p>
 
-            {!verified && (
-              <>
+            <>
                 {/* OTP inputs */}
                 <div className="mb-[22px]">
                   <OtpInput value={otp} onChange={setOtp} />
@@ -557,29 +558,9 @@ export default function SignupPage() {
                   )}
                 </p>
               </>
-            )}
 
-            {/* Success state */}
-            {verified && (
-              <div style={{
-                width: "60px",
-                height: "60px",
-                borderRadius: "50%",
-                background: "rgba(16,80,60,0.6)",
-                border: "2px solid #20E7F2",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "28px",
-              }}>
-                <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-                  <path d="M5 13l6 6 10-11" stroke="#20E7F2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            )}
 
             <StepDots current={3} total={4} />
-
             <p style={{ fontSize: "12.5px", color: "#475569", marginTop: "28px", marginBottom: "12px" }}>
               Already have an account?{" "}
               <Link href="/login" style={{ color: "#20E7F2", fontWeight: "500" }}>Sign in</Link>

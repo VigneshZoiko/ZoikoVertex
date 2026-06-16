@@ -1091,7 +1091,7 @@ export default function AgentOperationsPage() {
     const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchData(); };
     setLoading(true);
     safeFetch();
-    const interval = setInterval(safeFetch, 30000);
+    const interval = setInterval(safeFetch, 60000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [fetchData]);
 

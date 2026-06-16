@@ -567,6 +567,7 @@ export const getQueue = async (
 
     const isSuperAdmin = req.user?.is_superadmin;
     const role = req.user?.role || (isSuperAdmin ? 'ADMIN' : null);
+    const workspaceId = req.user?.workspace_id;
 
     if (!role && !isSuperAdmin) {
       return res.status(200).json({ success: true, data: [] });
@@ -596,10 +597,13 @@ export const getQueue = async (
     } else if (role === 'CREATOR') {
       query = query.eq('creator_id', userId).eq('status', 'RETURNED');
     } else {
-      // Fetch all pending and filter in JS to avoid invalid enum errors
+      // Fetch pending intents scoped to this workspace, filter in JS to avoid
+      // invalid enum errors from Postgres enum literals.
+      if (!workspaceId) return res.status(200).json({ success: true, data: [] });
       const { data: allData, error: allErr } = await supabaseAdmin
         .from('publish_intents')
         .select('*')
+        .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
       if (allErr) {

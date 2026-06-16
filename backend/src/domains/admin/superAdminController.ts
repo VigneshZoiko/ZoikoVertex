@@ -471,7 +471,7 @@ export class SuperAdminController {
           .eq('id', ws.org_id);
       }
 
-      res.json({ success: true, message: `Organization upgraded to ${planType} plan.` });
+      res.json({ success: true, message: `Organization plan changed to ${planType}.` });
     } catch (error) {
       next(error);
     }

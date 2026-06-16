@@ -95,6 +95,7 @@ export default function CampaignDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [verifying,     setVerifying]    = useState(false);
   const [verify,        setVerify]       = useState<MetaVerifyResult | null>(null);
+  const [togglingBoost, setTogglingBoost] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -104,9 +105,13 @@ export default function CampaignDetailPage() {
         api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
         api.get(`/api/v1/campaigns/${id}/insights`),
       ]);
-      if (cRes.status === "fulfilled") setCampaign(cRes.value.data);
+      if (cRes.status === "fulfilled" && cRes.value?.success !== false) {
+        setCampaign(cRes.value.data);
+      } else if (cRes.status === "fulfilled" && cRes.value?.success === false) {
+        setError(cRes.value.error || 'Campaign not found');
+      }
       let fetchedBoosts = bRes.status === "fulfilled" ? (bRes.value.data || []) : [];
-      if (cRes.status === "fulfilled" && cRes.value.data.ads_data && Array.isArray(cRes.value.data.ads_data)) {
+      if (cRes.status === "fulfilled" && cRes.value?.success !== false && cRes.value.data.ads_data && Array.isArray(cRes.value.data.ads_data)) {
         cRes.value.data.ads_data.forEach((ad: any, i: number) => {
           fetchedBoosts.push({
             id: `virtual-ad-${i}`,
@@ -157,6 +162,22 @@ export default function CampaignDetailPage() {
       router.push("/campaigns");
     } catch { /* silent */ }
     finally { setConfirmDelete(false); }
+  };
+
+  const handleBoostToggle = async (b: Boost) => {
+    if (b.id.startsWith('virtual-ad-') || togglingBoost) return;
+    const pausing = isActive(b.status);
+    setTogglingBoost(b.id);
+    try {
+      const r = await api.post(
+        `/api/v1/ads/boosts/${b.id}/${pausing ? 'pause' : 'resume'}`,
+        {}
+      );
+      if (r.success) {
+        setBoosts(prev => prev.map(x => x.id === b.id ? { ...x, status: pausing ? 'PAUSED' : 'ACTIVE' } : x));
+      }
+    } catch { /* silent */ }
+    finally { setTogglingBoost(null); }
   };
 
   if (loading) return (
@@ -844,11 +865,20 @@ export default function CampaignDetailPage() {
                         {/* STATUS */}
                         <td className="px-4 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <div style={{
-                              width: 32, height: 18, borderRadius: 999,
-                              background: isAdActive ? "#1877F2" : "#3f3f46",
-                              position: "relative", display: "inline-block",
-                            }}>
+                            <button
+                              onClick={() => handleBoostToggle(b)}
+                              disabled={b.id.startsWith('virtual-ad-') || togglingBoost === b.id}
+                              title={b.id.startsWith('virtual-ad-') ? 'Toggle individual ads after campaign is live' : (isAdActive ? 'Pause ad' : 'Resume ad')}
+                              style={{
+                                width: 32, height: 18, borderRadius: 999,
+                                background: isAdActive ? "#1877F2" : "#3f3f46",
+                                position: "relative", display: "inline-block",
+                                border: "none", padding: 0,
+                                cursor: b.id.startsWith('virtual-ad-') ? 'not-allowed' : 'pointer',
+                                opacity: togglingBoost === b.id ? 0.6 : 1,
+                                transition: "background 200ms",
+                              }}
+                            >
                               <span style={{
                                 position: "absolute", top: 2, width: 14, height: 14,
                                 borderRadius: "50%", background: "#fff",
@@ -856,9 +886,9 @@ export default function CampaignDetailPage() {
                                 transition: "transform 150ms",
                                 transform: isAdActive ? "translateX(16px)" : "translateX(2px)",
                               }} />
-                            </div>
+                            </button>
                             <span className={`text-xs font-medium ${isAdActive ? "text-foreground" : "text-foreground-muted"}`}>
-                              {b.status.charAt(0) + b.status.slice(1).toLowerCase()}
+                              {togglingBoost === b.id ? '…' : (b.status.charAt(0) + b.status.slice(1).toLowerCase())}
                             </span>
                           </div>
                         </td>
