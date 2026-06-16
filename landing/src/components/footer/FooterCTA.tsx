@@ -4,7 +4,7 @@ export default function FooterCTA() {
   return (
     <section
       className="py-28 px-6 text-center"
-      style={{ background: "linear-gradient(160deg,#0d1a35 0%,#152238 100%)" }}
+      style={{ background: "linear-gradient(112deg, #0D1535 0%, #0F1F50 50%, #0D1535 100%)" }}
     >
       <div className="max-w-3xl mx-auto">
         <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-6">
@@ -16,9 +16,9 @@ export default function FooterCTA() {
           as measurable infrastructure
         </h2>
         <p className="text-white/50 text-sm max-w-xl mx-auto leading-relaxed mb-10">
-          ZoikoVertex improves efficiency by over 35%. It pays for itself
-          multiple times over. Non-adoption is financially irrational in
-          performance-sensitive organisations.
+          If ZoikoVertex improves efficiency by even 15%, it pays for itself
+          multiple times over. Non-adoption is financially irrational in a
+          performance-sensitive organization.
         </p>
         <div className="flex flex-wrap gap-4 justify-center mb-6">
           <Link
@@ -35,7 +35,7 @@ export default function FooterCTA() {
           </Link>
         </div>
         <p className="text-white/20 text-xs">
-          Deploy in 72 hours. No code required. Powered by governed agents.
+          Insights within 24 hours · No code required · Phased rollout included
         </p>
       </div>
     </section>
