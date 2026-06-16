@@ -1,0 +1,147 @@
+<div id="workspace-settings">
+
+## Workspace Settings
+
+### General Configuration
+
+<T
+  headers={["Setting", "Description", "Who Can Change"]}
+  rows={[
+    ["Workspace Name", "Display name shown across the platform", "ADMIN, WORKSPACE_OWNER"],
+    ["Workspace Logo", "Logo shown in headers and reports", "ADMIN, WORKSPACE_OWNER"],
+    ["Default Timezone", "Used for scheduling posts and campaign times", "ADMIN"],
+    ["Default Currency", "Default for campaign budget display", "ADMIN"],
+    ["Content Approval SLA", "Default time window for approval (hours)", "GOVERNANCE_ADMIN"],
+    ["Agent Execution Hours", "Restrict all agent activity to business hours only", "GOVERNANCE_ADMIN"],
+    ["2FA Enforcement", "Require 2FA for all users or for specific roles", "SECURITY_ADMIN"],
+    ["Session Timeout", "Inactivity timeout in minutes (default: 30)", "SECURITY_ADMIN"],
+  ]}
+/>
+
+### Billing and Plan
+
+Go to **Admin → Billing**. Only WORKSPACE_OWNER can access billing. You can:
+
+<UL items={[
+  "View current plan and renewal date",
+  "Upgrade or downgrade plan (downgrade takes effect at next billing cycle)",
+  "Update payment method",
+  "Download past invoices",
+  "View usage metrics — users, agent executions, API calls, storage",
+]} />
+
+</div>
+
+---
+
+<div id="security-privacy">
+
+## Security & Privacy
+
+### Authentication Security
+
+<UL items={[
+  "**Two-Factor Authentication (2FA)** — TOTP app (Google Authenticator, Authy) or SMS. Enforce for all users or by role.",
+  "**Single Sign-On (SSO/SAML 2.0)** — integrate with your identity provider (Okta, Azure AD, Google Workspace). Enterprise plan only.",
+  "**IP Allowlist** — restrict ZoikoVertex access to specified IP ranges or CIDR blocks",
+  "**Session Timeout** — configurable inactivity timeout; forced re-authentication",
+  "**Concurrent Session Limit** — optionally prevent users from being logged in from multiple devices simultaneously",
+]} />
+
+### Data Retention
+
+<T
+  headers={["Data Category", "Default Retention", "Minimum Recommended"]}
+  rows={[
+    ["Content Drafts (never published)", "90 days", "30 days"],
+    ["Published Posts", "2 years", "1 year"],
+    ["Campaign Records", "3 years", "2 years"],
+    ["Audit Trail", "7 years", "7 years (regulatory minimum)"],
+    ["Evidence Vault Records", "Permanent", "Permanent"],
+    ["Identity Ledger", "Permanent (non-configurable)", "Permanent"],
+  ]}
+/>
+
+### GDPR / CCPA Controls
+
+<UL items={[
+  "**Data Subject Access Request (DSAR)** — export all data held for a specific user",
+  "**Right to Erasure** — delete a user's personal data (note: Audit Trail records are retained as required by law even after erasure)",
+  "**Consent Records** — log user consents for data processing",
+  "**Data Processing Agreements (DPAs)** — generate and sign DPAs with team members",
+  "**Privacy Notice** — configure the privacy notice shown during onboarding",
+]} />
+
+<Note type="warning">Audit log retention below 7 years is not recommended for regulated industries. Consult your compliance team before reducing retention periods.</Note>
+
+</div>
+
+---
+
+<div id="notifications">
+
+## Notifications
+
+### Notification Channels
+
+<UL items={[
+  "**In-app** — shown in the notification bell in the top nav. Persisted for 90 days.",
+  "**Email** — sent to the user's registered email address",
+  "**Slack** — via the Slack integration; route to specific channels by priority or type",
+  "**Microsoft Teams** — via the Teams integration",
+  "**Webhook** — via your configured webhook endpoint",
+]} />
+
+### Notification Priority Levels
+
+<T
+  headers={["Priority", "Examples", "Default Channels"]}
+  rows={[
+    ["Urgent", "Emergency lock triggered, security breach, Legal Hold placed, crisis protocol activated", "In-app + Email + Slack (immediate)"],
+    ["High", "Approval SLA breached, agent escalation, campaign failed, token expired", "In-app + Email"],
+    ["Medium", "Content submitted for review, campaign activated, new inbox message", "In-app"],
+    ["Low", "Workflow completed, report ready, new team member joined", "In-app (batched daily digest option)"],
+  ]}
+/>
+
+### Notification Preferences
+
+Each user can configure their personal notification preferences at **Profile → Notification Settings**. Workspace Admins can set minimum notification policies — e.g. Urgent notifications cannot be muted by individual users.
+
+</div>
+
+---
+
+<div id="developer-console">
+
+## Developer Console
+
+Go to **Integrations → Developer Console**. This section is for DEVELOPER and ADMIN roles managing the technical integration layer.
+
+### API Key Management
+
+<UL items={[
+  "Create named keys with descriptions (e.g. \"Zapier Integration — Marketing\", \"BI Dashboard — Read Only\")",
+  "Assign scope: **read-only** (GET endpoints only) or **read/write** (all endpoints)",
+  "View last-used timestamp for each key",
+  "Revoke keys immediately — revocation takes effect within seconds",
+  "Key values are shown only once at creation — store them securely",
+]} />
+
+### Webhook Endpoints
+
+Configure one or more webhook endpoints. For each endpoint:
+
+<UL items={[
+  "Set the destination URL (must be HTTPS)",
+  "Select which event types to deliver",
+  "Copy the signing secret to verify webhook signatures in your receiver",
+  "View delivery history — last 200 deliveries with status codes and response bodies",
+  "Manually replay failed or dead-lettered events",
+]} />
+
+### System Diagnostics
+
+Go to **Integrations → Integration Health** for live service health. This shows database connectivity, background job queue depth, API gateway response time, and platform connector statuses — all in one view.
+
+</div>

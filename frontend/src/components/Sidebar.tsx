@@ -11,7 +11,6 @@ import {
   ImageIcon,
   Calendar,
   ClipboardCheck,
-  ShieldCheck,
   ListChecks,
   Gavel,
   AlertOctagon,
@@ -286,14 +285,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: ShieldAlert,
         // Risk/safety monitoring — governance, compliance, security
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
-        plan: "governance" as Feature,
-      },
-      {
-        name: "Policy Control Matrix",
-        href: "/governance/policies",
-        icon: ShieldCheck,
-        // Policy rules — governance admin manages, compliance reviews
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
         plan: "governance" as Feature,
       },
       {
