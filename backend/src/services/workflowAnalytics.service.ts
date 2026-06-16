@@ -5,14 +5,14 @@ export async function getWorkflowAnalytics(workspaceId: string) {
   const results = await Promise.all([
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).ilike('status', 'active'),
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['running', 'pending', 'waiting_review', 'waiting_approval']),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).not('completed_at', 'is', null).gt('completed_at', 'due_at'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).not('completed_at', 'is', null),
-    supabaseAdmin.from('approval_records').select('id, decided_at, created_at', { count: 'exact' }).not('decided_at', 'is', null),
-    supabaseAdmin.from('approval_records').select('id', { count: 'exact', head: true }).eq('decision', 'PENDING'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).in('status', ['running', 'pending', 'waiting_review', 'waiting_approval']),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'blocked'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'completed'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'failed'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).not('completed_at', 'is', null).gt('completed_at', 'due_at'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).not('completed_at', 'is', null),
+    supabaseAdmin.from('approval_records').select('id, decided_at, created_at', { count: 'exact' }).eq('workspace_id', workspaceId).not('decided_at', 'is', null),
+    supabaseAdmin.from('approval_records').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('decision', 'PENDING'),
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('health', 'Healthy'),
   ]);
 
@@ -50,9 +50,9 @@ export async function getControlStripData(workspaceId: string) {
     supabaseAdmin.from('workflow_templates').select('id, status, risk_level').eq('workspace_id', workspaceId),
     // Agent posts awaiting a decision are waiting_review/pending workflow runs,
     // not approval_records — count those so "Pending Approvals" reflects reality.
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['waiting_review', 'waiting_approval', 'pending']),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).in('status', ['waiting_review', 'waiting_approval', 'pending']),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'blocked'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'failed'),
   ]);
 
   const templates = (tplRes.data || []) as Array<{ status?: string; risk_level?: string }>;
