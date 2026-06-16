@@ -48,7 +48,6 @@ import {
   Layers,
   AlertTriangle,
   Sparkles,
-  Inbox,
   RefreshCw,
   Upload,
   ArrowLeftRight,
@@ -277,7 +276,6 @@ export default function KnowledgeBasePage() {
   const [search, setSearch] = useState("");
   const [reviews, setReviews] = useState<KBReview[]>([]);
   const [members, setMembers] = useState<OrgMember[]>([]);
-  const [showReviewQueue, setShowReviewQueue] = useState(true);
 
   const [collectionModal, setCollectionModal] = useState<{ open: boolean; edit?: KBCollection }>({ open: false });
   const [createSourceOpen, setCreateSourceOpen] = useState(false);
@@ -358,7 +356,6 @@ export default function KnowledgeBasePage() {
   }, [selectedCollectionId, sourcesByCollection, search]);
 
   const selectedSource = useMemo(() => sources.find((s) => s.id === selectedSourceId), [sources, selectedSourceId]);
-  const reviewQueue = useMemo(() => sources.filter((s) => isReview(s)), [sources]);
   const transferRequests = useMemo(() => sources.filter((s) => getPendingTransfer(s)), [sources]);
 
   const summary = useMemo(
@@ -755,48 +752,7 @@ export default function KnowledgeBasePage() {
         <SummaryCard label="Blocked" value={summary.blocked} icon={<Ban className="w-4 h-4" />} tone="rose" />
       </div>
 
-      {/* Review Queue */}
-      {reviewQueue.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
-          <button onClick={() => setShowReviewQueue((v) => !v)} className="w-full flex items-center justify-between px-5 py-3">
-            <span className="flex items-center gap-2 text-sm font-semibold text-amber-300">
-              <Inbox className="w-4 h-4" /> Review Queue
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">{reviewQueue.length} pending</span>
-            </span>
-            <span className="text-[11px] text-[var(--foreground-muted)]">{isApprover ? "You can approve or block" : "Awaiting admin / workspace owner"}</span>
-          </button>
-          {showReviewQueue && (
-            <div className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-              {reviewQueue.map((s) => (
-                <div key={s.id} className="flex items-center gap-3 px-5 py-3">
-                  <FileText className="w-4 h-4 text-amber-400 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-[var(--foreground)] truncate">{s.title}</p>
-                    <p className="text-[11px] text-[var(--foreground-muted)]">{s.source_type} · by {getAuthor(s) || "—"}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedCollectionId(s.collection_id);
-                      setSelectedSourceId(s.id);
-                    }}
-                    className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 px-2 py-1"
-                  >
-                    Open
-                  </button>
-                  {isApprover ? (
-                    <>
-                      <ActionBtn tone="emerald" label="Approve" busy={busy === s.id} onClick={() => runSourceAction(s, "approve")} icon={<ShieldCheck className="w-3.5 h-3.5" />} />
-                      <ActionBtn tone="rose" label="Block" busy={busy === s.id} onClick={() => confirmBlock(s)} icon={<Ban className="w-3.5 h-3.5" />} />
-                    </>
-                  ) : (
-                    <span className="text-[10px] text-[var(--foreground-muted)] italic px-2">Pending approval</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Review Queue lives in the Approval Console (/governance/reviews) now. */}
 
       {/* Ownership Transfer Requests — admin / workspace owner allows or blocks. */}
       {transferRequests.length > 0 && (
@@ -1061,7 +1017,6 @@ export default function KnowledgeBasePage() {
                 {isApprover && (
                   <>
                     <ActionBtn tone="emerald" label="Approve" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} disabled={isApproved(selectedSource)} onClick={() => runSourceAction(selectedSource, "approve")} />
-                    <ActionBtn tone="amber" label="Review" icon={<Clock className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => runSourceAction(selectedSource, "review")} />
                     <ActionBtn tone="rose" label="Block" icon={<Ban className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => confirmBlock(selectedSource)} />
                   </>
                 )}

@@ -13,6 +13,7 @@ import { supabaseAdmin } from '../shared/supabase';
 import { logger } from '../shared/logger';
 import { moderate } from '../modules/safety/moderationService';
 import { PostGovernanceService } from '../modules/prompts/PostGovernanceService';
+import { syncAgentRunFromCheck } from './operationsRunRecorder.service';
 
 const PUBLISHING_WORKFLOW_NAME = 'Publishing Workflow';
 
@@ -26,6 +27,7 @@ export interface PublishCheck {
     possibility_label: string;
     governed_prompt: string;
     decision: string;
+    reason: string;
     kb_checked: boolean;
     kb_matches: number;
     kb_sources: string[];
@@ -102,6 +104,9 @@ async function runAgentChecks(
         possibility_label: governanceResult.possibility.label,
         governed_prompt: governanceResult.governed_prompt.label,
         decision: governanceResult.decision,
+        // Human-readable reason ("Post contains prohibited content: …") so the
+        // Workflows run detail can explain WHY a run was blocked / flagged.
+        reason: governanceResult.reason,
         kb_checked: governanceResult.knowledge.checked,
         kb_matches: governanceResult.knowledge.matches?.length || 0,
         // Actual matched KB source titles so the Live Workflow Runs table can
@@ -367,6 +372,18 @@ export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<
       { workspaceId, instanceId: instance?.id, platform, agentId: agent?.id, agentName: agent?.name, postId },
       '[publish-link] linked post to Publishing Workflow',
     );
+
+    // Mirror the agent check verdict onto the post's Operations run so a post
+    // the workflow shows as Blocked / Needs-Review reads the same in Agent
+    // Operations (status + the violation reason in the Evidence column).
+    if (postId && check && (check.verdict === 'block' || check.verdict === 'review')) {
+      await syncAgentRunFromCheck(postId, {
+        verdict: check.verdict,
+        risk: check.risk,
+        reason: buildGovernanceReason({ check, governance: check.governance }),
+      });
+    }
+
     return instance?.id ?? null;
   } catch (err) {
     logger.warn(
@@ -511,6 +528,30 @@ export async function getRecentPublishedContent(
  * linkPublishToWorkflow) into display fields the frontend's Live Orchestrations
  * panel reads. Returns the instance unchanged if trigger_source isn't ours.
  */
+/**
+ * Build a human-readable "why was this blocked / flagged" reason from a stored
+ * publish-hub check. Prefers the governance engine's own reason; falls back to
+ * the flagged terms (present on older runs that pre-date the stored reason), then
+ * to the governed prompt / possibility label.
+ */
+function buildGovernanceReason(meta: any): string | undefined {
+  const check = meta?.check;
+  const gov = meta?.governance || check?.governance;
+  if (gov?.reason && typeof gov.reason === 'string') return gov.reason;
+
+  const flags = Array.isArray(check?.flags) ? check.flags : [];
+  const terms = Array.from(
+    new Set(flags.map((f: any) => f?.text || f?.category).filter(Boolean)),
+  ).slice(0, 6) as string[];
+  const blocked = gov?.decision === 'BLOCK' || check?.verdict === 'block';
+  if (terms.length > 0) {
+    return `${blocked ? 'Blocked' : 'Flagged'} — ${blocked ? 'prohibited' : 'sensitive'} content detected: ${terms.join(', ')}`;
+  }
+  if (gov?.possibility_label) return `${blocked ? 'Blocked' : 'Flagged'} by governance: ${gov.possibility_label}`;
+  if (gov?.governed_prompt) return `${blocked ? 'Blocked' : 'Flagged'} by ${gov.governed_prompt}`;
+  return undefined;
+}
+
 export function enrichPublishInstance(instance: any): any {
   if (!instance || typeof instance.trigger_source !== 'string') return instance;
   let meta: any;
@@ -570,5 +611,158 @@ export function enrichPublishInstance(instance: any): any {
           ? meta.check.risk
           : instance.risk_score,
     post: { id: meta.post_id, platform: meta.platform, excerpt: meta.excerpt },
+    // Explain a blocked/flagged run so the Failure tab shows a real reason
+    // instead of "Not available". Only set when the verdict is non-safe so safe
+    // runs keep any pre-existing blocker untouched.
+    blocker:
+      verdict === 'block' || verdict === 'review' || displayStatus === 'blocked'
+        ? buildGovernanceReason(meta) ?? instance.blocker
+        : instance.blocker,
+    // Titles of the KB sources this run consulted — used by enrichInstancesWithReview
+    // to resolve which KB collection the source(s) live in.
+    kbSourceTitles: kbSources,
   };
+}
+
+/**
+ * Second-pass async enrichment for the Live Workflow Runs panel. For each
+ * publish-hub instance it resolves, from the linked publish_intent and the
+ * Knowledge Base:
+ *   • the human review decision + comment + reviewer (username & role), captured
+ *     by the Approval Console (approve / reject / return to creator), and
+ *   • the KB collection the consulted source(s) belong to.
+ * All lookups are best-effort and batched; on any failure the instances are
+ * returned unchanged so the panel never breaks.
+ */
+export async function enrichInstancesWithReview(
+  instances: any[],
+  workspaceId: string,
+): Promise<any[]> {
+  const enriched = (instances || []).map(enrichPublishInstance);
+  if (enriched.length === 0) return enriched;
+
+  // ── 1. Review data from the linked publish_intents ──
+  const postIds = Array.from(
+    new Set(enriched.map((i) => i?.post?.id).filter(Boolean)),
+  );
+  const intentById = new Map<string, any>();
+  if (postIds.length > 0) {
+    // Always-present columns first (status + feedback hold the comment).
+    try {
+      const { data: intents } = await supabaseAdmin
+        .from('publish_intents')
+        .select('id, status, feedback')
+        .in('id', postIds as string[]);
+      for (const it of intents || []) intentById.set(it.id, it);
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[publish-link] review enrichment: intents lookup failed');
+    }
+    // reviewer_id always exists — resolves who decided.
+    try {
+      const { data: rev } = await supabaseAdmin
+        .from('publish_intents')
+        .select('id, reviewer_id')
+        .in('id', postIds as string[]);
+      for (const r of rev || []) {
+        const existing = intentById.get(r.id) || { id: r.id };
+        intentById.set(r.id, { ...existing, ...r });
+      }
+    } catch {
+      // ignore
+    }
+    // reviewer_feedback / reviewed_at come from a later migration — best-effort so
+    // a missing column doesn't drop the comment/status/reviewer resolved above.
+    try {
+      const { data: rev2 } = await supabaseAdmin
+        .from('publish_intents')
+        .select('id, reviewer_feedback, reviewed_at')
+        .in('id', postIds as string[]);
+      for (const r of rev2 || []) {
+        const existing = intentById.get(r.id) || { id: r.id };
+        intentById.set(r.id, { ...existing, ...r });
+      }
+    } catch {
+      // columns not present — timestamp falls back to run start; comment uses `feedback`
+    }
+  }
+
+  // ── 2. Reviewer username + role ──
+  const reviewerIds = Array.from(
+    new Set(Array.from(intentById.values()).map((it) => it.reviewer_id).filter(Boolean)),
+  );
+  const userById = new Map<string, { name: string; role?: string }>();
+  if (reviewerIds.length > 0) {
+    try {
+      const [usersRes, membersRes] = await Promise.all([
+        supabaseAdmin.from('users').select('id, full_name, email').in('id', reviewerIds as string[]),
+        supabaseAdmin.from('workspace_members').select('user_id, role').eq('workspace_id', workspaceId).in('user_id', reviewerIds as string[]),
+      ]);
+      const roleByUser = new Map<string, string>();
+      for (const m of membersRes.data || []) roleByUser.set(m.user_id, m.role);
+      for (const u of usersRes.data || []) {
+        userById.set(u.id, { name: u.full_name || u.email || u.id, role: roleByUser.get(u.id) });
+      }
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[publish-link] review enrichment: reviewer lookup failed');
+    }
+  }
+
+  // ── 3. KB collection name(s) for the consulted source titles ──
+  const allTitles = Array.from(
+    new Set(enriched.flatMap((i) => (Array.isArray(i?.kbSourceTitles) ? i.kbSourceTitles : [])).filter(Boolean)),
+  );
+  const collectionByTitle = new Map<string, string>();
+  if (allTitles.length > 0) {
+    try {
+      const { data: srcs } = await supabaseAdmin
+        .from('knowledge_sources')
+        .select('title, collection_id')
+        .eq('workspace_id', workspaceId)
+        .in('title', allTitles as string[]);
+      const collectionIds = Array.from(new Set((srcs || []).map((s) => s.collection_id).filter(Boolean)));
+      const nameById = new Map<string, string>();
+      if (collectionIds.length > 0) {
+        const { data: cols } = await supabaseAdmin
+          .from('knowledge_collections')
+          .select('id, name')
+          .in('id', collectionIds as string[]);
+        for (const c of cols || []) nameById.set(c.id, c.name);
+      }
+      for (const s of srcs || []) {
+        const name = s.collection_id ? nameById.get(s.collection_id) : undefined;
+        if (name) collectionByTitle.set(s.title, name);
+      }
+    } catch (err) {
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[publish-link] review enrichment: KB collection lookup failed');
+    }
+  }
+
+  const DECISION_LABEL: Record<string, string> = {
+    APPROVED: 'Approved',
+    REJECTED: 'Rejected',
+    GOVERNANCE_BLOCKED: 'Rejected',
+    RETURNED: 'Returned to creator',
+  };
+
+  return enriched.map((inst) => {
+    const intent = inst?.post?.id ? intentById.get(inst.post.id) : undefined;
+    const reviewer = intent?.reviewer_id ? userById.get(intent.reviewer_id) : undefined;
+    const titles: string[] = Array.isArray(inst?.kbSourceTitles) ? inst.kbSourceTitles : [];
+    const collections = Array.from(
+      new Set(titles.map((t) => collectionByTitle.get(t)).filter(Boolean)),
+    ) as string[];
+    // kbSourceTitles is intentionally omitted from the returned object (folded
+    // into kbCollection below); the binding is unused by design.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { kbSourceTitles, ...rest } = inst;
+    return {
+      ...rest,
+      kbCollection: collections.length > 0 ? collections.join(', ') : undefined,
+      reviewerName: reviewer?.name,
+      reviewerRole: reviewer?.role,
+      reviewDecision: intent?.status ? DECISION_LABEL[intent.status] : undefined,
+      reviewComment: intent?.feedback || intent?.reviewer_feedback || undefined,
+      reviewedAt: intent?.reviewed_at || undefined,
+    };
+  });
 }

@@ -464,18 +464,32 @@ export class PostGovernanceService {
       const passFail = decision === 'APPROVE' ? 'PASS' : decision === 'BLOCK' ? 'FAIL' : 'PENDING';
       const score = decision === 'APPROVE' ? 95 : decision === 'BLOCK' ? 15 : 50;
 
-      const { data: version } = await supabaseAdmin
-        .from('prompt_versions')
-        .select('id')
-        .eq('prompt_id', promptId)
-        .order('version_number', { ascending: false })
-        .limit(1)
+      // Write the test run to the SAME version the registry/Test Center reads
+      // (prompts.current_version_id). Fall back to the latest version only when
+      // current_version_id is unset. A mismatch here is why blocked posts never
+      // surfaced as failed tests in the Governance Test Center.
+      const { data: promptRow } = await supabaseAdmin
+        .from('prompts')
+        .select('current_version_id')
+        .eq('id', promptId)
         .maybeSingle();
 
-      if (!version) return;
+      let versionId: string | undefined = promptRow?.current_version_id || undefined;
+      if (!versionId) {
+        const { data: version } = await supabaseAdmin
+          .from('prompt_versions')
+          .select('id')
+          .eq('prompt_id', promptId)
+          .order('version_number', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        versionId = version?.id;
+      }
+
+      if (!versionId) return;
 
       await supabaseAdmin.from('prompt_test_runs').insert({
-        prompt_version_id: version.id,
+        prompt_version_id: versionId,
         pass_fail: passFail,
         score_summary: { score, decision, possibility: possibilityKey },
         environment: 'production',

@@ -40,6 +40,12 @@ interface RunData {
   sla?: string;
   post?: { platform?: string; excerpt?: string };
   startedAt?: string;
+  kbCollection?: string;
+  reviewerName?: string;
+  reviewerRole?: string;
+  reviewDecision?: string;
+  reviewComment?: string;
+  reviewedAt?: string;
 }
 
 function safeStr(v: unknown, fallback = "—"): string {
@@ -259,13 +265,16 @@ export default function WorkflowRunDetailDrawer({
           <div className="rounded-xl border border-[var(--border)] p-4 space-y-0.5 bg-[var(--surface-hover)]/20">
             <DetailRow label="Agent Linked" value={safeStr(run.agentAssigned)} icon={<Bot className="w-3.5 h-3.5 text-success-text" />} />
             <DetailRow label="Prompt Linked" value={safeStr(run.prompt)} icon={<MessageSquare className="w-3.5 h-3.5 text-sky-400" />} />
-            <DetailRow label="Prompt Version" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
             <DetailRow
               label="Knowledge Base Source"
               value={noKb ? <span className="text-[var(--text-muted)] italic flex items-center gap-1"><AlertCircle className="w-3 h-3" />No relevant KB source</span> : safeStr(run.knowledgeBaseSource)}
               icon={<BookOpen className="w-3.5 h-3.5 text-violet-400" />}
             />
-            <DetailRow label="KB Collection" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
+            <DetailRow
+              label="KB Collection"
+              value={run.kbCollection ? safeStr(run.kbCollection) : <span className="text-[var(--text-muted)] italic">Not available</span>}
+              icon={<BookOpen className="w-3.5 h-3.5 text-violet-400" />}
+            />
             {run.post?.excerpt && (
               <DetailRow label="Content Excerpt" value={<span className="text-[var(--text-secondary)] block max-w-full truncate">{run.post.excerpt}</span>} icon={<FileText className="w-3.5 h-3.5 text-amber-400" />} />
             )}
@@ -335,10 +344,7 @@ export default function WorkflowRunDetailDrawer({
       case "evidence":
         return (
           <div className="rounded-xl border border-[var(--border)] p-4 space-y-0.5 bg-[var(--surface-hover)]/20">
-            <DetailRow label="Evidence ID" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
-            <DetailRow label="Evidence Bundle ID" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
             <DetailRow label="Prompt Used" value={safeStr(run.prompt)} icon={<MessageSquare className="w-3.5 h-3.5 text-sky-400" />} />
-            <DetailRow label="Prompt Version" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
             <DetailRow label="KB Source Used" value={noKb ? <span className="text-[var(--text-muted)] italic">Not used</span> : safeStr(run.knowledgeBaseSource)} />
             <DetailRow label="Source Citation" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
             <DetailRow
@@ -354,13 +360,13 @@ export default function WorkflowRunDetailDrawer({
       case "approvals":
         return (
           <div className="rounded-xl border border-[var(--border)] p-4 bg-[var(--surface-hover)]/20">
-            {run.owner ? (
+            {run.reviewerName || run.owner ? (
               <div className="space-y-0.5">
-                <DetailRow label="Reviewer" value={safeStr(run.owner)} />
-                <DetailRow label="Role" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
-                <DetailRow label="Decision" value={run.status === "Completed" ? "Approved" : run.status === "Blocked" || run.status === "Failed" ? "Rejected" : "Pending"} />
-                <DetailRow label="Comments" value={<span className="text-[var(--text-muted)] italic">Not available</span>} />
-                {run.startedAt && <DetailRow label="Timestamp" value={new Date(run.startedAt).toLocaleString()} />}
+                <DetailRow label="Reviewer" value={safeStr(run.reviewerName || run.owner)} icon={<UserCheck className="w-3.5 h-3.5 text-info-text" />} />
+                <DetailRow label="Role" value={run.reviewerRole ? safeStr(run.reviewerRole) : <span className="text-[var(--text-muted)] italic">Not available</span>} />
+                <DetailRow label="Decision" value={run.reviewDecision || (run.status === "Completed" ? "Approved" : run.status === "Blocked" || run.status === "Failed" ? "Rejected" : "Pending")} />
+                <DetailRow label="Comments" value={run.reviewComment ? <span className="text-[var(--text-secondary)]">{run.reviewComment}</span> : <span className="text-[var(--text-muted)] italic">No comment provided</span>} icon={<MessageSquare className="w-3.5 h-3.5 text-amber-400" />} />
+                {(run.reviewedAt || run.startedAt) && <DetailRow label="Timestamp" value={new Date(run.reviewedAt || run.startedAt!).toLocaleString()} />}
               </div>
             ) : (
               <p className="text-xs text-[var(--text-muted)] italic">No approval history available.</p>
