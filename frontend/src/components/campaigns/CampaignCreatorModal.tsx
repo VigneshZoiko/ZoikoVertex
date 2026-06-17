@@ -231,8 +231,9 @@ function MetaPickerModal({
 
   const handleDone = async () => {
     if (!selAdAcct) return;
+    const ad = adAccounts.find(a => a.id === selAdAcct);
+    if (!ad) return;
     setSaving(true);
-    const ad   = adAccounts.find(a => a.id === selAdAcct)!;
     const page = pages.find(p => p.id === selPage);
     onSave(ad.id, ad.name, ad.currency, selPage, page?.name || "");
   };

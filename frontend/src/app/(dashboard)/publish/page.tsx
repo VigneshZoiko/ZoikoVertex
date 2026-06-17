@@ -598,6 +598,7 @@ function PublishPageInner() {
 
   // Target publish date (optional — shown on calendar)
   const [scheduledFor, setScheduledFor] = useState("");
+  const [bestSlotLoading, setBestSlotLoading] = useState(false);
 
   // Governance State
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -2187,11 +2188,36 @@ function PublishPageInner() {
 
           {/* Target Publish Date — optional, shown on calendar */}
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
-            <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-2 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-info-text" />
-              Target Publish Date
-              <span className="text-[10px] font-normal opacity-60 ml-1">(optional — shows on calendar)</span>
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-[var(--foreground-muted)] flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-info-text" />
+                Target Publish Date
+                <span className="text-[10px] font-normal opacity-60 ml-1">(optional)</span>
+              </label>
+              <button
+                type="button"
+                disabled={bestSlotLoading}
+                onClick={async () => {
+                  const selectedPlats = getSelectedPlatforms();
+                  const platform = selectedPlats[0];
+                  if (!platform) { setMessage({ type: 'error', text: 'Select a platform first.' }); return; }
+                  setBestSlotLoading(true);
+                  try {
+                    const r = await api.post('/api/v1/scheduler/best-slot', { platform });
+                    if (r.success && r.data?.suggested_time) {
+                      const local = new Date(r.data.suggested_time);
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      setScheduledFor(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`);
+                      setMessage({ type: 'success', text: `Best slot found: ${local.toLocaleString()} (${r.data.source === 'engagement_data' ? 'based on your engagement history' : 'platform defaults'})` });
+                    }
+                  } catch { /* non-blocking */ }
+                  finally { setBestSlotLoading(false); }
+                }}
+                className="text-[10px] font-semibold text-info-text hover:opacity-80 transition-opacity disabled:opacity-40 flex items-center gap-1"
+              >
+                {bestSlotLoading ? '...' : '✦ Best Time'}
+              </button>
+            </div>
             <input
               type="datetime-local"
               value={scheduledFor}

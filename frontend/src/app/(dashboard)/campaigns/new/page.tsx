@@ -157,7 +157,7 @@ export default function NewCampaignPage() {
   const [pixelsLoading, setPixelsLoading] = useState(false);
 
   useEffect(() => {
-    api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => {});
+    api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => setMembers([]));
   }, []);
 
   // Fetch Meta Pixels when CONVERSIONS objective is selected
@@ -172,17 +172,18 @@ export default function NewCampaignPage() {
 
   // Auto-switch meta_ad_type when objective changes
   useEffect(() => {
-    if (data.objective === "LEAD_GENERATION" && data.meta_ad_type !== "lead_ad") {
-      setData(d => ({ ...d, meta_ad_type: "lead_ad" }));
-    } else if (data.objective !== "LEAD_GENERATION" && data.meta_ad_type === "lead_ad") {
-      setData(d => ({ ...d, meta_ad_type: "image_ad" }));
-    }
-  }, [data.objective]); // eslint-disable-line react-hooks/exhaustive-deps
+    setData(d => {
+      if (d.objective === "LEAD_GENERATION" && d.meta_ad_type !== "lead_ad") return { ...d, meta_ad_type: "lead_ad" };
+      if (d.objective !== "LEAD_GENERATION" && d.meta_ad_type === "lead_ad") return { ...d, meta_ad_type: "image_ad" };
+      return d;
+    });
+  }, [data.objective]);
 
   // Load campaign in edit mode
   useEffect(() => {
     if (!editId) return;
     api.get(`/api/v1/campaigns/${editId}`).then(r => {
+      if (!r.success || !r.data) return;
       const c  = r.data;
       const t  = c.targeting || {};
       const cr = c.creative  || {};
@@ -366,12 +367,15 @@ export default function NewCampaignPage() {
           platforms: data.platforms,
           ...payload,
         });
+        if (!res.success || !res.data?.id) throw new Error(res.error || "Failed to create campaign");
         setCampaignId(res.data.id);
       } else {
         await api.patch(`/api/v1/campaigns/${campaignId}`, payload);
       }
       setStep(goTo);
-    } catch { /* inline errors */ }
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to save. Please try again.");
+    }
     finally { setSaving(false); }
   }, [step, data, campaignId]);
 

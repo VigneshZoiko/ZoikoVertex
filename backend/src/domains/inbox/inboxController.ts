@@ -639,7 +639,7 @@ export const createReply = async (req: AuthRequest, res: Response, next: NextFun
     if (error) throw error;
 
     if (replyStatus === 'sent') {
-      await supabaseAdmin.from('inbox_messages').update({ status: 'IN_PROGRESS', updated_at: new Date().toISOString() }).eq('id', (req.params.id as string));
+      await supabaseAdmin.from('inbox_messages').update({ status: 'IN_PROGRESS', updated_at: new Date().toISOString() }).eq('id', (req.params.id as string)).eq('workspace_id', workspaceId);
     }
 
     await logInboxAudit((req.params.id as string), workspaceId, userId, `Reply ${replyStatus} (${reply_type})`, undefined, replyStatus);
@@ -748,13 +748,13 @@ export const sendReply = async (req: AuthRequest, res: Response, next: NextFunct
 
     if (!reply) return res.status(404).json({ error: 'Reply not found' });
 
-    const { data: msg } = await supabaseAdmin.from('inbox_messages').select('status').eq('id', reply.message_id).single();
+    const { data: msg } = await supabaseAdmin.from('inbox_messages').select('status').eq('id', reply.message_id).eq('workspace_id', workspaceId).single();
     if (msg?.status === 'ESCALATED') {
       return res.status(403).json({ error: 'Reply locked — message is escalated and awaiting approval' });
     }
 
     await supabaseAdmin.from('inbox_replies').update({ status: 'sent', sent_by: userId, sent_at: new Date().toISOString() }).eq('id', (req.params.replyId as string));
-    await supabaseAdmin.from('inbox_messages').update({ status: 'IN_PROGRESS', updated_at: new Date().toISOString() }).eq('id', reply.message_id);
+    await supabaseAdmin.from('inbox_messages').update({ status: 'IN_PROGRESS', updated_at: new Date().toISOString() }).eq('id', reply.message_id).eq('workspace_id', workspaceId);
 
     await logInboxAudit(reply.message_id, workspaceId, userId, 'Reply sent', reply.status, 'sent');
     await logAuditEvent({ workspaceId, actorId: userId, action: 'Reply sent on inbox message', objectType: 'INBOX_MESSAGE', objectId: reply.message_id, module: 'Inbox' });
@@ -812,7 +812,7 @@ export const updateMessageStatus = async (req: AuthRequest, res: Response, next:
     const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     if (status === 'RESOLVED') updates.resolved_at = new Date().toISOString();
 
-    await supabaseAdmin.from('inbox_messages').update(updates).eq('id', (req.params.id as string));
+    await supabaseAdmin.from('inbox_messages').update(updates).eq('id', (req.params.id as string)).eq('workspace_id', workspaceId);
     await logInboxAudit((req.params.id as string), workspaceId, userId, 'Status changed', msg.status, status);
 
     res.json({ success: true });
@@ -845,7 +845,7 @@ export const escalateMessage = async (req: AuthRequest, res: Response, next: Nex
       assigned_reviewer: assigned_reviewer || null,
     });
 
-    await supabaseAdmin.from('inbox_messages').update({ status: 'ESCALATED', risk_level: riskLevel, updated_at: new Date().toISOString() }).eq('id', (req.params.id as string));
+    await supabaseAdmin.from('inbox_messages').update({ status: 'ESCALATED', risk_level: riskLevel, updated_at: new Date().toISOString() }).eq('id', (req.params.id as string)).eq('workspace_id', workspaceId);
     await logInboxAudit((req.params.id as string), workspaceId, userId, `Escalated: ${escalation_reason}`, msg.status, 'ESCALATED');
     await logAuditEvent({ workspaceId, actorId: userId, action: `Message escalated: ${escalation_reason}`, objectType: 'INBOX_MESSAGE', objectId: (req.params.id as string), module: 'Inbox', riskLevel, metadata: { risk_category } });
 
@@ -1036,7 +1036,7 @@ export const archiveMessage = async (req: AuthRequest, res: Response, next: Next
     const { data: msg } = await supabaseAdmin.from('inbox_messages').select('status').eq('id', (req.params.id as string)).eq('workspace_id', workspaceId).single();
     if (!msg) return res.status(404).json({ error: 'Message not found' });
 
-    await supabaseAdmin.from('inbox_messages').update({ status: 'ARCHIVED', archived_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', (req.params.id as string));
+    await supabaseAdmin.from('inbox_messages').update({ status: 'ARCHIVED', archived_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', (req.params.id as string)).eq('workspace_id', workspaceId);
     await logInboxAudit((req.params.id as string), workspaceId, userId, 'Message archived', msg.status, 'ARCHIVED');
 
     res.json({ success: true });

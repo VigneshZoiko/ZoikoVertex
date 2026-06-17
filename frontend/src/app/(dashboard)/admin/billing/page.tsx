@@ -159,7 +159,7 @@ export default function BillingPage() {
   const { refresh: refreshRole } = useRoleContext();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"credits" | "billing">("credits");
+  const [activeTab, setActiveTab] = useState<"credits" | "billing">("billing");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
@@ -226,9 +226,6 @@ export default function BillingPage() {
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ planId: string; planName: string; price: number } | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showCancelSub, setShowCancelSub] = useState(false);
-  const [spendCapEnabled, setSpendCapEnabled] = useState(false);
-  const [spendCapAmount, setSpendCapAmount] = useState("500");
-  const [spendCapLoading, setSpendCapLoading] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -263,7 +260,6 @@ export default function BillingPage() {
           if (overchargeRes.status === 'fulfilled' && overchargeRes.value?.success) {
             const enabled = overchargeRes.value.data?.overcharge_enabled ?? false;
             setOverchargeEnabled(enabled);
-            if (!enabled) setActiveTab('billing');
           }
 
           if (cardsRes.status === 'fulfilled' && cardsRes.value?.success) {
@@ -591,22 +587,11 @@ export default function BillingPage() {
     }
   };
 
-  const handleSpendCapSave = async () => {
-    setSpendCapLoading(true);
-    try {
-      await api.post("/api/v1/billing/spend-cap", {
-        enabled: spendCapEnabled,
-        amount: spendCapEnabled ? Number(spendCapAmount) : null,
-      });
-    } catch { /* non-blocking */ }
-    setSpendCapLoading(false);
-  };
-
   const handleDownloadCSV = () => {
     if (transactions.length === 0) return;
-    const header = "Date,Description,Campaign,Type,Amount\n";
+    const header = "Date,Description,Type,Amount\n";
     const rows = transactions.map(tx =>
-      `${new Date(tx.created_at).toLocaleDateString()},${JSON.stringify(tx.description || "")},${JSON.stringify(tx.campaign_name || "")},${tx.type},$${Number(tx.amount).toFixed(2)}`
+      `${new Date(tx.created_at).toLocaleDateString()},${JSON.stringify(tx.description || "")},${tx.type},$${Number(tx.amount).toFixed(2)}`
     ).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -627,16 +612,14 @@ export default function BillingPage() {
 
       {/* â"€â"€ Tabs â"€â"€ */}
       <div className="flex items-center gap-6 border-b border-border">
-        {overchargeEnabled && (
-          <button type="button"
-            onClick={() => setActiveTab("credits")}
-            className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === "credits" ? "border-white text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
-            }`}
-          >
-            Credits
-          </button>
-        )}
+        <button type="button"
+          onClick={() => setActiveTab("credits")}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "credits" ? "border-white text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
+          }`}
+        >
+          Credits
+        </button>
         <button 
           onClick={() => {
             setActiveTab("billing");
@@ -658,8 +641,19 @@ export default function BillingPage() {
       {/* â"€â"€ Tab Content: Credits â"€â"€ */}
       {activeTab === "credits" && (
         <div className="space-y-6">
+          {!overchargeEnabled && (
+            <div className="bg-surface border border-border rounded-xl p-5 flex items-start gap-3">
+              <div className="mt-0.5 shrink-0 text-foreground-muted">
+                <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v4M8 11h.01"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Overcharge is disabled</p>
+                <p className="text-xs text-foreground-muted mt-0.5">Enable overcharge in <button type="button" onClick={() => setActiveTab("billing")} className="underline hover:text-foreground transition-colors">Billing &amp; Usage</button> to allow wallet charges for extra AI tokens and additional storage.</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             {/* Balance Card */}
             <div className="bg-card border border-border rounded-xl p-6 flex flex-col justify-between">
               <div>
@@ -753,46 +747,6 @@ export default function BillingPage() {
             </div>
           </div>
 
-          {/* Spend Cap */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-foreground">Spend Cap</h3>
-                <p className="text-xs text-foreground-muted mt-0.5">Limit total ad spend charged to your credits per month.</p>
-              </div>
-              <button type="button" onClick={() => { setSpendCapEnabled(!spendCapEnabled); }}
-                className={`relative w-11 h-6 rounded-full transition-colors ${spendCapEnabled ? "bg-white" : "bg-surface-hover"}`}>
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform ${spendCapEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
-            </div>
-            {spendCapEnabled && (
-              <div className="flex gap-3 items-end">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-foreground-muted mb-1.5">Monthly cap amount ({wallet.currency || 'USD'})</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted">$</span>
-                    <input type="number" min="1" value={spendCapAmount}
-                      onChange={e => setSpendCapAmount(e.target.value)}
-                      className="w-full bg-card border border-border rounded-lg py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:border-border"
-                      placeholder="500" />
-                  </div>
-                </div>
-                <button type="button" onClick={handleSpendCapSave} disabled={spendCapLoading}
-                  className="px-4 py-2 bg-white text-zinc-900 text-sm font-semibold rounded-lg hover:bg-zinc-100 disabled:opacity-40 transition-colors flex items-center gap-2">
-                  {spendCapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Save
-                </button>
-              </div>
-            )}
-            {!spendCapEnabled && (
-              <button type="button" onClick={handleSpendCapSave} disabled={spendCapLoading}
-                className="text-xs text-foreground-muted hover:text-foreground-muted transition-colors flex items-center gap-1.5">
-                {spendCapLoading && <Loader2 className="w-3 h-3 animate-spin" />}
-                Save (disabled)
-              </button>
-            )}
-          </div>
-
           {/* Transactions Table */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
@@ -812,7 +766,6 @@ export default function BillingPage() {
                   <tr>
                     <th className="px-5 py-3 font-medium">Date</th>
                     <th className="px-5 py-3 font-medium">Description</th>
-                    <th className="px-5 py-3 font-medium">Campaign</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium text-right">Credits</th>
                     <th className="px-5 py-3 font-medium text-right">Receipt</th>
@@ -821,14 +774,14 @@ export default function BillingPage() {
                 <tbody className="divide-y divide-gray-200 dark:divide-border text-foreground-muted">
                   {loadingWallet ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-foreground-muted">
+                      <td colSpan={5} className="px-5 py-8 text-center text-foreground-muted">
                         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                         Loading transactions...
                       </td>
                     </tr>
                   ) : transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-foreground-muted">
+                      <td colSpan={5} className="px-5 py-8 text-center text-foreground-muted">
                         No transactions yet. Add credits to get started.
                       </td>
                     </tr>
@@ -847,7 +800,6 @@ export default function BillingPage() {
                             <div className="text-[10px] text-foreground-muted">Fee: ${Number(tx.stripe_fee).toFixed(2)}</div>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-foreground-muted">{tx.campaign_name || "--"}</td>
                         <td className="px-5 py-3">
                           {tx.status === "PROCESSING" && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-warning-bg text-warning-text border border-warning-border">
@@ -903,7 +855,7 @@ export default function BillingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium text-foreground">Enable Overcharge</h3>
-                <p className="text-xs text-foreground-muted mt-0.5">Allow usage beyond your plan quota — excess is charged automatically from your wallet.</p>
+                <p className="text-xs text-foreground-muted mt-0.5">Allow usage beyond your plan quota — extra AI tokens and additional storage are charged from your wallet.</p>
               </div>
               <button type="button" onClick={handleOverchargeToggle} disabled={overchargeLoading}
                 className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${overchargeEnabled ? "bg-white" : "bg-surface"}`}>
@@ -913,10 +865,10 @@ export default function BillingPage() {
             {overchargeEnabled ? (
               <div className="bg-warning-bg border border-warning-border rounded-lg p-4 text-xs text-warning-text space-y-1">
                 <p className="font-medium">Overcharge active</p>
-                <p>Excess AI usage will be charged from your wallet. If balance hits $0, AI services suspend until you top up or your billing cycle resets.</p>
+                <p>Extra AI token usage and additional storage beyond your plan quota will be charged from your wallet. Campaign spend is handled separately through connected ad accounts.</p>
               </div>
             ) : (
-              <p className="text-xs text-foreground-muted">When disabled, AI features stop once your monthly quota is reached. No wallet charges apply. Enable to add credits and prevent service interruptions.</p>
+              <p className="text-xs text-foreground-muted">When disabled, AI features and extra storage stop once your monthly quota is reached. No wallet charges apply. Enable to add credits and prevent service interruptions.</p>
             )}
           </div>
 
