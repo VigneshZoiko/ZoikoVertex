@@ -120,7 +120,12 @@ export default function Navbar() {
             );
             const linkStyle = { fontFamily: fontJakarta, fontWeight: 400, fontSize: 13.4, letterSpacing: "0.01em", color: "#A9B8C7", textDecoration: "none", padding: "25.6px 14px", display: "flex", alignItems: "center", gap: 4, height: 68, transition: "color 0.15s" };
             return (
-              <div key={item.label} style={{ position: "relative" }}>
+              <div
+                key={item.label}
+                style={{ position: "relative" }}
+                onMouseEnter={() => item.hasDropdown && setOpenMenu(item.label)}
+                onMouseLeave={() => item.hasDropdown && setOpenMenu(null)}
+              >
                 {item.hasDropdown ? (
                   <button
                     onClick={() => setOpenMenu(openMenu === item.label ? null : item.label)}
