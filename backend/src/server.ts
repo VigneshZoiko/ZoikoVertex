@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import multer from 'multer';
 import os from 'os';
 import { env } from './config/env';
@@ -240,6 +241,7 @@ import {
   getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings,
   createSetupIntent, createSetupCheckout, syncCardSession, listPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod,
   getWalletBalance, createSubscription, cancelSubscription, getSubscription, listInvoices,
+  getOvercharge, updateOvercharge,
 } from './domains/billing/walletController';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
@@ -248,6 +250,8 @@ import { enterpriseSignup } from './domains/identity/enterpriseSignupController'
 import { setupWorkspace, completeOnboarding } from './domains/identity/onboardingController';
 import { sendOtpCode, verifyOtpCode, resendOtpCode } from './modules/auth/otpController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
+import { getSidebarCounts } from './domains/sidebar/sidebarController';
+import { getCalendarEvents } from './domains/calendar/calendarController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
 import {
@@ -390,6 +394,7 @@ const port = env.PORT;
 })(app);
 
 // Middleware
+app.use(compression());
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
@@ -417,6 +422,12 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Reusable private cache helper — applies Cache-Control to stable authenticated routes
+const cache = (maxAge: number) => (_req: any, res: any, next: any) => {
+  res.set('Cache-Control', `private, max-age=${maxAge}, stale-while-revalidate=${maxAge * 2}`);
+  next();
+};
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (req, res) => {
@@ -755,7 +766,7 @@ const campaignEmergencyGuard = requireRole('CRISIS_COMMANDER', 'FINAL_APPROVER',
 
 // Phase 1 — existing CRUD
 app.get('/api/v1/campaigns',           authenticate, campaignGuard,       listCampaigns);
-app.get('/api/v1/campaigns/stats',     authenticate, campaignGuard,       getCampaignStats);
+app.get('/api/v1/campaigns/stats',     authenticate, campaignGuard,       cache(30), getCampaignStats);
 app.get('/api/v1/campaigns/:id',       authenticate, campaignGuard,       getCampaign);
 app.get('/api/v1/campaigns/:id/posts', authenticate, campaignGuard,       getCampaignPosts);
 app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  createCampaign);
@@ -846,14 +857,20 @@ app.get('/api/v1/library/scan-logs', authenticate, requireRole('ADMIN','WORKSPAC
   res.json({ success: true, data: readRecentScans(limit, req.user?.workspace_id) });
 });
 
+// Sidebar combined counts (pending review + returned items in one round-trip)
+app.get('/api/v1/sidebar/counts', authenticate, cache(20), getSidebarCounts);
+
+// Calendar — unified workspace-scoped events (scheduler posts + publish intents)
+app.get('/api/v1/calendar/events', authenticate, getCalendarEvents);
+
 // Protected User Routes
-app.get('/api/v1/user/context', authenticate, getUserContext);
+app.get('/api/v1/user/context', authenticate, cache(30), getUserContext);
 app.patch('/api/v1/admin/plan', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'), changePlan);
 app.post('/api/v1/user/downgrade-to-free', authenticate, SuperAdminController.downgradeToFreePlan);
 
 // Workspace Settings Routes
 const workspaceGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN', 'SUPERADMIN');
-app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, getWorkspaceSettings);
+app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, cache(60), getWorkspaceSettings);
 app.patch('/api/v1/workspace/settings', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateWorkspaceSettings);
 app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), exportWorkspaceData);
 
@@ -1058,7 +1075,7 @@ app.get('/api/v1/operations/incidents', authenticate, listIncidents);
 app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, resolveIncident);
 app.post('/api/v1/operations/incidents/:id/postmortem', authenticate, generatePostmortem);
 app.get('/api/v1/operations/incidents/:id/postmortem', authenticate, getPostmortem);
-app.get('/api/v1/operations/stats', authenticate, getOperationsStats);
+app.get('/api/v1/operations/stats', authenticate, cache(30), getOperationsStats);
 app.get('/api/v1/operations/evidence/:bundleId', authenticate, getRunEvidence);
 app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, exportEvidence);
 app.post('/api/v1/operations/runs/:id/emergency-pause', authenticate, emergencyPause);
@@ -1094,6 +1111,8 @@ app.post('/api/v1/billing/deposit/simulate',      authenticate, simulateDeposit)
 app.post('/api/v1/billing/deposit/sync-session',  authenticate, syncDepositSession);
 app.get('/api/v1/billing/spend-cap',         authenticate, getSpendCap);
 app.patch('/api/v1/billing/spend-cap',       authenticate, updateSpendCap);
+app.get('/api/v1/billing/overcharge',        authenticate, getOvercharge);
+app.patch('/api/v1/billing/overcharge',      authenticate, updateOvercharge);
 app.get('/api/v1/billing/settings',          authenticate, getBillingSettings);
 app.patch('/api/v1/billing/settings',        authenticate, updateBillingSettings);
 app.post('/api/v1/billing/payment-methods/setup',          authenticate, createSetupIntent);
@@ -1622,6 +1641,14 @@ try {
   registerProductionAdapters();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
+
+    // Stripe config validation — warn early so missing keys surface at startup not at checkout
+    if (env.STRIPE_SECRET_KEY) {
+      if (!env.STRIPE_PRICE_GROWTH)  logger.warn('[Billing] STRIPE_PRICE_GROWTH not set — Growth plan subscriptions will fail');
+      if (!env.STRIPE_PRICE_SCALE)   logger.warn('[Billing] STRIPE_PRICE_SCALE not set — Scale plan subscriptions will fail');
+      if (!env.STRIPE_WEBHOOK_SECRET) logger.warn('[Billing] STRIPE_WEBHOOK_SECRET not set — webhooks will be unauthenticated in dev, rejected in production');
+    }
+
     // Start background workers
     initWorker();
     initAuditExportWorker();

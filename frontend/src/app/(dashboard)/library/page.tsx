@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
+import { MediaPreview } from "@/components/MediaPreview";
 
 interface LibraryAsset {
   id: string;
@@ -195,14 +196,17 @@ export default function MediaLibraryPage() {
                       {asset.file_type === 'video' ? (
                         <div className="w-full h-full flex items-center justify-center">
                           <VideoIcon className="w-12 h-12 text-[var(--foreground-muted)]" />
-                          <video className="absolute inset-0 w-full h-full object-cover opacity-60">
+                          <video className="absolute inset-0 w-full h-full object-cover opacity-60" onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}>
                             <source src={primary} type="video/mp4" />
                           </video>
                         </div>
                       ) : (
-                        <div className="relative w-full h-full">
-                          <Image src={primary} alt={asset.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                        </div>
+                        <MediaPreview
+                          src={primary}
+                          alt={asset.title}
+                          className="absolute inset-0 w-full h-full group-hover:scale-110 transition-transform duration-500"
+                          fit="cover"
+                        />
                       )}
                       {allUrls.length > 1 && (
                         <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-foreground text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
@@ -286,22 +290,16 @@ export default function MediaLibraryPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="rounded-2xl overflow-hidden flex items-center justify-center w-full bg-black/40 border border-white/10 shadow-2xl">
-              {previewAsset.file_type === 'video' ? (
-                <video 
-                  src={previewAsset.url} 
-                  controls 
-                  autoPlay 
-                  className="max-w-full max-h-[65vh] object-contain"
-                />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img 
-                  src={previewAsset.url} 
-                  alt={previewAsset.title} 
-                  className="max-w-full max-h-[65vh] object-contain"
-                />
-              )}
+            <div className="rounded-2xl overflow-hidden flex items-center justify-center w-full bg-black/40 border border-white/10 shadow-2xl min-h-[200px]">
+              <MediaPreview
+                src={previewAsset.url}
+                alt={previewAsset.title}
+                type={previewAsset.file_type === 'video' ? 'video' : 'image'}
+                className="max-w-full max-h-[65vh] w-full"
+                fit="contain"
+                controls={previewAsset.file_type === 'video'}
+                autoPlay={previewAsset.file_type === 'video'}
+              />
             </div>
             <div className="w-full mt-4 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center text-white bg-[#111] p-5 rounded-2xl border border-white/10 shadow-xl">
               <div className="flex-1 min-w-0 pr-4">

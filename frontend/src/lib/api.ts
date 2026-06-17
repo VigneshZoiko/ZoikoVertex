@@ -54,6 +54,7 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
     console.error(
       `[API Network Error] Failed to connect to backend at ${url}. Ensure the server is running.`,
       err,
@@ -83,11 +84,12 @@ async function apiError(response: Response, endpoint: string, method: string) {
 }
 
 export const api = {
-  async get(endpoint: string) {
+  async get(endpoint: string, options?: { signal?: AbortSignal }) {
     const auth = await resolveAuth();
     if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       headers: { ...auth.headers },
+      signal: options?.signal,
     });
     if (!response.ok) {
       return apiError(response, endpoint, "GET");
@@ -95,7 +97,7 @@ export const api = {
     return response.json();
   },
 
-  async post(endpoint: string, body: any) {
+  async post(endpoint: string, body: any, options?: { signal?: AbortSignal }) {
     const auth = await resolveAuth();
     if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
@@ -105,6 +107,7 @@ export const api = {
         ...auth.headers,
       },
       body: JSON.stringify(body),
+      signal: options?.signal,
     });
     if (!response.ok) {
       return apiError(response, endpoint, "POST");

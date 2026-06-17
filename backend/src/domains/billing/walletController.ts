@@ -380,7 +380,14 @@ export const stripeWebhook = async (req: Request, res: Response) => {
   const sig     = req.headers['stripe-signature'] as string;
   const secret  = env.STRIPE_WEBHOOK_SECRET;
 
-  if (!secret) return res.status(200).json({ received: true }); // passthrough if not configured
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('[Billing] STRIPE_WEBHOOK_SECRET not configured — rejecting webhook in production');
+      return res.status(400).json({ error: 'Webhook secret not configured' });
+    }
+    logger.warn('[Billing] STRIPE_WEBHOOK_SECRET not set — passing through (dev only)');
+    return res.status(200).json({ received: true });
+  }
 
   const stripeClient = getStripe();
   if (!stripeClient) return res.status(200).json({ received: true });
@@ -433,6 +440,17 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const holdHours    = parseInt(env.DEPOSIT_HOLD_HOURS || '48');
       const resolvedAt   = availableAt || new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString();
       const currency     = meta.currency || 'USD';
+
+      // Idempotency — skip if this charge was already recorded
+      const { data: existingTx } = await supabaseAdmin
+        .from('wallet_transactions')
+        .select('id')
+        .eq('stripe_charge_id', session.id)
+        .maybeSingle();
+      if (existingTx) {
+        logger.info({ chargeId: session.id }, '[Billing] Duplicate webhook — transaction already exists, skipping');
+        return res.json({ received: true });
+      }
 
       // Insert PROCESSING transaction
       const { data: tx } = await supabaseAdmin
@@ -1159,9 +1177,16 @@ export const createSubscription = async (req: AuthRequest, res: Response, _next:
       })
       .eq('id', wallet.id);
 
-    // Record subscription payment as a transaction for history
+    // Record subscription payment as a transaction for history (idempotent)
     const planPriceMap: Record<string, number> = { GROWTH: 399, SCALE: 999 };
     const planAmount = planPriceMap[plan.toUpperCase()] || 0;
+    const subChargeId = subscription.latest_invoice?.payment_intent?.id || subscription.id;
+    const { data: existingSubTx } = await supabaseAdmin
+      .from('wallet_transactions')
+      .select('id')
+      .eq('stripe_charge_id', subChargeId)
+      .maybeSingle();
+    if (!existingSubTx) {
     await supabaseAdmin.from('wallet_transactions').insert({
       wallet_id:   wallet.id,
       type:        'CREDIT',
@@ -1170,10 +1195,11 @@ export const createSubscription = async (req: AuthRequest, res: Response, _next:
       net_amount:  planAmount,
       currency:    'USD',
       description: `${plan.toUpperCase()} plan subscription - monthly`,
-      stripe_charge_id: subscription.latest_invoice?.payment_intent?.id || subscription.id,
+      stripe_charge_id: subChargeId,
       available_at: new Date().toISOString(),
       created_at:   new Date().toISOString(),
     });
+    }
 
     // Update workspace plan
     await supabaseAdmin
