@@ -34,7 +34,7 @@ export default function MediaVaultPicker({
     setLoading(true);
     try {
       const r = await api.get(`/api/v1/library?type=${typeFilter}&search=${encodeURIComponent(q)}`);
-      setAssets(Array.isArray(r) ? r : (r.data || []));
+      setAssets(r.data ?? []);
     } finally { setLoading(false); }
   }, [typeFilter]);
 

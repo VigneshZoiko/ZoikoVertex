@@ -118,8 +118,8 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
     try {
       const r = await api.post(`/api/v1/campaigns/meta/accounts/${accountId}/fetch-ad-accounts`, {});
       if (r.success) setAdAccounts(r.data?.ad_accounts || []);
-      else setAdErr(r.error || "Failed to load ad accounts from Meta");
-    } catch { setAdErr("Could not reach Meta — check token"); }
+      else { setAdErr(r.error || "Failed to load ad accounts from Meta"); setLinkingFor(null); }
+    } catch { setAdErr("Could not reach Meta — check token"); setLinkingFor(null); }
     finally { setLoadingAd(false); }
   };
 
@@ -1304,7 +1304,7 @@ export default function CampaignsPage() {
                   </div>
                   <div className="px-3 py-2 flex items-center justify-between">
                     <p className="text-[10px] text-foreground-muted uppercase truncate max-w-[120px]">
-                      {(() => { try { return new URL((selectedDraft as any).creative?.landing_page_url || (selectedDraft as any).boost_settings?.landing_url || "").hostname || "—"; } catch { return "—"; } })()}
+                      {(() => { const u = (selectedDraft as any).creative?.landing_page_url || (selectedDraft as any).boost_settings?.landing_url || ""; try { return u ? new URL(u).hostname || "—" : "—"; } catch { return u || "—"; } })()}
                     </p>
                     <button className="text-[10px] font-bold text-zinc-800 border border-zinc-300 px-2 py-0.5 rounded">
                       {(selectedDraft as any).creative?.cta || "Learn More"}

@@ -19,9 +19,8 @@ interface ExportJob {
 }
 
 async function processExportJob(job: ExportJob): Promise<void> {
-  await supabaseAdmin.from('audit_export_jobs').update({ status: 'PROCESSING' }).eq('id', job.id);
-
   try {
+    await supabaseAdmin.from('audit_export_jobs').update({ status: 'PROCESSING' }).eq('id', job.id);
     const result = await listAuditEvents({
       workspace_id: job.workspace_id,
       limit: 10000,
