@@ -21,6 +21,12 @@ interface Orchestration {
   sla?: string;
   post?: { platform?: string; excerpt?: string };
   startedAt?: string;
+  kbCollection?: string;
+  reviewerName?: string;
+  reviewerRole?: string;
+  reviewDecision?: string;
+  reviewComment?: string;
+  reviewedAt?: string;
 }
 
 const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {
@@ -103,8 +109,6 @@ export default function ActiveOrchestrations({
     return <div className="h-64 animate-pulse bg-[var(--surface)] rounded-2xl" />;
   }
 
-  const blockedCount = data.filter((o) => o.status === 'Blocked').length;
-
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
       {/* Header */}
@@ -121,11 +125,6 @@ export default function ActiveOrchestrations({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {blockedCount > 0 && (
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-error-text/10 text-error-text border border-error-border/20">
-              {blockedCount} Blocked
-            </span>
-          )}
           <div className="flex items-center gap-2 text-xs text-success-text font-medium">
             <span className="w-2 h-2 bg-success-text rounded-full animate-pulse" />
             Live

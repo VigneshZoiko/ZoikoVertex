@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import ConfirmActionModal from "@/components/ConfirmActionModal";
 import ActiveOrchestrations from "./components/ActiveOrchestrations";
 import WorkflowRunDetailDrawer from "./components/WorkflowRunDetailDrawer";
 import PublishedContentPanel from "./components/PublishedContentPanel";
@@ -14,16 +13,18 @@ import {
   XCircle,
   AlertCircle,
   GitMerge,
-  Pause,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface ControlStripData {
   activeWorkflows: number;
+  pendingApprovals?: number;
   blockedRuns: number;
   failedRuns: number;
   criticalRiskItems: number;
+  highRiskRuns?: number;
+  completedToday?: number;
 }
 
 interface ApprovalStats {
@@ -108,6 +109,12 @@ function mapActiveInstance(instance: any) {
       undefined,
     nextStep:
       instance.nextStep || instance.next_step || instance.nextAction || instance.next_action || undefined,
+    kbCollection: instance.kbCollection || instance.kb_collection || undefined,
+    reviewerName: instance.reviewerName || undefined,
+    reviewerRole: instance.reviewerRole || undefined,
+    reviewDecision: instance.reviewDecision || undefined,
+    reviewComment: instance.reviewComment || undefined,
+    reviewedAt: instance.reviewedAt || undefined,
   };
 }
 
@@ -132,10 +139,14 @@ function ControlStrip({
   data?: ControlStripData;
   approvalStats?: ApprovalStats | null;
 }) {
-  const totalPending = approvalStats?.counts?.total_pending ?? 0;
+  // Prefer the workspace-scoped workflow count (data.pendingApprovals); fall back
+  // to the approval-records total only if the stats endpoint is unavailable.
+  const totalPending = data?.pendingApprovals ?? approvalStats?.counts?.total_pending ?? 0;
   const blocked = data?.blockedRuns ?? 0;
   const failed = data?.failedRuns ?? 0;
-  const critical = data?.criticalRiskItems ?? 0;
+  // Live per-run risk (open runs scoring ≥ 70) replaces the template-config
+  // "Critical Risk", which was structurally always 0.
+  const highRisk = data?.highRiskRuns ?? 0;
 
   const strip = [
     {
@@ -167,11 +178,11 @@ function ControlStrip({
       urgent: failed > 0,
     },
     {
-      label: "Critical Risk",
-      value: critical,
+      label: "High-Risk Runs",
+      value: highRisk,
       icon: AlertTriangle,
       color: "text-error-text",
-      urgent: critical > 0,
+      urgent: highRisk > 0,
     },
   ];
 
@@ -203,20 +214,6 @@ function ControlStrip({
   );
 }
 
-// ── Emergency Pause Banner ─────────────────────────────────────────────────
-
-function EmergencyPauseBanner({ onPause }: { onPause: () => void }) {
-  return (
-    <button
-      onClick={onPause}
-      className="flex items-center gap-2 px-4 py-2 bg-error-text/10 border border-error-border/30 rounded-xl text-sm text-error-text hover:bg-error-text/20 hover:border-error-border/50 transition-all font-semibold"
-    >
-      <Pause className="w-4 h-4" />
-      Emergency Pause
-    </button>
-  );
-}
-
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function WorkflowsPage() {
@@ -226,9 +223,6 @@ export default function WorkflowsPage() {
   const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRun, setSelectedRun] = useState<any>(null);
-  const [emergencyPauseModal, setEmergencyPauseModal] = useState(false);
-  const [emergencyPauseLoading, setEmergencyPauseLoading] = useState(false);
-  const [emergencyMessage, setEmergencyMessage] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -263,31 +257,6 @@ export default function WorkflowsPage() {
     return () => { cancelled = true; clearInterval(interval); };
   }, [fetchAll]);
 
-  const handleEmergencyPause = () => setEmergencyPauseModal(true);
-
-  const handleEmergencyPauseConfirm = async () => {
-    setEmergencyPauseModal(false);
-    setEmergencyPauseLoading(true);
-    setEmergencyMessage(null);
-    try {
-      const res = await api.post("/api/v1/autonomy/emergency-locks", {
-        lock_level: "L4",
-        scope: "global",
-        reason: "Emergency Pause triggered from Workflows Dashboard",
-      });
-      if (res.success) {
-        setEmergencyMessage("Emergency Lock L4 applied successfully.");
-        fetchAll();
-      } else {
-        setEmergencyMessage("Failed to apply Emergency Lock.");
-      }
-    } catch (err) {
-      console.error(err);
-      setEmergencyMessage("Error applying Emergency Lock.");
-    } finally {
-      setEmergencyPauseLoading(false);
-    }
-  };
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
@@ -318,7 +287,6 @@ export default function WorkflowsPage() {
             <span className="w-1.5 h-1.5 bg-success-text rounded-full animate-pulse" />
             Auto-refresh 60s
           </div>
-          <EmergencyPauseBanner onPause={handleEmergencyPause} />
           <button
             onClick={fetchAll}
             disabled={loading}
@@ -329,19 +297,6 @@ export default function WorkflowsPage() {
           </button>
         </div>
       </div>
-
-      {emergencyMessage && (
-        <div className={`flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm ${
-          emergencyMessage === "Emergency Lock L4 applied successfully."
-            ? "border-success-border/20 bg-success-text/10 text-success-text"
-            : "border-error-border/20 bg-error-text/10 text-error-text"
-        }`}>
-          <span>{safeStr(emergencyMessage)}</span>
-          <button onClick={() => setEmergencyMessage(null)} className="ml-auto hover:text-foreground">
-            <XCircle className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* ── Indicators ── */}
       <ControlStrip data={stats} approvalStats={approvalStats} />
@@ -358,17 +313,6 @@ export default function WorkflowsPage() {
       <WorkflowRunDetailDrawer
         run={selectedRun}
         onClose={() => setSelectedRun(null)}
-      />
-
-      <ConfirmActionModal
-        open={emergencyPauseModal}
-        variant="danger"
-        title="Emergency Pause All Workflows"
-        message="Are you sure you want to trigger an Emergency Pause? This will suspend all active workflows and agents."
-        confirmLabel="Emergency Pause"
-        loading={emergencyPauseLoading}
-        onConfirm={handleEmergencyPauseConfirm}
-        onCancel={() => setEmergencyPauseModal(false)}
       />
     </div>
   );

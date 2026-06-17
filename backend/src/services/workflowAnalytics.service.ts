@@ -46,13 +46,25 @@ export async function getControlStripData(workspaceId: string) {
   // count query on it silently returns a null count (no error), which is why
   // ACTIVE WORKFLOWS read 0. Fetch the templates (safe columns only) and count
   // in JS instead — immune to enum/casing quirks.
-  const [tplRes, pendingApprovals, blockedRuns, failedRuns] = await Promise.all([
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  // All instance counts MUST be workspace-scoped — an unscoped count leaks other
+  // tenants' runs and inflates (or, with RLS, zeroes) the strip.
+  const inst = () =>
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId);
+
+  const [tplRes, pendingApprovals, blockedRuns, failedRuns, highRiskRuns, completedToday] = await Promise.all([
     supabaseAdmin.from('workflow_templates').select('id, status, risk_level').eq('workspace_id', workspaceId),
     // Agent posts awaiting a decision are waiting_review/pending workflow runs,
     // not approval_records — count those so "Pending Approvals" reflects reality.
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).in('status', ['waiting_review', 'waiting_approval', 'pending']),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'blocked'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'failed'),
+    inst().in('status', ['waiting_review', 'waiting_approval', 'pending']),
+    inst().eq('status', 'blocked'),
+    inst().eq('status', 'failed'),
+    // Open runs carrying a high governance risk score — a live, per-run signal
+    // (unlike template risk_level, which is almost never configured).
+    inst().gte('risk_score', 70).in('status', ['running', 'pending', 'waiting_review', 'waiting_approval', 'blocked']),
+    // Throughput: runs that reached a terminal state since midnight.
+    inst().not('completed_at', 'is', null).gte('completed_at', todayStart.toISOString()),
   ]);
 
   const templates = (tplRes.data || []) as Array<{ status?: string; risk_level?: string }>;
@@ -68,6 +80,8 @@ export async function getControlStripData(workspaceId: string) {
       templateCount: templates.length,
       activeWorkflows,
       criticalRiskItems,
+      highRiskRuns: highRiskRuns.count,
+      completedToday: completedToday.count,
       pendingApprovals: pendingApprovals.count,
       tplError: tplRes.error?.message || null,
     },
@@ -82,5 +96,7 @@ export async function getControlStripData(workspaceId: string) {
     slaBreach: 0,
     staleDependencies: 0,
     criticalRiskItems,
+    highRiskRuns: highRiskRuns.count || 0,
+    completedToday: completedToday.count || 0,
   };
 }

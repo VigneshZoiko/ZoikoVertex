@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  X, Shield, Activity, History, TrendingUp, AlertTriangle,
-  CheckCircle, FileText, User, ExternalLink, Pause, Play,
+  X, Shield, Activity, TrendingUp, AlertTriangle,
+  CheckCircle, FileText, User, Pause, Play,
   RotateCcw, Globe, Link2, GitBranch, ShieldCheck, Check,
   Loader2, RotateCcw as RollbackIcon, FileCheck, Archive, ShieldAlert
 } from "lucide-react";
@@ -29,14 +29,6 @@ interface Agent {
   linked_prompts?: string[];
   linked_workflows?: string[];
   linked_knowledge_sources?: string[];
-  created_at: string;
-}
-
-interface Incident {
-  id: string;
-  severity: string;
-  incident_type: string;
-  description: string;
   created_at: string;
 }
 
@@ -91,8 +83,7 @@ const CHECKLIST_ITEMS = [
 ];
 
 export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }: AgentDetailsDrawerProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'incidents' | 'governance' | 'deployment' | 'checklist' | 'versions' | 'permissions'>('overview');
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'governance' | 'deployment' | 'checklist' | 'versions' | 'permissions'>('overview');
   const [versions, setVersions] = useState<Version[]>([]);
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [linkedResources, setLinkedResources] = useState<{
@@ -113,9 +104,6 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
     if (!isOpen || !agent?.id) return;
     const agentId = agent.id;
     Promise.allSettled([
-      api.get(`/api/v1/agents/${agentId}/incidents`).then(r => {
-        if (r.success) setIncidents(r.incidents || r.data || []);
-      }).catch(() => {}),
       api.get(`/api/v1/agents/${agentId}/versions`).then(r => {
         if (r.success) setVersions(r.versions || []);
       }).catch(() => {}),
@@ -194,7 +182,6 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
     { id: 'versions', label: 'Versions', icon: GitBranch },
     { id: 'permissions', label: 'Permissions', icon: Shield },
     { id: 'governance', label: 'Governance', icon: ShieldAlert },
-    { id: 'incidents', label: 'Incidents', icon: History },
     { id: 'deployment', label: 'Deployment', icon: Globe },
   ];
 
@@ -633,32 +620,6 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'incidents' && (
-            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)]">Compliance Events</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-error-text/10 text-error-text rounded-full border border-error-border/20">{incidents.length} alerts</span>
-              </div>
-              {incidents.map((inc) => (
-                <div key={inc.id} className="p-4 bg-[var(--surface)] border border-[var(--card-border)] rounded-2xl space-y-3 group hover:border-error-border/30 transition-all">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-4 h-4 ${inc.severity === 'CRITICAL' ? 'text-error-text' : 'text-warning-text'}`} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]">{inc.incident_type.replace(/_/g, ' ')}</span>
-                    </div>
-                    <span className="text-[10px] text-[var(--foreground-muted)]">{new Date(inc.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">{inc.description}</p>
-                  <div className="flex justify-end">
-                    <button className="text-[10px] font-bold text-info-text flex items-center gap-1 hover:underline">
-                      VIEW EVIDENCE <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
 
