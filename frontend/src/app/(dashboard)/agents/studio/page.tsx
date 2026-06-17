@@ -15,7 +15,6 @@ import {
   LayoutList,
   PauseCircle,
   PlayCircle,
-  Plus,
   RefreshCw,
   Search,
   Shield,
@@ -757,7 +756,7 @@ export default function StudioPage() {
   }, [agents, getReadiness]);
 
   return (
-    <div className="p-8 mx-auto max-w-[1500px] space-y-6">
+    <div className="p-5 mx-auto max-w-[1850px] space-y-5">
       {/* Hidden file input for Import Template */}
       <input
         ref={importFileRef}
@@ -870,7 +869,7 @@ export default function StudioPage() {
               </div>
             </div>
 
-            {/* Action buttons — spec: Kill Switch, Refresh, Hire New Agent, Import Template */}
+            {/* Action buttons — Kill Switch, Refresh, Import Template (Hire removed: fixed 6-agent catalog) */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => fetchAgents(workspaceId)}
@@ -886,14 +885,8 @@ export default function StudioPage() {
                 <ShieldAlert className="h-4 w-4" />
                 Kill Switch
               </button>
-              {/* "Hire New Agent" per spec Section 3 Layer 1 header */}
-              <button
-                onClick={() => setIsWizardOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-              >
-                <Plus className="h-4 w-4" />
-                Hire New Agent
-              </button>
+              {/* "Hire New Agent" removed — the Studio is a fixed catalog of the
+                  6 governed post-validation agents. New agents are not created here. */}
               <button
                 onClick={() => importFileRef.current?.click()}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
@@ -1222,7 +1215,7 @@ export default function StudioPage() {
           <p className="mx-auto mt-3 max-w-2xl text-sm text-[var(--foreground-muted)]">
             {agents.length === 0
               ? "Agent Studio is the governed workspace for creating, certifying, approving, deploying, pausing, retiring, and evidencing AI agents. Start from a safe template — every agent must have an owner, approved prompt, workflow assignment, and evidence trail before going live."
-              : "Try adjusting the authority filters or use 'Hire New Agent' to add a new governed agent."}
+              : "Try adjusting the authority filters to see the governed validation agents."}
           </p>
           <div className="mx-auto mt-8 grid max-w-5xl gap-4 md:grid-cols-2 xl:grid-cols-4">
             {AGENT_TEMPLATES.slice(0, 8).map((t) => (
@@ -1243,30 +1236,37 @@ export default function StudioPage() {
             ))}
           </div>
           <button
-            onClick={() => setIsWizardOpen(true)}
+            onClick={() => fetchAgents(workspaceId)}
             className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
           >
-            <Plus className="h-4 w-4" />
-            Hire New Agent
+            <RefreshCw className="h-4 w-4" />
+            Refresh Catalog
           </button>
         </div>
       ) : viewMode === "table" ? (
         /* ── Table View ── */
         <div className="overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--surface)]">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-[var(--card-border)]">
+            <table className="w-full table-fixed divide-y divide-[var(--card-border)]">
+              <colgroup>
+                <col className="w-[15%]" />
+                <col className="w-[24%]" />
+                <col className="w-[11%]" />
+                <col className="w-[12%]" />
+                <col className="w-[14%]" />
+                <col className="w-[9%]" />
+                <col className="w-[15%]" />
+              </colgroup>
               <thead className="bg-[var(--background)]">
-                <tr className="text-left text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
-                  {/* Spec columns: Agent Identity | Type & DRI | Autonomy | Status | Trust/Faithfulness | Last Activity */}
-                  <th className="px-5 py-4">Agent Identity</th>
-                  <th className="px-5 py-4">Type &amp; DRI</th>
-                  <th className="px-5 py-4">Autonomy</th>
-                  <th className="px-5 py-4">Status &amp; Risk</th>
-                  <th className="px-5 py-4">Governance Scores</th>
-                  <th className="px-5 py-4">Scope &amp; Bindings</th>
-                  <th className="px-5 py-4">Last Activity</th>
-                  <th className="px-5 py-4">Next Action</th>
-                  <th className="px-5 py-4 text-right">Controls</th>
+                <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
+                  {/* Columns: Agent Identity | Type & Purpose | Status | Scores | Scope | Activity | Controls */}
+                  <th className="px-4 py-3">Agent Identity</th>
+                  <th className="px-4 py-3">Type &amp; Purpose</th>
+                  <th className="px-4 py-3">Status &amp; Risk</th>
+                  <th className="px-4 py-3">Governance Scores</th>
+                  <th className="px-4 py-3">Scope &amp; Bindings</th>
+                  <th className="px-4 py-3">Activity</th>
+                  <th className="px-4 py-3 text-right">Controls</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--card-border)]">
@@ -1284,69 +1284,42 @@ export default function StudioPage() {
                       }`}
                     >
                       {/* Agent Identity */}
-                      <td className="px-5 py-5">
+                      <td className="px-4 py-3.5 align-top">
                         <button
                           onClick={() => openAgent(agent)}
                           className="text-left"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="mt-1 rounded-2xl bg-indigo-500/10 p-2.5 text-indigo-500">
+                            <div className="mt-0.5 rounded-2xl bg-indigo-500/10 p-2.5 text-indigo-500">
                               <BrainCircuit className="h-4 w-4" />
                             </div>
                             <div className="space-y-1">
-                              <div className="text-sm font-semibold text-[var(--foreground)]">
+                              <div className="text-sm font-semibold text-[var(--foreground)] hover:text-indigo-500">
                                 {agent.name}
                               </div>
                               <div className="font-mono text-[10px] text-[var(--foreground-muted)]">
-                                {agent.id}
-                              </div>
-                              <div className="line-clamp-2 max-w-[220px] text-xs text-[var(--foreground-muted)]">
-                                {agent.purpose ||
-                                  "Governed operator profile awaiting business purpose detail."}
+                                {agent.id.slice(0, 8)}…
                               </div>
                             </div>
                           </div>
                         </button>
                       </td>
 
-                      {/* Type & DRI */}
-                      <td className="px-5 py-5">
+                      {/* Type & Purpose — what this agent does, in one short sentence */}
+                      <td className="px-4 py-3.5 align-top">
                         <div className="space-y-1.5">
-                          <div className="text-sm font-semibold capitalize text-[var(--foreground)]">
+                          <span className="inline-flex rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-500">
                             {agent.type}
+                          </span>
+                          <div className="max-w-[340px] text-xs leading-relaxed text-[var(--foreground-muted)]">
+                            {agent.purpose ||
+                              "Validates a specific part of each post before publishing."}
                           </div>
-                          <div className="inline-flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
-                            <User className="h-3.5 w-3.5" />
-                            {agent.primary_dri?.full_name || "Unassigned"}
-                          </div>
-                          <div className="text-xs text-[var(--foreground-muted)]">
-                            Backup:{" "}
-                            {agent.backup_dri?.full_name || (
-                              <span className="text-amber-500">Missing</span>
-                            )}
-                          </div>
-                          <div className="text-xs text-[var(--foreground-muted)]">
-                            Brand: {agent.assigned_brand || "Not assigned"}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Autonomy level — color-coded badge */}
-                      <td className="px-5 py-5">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ${getAutonomyStyle(
-                            agent.autonomy_level,
-                          )}`}
-                        >
-                          {agent.autonomy_level}
-                        </span>
-                        <div className="mt-2 text-[10px] text-[var(--foreground-muted)]">
-                          {agent.runtime_controls?.environment || "production"}
                         </div>
                       </td>
 
                       {/* Status & Risk */}
-                      <td className="px-5 py-5">
+                      <td className="px-4 py-3.5 align-top">
                         <div className="space-y-2">
                           <StatusBadge status={agent.status} />
                           <div className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
@@ -1376,7 +1349,7 @@ export default function StudioPage() {
                       </td>
 
                       {/* Governance Scores — Trust % + Faithfulness % */}
-                      <td className="px-5 py-5">
+                      <td className="px-4 py-3.5 align-top">
                         <div className="space-y-2">
                           <div>
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
@@ -1430,7 +1403,7 @@ export default function StudioPage() {
                       </td>
 
                       {/* Scope & Bindings */}
-                      <td className="px-5 py-5">
+                      <td className="px-4 py-3.5 align-top">
                         <div className="space-y-2 text-xs text-[var(--foreground-muted)]">
                           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1">
                             <FolderKanban className="h-3.5 w-3.5" />
@@ -1466,32 +1439,30 @@ export default function StudioPage() {
                         </div>
                       </td>
 
-                      {/* Last Activity */}
-                      <td className="px-5 py-5">
-                        <div className="text-sm text-[var(--foreground)]">
-                          {agent.last_activity || "Not yet active"}
-                        </div>
-                      </td>
-
-                      {/* Next Action */}
-                      <td className="px-5 py-5">
+                      {/* Activity — last activity + the recommended next action */}
+                      <td className="px-4 py-3.5 align-top">
                         <div className="space-y-2">
-                          <div className="inline-flex rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-500">
+                          <div className="text-xs text-[var(--foreground-muted)]">
+                            {agent.last_activity || "Not yet active"}
+                          </div>
+                          <div
+                            title={getNextActionDescription(agent)}
+                            className="inline-flex rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-500"
+                          >
                             {nextAction}
                           </div>
-                          <div className="max-w-[180px] text-xs text-[var(--foreground-muted)]">
-                            {getNextActionDescription(agent)}
-                          </div>
                         </div>
                       </td>
 
-                      {/* Controls — spec: Certify/Upgrade (shield), View Details (arrow), Pause */}
-                      <td className="px-5 py-5">
-                        <div className="flex flex-col items-end gap-2">
+                      {/* Controls — Certify/Upgrade, View Details, Pause, etc.
+                          [&>button] makes every control button the same size
+                          (full column width, centered) without editing each one. */}
+                      <td className="px-4 py-3.5 align-top">
+                        <div className="flex flex-col items-stretch gap-2 [&>button]:w-full [&>button]:justify-center [&>button]:whitespace-nowrap">
                           {/* View Details → AgentDetailsDrawer */}
                           <button
                             onClick={() => openAgent(agent)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             View Details
@@ -1501,7 +1472,7 @@ export default function StudioPage() {
                           {!isRetired && (
                             <button
                               onClick={() => openSandbox(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
                               Certify / Upgrade
@@ -1513,7 +1484,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "approval")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <FileCheck className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "approval"
@@ -1529,7 +1500,7 @@ export default function StudioPage() {
                               onClick={() =>
                                 checkGovernanceGatesAndDeploy(agent)
                               }
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "deploy"
@@ -1556,7 +1527,7 @@ export default function StudioPage() {
                                   onClick={() =>
                                     runAgentAction(agent, toggleAction)
                                   }
-                                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                  className={`inline-flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                     isRunning
                                       ? "bg-rose-500 hover:bg-rose-400"
                                       : "bg-emerald-600 hover:bg-emerald-500"
@@ -1590,7 +1561,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "rollback")}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-amber-500/30 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-amber-500/30 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                               Rollback
@@ -1606,7 +1577,7 @@ export default function StudioPage() {
                                 safetyCheckLoading === agent.id || isBusy
                               }
                               onClick={() => handleRunSafetyChecks(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
                               {safetyCheckLoading === agent.id
@@ -1620,7 +1591,7 @@ export default function StudioPage() {
                             <button
                               disabled={evidenceExportLoading === agent.id}
                               onClick={() => handleExportEvidence(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-400 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1.5 text-xs font-semibold text-indigo-400 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Award className="h-3.5 w-3.5" />
                               {evidenceExportLoading === agent.id
@@ -1633,7 +1604,7 @@ export default function StudioPage() {
                           <button
                             disabled={!canManageAuthority || isBusy}
                             onClick={() => runAgentAction(agent, "clone")}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <ChevronRight className="h-3.5 w-3.5" />
                             {actionLoading[agent.id] === "clone"
@@ -1646,7 +1617,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "retire")}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Archive className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "retire"
@@ -1662,7 +1633,7 @@ export default function StudioPage() {
                               onClick={() => dismissRetiredAgent(agent)}
                               title="Remove from view (record preserved for audit)"
                               aria-label={`Remove ${agent.name} from view`}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
                             >
                               <X className="h-3.5 w-3.5" />
                               Remove
@@ -1765,7 +1736,7 @@ export default function StudioPage() {
                 <div className="mt-5 flex flex-wrap gap-2">
                   <button
                     onClick={() => openAgent(agent)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                   >
                     <Eye className="h-3.5 w-3.5" />
                     View Details
@@ -1773,7 +1744,7 @@ export default function StudioPage() {
                   {!isRetired && (
                     <button
                       onClick={() => openSandbox(agent)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                     >
                       <ShieldCheck className="h-3.5 w-3.5" />
                       Certify / Upgrade
@@ -1784,7 +1755,7 @@ export default function StudioPage() {
                     disabled={
                       !canManageAuthority || Boolean(actionLoading[agent.id])
                     }
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                     {actionLoading[agent.id] === "clone"
@@ -1798,7 +1769,7 @@ export default function StudioPage() {
                       disabled={
                         !canManageAuthority || Boolean(actionLoading[agent.id])
                       }
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Archive className="h-3.5 w-3.5" />
                       {actionLoading[agent.id] === "retire"
@@ -1814,7 +1785,7 @@ export default function StudioPage() {
                       onClick={() => dismissRetiredAgent(agent)}
                       title="Remove from view (record preserved for audit)"
                       aria-label={`Remove ${agent.name} from view`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
                     >
                       <X className="h-3.5 w-3.5" />
                       Remove

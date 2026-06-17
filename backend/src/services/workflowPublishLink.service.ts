@@ -31,6 +31,7 @@ export interface PublishCheck {
     kb_checked: boolean;
     kb_matches: number;
     kb_sources: string[];
+    agents?: { name: string; result: string }[];
   };
 }
 
@@ -114,6 +115,14 @@ async function runAgentChecks(
         kb_sources: (governanceResult.knowledge.matches || [])
           .map((m) => m.title)
           .filter(Boolean),
+        // Every validation agent the post passed through, in order, with its
+        // verdict — so the Workflows run detail can list the full chain
+        // (Policy → Approval Rules → Platform → Image → General → Evidence)
+        // instead of a single connected agent.
+        agents: (governanceResult.steps || []).map((s) => ({
+          name: s.name,
+          result: s.result,
+        })),
       } : undefined,
     };
   } catch (err) {
@@ -601,6 +610,8 @@ export function enrichPublishInstance(instance: any): any {
     ...instance,
     status: displayStatus,
     assigned_agent_name: meta.agent_name || instance.assigned_agent_name,
+    // Full validation chain (all agents the post went through) for the run detail.
+    validationAgents: Array.isArray(gov?.agents) ? gov.agents : instance.validationAgents,
     current_step_name: meta.step || instance.current_step_name,
     prompt: gov?.governed_prompt || instance.prompt,
     knowledgeBaseSource: knowledgeBaseSource ?? instance.knowledgeBaseSource,

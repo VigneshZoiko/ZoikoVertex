@@ -14,7 +14,8 @@
     "verify:governance:migrations": "ts-node scripts/verifyGovernanceMigrations.ts",
     "verify:governance:append-only": "ts-node scripts/verifyGovernanceAppendOnly.ts",
     "seed:governed-prompts": "ts-node scripts/seedGovernedPrompts.ts",
-    "seed:sample-governance": "ts-node scripts/seedSampleGovernancePrompts.ts"
+    "seed:sample-governance": "ts-node scripts/seedSampleGovernancePrompts.ts",
+    "seed:validation-agents": "ts-node scripts/seedValidationAgents.ts"
   },
   "keywords": [],
   "author": "",
