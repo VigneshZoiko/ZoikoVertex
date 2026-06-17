@@ -173,7 +173,7 @@ import {
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
-import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
+import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost, getSchedulerHealth, getBestSlot } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
@@ -832,11 +832,13 @@ app.delete('/api/v1/ads/google/boosts/:id',      authenticate, adsGuard, cancelG
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getRecommendations);
-app.get('/api/v1/scheduler/posts', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listScheduledPosts);
-app.get('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getScheduledPost);
-app.post('/api/v1/scheduler/posts', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), schedulePost);
-app.put('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), updateScheduledPost);
-app.delete('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), cancelScheduledPost);
+app.post('/api/v1/scheduler/best-slot',  authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getBestSlot);
+app.get('/api/v1/scheduler/health',      authenticate, scopeGuard('read:content', '*'), getSchedulerHealth);
+app.get('/api/v1/scheduler/posts',       authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listScheduledPosts);
+app.get('/api/v1/scheduler/posts/:id',   authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getScheduledPost);
+app.post('/api/v1/scheduler/posts',      authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), schedulePost);
+app.put('/api/v1/scheduler/posts/:id',   authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), updateScheduledPost);
+app.delete('/api/v1/scheduler/posts/:id',authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), cancelScheduledPost);
 
 // Protected Library Routes
 const mediaReadGuard  = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','PUBLISHER','REVIEWER','VALIDATOR','AUDITOR','VIEWER','EXTERNAL_COLLABORATOR','GOVERNANCE_ADMIN','SUPERADMIN');

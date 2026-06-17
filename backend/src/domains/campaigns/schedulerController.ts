@@ -9,8 +9,8 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
-import { getQueue } from '../../workers/schedulerWorker';
 import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
+import { getSchedulerStats } from '../../workers/schedulerWorker';
 import { trackUsage } from '../monitoring/usageController';
 
 // Timezone mapping for audience regions
@@ -78,10 +78,44 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
   try {
     const { platform, niche, audienceRegion, audienceAgeGroup, userTimezone, targetDate } = RecommendSchema.parse(req.body);
     const resolvedDate = targetDate || new Date().toISOString().split('T')[0];
+    const workspaceId = req.user?.workspace_id;
 
     logger.info({ platform, niche, audienceRegion, audienceAgeGroup, userTimezone }, '[Scheduler] Fetching recommendations');
 
     const audienceTimezone = REGION_TIMEZONE_MAP[audienceRegion] || 'UTC';
+
+    // Pull real workspace engagement history to ground AI recommendations in
+    // actual performance data rather than generic industry averages
+    let engagementContext = '';
+    if (workspaceId) {
+      const { data: pastPosts } = await supabaseAdmin
+        .from('scheduled_posts')
+        .select('scheduled_time, engagement_score')
+        .eq('workspace_id', workspaceId)
+        .eq('platform', platform)
+        .eq('status', 'PUBLISHED')
+        .not('engagement_score', 'is', null)
+        .order('published_time', { ascending: false })
+        .limit(100);
+
+      if (pastPosts && pastPosts.length >= 5) {
+        const byHour: Record<number, { total: number; count: number }> = {};
+        for (const p of pastPosts) {
+          const hour = new Date(p.scheduled_time).getHours();
+          if (!byHour[hour]) byHour[hour] = { total: 0, count: 0 };
+          byHour[hour].total += Number(p.engagement_score) || 0;
+          byHour[hour].count++;
+        }
+        const topHours = Object.entries(byHour)
+          .map(([h, d]) => ({ hour: Number(h), avg: +(d.total / d.count).toFixed(2), posts: d.count }))
+          .sort((a, b) => b.avg - a.avg)
+          .slice(0, 5);
+
+        engagementContext = `\n\nWORKSPACE PERFORMANCE DATA (${pastPosts.length} published ${platform} posts):` +
+          `\nTop hours by avg engagement score: ${topHours.map(h => `${String(h.hour).padStart(2, '0')}:00 (score ${h.avg}, ${h.posts} posts)`).join(' | ')}` +
+          `\nPrioritise these proven times — they outperform generic industry averages for this specific workspace's audience.`;
+      }
+    }
 
     // 1. Check cache (posting_windows table)
     const { data: cachedWindows, error: cacheError } = await supabaseAdmin
@@ -152,10 +186,10 @@ INPUT:
 - Niche: ${niche}
 - Audience Location: ${audienceRegion} (timezone: ${audienceTimezone})
 - Audience Age: ${audienceAgeGroup}
-- Target Date: ${resolvedDate} (${dayName})
+- Target Date: ${resolvedDate} (${dayName})${engagementContext}
 
 TASK:
-Analyze this demographic's daily routine on ${platform} in ${audienceTimezone}. Factor in ${dayName} behavioral patterns (weekday vs weekend habits differ significantly).
+Analyze this demographic's daily routine on ${platform} in ${audienceTimezone}. Factor in ${dayName} behavioral patterns (weekday vs weekend habits differ significantly). If workspace performance data is provided above, weight those hours heavily — they are proven winners for this specific audience.
 
 Return 3 precise posting times — NOT ranges, give exact minutes like 13:05 or 09:30.
 For each time, give 2-4 concise bullet points (max 130 chars each) explaining WHY it works for this specific niche and demographic. Be specific — mention the audience, platform, day, and content niche.
@@ -175,7 +209,6 @@ RESPONSE (strict JSON, no markdown, no backticks):
   ]
 }`;
 
-    const workspaceId = req.user?.workspace_id as string | undefined;
     let schedulerTokensUsed = 0;
     const callModel = async (p: string): Promise<string> => {
       const completion = await groqScheduler.chat.completions.create({
@@ -297,6 +330,29 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
 
     await logToDatabase('info', 'Scheduler', `Scheduling new post for ${platform}`, { platform, scheduledTime, workspaceId: member.workspace_id });
 
+    // Conflict check: reject if another post on the same platform is already
+    // scheduled within ±30 minutes — prevents platform rate-limit collisions
+    const windowStart = new Date(new Date(scheduledTime).getTime() - 30 * 60_000).toISOString();
+    const windowEnd   = new Date(new Date(scheduledTime).getTime() + 30 * 60_000).toISOString();
+
+    const { data: conflicts } = await supabaseAdmin
+      .from('scheduled_posts')
+      .select('id, scheduled_time')
+      .eq('workspace_id', member.workspace_id)
+      .eq('platform', platform)
+      .in('status', ['SCHEDULED', 'PROCESSING'])
+      .gte('scheduled_time', windowStart)
+      .lte('scheduled_time', windowEnd);
+
+    if (conflicts && conflicts.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'conflict',
+        message: `Another ${platform} post is already scheduled within 30 minutes of this time. Choose a different time to avoid platform rate limits.`,
+        conflicting_post: conflicts[0],
+      });
+    }
+
     // 1. Create the canonical post record
     const { data: post, error: postError } = await supabaseAdmin
       .from('scheduled_posts')
@@ -325,21 +381,6 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
       });
 
     if (jobError) throw jobError;
-
-    // 3. Enqueue the actual task in BullMQ with a delay (if Redis available)
-    const queue = await getQueue();
-    if (queue) {
-      const scheduledDate = new Date(scheduledTime);
-      const delay = Math.max(0, scheduledDate.getTime() - Date.now());
-
-      await queue.add(
-        'publish-post', 
-        { postId: post.id, platform, content, mediaUrl }, 
-        { delay, jobId: post.id }
-      );
-    } else {
-      logger.warn('[Scheduler] Redis unavailable — skipping BullMQ enqueue. Post saved to DB only.');
-    }
 
     // Additively link this scheduled post to a governed Publishing Workflow
     // instance (visible on the Workflows page). Best-effort — never blocks.
@@ -378,14 +419,7 @@ export const cancelScheduledPost = async (req: AuthRequest, res: Response, next:
 
     if (!post) return res.status(403).json({ error: 'Forbidden: Post not found in your workspace' });
 
-    // 1. Delete the background job in BullMQ (if Redis available)
-    const queue = await getQueue();
-    if (queue) {
-      const bullJob = await queue.getJob(id);
-      if (bullJob) await bullJob.remove();
-    }
-
-    // 2. Delete the DB job record
+    // Delete the DB job record
     await supabaseAdmin.from('scheduler_jobs').delete().eq('post_id', id);
 
     // 2. Mark post as cancelled
@@ -407,7 +441,7 @@ export const cancelScheduledPost = async (req: AuthRequest, res: Response, next:
 };
 
 const ListPostsQuerySchema = z.object({
-  status: z.enum(['SCHEDULED', 'PUBLISHED', 'FAILED', 'CANCELLED']).optional(),
+  status: z.enum(['SCHEDULED', 'PUBLISHED', 'FAILED', 'CANCELLED', 'EXPIRED']).optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -513,11 +547,6 @@ export const updateScheduledPost = async (req: AuthRequest, res: Response, next:
     }
 
     if (updates.status === 'CANCELLED') {
-      const queue = await getQueue();
-      if (queue) {
-        const bullJob = await queue.getJob(id);
-        if (bullJob) await bullJob.remove();
-      }
       await supabaseAdmin.from('scheduler_jobs').delete().eq('post_id', id);
     }
 
@@ -565,6 +594,181 @@ export const getScheduledPost = async (req: AuthRequest, res: Response, next: Ne
     res.status(200).json({ success: true, post });
   } catch (error) {
     logger.error({ error }, '[Scheduler] getScheduledPost error');
+    next(error);
+  }
+};
+
+// --- Item 7: Health endpoint ------------------------------------------------
+export const getSchedulerHealth = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const stats = getSchedulerStats();
+    const workspaceId = req.user?.workspace_id;
+
+    // Live queue depth from DB
+    const [queuedRes, failedTodayRes, publishedTodayRes] = await Promise.allSettled([
+      supabaseAdmin
+        .from('scheduled_posts')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['SCHEDULED', 'PROCESSING'])
+        .eq('workspace_id', workspaceId ?? ''),
+      supabaseAdmin
+        .from('scheduled_posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'FAILED')
+        .eq('workspace_id', workspaceId ?? '')
+        .gte('updated_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+      supabaseAdmin
+        .from('scheduled_posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'PUBLISHED')
+        .eq('workspace_id', workspaceId ?? '')
+        .gte('published_time', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+    ]);
+
+    const queued       = queuedRes.status === 'fulfilled' ? (queuedRes.value.count ?? 0) : 0;
+    const failedToday  = failedTodayRes.status === 'fulfilled' ? (failedTodayRes.value.count ?? 0) : 0;
+    const publishedToday = publishedTodayRes.status === 'fulfilled' ? (publishedTodayRes.value.count ?? 0) : 0;
+    const total = publishedToday + failedToday;
+    const successRate = total > 0 ? Math.round((publishedToday / total) * 100) : 100;
+
+    res.json({
+      success: true,
+      data: {
+        ...stats,
+        db: { queued, publishedToday, failedToday, successRate },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// --- Item 8: Auto-place "Best Time" -----------------------------------------
+// Platform-specific fallback hours (UTC) when workspace has no engagement history
+const PLATFORM_BEST_HOURS: Record<string, number[]> = {
+  instagram:  [8, 12, 17, 19],
+  facebook:   [9, 13, 15, 18],
+  linkedin:   [8, 10, 12, 17],
+  twitter:    [9, 12, 15, 17],
+  tiktok:     [7, 15, 19, 21],
+  youtube:    [12, 15, 17, 20],
+  threads:    [9, 12, 17, 20],
+  pinterest:  [8, 21],
+};
+
+const BestSlotSchema = z.object({
+  platform: z.string(),
+  userTimezone: z.string().optional().default('UTC'),
+});
+
+export const getBestSlot = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { platform } = BestSlotSchema.parse(req.body);
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+
+    const platformKey = platform.toLowerCase();
+
+    // 1. Build ranked hour list from real engagement data
+    let rankedHours: number[] = [];
+
+    const { data: pastPosts } = await supabaseAdmin
+      .from('scheduled_posts')
+      .select('scheduled_time, engagement_score')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', platform)
+      .eq('status', 'PUBLISHED')
+      .not('engagement_score', 'is', null)
+      .order('published_time', { ascending: false })
+      .limit(200);
+
+    if (pastPosts && pastPosts.length >= 5) {
+      const byHour: Record<number, { total: number; count: number }> = {};
+      for (const p of pastPosts) {
+        const h = new Date(p.scheduled_time).getHours();
+        if (!byHour[h]) byHour[h] = { total: 0, count: 0 };
+        byHour[h].total += Number(p.engagement_score) || 0;
+        byHour[h].count++;
+      }
+      rankedHours = Object.entries(byHour)
+        .map(([h, d]) => ({ hour: Number(h), avg: d.total / d.count }))
+        .sort((a, b) => b.avg - a.avg)
+        .map(x => x.hour);
+    }
+
+    // Fall back to platform defaults when insufficient workspace data
+    if (rankedHours.length === 0) {
+      rankedHours = PLATFORM_BEST_HOURS[platformKey] ?? [9, 12, 17];
+    }
+
+    // 2. Fetch all scheduled posts for this workspace+platform in the next 7 days
+    const now = new Date();
+    const sevenDaysOut = new Date(now.getTime() + 7 * 24 * 3_600_000).toISOString();
+
+    const { data: existing } = await supabaseAdmin
+      .from('scheduled_posts')
+      .select('scheduled_time')
+      .eq('workspace_id', workspaceId)
+      .eq('platform', platform)
+      .in('status', ['SCHEDULED', 'PROCESSING'])
+      .gte('scheduled_time', now.toISOString())
+      .lte('scheduled_time', sevenDaysOut);
+
+    const occupiedMs = (existing ?? []).map(p => new Date(p.scheduled_time).getTime());
+
+    const isSlotFree = (candidateMs: number): boolean => {
+      const GAP = 30 * 60_000; // 30-minute buffer
+      return !occupiedMs.some(t => Math.abs(t - candidateMs) < GAP);
+    };
+
+    // 3. Walk through the next 7 days, best hour first, find first free slot
+    for (const hour of rankedHours) {
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const candidate = new Date(now);
+        candidate.setDate(candidate.getDate() + dayOffset);
+        candidate.setHours(hour, 0, 0, 0);
+
+        if (candidate.getTime() <= now.getTime()) continue; // must be in the future
+
+        if (isSlotFree(candidate.getTime())) {
+          return res.json({
+            success: true,
+            data: {
+              suggested_time: candidate.toISOString(),
+              hour,
+              day_offset: dayOffset,
+              source: pastPosts && pastPosts.length >= 5 ? 'engagement_data' : 'platform_defaults',
+              platform,
+            },
+          });
+        }
+      }
+    }
+
+    // All best slots taken — return first completely free slot
+    for (let dayOffset = 1; dayOffset <= 7; dayOffset++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const candidate = new Date(now);
+        candidate.setDate(candidate.getDate() + dayOffset);
+        candidate.setHours(hour, 0, 0, 0);
+        if (isSlotFree(candidate.getTime())) {
+          return res.json({
+            success: true,
+            data: {
+              suggested_time: candidate.toISOString(),
+              hour,
+              day_offset: dayOffset,
+              source: 'fallback_first_free',
+              platform,
+            },
+          });
+        }
+      }
+    }
+
+    res.status(200).json({ success: false, error: 'No free slots in the next 7 days' });
+  } catch (error) {
+    logger.error({ error }, '[Scheduler] getBestSlot error');
     next(error);
   }
 };
