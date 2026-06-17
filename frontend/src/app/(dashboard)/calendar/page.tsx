@@ -4,24 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, X,
-  Edit3, Trash2, Send, ExternalLink,
+  Edit3, Trash2, Send, ExternalLink, CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import { MediaPreview } from "@/components/MediaPreview";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
-
-// ── Raw shapes returned by each API ──────────────────────────────────────────
-
-interface ScheduledPost {
-  id: string;
-  content: string;
-  platform: string;
-  scheduled_time: string;
-  status: string;
-  media_url?: string;
-  created_at: string;
-}
 
 // ── Unified calendar post ─────────────────────────────────────────────────────
 
@@ -34,7 +23,8 @@ interface CalendarPost {
   media_url?: string;
   created_at: string;
   source: "scheduled" | "intent";
-  scheduled_time?: string; // only for source=scheduled
+  scheduled_time?: string;  // only for source=scheduled
+  scheduled_for?: string | null; // target publish date for intents
   campaign_id?: string | null;
   project_id?: string | null;
 }
@@ -50,6 +40,7 @@ function pillClass(post: CalendarPost): string {
   // publish_intent
   if (post.status === "APPROVED" || post.status === "PUBLISHED") return "bg-blue-500/10 text-blue-300 hover:bg-blue-500/20";
   if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "bg-warning-text/10 text-warning-text hover:bg-warning-text/20";
+  if (post.status === "RETURNED") return "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20";
   if (post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "bg-error-text/10 text-error-text";
   return "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20";
 }
@@ -59,8 +50,24 @@ function statusBadgeClass(status: string): string {
   if (status === "PUBLISHED")  return "bg-blue-500/20 text-blue-400";
   if (status === "APPROVED")   return "bg-sky-500/20 text-sky-400";
   if (status.startsWith("PENDING_")) return "bg-warning-text/20 text-warning-text";
+  if (status === "RETURNED")   return "bg-amber-500/20 text-amber-400";
   if (status === "GOVERNANCE_BLOCKED" || status === "REJECTED") return "bg-error-text/20 text-error-text";
   return "bg-zinc-500/20 text-foreground-muted";
+}
+
+function intentLink(post: CalendarPost): string {
+  if (post.status === "RETURNED") return "/publish";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review";
+  if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
+  return "/publish";
+}
+
+function intentLinkLabel(post: CalendarPost): string {
+  if (post.status === "RETURNED") return "Edit Revision in Publish Hub";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "View in Review Queue";
+  if (post.status === "APPROVED") return "View in Approval Console";
+  if (post.status === "PUBLISHED") return "View in Governance";
+  return "View in Publishing Hub";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -72,7 +79,7 @@ export default function CalendarPage() {
   const [loading, setLoading]             = useState(true);
   const [selectedPost, setSelectedPost]   = useState<CalendarPost | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingPost, setEditingPost]     = useState<ScheduledPost | null>(null);
+  const [editingPost, setEditingPost]     = useState<CalendarPost | null>(null);
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -87,51 +94,26 @@ export default function CalendarPage() {
   const fetchAllPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const [scheduledResult, intentsResult] = await Promise.all([
-        api.get("/api/v1/scheduler/posts?limit=200"),
-        api.get("/api/v1/governance/intents"),
-      ]);
-
-      const scheduledPosts: CalendarPost[] =
-        scheduledResult.success && scheduledResult.posts
-          ? scheduledResult.posts.map((p: ScheduledPost) => ({
-              id: p.id,
-              content: p.content,
-              platform: p.platform,
-              calendarDate: p.scheduled_time,
-              status: p.status,
-              media_url: p.media_url,
-              created_at: p.created_at,
-              source: "scheduled" as const,
-              scheduled_time: p.scheduled_time,
-            }))
-          : [];
-
-      const intentPosts: CalendarPost[] =
-        intentsResult.success && intentsResult.data
-          ? intentsResult.data.map((p: any) => ({
-              id: p.id,
-              content: p.content,
-              platform: p.platform,
-              calendarDate: p.created_at,
-              status: p.status,
-              media_url: p.media_url,
-              created_at: p.created_at,
-              source: "intent" as const,
-              campaign_id: p.campaign_id,
-              project_id: p.project_id,
-            }))
-          : [];
-
-      setPosts([...scheduledPosts, ...intentPosts]);
+      const result = await api.get("/api/v1/calendar/events");
+      if (result.success && Array.isArray(result.data)) {
+        setPosts(result.data as CalendarPost[]);
+      } else {
+        setPosts([]);
+      }
     } catch (err) {
-      console.error("Failed to fetch posts:", err);
+      console.error("Failed to fetch calendar events:", err);
       setPosts([]);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchAllPosts(); }, [fetchAllPosts]);
+
+  // Auto-refresh every 60 s so newly scheduled/approved posts appear without a manual reload
+  useEffect(() => {
+    const id = setInterval(fetchAllPosts, 60_000);
+    return () => clearInterval(id);
+  }, [fetchAllPosts]);
 
 
   const handleUpdatePost = async () => {
@@ -185,7 +167,7 @@ export default function CalendarPage() {
 
   const getPostsForDay = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return posts.filter((p) => p.calendarDate.startsWith(dateStr));
+    return posts.filter((p) => p.calendarDate?.startsWith(dateStr));
   };
 
   const navigateMonth = (direction: number) => {
@@ -337,11 +319,23 @@ export default function CalendarPage() {
 
                 <p className="text-[var(--foreground)] text-sm">{selectedPost.content}</p>
 
+                {/* Media thumbnail */}
+                <MediaPreview
+                  src={selectedPost.media_url}
+                  alt="Post media"
+                  className="w-full rounded-xl aspect-video"
+                  fit="contain"
+                  type={selectedPost.media_url?.match(/\.(mp4|mov|webm)/i) ? "video" : "image"}
+                  controls
+                />
+
                 <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-sm">
                   <Clock className="w-4 h-4" />
                   {selectedPost.source === "scheduled" && selectedPost.scheduled_time
                     ? formatDateTime(selectedPost.scheduled_time)
-                    : `Submitted ${formatDateTime(selectedPost.created_at)}`
+                    : selectedPost.scheduled_for
+                      ? `Target: ${formatDateTime(selectedPost.scheduled_for)}`
+                      : `Submitted ${formatDateTime(selectedPost.created_at)}`
                   }
                 </div>
 
@@ -350,15 +344,7 @@ export default function CalendarPage() {
                   <div className="flex gap-3 mt-2">
                     <button
                       onClick={() => {
-                        setEditingPost({
-                          id: selectedPost.id,
-                          content: selectedPost.content,
-                          platform: selectedPost.platform,
-                          scheduled_time: selectedPost.scheduled_time!,
-                          status: selectedPost.status,
-                          media_url: selectedPost.media_url,
-                          created_at: selectedPost.created_at,
-                        });
+                        setEditingPost(selectedPost);
                         setShowEditModal(true);
                       }}
                       className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text text-foreground text-sm font-bold rounded-xl transition-colors"
@@ -376,14 +362,14 @@ export default function CalendarPage() {
                   </div>
                 )}
 
-                {/* Publishing Hub: link to governance queue */}
+                {/* Publishing Hub: context-aware deep link */}
                 {selectedPost.source === "intent" && (
                   <Link
-                    href="/publish"
+                    href={intentLink(selectedPost)}
                     className="inline-flex items-center gap-2 px-4 py-2 w-fit bg-warning-text/20 hover:bg-warning-text/30 text-warning-text text-sm font-bold rounded-xl transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    View in Publishing Hub
+                    {intentLinkLabel(selectedPost)}
                   </Link>
                 )}
               </div>
@@ -399,7 +385,7 @@ export default function CalendarPage() {
               <Calendar className="w-5 h-5 text-info-text" />
               Upcoming
               <span className="ml-auto text-xs font-normal text-[var(--foreground-muted)]">
-                {posts.filter((p) => p.status === "SCHEDULED" || (p.source === "intent" && p.status.startsWith("PENDING_"))).length} pending
+                {posts.filter((p) => p.status === "SCHEDULED" || (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "RETURNED"))).length} pending
               </span>
             </h3>
 
@@ -407,10 +393,10 @@ export default function CalendarPage() {
               {posts
                 .filter((p) =>
                   p.status === "SCHEDULED" ||
-                  (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED"))
+                  (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED" || p.status === "RETURNED"))
                 )
                 .sort((a, b) => a.calendarDate.localeCompare(b.calendarDate))
-                .slice(0, 10)
+                .slice(0, 15)
                 .map((post) => (
                   <button
                     key={`${post.source}-${post.id}`}
@@ -440,9 +426,51 @@ export default function CalendarPage() {
               }
               {posts.filter((p) =>
                 p.status === "SCHEDULED" ||
-                (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED"))
+                (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED" || p.status === "RETURNED"))
               ).length === 0 && (
                 <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No pending posts</p>
+              )}
+            </div>
+          </div>
+
+          {/* Completed / Published */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-blue-400" />
+              Completed
+              <span className="ml-auto text-xs font-normal text-[var(--foreground-muted)]">
+                {posts.filter((p) => p.status === "PUBLISHED").length}
+              </span>
+            </h3>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {posts
+                .filter((p) => p.status === "PUBLISHED")
+                .sort((a, b) => b.calendarDate.localeCompare(a.calendarDate))
+                .slice(0, 10)
+                .map((post) => (
+                  <button
+                    key={`done-${post.source}-${post.id}`}
+                    onClick={() => setSelectedPost(post)}
+                    className="w-full text-left p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        {post.source === "intent"
+                          ? <Send className="w-3 h-3 text-blue-400" />
+                          : <Calendar className="w-3 h-3 text-blue-400" />
+                        }
+                        <span className="text-xs font-bold text-blue-400">{post.platform}</span>
+                      </div>
+                      <span className="text-xs text-[var(--foreground-muted)]">
+                        {formatDateTime(post.calendarDate)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--foreground-muted)] truncate">{post.content}</p>
+                  </button>
+                ))
+              }
+              {posts.filter((p) => p.status === "PUBLISHED").length === 0 && (
+                <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No completed posts yet</p>
               )}
             </div>
           </div>
@@ -472,7 +500,7 @@ export default function CalendarPage() {
                 <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Scheduled Time</label>
                 <input
                   type="datetime-local"
-                  value={editingPost.scheduled_time.slice(0, 16)}
+                  value={(editingPost.scheduled_time ?? "").slice(0, 16)}
                   onChange={(e) => setEditingPost({ ...editingPost, scheduled_time: new Date(e.target.value).toISOString() })}
                   className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
                 />

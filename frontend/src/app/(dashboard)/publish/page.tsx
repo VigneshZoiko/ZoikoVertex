@@ -64,6 +64,7 @@ const MediaPackManager = dynamic(
 );
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import { api } from "@/lib/api";
+import { MediaPreview } from "@/components/MediaPreview";
 
 // ── Platform colour map ────────────────────────────────────────────────────────
 const PLATFORM_COLORS: Record<string, string> = {
@@ -167,17 +168,14 @@ function PostPreview({
         <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white text-zinc-900">
           {/* Video thumbnail */}
           <div className="relative w-full aspect-video bg-surface">
-            {currentMedia ? (
-              currentMedia.match(/\.(mp4|mov|webm)$/i)
-                ? <video src={currentMedia} className="w-full h-full object-cover" muted />
-                : <Image src={currentMedia} alt="thumbnail" fill className="object-cover" unoptimized />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-surface-hover">
-                <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center">
-                  <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white ml-1" />
-                </div>
-              </div>
-            )}
+            <MediaPreview
+              src={currentMedia}
+              alt="thumbnail"
+              type={currentMedia?.match(/\.(mp4|mov|webm)$/i) ? "video" : "image"}
+              className="w-full h-full"
+              fit="cover"
+              muted
+            />
             <div className="absolute bottom-2 right-2 bg-black/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
           </div>
           {/* Video info */}
@@ -198,15 +196,14 @@ function PostPreview({
         <div className="rounded-xl overflow-hidden bg-white text-zinc-900 max-w-[220px] mx-auto shadow-md">
           {/* Pin image */}
           <div className="relative bg-zinc-100" style={{ aspectRatio: '2/3' }}>
-            {currentMedia ? (
-              currentMedia.match(/\.(mp4|mov|webm)$/i)
-                ? <video src={currentMedia} className="w-full h-full object-cover" muted />
-                : <Image src={currentMedia} alt="pin" fill className="object-cover" unoptimized />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-                <p className="text-xs text-foreground-muted">No image</p>
-              </div>
-            )}
+            <MediaPreview
+              src={currentMedia}
+              alt="pin"
+              type={currentMedia?.match(/\.(mp4|mov|webm)$/i) ? "video" : "image"}
+              className="w-full h-full"
+              fit="cover"
+              muted
+            />
             {/* Save button overlay */}
             <button className="absolute top-2.5 right-2.5 bg-red-600 text-foreground text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
               Save
@@ -299,23 +296,14 @@ function PostPreview({
         )}
 
         {/* Media */}
-        {currentMedia && (
-          <div className={`w-full overflow-hidden ${isInstagram ? 'aspect-square' : 'aspect-video'} bg-zinc-100`}>
-            {currentMedia.match(/\.(mp4|mov|webm)$/i) ? (
-              <video src={currentMedia} className="w-full h-full object-cover" muted />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={currentMedia} alt="preview" className="w-full h-full object-cover" />
-            )}
-          </div>
-        )}
-
-        {/* No media placeholder */}
-        {!currentMedia && (
-          <div className={`w-full bg-zinc-100 flex items-center justify-center ${isInstagram ? 'aspect-square' : 'aspect-video'}`}>
-            <p className="text-xs text-foreground-muted">No media</p>
-          </div>
-        )}
+        <MediaPreview
+          src={currentMedia}
+          alt="preview"
+          type={currentMedia?.match(/\.(mp4|mov|webm)$/i) ? "video" : "image"}
+          className={`w-full ${isInstagram ? 'aspect-square' : 'aspect-video'}`}
+          fit="cover"
+          muted
+        />
 
         {/* ── Facebook action bar ── */}
         {isFacebook && (
@@ -607,6 +595,9 @@ function PublishPageInner() {
     "Pinterest": 500,
     "YouTube": 5000,
   };
+
+  // Target publish date (optional — shown on calendar)
+  const [scheduledFor, setScheduledFor] = useState("");
 
   // Governance State
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -1271,6 +1262,7 @@ function PublishPageInner() {
         targetAccountIds: selectedAccountIds,
         platformPostTypes,
         userId: user.id,
+        scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
       };
 
       const result = await api.post("/api/v1/governance/submit", payload);
@@ -1285,7 +1277,7 @@ function PublishPageInner() {
       setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
       setSuggestedTimes([]); setActiveRevisionId(null);
       setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
-      setCustomTime(""); setSelectedTime("immediate");
+      setCustomTime(""); setSelectedTime("immediate"); setScheduledFor("");
         setIsDirty(false);
       fetchUserData();
       // Poll for publish result — backend needs a moment to process
@@ -2193,7 +2185,28 @@ function PublishPageInner() {
           })()}
 
 
-          {/* Platform constraint warnings moved above campaign selector */}
+          {/* Target Publish Date — optional, shown on calendar */}
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
+            <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-2 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-info-text" />
+              Target Publish Date
+              <span className="text-[10px] font-normal opacity-60 ml-1">(optional — shows on calendar)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={scheduledFor}
+              onChange={(e) => setScheduledFor(e.target.value)}
+              className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
+            />
+            {scheduledFor && (
+              <button
+                onClick={() => setScheduledFor("")}
+                className="mt-1.5 text-[10px] text-[var(--foreground-muted)] hover:text-error-text transition-colors"
+              >
+                Clear date
+              </button>
+            )}
+          </div>
 
           {/* Submit */}
           <button

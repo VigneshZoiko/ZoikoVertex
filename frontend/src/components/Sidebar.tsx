@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -478,7 +478,7 @@ const OWNER_REQUIRED_PAGES = [
 /* ─────────────────────────────────────────────
    Component
 ───────────────────────────────────────────── */
-export default function Sidebar() {
+function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, isSuperAdmin, isLoading: roleLoading } = useRoleContext();
@@ -510,20 +510,15 @@ export default function Sidebar() {
 
   useRealtimeNotifications();
 
-  const fetchPendingCount = useCallback(async (_userRole: string) => {
+  const fetchSidebarCounts = useCallback(async () => {
     try {
-      const result = await api.get("/api/v1/governance/queue");
-      if (result.success) setPendingCount(result.data?.length || 0);
+      const result = await api.get("/api/v1/sidebar/counts");
+      if (result.success) {
+        setPendingCount(result.data?.pending_count ?? 0);
+        setReturnedCount(result.data?.returned_count ?? 0);
+      }
     } catch {
       setPendingCount(0);
-    }
-  }, []);
-
-  const fetchReturnedCount = useCallback(async () => {
-    try {
-      const result = await api.get("/api/v1/review-queue/stats");
-      if (result.success) setReturnedCount(result.data?.awaiting_revision || 0);
-    } catch {
       setReturnedCount(0);
     }
   }, []);
@@ -544,10 +539,9 @@ export default function Sidebar() {
     // The realtime channel below keeps the count live after the initial fetch.
     if (role && role !== prevRoleRef.current) {
       prevRoleRef.current = role;
-      fetchPendingCount(role);
-      fetchReturnedCount();
+      fetchSidebarCounts();
     }
-  }, [roleLoading, role, fetchPendingCount, fetchReturnedCount]);
+  }, [roleLoading, role, fetchSidebarCounts]);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -563,14 +557,14 @@ export default function Sidebar() {
         "postgres_changes",
         { event: "*", schema: "public", table: "publish_intents" },
         () => {
-          fetchPendingCount(role);
+          fetchSidebarCounts();
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [role, fetchPendingCount]);
+  }, [role, fetchSidebarCounts]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -866,3 +860,5 @@ export default function Sidebar() {
     </>
   );
 }
+
+export default memo(Sidebar);

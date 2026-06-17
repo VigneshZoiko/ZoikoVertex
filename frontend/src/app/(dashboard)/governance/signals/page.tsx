@@ -170,7 +170,7 @@ export default function SignalsPage() {
     };
     setNow(Date.now());
     fetchTriageData();
-    const interval = setInterval(safeFetch, 45000); // 45s auto-refresh
+    const interval = setInterval(safeFetch, 60000); // 60s auto-refresh
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 

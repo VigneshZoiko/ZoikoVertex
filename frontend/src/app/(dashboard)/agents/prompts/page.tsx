@@ -36,9 +36,20 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
-import { EvaluationDashboard } from "@/features/prompt-governance/EvaluationDashboard";
-import { AdversarialDashboard } from "@/features/prompt-governance/AdversarialDashboard";
-import { DriftDashboard } from "@/features/prompt-governance/DriftDashboard";
+import dynamic from "next/dynamic";
+
+const EvaluationDashboard = dynamic(() =>
+  import("@/features/prompt-governance/EvaluationDashboard").then((m) => ({ default: m.EvaluationDashboard })),
+  { ssr: false }
+);
+const AdversarialDashboard = dynamic(() =>
+  import("@/features/prompt-governance/AdversarialDashboard").then((m) => ({ default: m.AdversarialDashboard })),
+  { ssr: false }
+);
+const DriftDashboard = dynamic(() =>
+  import("@/features/prompt-governance/DriftDashboard").then((m) => ({ default: m.DriftDashboard })),
+  { ssr: false }
+);
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
