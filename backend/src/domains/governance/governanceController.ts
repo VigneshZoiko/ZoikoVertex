@@ -13,6 +13,7 @@ import { logAuditEvent } from './evidenceController';
 import { recordPublishIntentRun, syncAgentRunFromIntent } from '../../services/operationsRunRecorder.service';
 import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
 import { moderate } from '../../modules/safety/moderationService';
+import { PostGovernanceService } from '../../modules/prompts/PostGovernanceService';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -168,38 +169,83 @@ export const submitIntent = async (
         return score(b) - score(a);
       })[0] || null;
     };
-    const SEVERITY_TO_RISK: Record<string, string> = { low: 'LOW', medium: 'MEDIUM', high: 'HIGH', critical: 'CRITICAL' };
-    // Dedupe moderation by caption so identical captions across accounts/formats
-    // only cost one safety check.
-    const modCache = new Map<string, { risk: number; severity: string }>();
-    const checkContent = async (text: string): Promise<{ risk: number; severity: string }> => {
-      const key = text || '';
-      const cached = modCache.get(key);
+    // ── Run the FULL 6-agent validation chain on every post, synchronously,
+    //    BEFORE routing. The post visits all six agents (Policy, Approval Rules,
+    //    Platform, Image, General Content, Evidence/KB) and we route from their
+    //    aggregated verdict. `moderate()` is kept as an extra safety backstop so
+    //    auto-publish still requires a 100%-clean safety read.
+    //    Deduped by caption+platform+media so identical posts cost one pass.
+    const govCache = new Map<
+      string,
+      { decision: 'APPROVE' | 'REVIEW' | 'BLOCK'; riskScore: number; riskLevel: string; reason: string; safeRisk: number }
+    >();
+
+    const runGovernance = async (row: any) => {
+      const mediaKey = (row.media_urls || []).join(',');
+      const key = `${row.platform}::${row.content || ''}::${mediaKey}`;
+      const cached = govCache.get(key);
       if (cached) return cached;
-      let result = { risk: 0, severity: 'low' };
-      if (key.trim()) {
-        try {
-          const m = await moderate({ content: key, workspaceId: targetWorkspaceId });
-          result = { risk: m.overallRisk || 0, severity: m.severity || 'low' };
-        } catch (err) {
-          logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Governance] moderation failed — routing to review (fail-safe)');
-          result = { risk: 1, severity: 'high' }; // never auto-publish on error
+
+      // Extra safety backstop (local dict + Groq). Fail-safe to high on error.
+      let safeRisk = 0;
+      try {
+        if ((row.content || '').trim()) {
+          const m = await moderate({ content: row.content, workspaceId: targetWorkspaceId });
+          safeRisk = m.overallRisk || 0;
         }
+      } catch (err) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Governance] safety backstop failed — failing safe');
+        safeRisk = 1;
       }
-      modCache.set(key, result);
-      return result;
+
+      let out: { decision: 'APPROVE' | 'REVIEW' | 'BLOCK'; riskScore: number; riskLevel: string; reason: string; safeRisk: number };
+      try {
+        const gov = await PostGovernanceService.classify(
+          row.content || '',
+          row.platform,
+          targetWorkspaceId,
+          { imageUrls: row.media_urls || [] },
+        );
+        out = {
+          decision: gov.decision,
+          riskScore: Math.max(gov.risk.score || 0, Math.round(safeRisk * 100)),
+          riskLevel: String(gov.risk.level || 'Low').toUpperCase(),
+          reason: gov.reason,
+          safeRisk,
+        };
+      } catch (err) {
+        // Fail safe: if the chain errors, route to human review — never auto-publish.
+        logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Governance] 6-agent chain failed — routing to review (fail-safe)');
+        out = { decision: 'REVIEW', riskScore: Math.max(55, Math.round(safeRisk * 100)), riskLevel: 'MEDIUM', reason: 'Validation chain unavailable — manual review required.', safeRisk };
+      }
+
+      govCache.set(key, out);
+      return out;
     };
 
     for (const row of intentsToCreate as any[]) {
-      const check = await checkContent(row.content || '');
       const agent = pickAgentForPlatform(row.platform);
       row.agent_id = agent?.id || null;
-      row.risk_level = SEVERITY_TO_RISK[check.severity] || 'LOW';
-      row.risk_score = Math.round((check.risk || 0) * 100);
+
+      const gov = await runGovernance(row);
+      row.risk_level = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(gov.riskLevel) ? gov.riskLevel : 'LOW';
+      row.risk_score = gov.riskScore;
+
       const autonomyOk = !!agent && AUTO_PUBLISH_LEVELS.has(String(agent.autonomy_level || 'L0').toUpperCase());
-      // Only a 100%-clean post (zero detections) from an L4+ agent skips human
-      // review. Everything else stays in the Review Queue.
-      row.status = check.risk === 0 && autonomyOk ? 'APPROVED' : 'PENDING_REVIEW';
+
+      // Route from the aggregated 6-agent verdict:
+      //   • any agent BLOCK            → GOVERNANCE_BLOCKED (never reaches console)
+      //   • all APPROVE + 100% safe + L4–L6 agent → APPROVED (auto-publish)
+      //   • everything else (incl. any REVIEW) → PENDING_REVIEW (Approval Console)
+      if (gov.decision === 'BLOCK') {
+        row.status = 'GOVERNANCE_BLOCKED';
+        row.feedback = gov.reason;
+      } else if (gov.decision === 'APPROVE' && gov.safeRisk === 0 && autonomyOk) {
+        row.status = 'APPROVED';
+      } else {
+        row.status = 'PENDING_REVIEW';
+        if (gov.decision === 'REVIEW') row.feedback = gov.reason;
+      }
     }
 
     // Insert resiliently. risk_level / risk_score / agent_id are written for the

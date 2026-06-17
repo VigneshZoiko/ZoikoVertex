@@ -1,52 +1,41 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import {
+  runPostValidation,
+  toPostInput,
+  findingsToSteps,
+} from './validation/orchestrator';
+import {
+  POSSIBILITY_BY_KEY,
+  PROMPT_LABELS,
+} from './PostGovernanceService.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Post Governance Service
 //
-// 1. Classifies a post description into one of five possibilities
-// 2. Activates the matching governed prompt (DRAFT → ACTIVE)
-// 3. Tracks workflow name, linked agent, last used timestamp, usage counts
-// 4. On block → records a failed test; prompt returns to DRAFT
-// 5. Reads KB source content for block/review/approve decisions
+// Thin façade over the post-validation orchestrator (validation/). It:
+//   1. Normalizes a post into a PostInput and runs the six governed agents
+//      (General Content, Image, Approval Rules, Policy, Evidence/KB, Platform).
+//   2. Maps the aggregated outcome onto the five governance possibilities.
+//   3. Activates the matching governed prompt (DRAFT → PRODUCTION_ACTIVE),
+//      tracks workflow/agent/usage, and records a test run.
+//
+// The detection logic itself lives in the individual agents; this file owns the
+// prompt-record lifecycle and the public GovernanceResult contract.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type GovernanceDecision = 'APPROVE' | 'REVIEW' | 'BLOCK';
+export type {
+  GovernanceDecision,
+  Possibility,
+  KnowledgeMatch,
+  GovernanceResult,
+  PromptActivationRecord,
+} from './PostGovernanceService.types';
 
-export interface Possibility {
-  id: number;
-  key: string;
-  label: string;
-}
-
-export interface KnowledgeMatch {
-  id: string;
-  title: string;
-  citation_reference?: string;
-  match_action?: 'approve' | 'review' | 'block';
-}
-
-export interface GovernanceResult {
-  decision: GovernanceDecision;
-  possibility: Possibility;
-  governed_prompt: { label: string };
-  reason: string;
-  risk: { level: string; score: number; categories: Record<string, boolean> };
-  knowledge: { checked: boolean; status: string; matches?: KnowledgeMatch[] };
-  steps: { step: number; name: string; result: string }[];
-  evidence_event_id?: string;
-  prompt_id?: string;
-  prompt_status?: string;
-}
-
-export interface PromptActivationRecord {
-  prompt_id: string;
-  previous_status: string;
-  new_status: string;
-  linked_workflow: string;
-  linked_agent: string;
-  last_used_at: string;
-}
+import type {
+  GovernanceResult,
+  PromptActivationRecord,
+} from './PostGovernanceService.types';
 
 // ── Prompt name → canonical slug mapping for DB lookups ──────────────
 const PROMPT_SLUG_BY_KEY: Record<string, string> = {
@@ -61,11 +50,11 @@ const PROMPT_SLUG_BY_KEY: Record<string, string> = {
  * Prompt name → linked agent name mapping (from the spec).
  */
 const PROMPT_AGENT: Record<string, string> = {
-  BASIC_POST: 'Content Review Agent',
-  FACTUAL_CLAIM_KB_FOUND: 'KB Verification Agent',
-  FACTUAL_CLAIM_NO_KB: 'Claim Detection Agent',
-  HIGH_RISK_CLAIM: 'Governance Agent',
-  POLICY_VIOLATION: 'Policy Enforcement Agent',
+  BASIC_POST: 'General Content Agent',
+  FACTUAL_CLAIM_KB_FOUND: 'Evidence / KB Agent',
+  FACTUAL_CLAIM_NO_KB: 'General Content Agent',
+  HIGH_RISK_CLAIM: 'Policy Check Agent',
+  POLICY_VIOLATION: 'Policy Check Agent',
 };
 
 /**
@@ -79,244 +68,44 @@ const PROMPT_WORKFLOW: Record<string, string> = {
   POLICY_VIOLATION: 'Post Governance Workflow',
 };
 
-const POSSIBILITIES: Possibility[] = [
-  { id: 1, key: 'BASIC_POST', label: 'Basic Post' },
-  { id: 2, key: 'FACTUAL_CLAIM_KB_FOUND', label: 'Factual Claim + Knowledge Found' },
-  { id: 3, key: 'FACTUAL_CLAIM_NO_KB', label: 'Factual Claim + No Knowledge' },
-  { id: 4, key: 'HIGH_RISK_CLAIM', label: 'High-Risk Claim' },
-  { id: 5, key: 'POLICY_VIOLATION', label: 'Policy Violation' },
-];
-
-const POSSIBILITY_BY_KEY = Object.fromEntries(POSSIBILITIES.map((p) => [p.key, p]));
-
-const PROMPT_LABELS: Record<string, string> = {
-  BASIC_POST: 'Basic Content Generator',
-  FACTUAL_CLAIM_KB_FOUND: 'Knowledge Verification Prompt',
-  FACTUAL_CLAIM_NO_KB: 'Factual Claim Validator',
-  HIGH_RISK_CLAIM: 'High-Risk Review Prompt',
-  POLICY_VIOLATION: 'Policy Violation Prompt',
-};
-
-/**
- * Keywords/phrases that suggest a factual claim, pricing claim, numerical
- * claim, guarantee, comparison, or performance claim.
- */
-const CLAIM_PATTERNS = [
-  /\bbest\b/i,
-  /\bproven\b/i,
-  /\bguaranteed?\b/i,
-  /\bguarantee\b/i,
-  /\b#1\b|\bnumber one\b|\bnumber 1\b/i,
-  /\bleading\b/i,
-  /\btop[- ]rated\b/i,
-  /\bexclusive\b/i,
-  /\bresults?\b/i,
-  /\bimprove[ds]?\b/i,
-  /\bincrease[ds]?\b/i,
-  /\breduce[ds]?\b/i,
-  /\bboost\b/i,
-  /\b([0-9]+)\s*%\b/,
-  /\b₹?\s*[0-9,]+\s*(rs\.?|rupees?)?\s*(\/|per)?\b/i,
-  /\bdollars?\b|\$\s*[0-9]/i,
-  /\bclinically\s+proven\b/i,
-  /\bscientifically\s+(proven|backed|tested)\b/i,
-  /\bstudies?\s+show\b/i,
-  /\bresearch\s+(shows?|proves?|demonstrates?)\b/i,
-  /\b[a-z]+er\s+than\b/i,
-  /\bmore\s+effective\b/i,
-  /\bfaster[- ]?acting\b/i,
-  /\blong[- ]?lasting\b/i,
-  /\bmoney[- ]?back\b/i,
-  /\bsatisfaction\s+guaranteed\b/i,
-  /\bfree\s+(trial|sample|shipping)\b/i,
-  /\blimited[- ]?time\b/i,
-];
-
-/**
- * Keywords suggesting high-risk content (medical, legal, financial, etc.).
- */
-const HIGH_RISK_PATTERNS = [
-  /\bcure[sd]?\b/i,
-  /\btreat[s]?\b/i,
-  /\bdiagnos[ei]s\b/i,
-  /\bmedical\b/i,
-  /\bhealth\s+condition\b/i,
-  /\bdisease\b/i,
-  /\bsymptom[s]?\b/i,
-  /\bclinical\b/i,
-  /\btherapy\b/i,
-  /\btherapeutic\b/i,
-  /\bsurgery\b/i,
-  /\bprescription\b/i,
-  /\bmedication\b/i,
-  /\bdrug[s]?\b/i,
-  /\blegal\s+(advice|opinion|review)\b/i,
-  /\battorney\b/i,
-  /\blawyer\b/i,
-  /\blawsuit\b/i,
-  /\bregulatory\s+(approval|filing|compliance)\b/i,
-  /\bfinancial\s+(advice|planning|investment)\b/i,
-  /\binvestment\b/i,
-  /\bsecurities\b/i,
-  /\bstock[s]?\b/i,
-  /\bretirement\b/i,
-  /\binsurance\b/i,
-  /\bloan[s]?\b/i,
-  /\bmortgage\b/i,
-  /\bcompliance\b/i,
-  /\bHIPAA\b/i,
-  /\bGDPR\b/i,
-  /\bprivacy\s+policy\b/i,
-  /\bterms\s+of\s+service\b/i,
-  /\bdisclaimer\b/i,
-];
-
-const VIOLENCE_SAFETY_PATTERNS = [
-  /\bkill\b/i,
-  /\bdeath\b/i,
-  /\bdie\b/i,
-  /\bhate\b/i,
-  /\bharassment\b/i,
-  /\babuse\b/i,
-  /\bviolen[ct]\b/i,
-  /\battack\b/i,
-  /\bweapon\b/i,
-  /\bterroris[mt]\b/i,
-  /\bsuicide\b/i,
-  /\bself[- ]?harm\b/i,
-  /\bslur\b/i,
-  /\bdiscriminat\w+\b/i,
-  /\bexplicit\b/i,
-  /\bps inappropriate\b/i,
-];
-
-function detectPatterns(text: string, patterns: RegExp[]): string[] {
-  const found: string[] = [];
-  for (const p of patterns) {
-    const match = text.match(p);
-    if (match) found.push(match[0]);
-  }
-  return [...new Set(found)];
-}
-
 export class PostGovernanceService {
 
   /**
-   * Classify a post description through the governance pipeline and return
-   * a decision with full evidence trail. Also activates the matching prompt.
+   * Classify a post description through the six-agent validation pipeline and
+   * return a decision with the full evidence trail. Also activates the matching
+   * governed prompt. Signature preserved for existing callers; richer post
+   * artifacts (images, hashtags, links) can be passed via the optional `extra`.
    */
   static async classify(
     description: string,
     platform: string,
     workspaceId: string,
+    extra?: {
+      content?: string;
+      heading?: string;
+      hashtags?: string[];
+      links?: string[];
+      imageUrls?: string[];
+      tenantId?: string;
+    },
   ): Promise<GovernanceResult> {
-    const steps: { step: number; name: string; result: string }[] = [];
-    const text = description || '';
+    const post = toPostInput({ description, platform, workspaceId, ...(extra || {}) });
+    const outcome = await runPostValidation(post);
 
-    // ── Step 1: Policy / Safety Check ─────────────────────────────────
-    steps.push({ step: 1, name: 'Policy / Safety Checker', result: 'Running…' });
-    const safetyMatches = detectPatterns(text, VIOLENCE_SAFETY_PATTERNS);
+    const possibility =
+      POSSIBILITY_BY_KEY[outcome.possibilityKey] || POSSIBILITY_BY_KEY.BASIC_POST;
+    const promptLabel = PROMPT_LABELS[outcome.possibilityKey] || PROMPT_LABELS.BASIC_POST;
 
-    if (safetyMatches.length > 0) {
-      const reason = `Post contains prohibited content: ${safetyMatches.slice(0, 4).join(', ')}`;
-      steps[0].result = `Blocked — ${reason}`;
-      const result: GovernanceResult = {
-        decision: 'BLOCK',
-        possibility: POSSIBILITY_BY_KEY.POLICY_VIOLATION,
-        governed_prompt: { label: PROMPT_LABELS.POLICY_VIOLATION },
-        reason,
-        risk: { level: 'Critical', score: 95, categories: { policy_safety: true } },
-        knowledge: { checked: false, status: 'Not checked' },
-        steps,
-      };
-      await PostGovernanceService.activatePrompt(result, workspaceId);
-      return result;
-    }
-
-    steps[0].result = 'Passed — no safety violations detected';
-
-    // ── Step 2: High-Risk Content Check ────────────────────────────────
-    steps.push({ step: 2, name: 'High-Risk Review', result: 'Running…' });
-    const highRiskMatches = detectPatterns(text, HIGH_RISK_PATTERNS);
-
-    if (highRiskMatches.length > 0) {
-      const categories: Record<string, boolean> = {};
-      for (const m of highRiskMatches) {
-        const lower = m.toLowerCase();
-        if (/(cure|treat|diagnos|medical|disease|symptom|clinical|therapy|surgery|prescription|medication|drug)/i.test(lower)) categories.healthcare = true;
-        if (/(legal|attorney|lawyer|lawsuit|regulatory)/i.test(lower)) categories.legal = true;
-        if (/(financial|investment|securities|stock|retirement|insurance|loan|mortgage)/i.test(lower)) categories.financial = true;
-        if (/(compliance|HIPAA|GDPR|privacy)/i.test(lower)) categories.compliance = true;
-      }
-      const reason = `High-risk content detected: ${Object.keys(categories).join(', ')}`;
-      steps[1].result = `Review required — ${reason}`;
-
-      const result: GovernanceResult = {
-        decision: 'REVIEW',
-        possibility: POSSIBILITY_BY_KEY.HIGH_RISK_CLAIM,
-        governed_prompt: { label: PROMPT_LABELS.HIGH_RISK_CLAIM },
-        reason,
-        risk: { level: 'High', score: 75, categories },
-        knowledge: { checked: true, status: 'Checking…', matches: [] },
-        steps,
-      };
-      await PostGovernanceService.activatePrompt(result, workspaceId);
-      return result;
-    }
-
-    steps[1].result = 'Passed — no high-risk content detected';
-
-    // ── Step 3: Claim Detection ─────────────────────────────────────
-    steps.push({ step: 3, name: 'Claim Validator', result: 'Running…' });
-    const claimMatches = detectPatterns(text, CLAIM_PATTERNS);
-
-    if (claimMatches.length === 0) {
-      steps[2].result = 'Approved — basic content, no claims detected';
-      const result: GovernanceResult = {
-        decision: 'APPROVE',
-        possibility: POSSIBILITY_BY_KEY.BASIC_POST,
-        governed_prompt: { label: PROMPT_LABELS.BASIC_POST },
-        reason: 'No factual claims, high-risk content, or policy violations detected.',
-        risk: { level: 'Low', score: 10, categories: {} },
-        knowledge: { checked: false, status: 'Not needed' },
-        steps,
-      };
-      await PostGovernanceService.activatePrompt(result, workspaceId);
-      return result;
-    }
-
-    const claimReason = `Claim detected: ${claimMatches.slice(0, 4).join(', ')}`;
-    steps[2].result = `Claim detected — ${claimMatches.length} pattern(s) found`;
-
-    // ── Step 4: Knowledge Base Verification ─────────────────────────
-    steps.push({ step: 4, name: 'Knowledge Verification', result: 'Checking Knowledge Base…' });
-    const kbMatches = await PostGovernanceService.lookupKnowledgeBase(text, workspaceId);
-
-    if (kbMatches.length > 0) {
-      steps[3].result = `Found ${kbMatches.length} supporting knowledge source(s)`;
-      const result: GovernanceResult = {
-        decision: 'APPROVE',
-        possibility: POSSIBILITY_BY_KEY.FACTUAL_CLAIM_KB_FOUND,
-        governed_prompt: { label: PROMPT_LABELS.FACTUAL_CLAIM_KB_FOUND },
-        reason: `${claimReason}. Supporting evidence found in Knowledge Base.`,
-        risk: { level: 'Low', score: 20, categories: { factual_claim: true } },
-        knowledge: { checked: true, status: 'Evidence found', matches: kbMatches },
-        steps,
-      };
-      await PostGovernanceService.activatePrompt(result, workspaceId);
-      return result;
-    }
-
-    steps[3].result = 'No supporting knowledge found';
     const result: GovernanceResult = {
-      decision: 'REVIEW',
-      possibility: POSSIBILITY_BY_KEY.FACTUAL_CLAIM_NO_KB,
-      governed_prompt: { label: PROMPT_LABELS.FACTUAL_CLAIM_NO_KB },
-      reason: `${claimReason}. No approved Knowledge Base source supports this claim. Manual review required.`,
-      risk: { level: 'Medium', score: 55, categories: { factual_claim: true } },
-      knowledge: { checked: true, status: 'No evidence found', matches: [] },
-      steps,
+      decision: outcome.decision,
+      possibility,
+      governed_prompt: { label: promptLabel },
+      reason: outcome.reason,
+      risk: outcome.risk,
+      knowledge: outcome.knowledge,
+      steps: findingsToSteps(outcome.findings),
     };
+
     await PostGovernanceService.activatePrompt(result, workspaceId);
     return result;
   }
@@ -401,6 +190,13 @@ export class PostGovernanceService {
           meta.last_possibility = possKey;
           meta.last_decision = result.decision;
           meta.last_reason = result.reason;
+          // The full validation chain — every agent the post passed through, in
+          // order, with its verdict — so the Prompt Governance page can show all
+          // agents instead of a single linked agent.
+          meta.validation_agents = (result.steps || []).map((s) => ({
+            name: s.name,
+            result: s.result,
+          }));
           meta.usage_count = ((meta.usage_count as number) || 0) + 1;
           // Wire the Knowledge Base sources this prompt actually consulted, so the
           // registry can show the live prompt → agent → workflow → KB-source chain
@@ -539,88 +335,6 @@ export class PostGovernanceService {
       logger.info({ promptId, outcome }, '[PostGovernance] Operation finished, prompt returned to draft');
     } catch (err) {
       logger.warn({ err, promptId }, '[PostGovernance] finishOperation failed');
-    }
-  }
-
-  /**
-   * Look up the Knowledge Base for sources matching the post content.
-   * Reads the actual source content and match_action to decide
-   * whether to block, review, or approve.
-   */
-  private static async lookupKnowledgeBase(
-    content: string,
-    workspaceId: string,
-  ): Promise<KnowledgeMatch[]> {
-    try {
-      // A vetted source is usable as evidence whether it's APPROVED or fully
-      // ACTIVE — both are past human review. Only DRAFT / RETIRED / REJECTED /
-      // QUARANTINED sources are excluded from governance lookups.
-      // Fetch every source in the workspace, then filter usable statuses in JS.
-      // A PostgREST `.in('status', [...])` on an ENUM column throws if any label
-      // isn't a valid enum value, and the whole query returns null — which was
-      // silently swallowed as "0 sources" and is why KB never matched. Filtering
-      // in JS is immune to that.
-      const { data: allSources, error: srcErr } = await supabaseAdmin
-        .from('knowledge_sources')
-        .select('id, title, content, metadata, status')
-        .eq('workspace_id', workspaceId)
-        .limit(50);
-
-      const USABLE_STATUSES = ['ACTIVE', 'APPROVED'];
-      const sources = (allSources || []).filter((s: any) =>
-        USABLE_STATUSES.includes(String(s.status || '').toUpperCase()),
-      );
-
-      logger.info(
-        {
-          workspaceId,
-          contentPreview: (content || '').slice(0, 80),
-          totalInWorkspace: allSources?.length || 0,
-          usableCount: sources.length,
-          queryError: srcErr ? (srcErr.message || String(srcErr)) : null,
-          statuses: (allSources || []).map((s: any) => s.status),
-        },
-        '[KB-lookup] sources fetched',
-      );
-
-      if (sources.length === 0) return [];
-
-      const contentLower = content.toLowerCase();
-      const contentWords = contentLower.split(/\s+/).filter((w) => w.length > 3);
-      const matches: KnowledgeMatch[] = [];
-
-      for (const src of sources) {
-        const srcText = ((src.content || '') + ' ' + (src.title || '')).toLowerCase();
-        const matchedWords = contentWords.filter((w) => srcText.includes(w));
-        const matchCount = matchedWords.length;
-        const ratio = contentWords.length > 0 ? matchCount / contentWords.length : 0;
-
-        logger.info(
-          { srcId: src.id, title: src.title, status: src.status, matchCount, ratio: Number(ratio.toFixed(2)), matchedWords },
-          '[KB-lookup] candidate',
-        );
-
-        // A source is supporting evidence when it shares at least two significant
-        // words with the post, OR covers a third of the post's significant words.
-        // Ratio alone misses longer posts/hashtags that dilute the score, which is
-        // why an obviously-relevant source could read as "No KB evidence".
-        if (matchCount >= 2 || ratio > 0.3) {
-          const meta = src.metadata || {};
-          const matchAction = meta.match_action || meta.default_match_action || 'review';
-          matches.push({
-            id: src.id,
-            title: src.title || 'Untitled',
-            citation_reference: meta.citation_reference || meta.citation || undefined,
-            match_action: matchAction as 'approve' | 'review' | 'block',
-          });
-        }
-      }
-
-      logger.info({ matchesFound: matches.length }, '[KB-lookup] done');
-      return matches;
-    } catch (err) {
-      logger.warn({ err }, '[PostGovernance] KB lookup failed');
-      return [];
     }
   }
 }
