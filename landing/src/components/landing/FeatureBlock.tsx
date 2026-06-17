@@ -1,5 +1,5 @@
 ﻿import Image from "next/image";
-import { Clock, Zap, CheckSquare } from "lucide-react";
+import { Clock, Zap, Star } from "lucide-react";
 
 export default function FeatureBlock() {
   const comparisons = [
@@ -18,7 +18,7 @@ export default function FeatureBlock() {
       tool: "Tools require humans to decide",
       zoiko:
         "ZoikoVertex makes and governs capital decisions continuously, within your policy",
-      icon: CheckSquare,
+      icon: Star,
     },
   ];
 
