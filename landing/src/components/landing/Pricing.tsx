@@ -113,7 +113,7 @@ export default function Pricing() {
       highlight: true,
       recommended: true,
       footerNote:
-        "Best option for multi-brand teams requiring enterprise-validated governance.",
+        "No legal hold or custom SLA unless separately contracted.",
     },
     {
       tag: "REQUIREMENT-BASED",
@@ -149,7 +149,7 @@ export default function Pricing() {
   ];
 
   return (
-    <section className="bg-[#080812] py-24 px-6" id="pricing">
+    <section className="bg-[#070C1E] py-24 px-6" id="pricing">
       <div className="max-w-7xl mx-auto text-center mb-14">
         <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
           — Pricing
@@ -161,15 +161,17 @@ export default function Pricing() {
           Your deployment team has built us a good base security. Free to start,
           no credit card required.
         </p>
-        <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
-          <button className="text-sm text-white/40 px-4 py-1.5 rounded-full transition-all">
-            Monthly
-          </button>
-          <button className="text-sm font-semibold text-black bg-white px-4 py-1.5 rounded-full transition-all">
-            Annual
-          </button>
-          <span className="text-xs font-bold text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-3 py-1 rounded-full">
-            Save up to 30%
+        <div className="inline-flex items-center gap-3">
+          <div className="inline-flex items-center bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
+            <button className="text-sm text-white/40 px-4 py-1.5 rounded-full transition-all">
+              Monthly
+            </button>
+            <button className="text-sm font-semibold text-black bg-cyan-400 px-4 py-1.5 rounded-full transition-all">
+              Annual
+            </button>
+          </div>
+          <span className="text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-3 py-1.5 rounded-full">
+            Save up to 25%
           </span>
         </div>
       </div>

@@ -14,7 +14,7 @@
         },
         {
           title: "Commercial Priority Layer",
-          desc: "Queueing & priority scheduling",
+          desc: "Seasonal & strategic weighting",
         },
       ],
     },
@@ -30,7 +30,7 @@
           desc: "Platform-native content & copy",
         },
         { title: "Execution Agent", desc: "Deploy, pace, sequence campaigns" },
-        { title: "Engagement Agent", desc: "Interactions & knowledge capture" },
+        { title: "Engagement Agent", desc: "Interactions & conversion signals" },
         { title: "Channel Orchestrator", desc: "Cross-platform sequencing" },
       ],
     },
@@ -45,9 +45,9 @@
         { title: "Revenue Forensic Agent", desc: "Multi-touch attribution" },
         {
           title: "Growth Optimisation Agent",
-          desc: "True winners, kill waste",
+          desc: "Scale winners, kill waste",
         },
-        { title: "LTV Correlation Engine", desc: "Scale winners, LTV maps" },
+        { title: "LTV Correlation Engine", desc: "Lifetime value mapping" },
       ],
     },
     {
@@ -62,7 +62,7 @@
         { title: "Audit Log System", desc: "Full decision traceability" },
         {
           title: "Override & Intervention",
-          desc: "Freeze/de-prioritise control",
+          desc: "Human-in-command controls",
         },
       ],
     },

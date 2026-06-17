@@ -1,11 +1,11 @@
 ﻿export default function PainPoints() {
   const chaos = [
-    "Marketing spend distributed across platforms with no unified campaigns or decision system",
-    "Campaigns continue running when close to cost-demand, margins are weak, or strategic priorities have shifted",
-    "Teams optimise for engagement and impressions rather than contribution margin and profit",
+    "Marketing spend distributed across platforms with no unified capital logic or decision system",
+    "Campaigns continue running when stock is constrained, margins are weak, or strategic priorities have shifted",
+    "Teams optimize for engagement and impressions rather than contribution margin and profit",
     "Attribution remains inconsistent — finance teams distrust marketing-reported ROI",
-    "Legal has flagged claimed topics, copyright exposure, or jurisdiction restriction concerns",
-    "Leadership lacks a single operating view of what marketing is doing to revenue and cost efficiency",
+    "Legal fears hallucinated claims, copyright exposure, or jurisdictional advertising breaches",
+    "Leadership lacks a single operating view of what marketing is doing to revenue and cash efficiency",
   ];
 
   const governed = [
@@ -18,7 +18,7 @@
   ];
 
   return (
-    <section className="bg-[#080812] py-24 px-6">
+    <section className="bg-[#070C1E] py-24 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
