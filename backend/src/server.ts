@@ -209,7 +209,14 @@ import { changePlan } from './domains/identity/planController';
 import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember, updateMemberRole } from './domains/identity/teamController';
-import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
+import {
+  listUnits, getUnit, getUnitStats, createUnit, updateUnit, archiveUnit, deleteUnit, restoreUnit,
+  getUnitMembers, addUnitMember, removeUnitMember,
+  getUnitBrands, linkUnitBrand, unlinkUnitBrand,
+  getUnitActivity,
+  getUnitEvidenceScope, setUnitEvidenceScope, deleteUnitEvidenceScope,
+  getAvailableMembers,
+} from './domains/identity/unitsController';
 import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction,   addQaNote, addQaEvidence, generateSample, retryQaCallback, retryQaCallbackByItem, exportQaFindings, exportQaEvidence, getAuditDefects, getAuditCorrectiveActions, getAuditNotes, getAuditEvidence } from './domains/governance/qaController';
 import {
   createException, listExceptions, getException, updateException,
@@ -889,10 +896,30 @@ app.get('/api/v1/team/requests', authenticate, listRequests);
 app.post('/api/v1/team/requests', authenticate, createRequest);
 app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
-// Business units
+// Business units / Organization Structure
+app.get('/api/v1/units/stats', authenticate, getUnitStats);
 app.get('/api/v1/units', authenticate, listUnits);
+app.get('/api/v1/units/:id', authenticate, getUnit);
 app.post('/api/v1/units', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), createUnit);
+app.put('/api/v1/units/:id', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateUnit);
+app.post('/api/v1/units/:id/archive', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), archiveUnit);
+app.post('/api/v1/units/:id/restore', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), restoreUnit);
 app.delete('/api/v1/units/:id', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), deleteUnit);
+// Unit members
+app.get('/api/v1/units/:id/members', authenticate, getUnitMembers);
+app.get('/api/v1/units/:id/members/available', authenticate, getAvailableMembers);
+app.post('/api/v1/units/:id/members', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), addUnitMember);
+app.delete('/api/v1/units/:id/members/:memberId', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), removeUnitMember);
+// Unit brands
+app.get('/api/v1/units/:id/brands', authenticate, getUnitBrands);
+app.post('/api/v1/units/:id/brands', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), linkUnitBrand);
+app.delete('/api/v1/units/:id/brands/:brandId', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), unlinkUnitBrand);
+// Unit activity
+app.get('/api/v1/units/:id/activity', authenticate, getUnitActivity);
+// Unit evidence scope
+app.get('/api/v1/units/:id/evidence-scope', authenticate, getUnitEvidenceScope);
+app.post('/api/v1/units/:id/evidence-scope', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), setUnitEvidenceScope);
+app.delete('/api/v1/units/:id/evidence-scope/:scopeId', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), deleteUnitEvidenceScope);
 
 // Protected Notification Routes
 app.get('/api/v1/notifications', authenticate, listNotifications);

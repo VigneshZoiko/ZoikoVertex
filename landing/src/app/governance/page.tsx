@@ -46,7 +46,7 @@ function Ticker() {
 /* ── Hero ── */
 function Hero() {
   return (
-    <section className="bg-[#080E1A] pt-28 pb-0 px-6 overflow-hidden">
+    <section className="bg-[#080E1A] pt-16 pb-0 px-6 overflow-hidden">
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
         {/* Left */}
         <div>
@@ -1265,7 +1265,7 @@ function GovernanceFAQ() {
 export default function GovernancePage() {
   return (
     <main className="min-h-screen bg-[#080E1A]">
-      <div className="pt-16">
+      <div>
         <Hero />
         <Ticker />
         <TheProblem />

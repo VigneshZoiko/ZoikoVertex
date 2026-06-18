@@ -14,11 +14,11 @@ const TRUST_BULLETS = [
 
 export default function AuthLayout({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <div className="h-screen bg-[#0C1422] flex flex-col overflow-y-auto">
+    <div className="h-screen bg-[#0C1523] flex flex-col overflow-y-auto">
       <Navbar />
-      <div className="flex flex-1 pt-[68px]">
+      <div className="flex flex-1">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] w-[48%] shrink-0">
+      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1523] w-[48%] shrink-0">
         <div className="max-w-[380px]">
           {/* Logo */}
           <Image
@@ -61,8 +61,8 @@ export default function AuthLayout({ children, footer }: { children: React.React
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-1 flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#0C1422] gap-6">
-        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-6 sm:px-[50px] pt-10 sm:pt-[68px] pb-10 sm:pb-[54px] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#0C1523] gap-6">
+        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-6 sm:px-[50px] pt-10 sm:pt-[68px] pb-10 sm:pb-[54px]">
           {children}
         </div>
         {footer && <div className="w-full max-w-[480px] text-center">{footer}</div>}

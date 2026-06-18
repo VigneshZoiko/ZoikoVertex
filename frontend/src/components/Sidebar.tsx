@@ -414,6 +414,12 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Building2,
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
+      {
+        name: "Organization Structure",
+        href: "/access/organization",
+        icon: GitBranch,
+        roles: ["ADMIN","WORKSPACE_OWNER"],
+      },
     ],
   },
 

@@ -171,7 +171,7 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
 
     let query = supabaseAdmin
       .from('campaigns')
-      .select('*')
+      .select('*, campaign_boosts(meta_campaign_id, ad_account_id)')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 

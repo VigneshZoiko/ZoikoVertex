@@ -31,6 +31,7 @@ interface Campaign {
   end_at?: string | null;
   created_at: string;
   wizard_step?: number;
+  campaign_boosts?: Array<{ meta_campaign_id?: string | null; ad_account_id?: string | null }>;
   // metrics from boost sync
   impressions?: number;
   reach?: number;
@@ -985,7 +986,6 @@ export default function CampaignsPage() {
   const [selAccount, setSelAccount] = useState("");
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
-  const [menu,       setMenu]       = useState<string | null>(null);
   const [deleteCampaignId, setDeleteCampaignId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -1139,7 +1139,7 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        <div className="flex-1 px-6 py-5 space-y-4 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 pt-4 gap-3">
 
         {/* Error */}
         {error && (
@@ -1336,7 +1336,8 @@ export default function CampaignsPage() {
 
         {/* ── Campaign Table ── */}
         {tab !== "pixels" && tab !== "drafts" && accounts.length > 0 && (
-          loading ? (
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden pb-4">
+          {loading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <Loader2 className="w-7 h-7 animate-spin text-blue-400" />
               <p className="text-foreground-muted text-sm">Loading campaigns...</p>
@@ -1354,9 +1355,9 @@ export default function CampaignsPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
               <table className="w-full text-sm" style={{ minWidth: 1600 }}>
-                <thead>
+                <thead className="sticky top-0 z-10 bg-card">
                   <tr className="border-b border-border">
                     {[
                       ["CAMPAIGN NAME", "min-w-[220px] text-left"],
@@ -1374,7 +1375,7 @@ export default function CampaignsPage() {
                       ["REACH",         "w-[90px]  text-right"],
                       ["IMPRESSIONS",   "w-[110px] text-right"],
                       ["CLICKS",        "w-[80px]  text-right"],
-                      ["",              "w-[44px]  text-right"],
+                      ["",              "w-[120px] text-right"],
                     ].map(([h, cls]) => (
                       <th key={h} className={`px-4 py-3 text-[10px] font-bold text-foreground-muted uppercase tracking-widest whitespace-nowrap ${cls}`}>
                         {h}
@@ -1535,39 +1536,29 @@ export default function CampaignsPage() {
                           <p className="text-xs text-foreground-muted">{c.clicks ? c.clicks.toLocaleString() : "--"}</p>
                         </td>
 
-                        {/* Three-dot menu */}
-                        <td className="px-4 py-4 w-[44px] text-right">
-                          <div className="relative">
-                            <button onClick={e => { e.stopPropagation(); setMenu(menu === c.id ? null : c.id); }}
-                              className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover transition-colors opacity-0 group-hover:opacity-100">
-                              <MoreHorizontal className="w-4 h-4" />
+                        {/* Inline actions */}
+                        <td className="px-2 py-4 w-[120px] text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link href={`/campaigns/${c.id}`} title="Check details"
+                              className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-hover transition-colors">
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                            {(() => {
+                              const boost = c.campaign_boosts?.[0];
+                              const fbUrl = boost?.meta_campaign_id
+                                ? `https://www.facebook.com/adsmanager/manage/campaigns?act=${boost.ad_account_id ?? ''}&selected_campaign_ids=${boost.meta_campaign_id}`
+                                : 'https://business.facebook.com/adsmanager/manage/campaigns';
+                              return (
+                                <a href={fbUrl} target="_blank" rel="noopener noreferrer" title="View on Facebook"
+                                  className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-hover transition-colors">
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              );
+                            })()}
+                            <button onClick={e => { e.stopPropagation(); deleteCampaign(c.id); }} title="Delete campaign"
+                              className="p-1.5 rounded-lg text-foreground-muted hover:text-error-text hover:bg-error-text/10 transition-colors">
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                            {menu === c.id && (
-                              <div className="absolute right-0 top-8 z-30 w-52 bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
-                                <Link href={`/campaigns/${c.id}`}
-                                  className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted hover:bg-surface">
-                                  <Eye className="w-3.5 h-3.5 text-foreground-muted" />Check details and ads
-                                </Link>
-                                {["DRAFT","CHANGES_REQUESTED"].includes(c.status) && (
-                                  <Link href={`/campaigns/new?edit=${c.id}&step=${c.wizard_step ?? 1}`}
-                                    className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted hover:bg-surface">
-                                    <Edit3 className="w-3.5 h-3.5 text-foreground-muted" />Edit campaign
-                                  </Link>
-                                )}
-                                <button onClick={() => { deleteCampaign(c.id); setMenu(null); }}
-                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-error-text hover:bg-surface">
-                                  <Trash2 className="w-3.5 h-3.5" />Delete campaign
-                                </button>
-                                <div className="border-t border-border" />
-                                <div className="flex items-start gap-2.5 px-4 py-3">
-                                  <ExternalLink className="w-3.5 h-3.5 text-foreground-muted mt-0.5 shrink-0" />
-                                  <div>
-                                    <p className="text-sm text-foreground-muted">View on Facebook</p>
-                                    <p className="text-[10px] text-foreground-muted mt-0.5">You&apos;ll need access to the ad account.</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -1577,10 +1568,11 @@ export default function CampaignsPage() {
               </table>
             </div>
           )
+          }
+          </div>
         )}
       </div>
 
-      {menu && <div className="fixed inset-0 z-20" onClick={() => setMenu(null)} />}
       </div>
     </div>
 

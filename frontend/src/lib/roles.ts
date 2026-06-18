@@ -65,7 +65,7 @@ export const ROLE_ARCHITECTURE = [
   },
   {
     id: "CREATOR",
-    name: "Contributor",
+    name: "Creator",
     category: "Creative",
     layer: "Build",
     description: "Creates draft posts, prompts, and initial creative assets.",

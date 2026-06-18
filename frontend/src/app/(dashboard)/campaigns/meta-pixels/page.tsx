@@ -221,7 +221,7 @@ export default function MetaPixelsPage() {
                             Go to Events Manager
                           </a>
                           <Link
-                            href={`/campaigns/new?objective=CONVERSIONS&pixel_id=${pixel.id}&pixel_name=${encodeURIComponent(pixel.name)}`}
+                            href={`/campaigns?objective=CONVERSIONS&pixel_id=${pixel.id}&pixel_name=${encodeURIComponent(pixel.name)}`}
                             onClick={() => setOpenMenu(null)}
                             className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 transition-colors border-t border-border">
                             <Zap className="w-4 h-4 text-foreground-muted" />

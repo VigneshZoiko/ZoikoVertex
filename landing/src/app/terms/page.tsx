@@ -328,7 +328,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[#f5f6f8]">
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="bg-[#080d1a] pt-[68px]">
+      <section className="bg-[#080d1a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-14 sm:py-20">
 
           {/* Mobile breadcrumb */}

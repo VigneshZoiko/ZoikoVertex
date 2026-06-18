@@ -152,7 +152,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     if (password !== confirmPwd) { setError("Passwords do not match"); return; }
-    if (strength < 3) { setError("Password too weak ΓÇö add numbers and special characters"); return; }
+    if (strength < 3) { setError("Password too weak - add numbers and special characters"); return; }
     if (!agreedToS) { setError("Please agree to the Terms of Service and Privacy Policy"); return; }
     setLoading(true);
     try {
@@ -264,7 +264,7 @@ export default function SignupPage() {
           <form onSubmit={handleStep1} className="space-y-5">
             <div className="mb-8">
               <h1 className="text-[1.75rem] font-black text-white/90 mb-1">Start for free</h1>
-              <p className="text-[14px] text-white/45">Starting with Vertex Starter ΓÇö free, no credit card needed.</p>
+              <p className="text-[14px] text-white/45">Starting with Vertex Starter — free, no credit card needed.</p>
             </div>
 
             {/* Name row */}

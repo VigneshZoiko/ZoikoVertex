@@ -55,8 +55,8 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
     if (wsErr) throw wsErr;
 
     // 3. Upsert user record (SSO users may not have a row in public.users yet)
-    const fullName = (req.user as any)?.user_metadata?.full_name
-      || (req.user as any)?.raw_user_meta_data?.full_name
+    const fullName = req.user?.user_metadata?.full_name as string
+      || req.user?.full_name
       || email?.split('@')[0]
       || 'User';
 
