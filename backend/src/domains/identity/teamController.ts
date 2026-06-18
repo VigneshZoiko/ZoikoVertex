@@ -42,16 +42,19 @@ export const listMembers = async (req: AuthRequest, res: Response, next: NextFun
 
     const userMap = new Map((userRows || []).map((u: any) => [u.id, u]));
 
-    // Step 3: merge — fall back to auth metadata for users not yet in public.users
-    const formattedMembers = memberRows.map((m: any) => {
-      const u = userMap.get(m.user_id);
-      return {
-        id: m.user_id,
-        full_name: u?.full_name ?? null,
-        email: u?.email ?? null,
-        role: m.role,
-      };
-    });
+    // Step 3: merge — only include members that have a user record
+    const formattedMembers = memberRows
+      .filter((m: any) => userMap.has(m.user_id))
+      .map((m: any) => {
+        const u = userMap.get(m.user_id);
+        return {
+          id: m.user_id,
+          workspace_member_id: m.id,
+          full_name: u.full_name ?? u.email?.split('@')[0] ?? 'Unknown',
+          email: u.email,
+          role: m.role,
+        };
+      });
 
     res.json({ success: true, data: formattedMembers });
   } catch (error) {
@@ -221,7 +224,7 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       .select('role, workspace_id')
       .eq('user_id', userId);
 
-    if (!isSuperAdmin) memberQuery = memberQuery.eq('workspace_id', workspaceId!);
+    if (!isSuperAdmin) memberQuery = memberQuery.eq('workspace_id', workspaceId || '');
 
     const { data: memberData, error: memberError } = await memberQuery.maybeSingle();
 
@@ -238,7 +241,7 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       .update({ role })
       .eq('user_id', userId);
 
-    if (!isSuperAdmin) updateQuery = updateQuery.eq('workspace_id', workspaceId!);
+    if (!isSuperAdmin) updateQuery = updateQuery.eq('workspace_id', workspaceId || '');
 
     const { error: updateError } = await updateQuery;
     if (updateError) throw updateError;
@@ -271,12 +274,12 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     // Verify membership exists
-    const memberQuery = supabaseAdmin
+    let memberQuery = supabaseAdmin
       .from('workspace_members')
       .select('role')
       .eq('user_id', userId);
 
-    if (workspaceId) memberQuery.eq('workspace_id', workspaceId);
+    if (workspaceId) memberQuery = memberQuery.eq('workspace_id', workspaceId);
 
     const { data: memberData, error: memberError } = await memberQuery.single();
 
@@ -284,9 +287,7 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(404).json({ error: 'Member not found in workspace' });
     }
 
-    const role = memberData.role || 'Member';
-
-    // Fetch user details from public.users for historical name
+    // Fetch user details for audit log (don't mutate shared users table)
     const { data: userData } = await supabaseAdmin
       .from('users')
       .select('full_name, email')
@@ -294,34 +295,23 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
       .maybeSingle();
 
     const displayName = userData?.full_name || userData?.email?.split('@')[0] || userId;
-    const historicalName = `${displayName} (ex-${role})`;
-
-    // Mark deleted in public.users (may not exist for all users)
-    await supabaseAdmin
-      .from('users')
-      .update({ full_name: historicalName, deleted_at: new Date().toISOString() })
-      .eq('id', userId);
 
     const { error: removeError } = await supabaseAdmin
       .from('workspace_members')
       .delete()
       .eq('user_id', userId)
-      .eq('workspace_id', workspaceId!);
+      .eq('workspace_id', workspaceId || '');
 
     if (removeError) throw removeError;
 
-    try {
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-    } catch {
-      // Ignore if user doesn't exist in auth
-    }
+    // Don't delete from users table (shared across workspaces) or from Auth
 
     await logAuditEvent({
       workspaceId: workspaceId || '00000000-0000-0000-0000-000000000000',
       actorId,
       module: 'Team',
       action: `Deleted workspace member ${userData?.email || userId}`,
-      metadata: { deleted_user_id: userId, historical_name: historicalName }
+      metadata: { deleted_user_id: userId, name: displayName }
     });
 
     res.json({ success: true, message: 'Member account permanently deleted.' });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Building2, GitBranch, Shield, Users, Search, Plus, X,
   Archive, RotateCcw, Trash2, AlertTriangle, CheckCircle2,
@@ -8,6 +9,15 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import dynamic from "next/dynamic";
+
+// ─── API response type ─────────────────────────────────────────────────────
+
+interface ApiResponse {
+  success: boolean;
+  error?: string;
+  archived?: boolean;
+  data?: unknown;
+}
 
 const CreateUnitWizard = dynamic(() => import("./CreateUnitWizard"), {
   loading: () => null,
@@ -123,6 +133,8 @@ export default function OrganizationStructurePage() {
         api.get("/api/v1/units"),
         api.get("/api/v1/units/stats"),
       ]);
+      if (unitsRes.success === false) { setError(String(unitsRes.error || "Failed to load units")); setLoading(false); return; }
+      if (statsRes.success === false) { setError(String(statsRes.error || "Failed to load stats")); setLoading(false); return; }
       setUnits(unitsRes.data || []);
       setStats(statsRes.data || null);
     } catch {
@@ -140,12 +152,9 @@ export default function OrganizationStructurePage() {
     name: string,
   ) => {
     try {
-      let res: Record<string, unknown>;
-      if (action === "delete") {
-        res = await api.delete(`/api/v1/units/${id}`);
-      } else {
-        res = await api.post(`/api/v1/units/${id}/${action}`, {});
-      }
+      const res: ApiResponse = action === "delete"
+        ? await api.delete(`/api/v1/units/${id}`)
+        : await api.post(`/api/v1/units/${id}/${action}`, {});
       if (res.success === false) {
         setToast({ message: String(res.error || `Failed to ${action} "${name}"`), type: "error" });
         return;
@@ -327,6 +336,7 @@ export default function OrganizationStructurePage() {
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--surface-hover)]/50">
                     <th className="py-3 px-4 text-[9px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Name</th>
+                    <th className="py-3 px-4 text-[9px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Owner</th>
                     <th className="py-3 px-4 text-[9px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Type</th>
                     <th className="py-3 px-4 text-[9px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Status</th>
                     <th className="py-3 px-4 text-[9px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Members</th>
@@ -341,7 +351,7 @@ export default function OrganizationStructurePage() {
                     return (
                       <tr key={unit.id} className="hover:bg-[var(--surface-hover)]/30 transition-colors">
                         <td className="py-3 px-4">
-                          <a href={`/access/organization/units/${unit.id}`}
+                          <Link href={`/access/organization/units/${unit.id}`}
                             className="flex items-center gap-2.5 group cursor-pointer">
                             <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: unit.color }} />
                             <div>
@@ -352,7 +362,10 @@ export default function OrganizationStructurePage() {
                                 <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5 line-clamp-1">{unit.description}</p>
                               )}
                             </div>
-                          </a>
+                          </Link>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-xs text-[var(--foreground-muted)]">{unit.owner_name || (unit.owner_id ? "Assigned" : "—")}</span>
                         </td>
                         <td className="py-3 px-4">
                           <span className="text-xs text-[var(--foreground-muted)] capitalize">{unit.unit_type}</span>
@@ -373,10 +386,10 @@ export default function OrganizationStructurePage() {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1">
-                            <a href={`/access/organization/units/${unit.id}`}
+                            <Link href={`/access/organization/units/${unit.id}`}
                               className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-info-text hover:bg-info-text/10 transition-all" title="View details">
                               <Info className="w-3.5 h-3.5" />
-                            </a>
+                            </Link>
                             {unit.status === "ACTIVE" && (
                               <button onClick={() => handleArchive(unit.id, unit.name)}
                                 className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-warning-text hover:bg-warning-text/10 transition-all" title="Archive">

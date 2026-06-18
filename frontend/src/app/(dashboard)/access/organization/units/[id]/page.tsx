@@ -164,16 +164,19 @@ function MembersTab({ unitId }: { unitId: string }) {
         api.get(`/api/v1/units/${unitId}/members`),
         api.get(`/api/v1/units/${unitId}/members/available`),
       ]);
+      if (membersRes.success === false) { setToast(String(membersRes.error || "Failed to load members")); return; }
+      if (availRes.success === false) { setToast(String(availRes.error || "Failed to load available members")); return; }
       setMembers(membersRes.data || []);
       setAvailable(availRes.data || []);
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch { setToast("Failed to load members"); } finally { setLoading(false); }
   }, [unitId]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   const handleAdd = async (memberId: string) => {
     try {
-      await api.post(`/api/v1/units/${unitId}/members`, { member_id: memberId });
+      const res = await api.post(`/api/v1/units/${unitId}/members`, { member_id: memberId });
+      if (res.success === false) { setToast(String(res.error || "Failed to add member")); return; }
       setToast("Member added");
       fetchMembers();
       setShowAdd(false);
@@ -182,7 +185,8 @@ function MembersTab({ unitId }: { unitId: string }) {
 
   const handleRemove = async (memberId: string) => {
     try {
-      await api.delete(`/api/v1/units/${unitId}/members/${memberId}`);
+      const res = await api.delete(`/api/v1/units/${unitId}/members/${memberId}`);
+      if (res.success === false) { setToast(String(res.error || "Failed to remove member")); return; }
       setToast("Member removed");
       fetchMembers();
     } catch { setToast("Failed to remove member"); }
@@ -288,6 +292,7 @@ function BrandsTab({ unitId }: { unitId: string }) {
   const [allBrands, setAllBrands] = useState<BrandProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBrandId, setSelectedBrandId] = useState("");
+  const [manualBrandId, setManualBrandId] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
   const linkedBrandIds = new Set(brands.map((b) => b.brand_id));
@@ -300,28 +305,31 @@ function BrandsTab({ unitId }: { unitId: string }) {
         api.get(`/api/v1/units/${unitId}/brands`),
         api.get("/api/v1/governance/brand/profiles"),
       ]);
+      if (linkedRes.success === false) { setToast(String(linkedRes.error || "Failed to load brands")); setLoading(false); return; }
+      if (allRes.success === false) { setToast(String(allRes.error || "Failed to load brand profiles")); setLoading(false); return; }
       setBrands(linkedRes.data || []);
       setAllBrands(allRes.data || []);
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch { setToast("Failed to load brands"); } finally { setLoading(false); }
   }, [unitId]);
 
   useEffect(() => { fetchBrands(); }, [fetchBrands]);
 
-  const linkedBrandMap = new Map(allBrands.map((b) => [b.id, b.name]));
-
-  const handleLink = async () => {
-    if (!selectedBrandId) return;
+  const handleLink = async (brandId: string) => {
+    if (!brandId) return;
     try {
-      await api.post(`/api/v1/units/${unitId}/brands`, { brand_id: selectedBrandId });
+      const res = await api.post(`/api/v1/units/${unitId}/brands`, { brand_id: brandId });
+      if (res.success === false) { setToast(String(res.error || "Failed to link")); return; }
       setToast("Brand linked");
       setSelectedBrandId("");
+      setManualBrandId("");
       fetchBrands();
     } catch { setToast("Failed to link brand"); }
   };
 
   const handleUnlink = async (brandId: string) => {
     try {
-      await api.delete(`/api/v1/units/${unitId}/brands/${brandId}`);
+      const res = await api.delete(`/api/v1/units/${unitId}/brands/${brandId}`);
+      if (res.success === false) { setToast(String(res.error || "Failed to unlink")); return; }
       setToast("Brand unlinked");
       fetchBrands();
     } catch { setToast("Failed to unlink brand"); }
@@ -335,22 +343,34 @@ function BrandsTab({ unitId }: { unitId: string }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-4">
-        <select value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value)}
-          className="flex-1 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
-          <option value="">— Select a brand —</option>
-          {availableBrands.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
-        <button onClick={handleLink} disabled={!selectedBrandId}
-          className="flex items-center gap-1.5 px-3 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground text-xs font-semibold rounded-xl transition-colors">
-          <Link2 className="w-3.5 h-3.5" /> Link
-        </button>
-        {allBrands.length === 0 && (
-          <a href="/governance/brand-library" className="text-xs text-info-text hover:underline shrink-0">
-            Create brands
-          </a>
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {availableBrands.length > 0 ? (
+          <>
+            <select value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value)}
+              className="flex-1 min-w-[200px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+              <option value="">— Select a brand —</option>
+              {availableBrands.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            <button onClick={() => handleLink(selectedBrandId)} disabled={!selectedBrandId}
+              className="flex items-center gap-1.5 px-3 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground text-xs font-semibold rounded-xl transition-colors">
+              <Link2 className="w-3.5 h-3.5" /> Link
+            </button>
+          </>
+        ) : (
+          <>
+            <input type="text" value={manualBrandId} onChange={(e) => setManualBrandId(e.target.value)}
+              placeholder="Enter brand ID…"
+              className="flex-1 min-w-[200px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all" />
+            <button onClick={() => handleLink(manualBrandId.trim())} disabled={!manualBrandId.trim()}
+              className="flex items-center gap-1.5 px-3 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground text-xs font-semibold rounded-xl transition-colors">
+              <Link2 className="w-3.5 h-3.5" /> Link
+            </button>
+            <a href="/governance/brand-library" className="text-xs text-info-text hover:underline shrink-0">
+              Brand Library
+            </a>
+          </>
         )}
       </div>
 
@@ -362,7 +382,7 @@ function BrandsTab({ unitId }: { unitId: string }) {
           <p className="text-sm text-[var(--foreground-muted)]">No brands linked to this unit.</p>
           {allBrands.length === 0 && (
             <a href="/governance/brand-library" className="mt-2 text-xs text-info-text hover:underline">
-              Create brands in Brand Library first
+              Create brands in Brand Library
             </a>
           )}
         </div>
@@ -378,32 +398,35 @@ function BrandsTab({ unitId }: { unitId: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {brands.map((b) => (
-                <tr key={b.id} className="hover:bg-[var(--surface-hover)]/30 transition-colors">
-                  <td className="py-2.5 px-4">
-                    <p className="text-sm font-semibold text-[var(--foreground)]">
-                      {linkedBrandMap.get(b.brand_id) || b.brand_id}
-                    </p>
-                    <p className="text-[10px] text-[var(--foreground-muted)] font-mono">{b.brand_id}</p>
-                  </td>
-                  <td className="py-2.5 px-4">
-                    {linkedBrandMap.has(b.brand_id) ? (
-                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-success-text/10 text-success-text">Active</span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-warning-text/10 text-warning-text">Unknown</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-4">
-                    <span className="text-xs text-[var(--foreground-muted)]">{timeAgo(b.linked_at)}</span>
-                  </td>
-                  <td className="py-2.5 px-4">
-                    <button onClick={() => handleUnlink(b.brand_id)}
-                      className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all" title="Unlink">
-                      <Unlink className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {brands.map((b) => {
+                const profile = allBrands.find(p => p.id === b.brand_id);
+                return (
+                  <tr key={b.id} className="hover:bg-[var(--surface-hover)]/30 transition-colors">
+                    <td className="py-2.5 px-4">
+                      <p className="text-sm font-semibold text-[var(--foreground)]">
+                        {profile?.name || b.brand_id}
+                      </p>
+                      <p className="text-[10px] text-[var(--foreground-muted)] font-mono">{b.brand_id}</p>
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {profile ? (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-success-text/10 text-success-text">{profile.status || "Active"}</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-warning-text/10 text-warning-text">Unknown</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <span className="text-xs text-[var(--foreground-muted)]">{timeAgo(b.linked_at)}</span>
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <button onClick={() => handleUnlink(b.brand_id)}
+                        className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all" title="Unlink">
+                        <Unlink className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -427,7 +450,7 @@ function EvidenceScopesTab({ unitId }: { unitId: string }) {
       const res = await api.get(`/api/v1/units/${unitId}/evidence-scope`);
       if (res.success === false) { setToast(String(res.error || "Failed to load")); return; }
       setScopes(res.data || []);
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch { setToast("Failed to load evidence scopes"); } finally { setLoading(false); }
   }, [unitId]);
 
   useEffect(() => { fetchScopes(); }, [fetchScopes]);
@@ -530,10 +553,12 @@ function EvidenceScopesTab({ unitId }: { unitId: string }) {
 function ActivityLogTab({ unitId }: { unitId: string }) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     api.get(`/api/v1/units/${unitId}/activity`).then((res) => {
+      if (res.success === false) { setToast(String(res.error || "Failed to load activity")); setEntries([]); return; }
       setEntries(res.data || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [unitId]);
@@ -594,6 +619,13 @@ function SettingsTab({ unit, onUpdated }: { unit: BusinessUnit; onUpdated: () =>
   const [description, setDescription] = useState(unit.description || "");
   const [color, setColor] = useState(unit.color);
   const [unitType, setUnitType] = useState(unit.unit_type);
+
+  useEffect(() => {
+    setName(unit.name);
+    setDescription(unit.description || "");
+    setColor(unit.color);
+    setUnitType(unit.unit_type);
+  }, [unit.id, unit.name, unit.description, unit.color, unit.unit_type]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -601,12 +633,13 @@ function SettingsTab({ unit, onUpdated }: { unit: BusinessUnit; onUpdated: () =>
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await api.put(`/api/v1/units/${unit.id}`, {
+      const res = await api.put(`/api/v1/units/${unit.id}`, {
         name: name.trim(),
         description: description.trim() || null,
         color,
         unit_type: unitType,
       });
+      if (res.success === false) { setToast(String(res.error || "Failed to save settings")); setSaving(false); return; }
       setToast("Settings saved");
       onUpdated();
     } catch { setToast("Failed to save settings"); } finally { setSaving(false); }

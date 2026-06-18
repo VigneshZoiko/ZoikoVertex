@@ -4,6 +4,26 @@ import { AuthRequest } from '../../shared/authMiddleware';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const VALID_UNIT_TYPES = ['department', 'region', 'team', 'division', 'project'];
+const VALID_ROLES_IN_UNIT = ['ADMIN', 'MEMBER', 'VIEWER'];
+
+async function resolveOwnerName(ownerId: string | null): Promise<string | null> {
+  if (!ownerId) return null;
+  const { data: wm } = await supabaseAdmin
+    .from('workspace_members')
+    .select('user_id')
+    .eq('id', ownerId)
+    .single();
+  if (!wm) return null;
+  const { data: ownerUser } = await supabaseAdmin
+    .from('users')
+    .select('email, full_name')
+    .eq('id', wm.user_id)
+    .single();
+  if (!ownerUser) return null;
+  return ownerUser.full_name || ownerUser.email?.split('@')[0] || 'Assigned';
+}
+
 async function logActivity(
   businessUnitId: string,
   workspaceId: string,
@@ -15,17 +35,46 @@ async function logActivity(
   beforeState: Record<string, unknown> = {},
   afterState: Record<string, unknown> = {},
 ) {
-  await supabaseAdmin.from('business_unit_activity_log').insert({
-    business_unit_id: businessUnitId,
-    workspace_id: workspaceId,
-    actor_id: actorId,
-    actor_name: actorName,
-    actor_role: actorRole,
-    event_type: eventType,
-    description,
-    before_state: beforeState,
-    after_state: afterState,
-  });
+  try {
+    await supabaseAdmin.from('business_unit_activity_log').insert({
+      business_unit_id: businessUnitId,
+      workspace_id: workspaceId,
+      actor_id: actorId,
+      actor_name: actorName,
+      actor_role: actorRole,
+      event_type: eventType,
+      description,
+      before_state: beforeState,
+      after_state: afterState,
+    });
+  } catch (err) {
+    console.error('Failed to log unit activity:', err);
+  }
+}
+
+async function requireUnitAccess(
+  unitId: string,
+  workspaceId: string | null | undefined,
+  isSuperAdmin: boolean | undefined,
+): Promise<{ unit: Record<string, unknown> | null; error: { status: number; message: string } | null }> {
+  type Result = { unit: Record<string, unknown> | null; error: { status: number; message: string } | null };
+  if (isSuperAdmin) {
+    const { data } = await supabaseAdmin.from('business_units').select('*').eq('id', unitId).single();
+    if (!data) return { unit: null, error: { status: 404, message: 'Business unit not found' } };
+    return { unit: data, error: null };
+  }
+
+  if (!workspaceId) return { unit: null, error: { status: 403, message: 'Workspace context missing' } };
+
+  const { data } = await supabaseAdmin
+    .from('business_units')
+    .select('*')
+    .eq('id', unitId)
+    .eq('workspace_id', workspaceId)
+    .single();
+
+  if (!data) return { unit: null, error: { status: 404, message: 'Business unit not found' } };
+  return { unit: data, error: null };
 }
 
 async function checkCampaignsOrEvidence(unitId: string): Promise<boolean> {
@@ -121,16 +170,25 @@ export const listUnits = async (req: AuthRequest, res: Response, next: NextFunct
       for (const id of unitIds) brandCountMap.set(id, countMap.get(id) || 0);
     }
 
-    // Batch-fetch owner names
+    // Batch-fetch owner names (owner_id → workspace_members.id → users)
     const ownerIdSet = new Set(unitList.map(u => u.owner_id).filter(Boolean));
     const ownerNameMap = new Map<string, string>();
     if (ownerIdSet.size > 0) {
-      const { data: ownerUsers } = await supabaseAdmin
-        .from('users')
-        .select('id, email')
+      const { data: wmRows } = await supabaseAdmin
+        .from('workspace_members')
+        .select('id, user_id')
         .in('id', [...ownerIdSet]);
-      for (const u of (ownerUsers || [])) {
-        ownerNameMap.set(u.id, u.email);
+      const userIds = [...new Set((wmRows || []).map(w => w.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: userRows } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name')
+          .in('id', userIds);
+        const userMap = new Map((userRows || []).map(u => [u.id, { email: u.email, full_name: u.full_name }]));
+        for (const w of (wmRows || [])) {
+          const user = userMap.get(w.user_id);
+          if (user) ownerNameMap.set(w.id, user.full_name || user.email?.split('@')[0] || 'Assigned');
+        }
       }
     }
 
@@ -209,15 +267,7 @@ export const getUnit = async (req: AuthRequest, res: Response, next: NextFunctio
     const { data: unit, error } = await query.single();
     if (error) return res.status(404).json({ error: 'Business unit not found' });
 
-    let owner_name: string | null = null;
-    if (unit.owner_id) {
-      const { data: ownerUser } = await supabaseAdmin
-        .from('users')
-        .select('email')
-        .eq('id', unit.owner_id)
-        .single();
-      if (ownerUser) owner_name = ownerUser.email;
-    }
+    const owner_name = await resolveOwnerName(unit.owner_id);
 
     res.json({ success: true, data: { ...unit, owner_name } });
   } catch (error) {
@@ -241,6 +291,11 @@ export const createUnit = async (req: AuthRequest, res: Response, next: NextFunc
     const { name, description, color, unit_type, owner_id, parent_id } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
 
+    const finalType = unit_type || 'department';
+    if (!VALID_UNIT_TYPES.includes(finalType)) {
+      return res.status(400).json({ error: `Invalid unit_type. Must be one of: ${VALID_UNIT_TYPES.join(', ')}` });
+    }
+
     const finalWorkspaceId = isSuperAdmin ? (req.body.target_workspace_id || workspaceId) : workspaceId;
     if (!finalWorkspaceId) return res.status(400).json({ error: 'Workspace required' });
 
@@ -251,7 +306,7 @@ export const createUnit = async (req: AuthRequest, res: Response, next: NextFunc
         name: name.trim(),
         description: description?.trim() || null,
         color: color || '#6366f1',
-        unit_type: unit_type || 'department',
+        unit_type: finalType,
         owner_id: owner_id || null,
         parent_id: parent_id || null,
         status: 'ACTIVE',
@@ -262,13 +317,15 @@ export const createUnit = async (req: AuthRequest, res: Response, next: NextFunc
 
     if (error) throw error;
 
+    const owner_name = await resolveOwnerName(data.owner_id);
+
     await logActivity(
-      data.id, finalWorkspaceId, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      data.id, finalWorkspaceId, userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.created', `Created business unit "${name.trim()}"`,
-      {}, { name: name.trim(), unit_type: unit_type || 'department' },
+      {}, { name: name.trim(), unit_type: finalType },
     );
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: { ...data, owner_name } });
   } catch (error) {
     next(error);
   }
@@ -297,6 +354,9 @@ export const updateUnit = async (req: AuthRequest, res: Response, next: NextFunc
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
+        if (field === 'unit_type' && !VALID_UNIT_TYPES.includes(req.body[field])) {
+          return res.status(400).json({ error: `Invalid unit_type. Must be one of: ${VALID_UNIT_TYPES.join(', ')}` });
+        }
         beforeState[field] = existing[field];
         updates[field] = req.body[field];
       }
@@ -318,13 +378,15 @@ export const updateUnit = async (req: AuthRequest, res: Response, next: NextFunc
     if (error) throw error;
 
     const changedFields = Object.keys(updates).filter(k => k !== 'updated_by').join(', ');
+    const owner_name = await resolveOwnerName(data.owner_id);
+
     await logActivity(
-      id, existing.workspace_id, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, existing.workspace_id, userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.updated', `Updated ${changedFields}`,
       beforeState, updates,
     );
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: { ...data, owner_name } });
   } catch (error) {
     next(error);
   }
@@ -366,13 +428,15 @@ export const archiveUnit = async (req: AuthRequest, res: Response, next: NextFun
 
     if (error) throw error;
 
+    const owner_name = await resolveOwnerName(existing.owner_id);
+
     await logActivity(
-      id, existing.workspace_id, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, existing.workspace_id, userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.archived', `Archived business unit "${existing.name}"`,
       { status: existing.status }, { status: 'ARCHIVED' },
     );
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: { ...data, owner_name } });
   } catch (error) {
     next(error);
   }
@@ -412,20 +476,21 @@ export const deleteUnit = async (req: AuthRequest, res: Response, next: NextFunc
 
       if (error) throw error;
 
+      const owner_name = await resolveOwnerName(existing.owner_id);
+
       await logActivity(
-        id, existing.workspace_id, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+        id, existing.workspace_id, userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
         'unit.archived', `Archived business unit "${existing.name}" (had campaigns/evidence)`,
         { status: existing.status }, { status: 'ARCHIVED', reason: 'has_dependent_data' },
       );
 
-      return res.json({ success: true, data, archived: true, reason: 'Unit has campaigns or evidence — archived instead of deleted' });
+      return res.json({ success: true, data: { ...data, owner_name }, archived: true, reason: 'Unit has campaigns or evidence — archived instead of deleted' });
     }
 
     // Hard-delete only if no dependent data
-    const { error: deleteError } = await supabaseAdmin
-      .from('business_units')
-      .delete()
-      .eq('id', id);
+    let deleteQuery = supabaseAdmin.from('business_units').delete().eq('id', id);
+    if (!isSuperAdmin) deleteQuery = deleteQuery.eq('workspace_id', workspaceId);
+    const { error: deleteError } = await deleteQuery;
 
     if (deleteError) throw deleteError;
 
@@ -470,13 +535,15 @@ export const restoreUnit = async (req: AuthRequest, res: Response, next: NextFun
 
     if (error) throw error;
 
+    const owner_name = await resolveOwnerName(existing.owner_id);
+
     await logActivity(
-      id, existing.workspace_id, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, existing.workspace_id, userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.restored', `Restored business unit "${existing.name}"`,
       { status: existing.status }, { status: 'ACTIVE' },
     );
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: { ...data, owner_name } });
   } catch (error) {
     next(error);
   }
@@ -490,9 +557,8 @@ export const getUnitMembers = async (req: AuthRequest, res: Response, next: Next
     const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
 
-    if (!isSuperAdmin && !workspaceId) {
-      return res.status(403).json({ error: 'Workspace context missing' });
-    }
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { data, error } = await supabaseAdmin
       .from('business_unit_members')
@@ -505,33 +571,35 @@ export const getUnitMembers = async (req: AuthRequest, res: Response, next: Next
 
     if (error) throw error;
 
-    // Enrich with user info
-    const enriched = await Promise.all((data || []).map(async (m) => {
-      const userId = (m.workspace_members as unknown as { user_id: string })?.user_id;
-      let userName = 'Unknown';
-      let userEmail = '';
-      if (userId) {
-        const { data: user } = await supabaseAdmin
-          .from('users')
-          .select('email')
-          .eq('id', userId)
-          .single();
-        if (user) {
-          userEmail = user.email;
-          userName = user.email?.split('@')[0] ?? 'Unknown';
-        }
+    // Batch-fetch user info (one query, not N)
+    const userIds = [...new Set((data || []).map(m =>
+      (m.workspace_members as unknown as { user_id: string })?.user_id
+    ).filter(Boolean))];
+    const userMap = new Map<string, { email: string; full_name: string }>();
+    if (userIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, email, full_name')
+        .in('id', userIds);
+      for (const u of (users || [])) {
+        userMap.set(u.id, { email: u.email || '', full_name: u.full_name || u.email?.split('@')[0] || 'Unknown' });
       }
+    }
+
+    const enriched = (data || []).map((m) => {
+      const userId = (m.workspace_members as unknown as { user_id: string })?.user_id;
+      const user = userId ? userMap.get(userId) : undefined;
       return {
         id: m.id,
         member_id: m.member_id,
         role_in_unit: m.role_in_unit,
         assigned_at: m.assigned_at,
         user_id: userId,
-        user_email: userEmail,
-        user_name: userName,
+        user_email: user?.email || '',
+        user_name: user?.full_name || 'Unknown',
         workspace_role: (m.workspace_members as unknown as { role: string })?.role,
       };
-    }));
+    });
 
     res.json({ success: true, data: enriched });
   } catch (error) {
@@ -543,18 +611,40 @@ export const addUnitMember = async (req: AuthRequest, res: Response, next: NextF
   try {
     const userId = req.user?.id;
     const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
     const { member_id, role_in_unit } = req.body;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     if (!member_id) return res.status(400).json({ error: 'member_id is required' });
 
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
+    const unitCheck = access.unit as Record<string, unknown>;
+    const unitWorkspaceId = unitCheck.workspace_id as string;
+
+    const { data: memberCheck } = await supabaseAdmin
+      .from('workspace_members')
+      .select('id')
+      .eq('id', member_id)
+      .eq('workspace_id', unitWorkspaceId)
+      .maybeSingle();
+
+    if (!memberCheck) {
+      return res.status(403).json({ error: 'Member does not belong to this workspace' });
+    }
+
+    const finalRole = (role_in_unit || 'MEMBER').toUpperCase();
+    if (!VALID_ROLES_IN_UNIT.includes(finalRole)) {
+      return res.status(400).json({ error: `Invalid role_in_unit. Must be one of: ${VALID_ROLES_IN_UNIT.join(', ')}` });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('business_unit_members')
       .insert({
         business_unit_id: id,
         member_id,
-        role_in_unit: role_in_unit || 'member',
+        role_in_unit: finalRole,
         assigned_by: userId,
       })
       .select('*')
@@ -566,9 +656,9 @@ export const addUnitMember = async (req: AuthRequest, res: Response, next: NextF
     }
 
     await logActivity(
-      id, workspaceId!, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, (workspaceId || ''), userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.member.added', `Added member ${member_id} to unit`,
-      {}, { member_id, role_in_unit: role_in_unit || 'member' },
+      {}, { member_id, role_in_unit: finalRole },
     );
 
     res.json({ success: true, data });
@@ -581,10 +671,14 @@ export const removeUnitMember = async (req: AuthRequest, res: Response, next: Ne
   try {
     const userId = req.user?.id;
     const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
     const memberId = req.params.memberId as string;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { error } = await supabaseAdmin
       .from('business_unit_members')
@@ -595,7 +689,7 @@ export const removeUnitMember = async (req: AuthRequest, res: Response, next: Ne
     if (error) throw error;
 
     await logActivity(
-      id, workspaceId!, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, (workspaceId || ''), userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.member.removed', `Removed member ${memberId} from unit`,
       { member_id: memberId }, {},
     );
@@ -610,7 +704,12 @@ export const removeUnitMember = async (req: AuthRequest, res: Response, next: Ne
 
 export const getUnitBrands = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { data, error } = await supabaseAdmin
       .from('business_unit_brands')
@@ -629,11 +728,15 @@ export const linkUnitBrand = async (req: AuthRequest, res: Response, next: NextF
   try {
     const userId = req.user?.id;
     const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
     const { brand_id } = req.body;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     if (!brand_id) return res.status(400).json({ error: 'brand_id is required' });
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { data, error } = await supabaseAdmin
       .from('business_unit_brands')
@@ -651,7 +754,7 @@ export const linkUnitBrand = async (req: AuthRequest, res: Response, next: NextF
     }
 
     await logActivity(
-      id, workspaceId!, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, (workspaceId || ''), userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.brand.linked', `Linked brand ${brand_id} to unit`,
       {}, { brand_id },
     );
@@ -666,10 +769,14 @@ export const unlinkUnitBrand = async (req: AuthRequest, res: Response, next: Nex
   try {
     const userId = req.user?.id;
     const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
     const brandId = req.params.brandId as string;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { error } = await supabaseAdmin
       .from('business_unit_brands')
@@ -680,7 +787,7 @@ export const unlinkUnitBrand = async (req: AuthRequest, res: Response, next: Nex
     if (error) throw error;
 
     await logActivity(
-      id, workspaceId!, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, (workspaceId || ''), userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.brand.unlinked', `Unlinked brand ${brandId} from unit`,
       { brand_id: brandId }, {},
     );
@@ -723,7 +830,12 @@ export const getUnitActivity = async (req: AuthRequest, res: Response, next: Nex
 
 export const getUnitEvidenceScope = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { data, error } = await supabaseAdmin
       .from('business_unit_evidence_scope')
@@ -742,11 +854,15 @@ export const setUnitEvidenceScope = async (req: AuthRequest, res: Response, next
   try {
     const userId = req.user?.id;
     const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
     const { evidence_id, scope_type } = req.body;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     if (!evidence_id) return res.status(400).json({ error: 'evidence_id is required' });
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { data, error } = await supabaseAdmin
       .from('business_unit_evidence_scope')
@@ -762,7 +878,7 @@ export const setUnitEvidenceScope = async (req: AuthRequest, res: Response, next
     if (error) throw error;
 
     await logActivity(
-      id, workspaceId!, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, (workspaceId || ''), userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.evidence.scoped', `Set evidence scope for ${evidence_id} to ${scope_type || 'restricted'}`,
       {}, { evidence_id, scope_type: scope_type || 'restricted' },
     );
@@ -777,10 +893,14 @@ export const deleteUnitEvidenceScope = async (req: AuthRequest, res: Response, n
   try {
     const userId = req.user?.id;
     const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
     const id = req.params.id as string;
     const scopeId = req.params.scopeId as string;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
     const { data: scope, error: fetchError } = await supabaseAdmin
       .from('business_unit_evidence_scope')
@@ -799,7 +919,7 @@ export const deleteUnitEvidenceScope = async (req: AuthRequest, res: Response, n
     if (deleteError) throw deleteError;
 
     await logActivity(
-      id, workspaceId!, userId, req.user?.email || 'unknown', req.user?.role || 'unknown',
+      id, (workspaceId || ''), userId, req.user?.full_name || req.user?.email || 'unknown', req.user?.role || 'unknown',
       'unit.evidence.scoped', `Removed evidence scope for ${scope.evidence_id}`,
       {}, { evidence_id: scope.evidence_id },
     );
@@ -846,21 +966,30 @@ export const getAvailableMembers = async (req: AuthRequest, res: Response, next:
     // Filter out already assigned members
     const available = (allMembers || []).filter(m => !existingIds.has(m.id));
 
-    // Enrich with user info
-    const enriched = await Promise.all(available.map(async (m) => {
-      const { data: user } = await supabaseAdmin
+    // Batch-fetch user info
+    const availUserIds = available.map(m => m.user_id).filter(Boolean);
+    const availUserMap = new Map<string, { email: string; full_name: string }>();
+    if (availUserIds.length > 0) {
+      const { data: availUsers } = await supabaseAdmin
         .from('users')
-        .select('email')
-        .eq('id', m.user_id)
-        .single();
+        .select('id, email, full_name')
+        .in('id', availUserIds);
+      for (const u of (availUsers || [])) {
+        availUserMap.set(u.id, { email: u.email || '', full_name: u.full_name || u.email?.split('@')[0] || 'Unknown' });
+      }
+    }
+
+    const enriched = available.map((m) => {
+      const user = availUserMap.get(m.user_id);
       return {
         id: m.id,
+        workspace_member_id: m.id,
         user_id: m.user_id,
         workspace_role: m.role,
         user_email: user?.email ?? 'Unknown',
-        user_name: user?.email?.split('@')[0] ?? 'Unknown',
+        user_name: user?.full_name ?? 'Unknown',
       };
-    }));
+    });
 
     res.json({ success: true, data: enriched });
   } catch (error) {

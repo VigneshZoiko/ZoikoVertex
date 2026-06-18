@@ -19,12 +19,8 @@ const UNIT_TYPES = [
 ];
 
 interface WorkspaceMember {
-  id: string; user_id: string; workspace_role: string;
-  user_email: string; user_name: string;
-}
-
-interface BusinessUnit {
-  id: string; name: string;
+  id: string; workspace_member_id?: string;
+  full_name: string; email: string; role: string;
 }
 
 export default function CreateUnitWizard({ onClose, onCreated }: {
@@ -50,6 +46,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
     if (availableMembers.length === 0) {
       setLoadingMembers(true);
       api.get("/api/v1/team/members").then((res) => {
+        if (res.success === false) { setError(String(res.error || "Failed to load members")); return; }
         setAvailableMembers(res.data || []);
       }).catch(() => {}).finally(() => setLoadingMembers(false));
     }
@@ -60,7 +57,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
     setSubmitting(true);
     setError(null);
     try {
-      await api.post("/api/v1/units", {
+      const createRes = await api.post("/api/v1/units", {
         name: name.trim(),
         description: description.trim() || null,
         color,
@@ -68,14 +65,16 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
         owner_id: ownerId || null,
       });
 
-      if (selectedMembers.length > 0) {
-        const { data: units } = await api.get("/api/v1/units");
-        const newUnit = (units as BusinessUnit[]).find((u) => u.name === name.trim());
-        if (newUnit) {
-          await Promise.all(selectedMembers.map((mid) =>
-            api.post(`/api/v1/units/${newUnit.id}/members`, { member_id: mid })
-          ));
-        }
+      if (createRes.success === false) {
+        setError(String(createRes.error || "Failed to create business unit"));
+        setSubmitting(false);
+        return;
+      }
+
+      if (selectedMembers.length > 0 && createRes?.data?.id) {
+        await Promise.all(selectedMembers.map((mid) =>
+          api.post(`/api/v1/units/${createRes.data.id}/members`, { member_id: mid })
+        ));
       }
 
       onCreated();
@@ -147,7 +146,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
                   className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
                   <option value="">— No owner —</option>
                   {availableMembers.map((m) => (
-                    <option key={m.id} value={m.id}>{m.user_name} ({m.user_email})</option>
+                    <option key={m.id} value={m.workspace_member_id || m.id}>{m.full_name} ({m.email})</option>
                   ))}
                 </select>
               </div>
@@ -177,11 +176,11 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
                 <div className="space-y-1 max-h-80 overflow-y-auto">
                   {availableMembers.map((m) => (
                     <label key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[var(--surface-hover)] cursor-pointer transition-colors">
-                      <input type="checkbox" checked={selectedMembers.includes(m.id)} onChange={() => toggleMember(m.id)}
+                      <input type="checkbox" checked={selectedMembers.includes(m.workspace_member_id || m.id)} onChange={() => toggleMember(m.workspace_member_id || m.id)}
                         className="w-4 h-4 rounded border-[var(--border)] accent-info-text" />
                       <div className="flex-1 flex items-center justify-between">
-                        <span className="text-sm text-[var(--foreground)] font-medium">{m.user_name}</span>
-                        <span className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase">{m.workspace_role}</span>
+                        <span className="text-sm text-[var(--foreground)] font-medium">{m.full_name}</span>
+                        <span className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase">{m.role}</span>
                       </div>
                     </label>
                   ))}
@@ -204,7 +203,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
                 {description && <p className="text-xs text-[var(--foreground-muted)]">{description}</p>}
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-[var(--foreground-muted)]">Type:</span> <span className="text-[var(--foreground)] font-medium">{UNIT_TYPES.find(t => t.value === unitType)?.label}</span></div>
-                  <div><span className="text-[var(--foreground-muted)]">Owner:</span> <span className="text-[var(--foreground)] font-medium">{ownerId ? availableMembers.find(m => m.id === ownerId)?.user_name || "Assigned" : "None"}</span></div>
+                  <div><span className="text-[var(--foreground-muted)]">Owner:</span> <span className="text-[var(--foreground)] font-medium">{ownerId ? availableMembers.find(m => (m.workspace_member_id || m.id) === ownerId)?.full_name || "Assigned" : "None"}</span></div>
                   <div><span className="text-[var(--foreground-muted)]">Members:</span> <span className="text-[var(--foreground)] font-medium">{selectedMembers.length}</span></div>
                 </div>
               </div>

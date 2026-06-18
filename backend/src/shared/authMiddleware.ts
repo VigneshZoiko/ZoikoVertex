@@ -8,6 +8,8 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email?: string;
+    full_name?: string;
+    user_metadata?: Record<string, unknown>;
     role?: string | null;
     workspace_id?: string | null;
     workspace_plan?: string | null;
@@ -164,18 +166,20 @@ export const authenticate = async (
     const [{ data: userData }, { data: member }] = await Promise.all([
       supabaseAdmin
         .from("users")
-        .select("is_superadmin")
+        .select("is_superadmin, full_name")
         .eq("id", user.id)
         .single(),
       supabaseAdmin
         .from("workspace_members")
         .select("workspace_id, role, workspaces(plan_type, status, org_id)")
         .eq("user_id", user.id)
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle(),
     ]);
 
     const isSuperAdmin = userData?.is_superadmin || false;
+    const userFullName = userData?.full_name || user.email?.split('@')[0] || '';
     const workspaceId =
       member?.workspace_id ||
       (isSuperAdmin ? "00000000-0000-0000-0000-000000000000" : null);
@@ -199,6 +203,8 @@ export const authenticate = async (
     req.user = {
       id: user.id,
       email: user.email,
+      full_name: userFullName,
+      user_metadata: user.user_metadata as Record<string, unknown> | undefined,
       role: member?.role || null,
       workspace_id: workspaceId,
       workspace_plan: workspacePlan,

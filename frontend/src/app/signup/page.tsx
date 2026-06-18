@@ -152,7 +152,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     if (password !== confirmPwd) { setError("Passwords do not match"); return; }
-    if (strength < 3) { setError("Password too weak ΓÇö add numbers and special characters"); return; }
+    if (strength < 3) { setError("Password too weak - add numbers and special characters"); return; }
     if (!agreedToS) { setError("Please agree to the Terms of Service and Privacy Policy"); return; }
     setLoading(true);
     try {

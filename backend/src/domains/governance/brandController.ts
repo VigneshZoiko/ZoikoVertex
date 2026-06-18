@@ -15,7 +15,9 @@ export const getBrandProfiles = async (req: AuthRequest, res: Response) => {
       .from('brand_profiles')
       .select('*');
 
-    if (!isSuperAdmin) query = query.eq('workspace_id', workspaceId);
+    if (!isSuperAdmin) {
+      query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
+    }
 
     const { data: profiles, error } = await query;
 
