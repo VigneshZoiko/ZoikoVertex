@@ -161,28 +161,18 @@ export default function TeamPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageMembers) return;
     setFormLoading(true);
     setMessage(null);
-
-    if (currentUserRole === "MANAGER" && !isSuperAdmin) {
-      try {
-        await api.post("/api/v1/team/requests", { full_name: fullName, email, role, temporary_password: password });
-        setMessage({ type: "success", text: "Request submitted to Admin for approval." });
-        setFullName(""); setEmail(""); setPassword("");
-      } catch {
-        setMessage({ type: "error", text: "Failed to submit request. Please try again." });
-      }
-    } else if (currentUserRole === "ADMIN" || currentUserRole === "WORKSPACE_OWNER" || isSuperAdmin) {
-      try {
-        await api.post("/api/v1/users/provision", {
-          full_name: fullName, email, role, password,
-        });
-        setMessage({ type: "success", text: "User provisioned successfully!" });
-        setFullName(""); setEmail(""); setPassword("");
-        fetchData();
-      } catch {
-        setMessage({ type: "error", text: "Backend connection failed. Ensure server is running." });
-      }
+    try {
+      await api.post("/api/v1/users/provision", {
+        full_name: fullName, email, role, password,
+      });
+      setMessage({ type: "success", text: "User provisioned successfully!" });
+      setFullName(""); setEmail(""); setPassword("");
+      fetchData();
+    } catch {
+      setMessage({ type: "error", text: "Failed to provision user. Ensure server is running." });
     }
     setFormLoading(false);
   };
@@ -256,6 +246,16 @@ export default function TeamPage() {
               <h2 className="text-lg font-bold text-[var(--foreground)]">Provision User</h2>
             </div>
 
+            {!canManageMembers && (
+              <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
+                <Lock className="w-8 h-8 text-[var(--foreground-muted)]" />
+                <p className="text-sm font-medium text-[var(--foreground)]">Admin access required</p>
+                <p className="text-xs text-[var(--foreground-muted)]">Only Administrators and Workspace Owners can provision users. Contact your admin.</p>
+              </div>
+            )}
+
+            {canManageMembers && (<>
+
             {message && (
               <div className={`mb-4 p-3 text-sm rounded-lg border ${
                 message.type === "success"
@@ -308,6 +308,7 @@ export default function TeamPage() {
                             {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id)).map(r => {
                               const locked = isRoleLocked(r.id);
                               const reqPlan = locked ? getRequiredPlan(r.id) : null;
+                              const isOwner = r.id === "WORKSPACE_OWNER";
                               return (
                                 <button
                                   key={r.id}
@@ -322,7 +323,12 @@ export default function TeamPage() {
                                         : "hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
                                     }`}
                                 >
-                                  <span className="font-medium">{r.name}</span>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{r.name}</span>
+                                    {isOwner && (
+                                      <span className="text-[9px] text-[var(--foreground-muted)]">Workspace-level only · Not Platform Owner</span>
+                                    )}
+                                  </div>
                                   {locked ? (
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-warning-text/80 bg-warning-text/10 border border-warning-border/20 rounded px-1.5 py-0.5 shrink-0">
                                       <Lock className="w-2.5 h-2.5" />
@@ -365,21 +371,18 @@ export default function TeamPage() {
                   type="submit" disabled={formLoading}
                   className="w-full flex items-center justify-center py-2.5 bg-white text-black hover:bg-zinc-200 font-medium rounded-lg transition-colors text-sm disabled:opacity-50"
                 >
-                  {formLoading
-                    ? <RefreshCw className="w-4 h-4 animate-spin" />
-                    : (currentUserRole === "ADMIN" || currentUserRole === "WORKSPACE_OWNER" || isSuperAdmin ? "Provision Account Immediately" : "Submit for Admin Approval")}
+                  {formLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Provision Account Immediately"}
                 </button>
               </div>
             </form>
 
-            {currentUserRole === "MANAGER" && !isSuperAdmin && (
-              <div className="mt-4 p-3 bg-warning-text/10 border border-warning-border/20 rounded-lg flex items-start gap-2">
-                <ShieldAlert className="w-4 h-4 text-warning-text shrink-0 mt-0.5" />
-                <p className="text-xs text-warning-text/90 leading-relaxed">
-                  As a Manager, accounts you provision must be approved by an Administrator before they become active.
-                </p>
-              </div>
-            )}
+            <div className="mt-4 p-3 bg-[var(--surface)]/60 border border-[var(--border)]/50 rounded-lg">
+              <p className="text-[10px] text-[var(--foreground-muted)] leading-relaxed">
+                <span className="font-semibold text-[var(--foreground)]">Workspace Owner</span> grants full workspace-level authority.{" "}
+                <span className="font-semibold text-[var(--foreground)]">Platform Owner</span> is a separate platform-level role managed outside this form.
+              </p>
+            </div>
+            </>)}
           </div>
         </div>
 
