@@ -78,6 +78,7 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
     const { data } = await supabaseAdmin
       .from('publish_intents')
       .select('id, status, agent_id, reviewer_id')
+      .eq('workspace_id', workspaceId)
       .in('id', taskIds as string[]);
     for (const it of data || []) intentById.set(it.id, it);
   } catch { /* some task_ids aren't publish_intents — fine */ }
@@ -87,6 +88,7 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
     const { data } = await supabaseAdmin
       .from('publish_intents')
       .select('id, reviewed_at, reviewer_feedback')
+      .eq('workspace_id', workspaceId)
       .in('id', taskIds as string[]);
     for (const r of data || []) { const e = intentById.get(r.id); if (e) Object.assign(e, r); }
   } catch { /* columns not present in this env */ }
@@ -98,7 +100,7 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
   const agentNameById = new Map<string, string>();
   if (agentIds.length > 0) {
     try {
-      const { data } = await supabaseAdmin.from('agents').select('id, name').in('id', agentIds as string[]);
+      const { data } = await supabaseAdmin.from('agents').select('id, name').eq('workspace_id', workspaceId).in('id', agentIds as string[]);
       for (const a of data || []) agentNameById.set(a.id, a.name);
     } catch { /* ignore */ }
   }
