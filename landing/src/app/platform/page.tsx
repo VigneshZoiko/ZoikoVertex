@@ -15,7 +15,7 @@ import { PlatformSection,
 export default function PlatformPage() {
   return (
     <main>
-      <div className="pt-16">   {/* 👈 this pushes content below fixed navbar */}
+      <div>
         <PlatformSection />
          <PlatformPainPoint />
          <PlatformCategory />

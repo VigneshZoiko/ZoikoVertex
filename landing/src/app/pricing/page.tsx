@@ -7,7 +7,7 @@ import {
 export default function Pricing() {
   return (
     <main>
-      <div className="pt-16">
+      <div>
         <PriceHero />
         <PricingComparison />
         <PricingFAQ />

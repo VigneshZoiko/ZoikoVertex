@@ -16,7 +16,7 @@ export default function AuthLayout({ children, footer }: { children: React.React
   return (
     <div className="h-screen bg-[#0C1422] flex flex-col overflow-y-auto">
       <Navbar />
-      <div className="flex flex-1 pt-[68px]">
+      <div className="flex flex-1">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] w-[48%] shrink-0">
         <div className="max-w-[380px]">

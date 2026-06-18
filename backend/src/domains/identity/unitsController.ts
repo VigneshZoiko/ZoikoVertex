@@ -57,7 +57,6 @@ async function requireUnitAccess(
   workspaceId: string | null | undefined,
   isSuperAdmin: boolean | undefined,
 ): Promise<{ unit: Record<string, unknown> | null; error: { status: number; message: string } | null }> {
-  type Result = { unit: Record<string, unknown> | null; error: { status: number; message: string } | null };
   if (isSuperAdmin) {
     const { data } = await supabaseAdmin.from('business_units').select('*').eq('id', unitId).single();
     if (!data) return { unit: null, error: { status: 404, message: 'Business unit not found' } };
