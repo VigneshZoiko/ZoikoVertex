@@ -48,6 +48,84 @@ export interface AgentRun {
   prompt_version?: string;
   output_snapshot?: string;
   output_status?: string;
+  // Who published this run: the AGENT (auto-published after passing all checks)
+  // or the human who approved it from the Approval Console. Resolved by
+  // enrichRunsWithPostedBy. Null for runs that were never posted (blocked/pending).
+  posted_by?: string | null;
+  posted_by_type?: 'agent' | 'manual' | null;
+}
+
+// Statuses on the source publish_intent that mean the post actually went out.
+const POSTED_INTENT_STATUSES = new Set(['APPROVED', 'PUBLISHED', 'SCHEDULED']);
+
+/**
+ * Resolve a "Posted By" attribution for each run from its source publish_intent
+ * (agent_runs.task_id === publish_intents.id):
+ *   • a human review action (reviewed_at / reviewer_feedback present) → the
+ *     reviewer's name, type 'manual'
+ *   • otherwise, if the intent reached a posted state → the owning agent's name,
+ *     type 'agent' (auto-published after passing every agent + prompt check)
+ *   • not posted yet (blocked/pending/failed) → left null
+ * Best-effort and batched; never throws (a lookup failure just leaves it null).
+ */
+async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise<any[]> {
+  if (!runs || runs.length === 0) return runs;
+  const taskIds = Array.from(new Set(runs.map((r) => r.task_id).filter((x) => isUuid(x))));
+  if (taskIds.length === 0) return runs;
+
+  const intentById = new Map<string, any>();
+  try {
+    const { data } = await supabaseAdmin
+      .from('publish_intents')
+      .select('id, status, agent_id, reviewer_id')
+      .eq('workspace_id', workspaceId)
+      .in('id', taskIds as string[]);
+    for (const it of data || []) intentById.set(it.id, it);
+  } catch { /* some task_ids aren't publish_intents — fine */ }
+  // Manual-review markers live on later-migration columns; select separately so a
+  // missing column doesn't drop the agent_id/reviewer_id resolved above.
+  try {
+    const { data } = await supabaseAdmin
+      .from('publish_intents')
+      .select('id, reviewed_at, reviewer_feedback')
+      .eq('workspace_id', workspaceId)
+      .in('id', taskIds as string[]);
+    for (const r of data || []) { const e = intentById.get(r.id); if (e) Object.assign(e, r); }
+  } catch { /* columns not present in this env */ }
+
+  const intents = Array.from(intentById.values());
+  const agentIds = Array.from(new Set(intents.map((i) => i.agent_id).filter((x) => isUuid(x))));
+  const reviewerIds = Array.from(new Set(intents.map((i) => i.reviewer_id).filter((x) => isUuid(x))));
+
+  const agentNameById = new Map<string, string>();
+  if (agentIds.length > 0) {
+    try {
+      const { data } = await supabaseAdmin.from('agents').select('id, name').eq('workspace_id', workspaceId).in('id', agentIds as string[]);
+      for (const a of data || []) agentNameById.set(a.id, a.name);
+    } catch { /* ignore */ }
+  }
+  const userNameById = new Map<string, string>();
+  if (reviewerIds.length > 0) {
+    try {
+      const { data } = await supabaseAdmin.from('users').select('id, full_name, email').in('id', reviewerIds as string[]);
+      for (const u of data || []) userNameById.set(u.id, u.full_name || u.email || u.id);
+    } catch { /* ignore */ }
+  }
+
+  return runs.map((run) => {
+    const intent = isUuid(run.task_id) ? intentById.get(run.task_id) : undefined;
+    if (!intent) return run;
+    const manual = !!(intent.reviewed_at || intent.reviewer_feedback);
+    if (manual) {
+      const name = intent.reviewer_id ? userNameById.get(intent.reviewer_id) : undefined;
+      return { ...run, posted_by: name || 'Reviewer', posted_by_type: 'manual' as const };
+    }
+    if (POSTED_INTENT_STATUSES.has(String(intent.status || '').toUpperCase())) {
+      const name = intent.agent_id ? agentNameById.get(intent.agent_id) : undefined;
+      return { ...run, posted_by: name || run.agent_name || 'Agent', posted_by_type: 'agent' as const };
+    }
+    return run;
+  });
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -133,7 +211,8 @@ export async function listAgentRuns(params: {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  return { runs: data || [], total: count || 0 };
+  const runs = await enrichRunsWithPostedBy(data || [], params.workspace_id);
+  return { runs, total: count || 0 };
 }
 
 export async function getAgentRun(runId: string) {

@@ -392,6 +392,8 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
       postId: post.id,
       scheduled: true,
       scheduledTime,
+      // Scan the attached media on scheduled posts too.
+      imageUrls: mediaUrl ? [mediaUrl] : [],
     }).catch((err) => logger.warn({ err }, '[Scheduler] workflow link failed (non-blocking)'));
 
     res.status(201).json({ success: true, post });

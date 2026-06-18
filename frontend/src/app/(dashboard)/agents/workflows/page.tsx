@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import ActiveOrchestrations from "./components/ActiveOrchestrations";
 import WorkflowRunDetailDrawer from "./components/WorkflowRunDetailDrawer";
-import PublishedContentPanel from "./components/PublishedContentPanel";
+import PublishedContentPanel, { type PublishedContentItem } from "./components/PublishedContentPanel";
 import {
   RefreshCw,
   GitBranch,
@@ -13,6 +13,7 @@ import {
   XCircle,
   AlertCircle,
   GitMerge,
+  CheckCircle2,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ function mapActiveInstance(instance: any) {
     })(),
     post: instance.post && typeof instance.post === "object"
       ? {
+          id: safeStr(instance.post.id, ""),
           platform: safeStr(instance.post.platform, ""),
           excerpt: safeStr(instance.post.excerpt, ""),
         }
@@ -137,34 +139,46 @@ function safeNum(v: unknown, fallback = 0): number {
 
 function ControlStrip({
   data,
-  approvalStats,
+  posts,
 }: {
   data?: ControlStripData;
-  approvalStats?: ApprovalStats | null;
+  posts?: PublishedContentItem[];
 }) {
-  // Prefer the workspace-scoped workflow count (data.pendingApprovals); fall back
-  // to the approval-records total only if the stats endpoint is unavailable.
-  const totalPending = data?.pendingApprovals ?? approvalStats?.counts?.total_pending ?? 0;
-  const blocked = data?.blockedRuns ?? 0;
+  // Derive the content indicators from the SAME posts shown in the Published
+  // Content panel, so the numbers always match the cards (and a UI delete drops
+  // the matching indicator by 1 automatically). Each post's verdict drives one
+  // bucket: block → Blocked, review → Pending Approvals, otherwise → Successful.
+  // Failed Runs stays a true workflow-execution count from the stats endpoint.
+  const items = posts ?? [];
+  let successful = 0;
+  let pendingReview = 0;
+  let blocked = 0;
+  let highRisk = 0;
+  for (const it of items) {
+    const v = it.check?.verdict;
+    if (v === "block") blocked++;
+    else if (v === "review") pendingReview++;
+    else successful++;
+    if ((it.check?.risk ?? 0) >= 70) highRisk++;
+  }
   const failed = data?.failedRuns ?? 0;
-  // Live per-run risk (open runs scoring ≥ 70) replaces the template-config
-  // "Critical Risk", which was structurally always 0.
-  const highRisk = data?.highRiskRuns ?? 0;
 
   const strip = [
     {
-      label: "Active Workflows",
-      value: data?.activeWorkflows ?? 0,
-      icon: GitMerge,
-      color: "text-info-text",
+      label: "Successful Runs",
+      value: successful,
+      icon: CheckCircle2,
+      color: "text-success-text",
       urgent: false,
+      success: true,
     },
     {
       label: "Pending Approvals",
-      value: totalPending,
+      value: pendingReview,
       icon: FileCheck2,
       color: "text-warning-text",
-      urgent: totalPending > 0,
+      urgent: pendingReview > 0,
+      success: false,
     },
     {
       label: "Blocked Runs",
@@ -172,6 +186,7 @@ function ControlStrip({
       icon: XCircle,
       color: "text-error-text",
       urgent: blocked > 0,
+      success: false,
     },
     {
       label: "Failed Runs",
@@ -179,6 +194,7 @@ function ControlStrip({
       icon: AlertCircle,
       color: "text-red-400",
       urgent: failed > 0,
+      success: false,
     },
     {
       label: "High-Risk Runs",
@@ -186,6 +202,7 @@ function ControlStrip({
       icon: AlertTriangle,
       color: "text-error-text",
       urgent: highRisk > 0,
+      success: false,
     },
   ];
 
@@ -197,6 +214,8 @@ function ControlStrip({
           className={`flex flex-col gap-1.5 p-3.5 rounded-xl border transition-all ${
             item.urgent
               ? "bg-error-text/5 border-error-border/20"
+              : item.success
+              ? "bg-success-text/5 border-success-text/20"
               : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
@@ -207,7 +226,7 @@ function ControlStrip({
             </span>
           </div>
           <p
-            className={`text-2xl font-bold ${item.urgent ? "text-error-text" : "text-[var(--text-primary)]"}`}
+            className={`text-2xl font-bold ${item.urgent ? "text-error-text" : item.success ? "text-success-text" : "text-[var(--text-primary)]"}`}
           >
             {safeNum(item.value)}
           </p>
@@ -223,7 +242,8 @@ export default function WorkflowsPage() {
   const [stats, setStats] = useState<any>(undefined);
   const [active, setActive] = useState<any[]>([]);
   const [publishedContent, setPublishedContent] = useState<any[] | undefined>(undefined);
-  const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(null);
+  // Kept only to consume the approvals/stats fetch; indicators no longer read it.
+  const [, setApprovalStats] = useState<ApprovalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRun, setSelectedRun] = useState<any>(null);
 
@@ -259,6 +279,35 @@ export default function WorkflowsPage() {
     const interval = setInterval(safeFetch, 60000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [fetchAll]);
+
+  // Delete a post: removes it from the DB (post row + linked workflow instance +
+  // operations run) AND from the UI. The card disappears, its row in the Live
+  // Workflow Runs table is removed, and the indicators recompute from the
+  // remaining `publishedContent` (block → Blocked Runs, review → Pending
+  // Approvals, else → Successful Runs). Optimistic: revert via refetch on error.
+  const handleDeletePost = useCallback(
+    async (item: PublishedContentItem) => {
+      const prevPublished = publishedContent;
+      const prevActive = active;
+      // Optimistic UI removal — cards, Live Workflow row (matched by post id),
+      // and the derived indicators all update immediately.
+      setPublishedContent((prev) =>
+        (prev || []).filter((p) => !(p.id === item.id && p.source === item.source)),
+      );
+      setActive((prev) => prev.filter((o) => o.post?.id !== item.id));
+      try {
+        const res = await api.delete(
+          `/api/v1/agents/workflows/published-content/${item.id}?source=${item.source}`,
+        );
+        if (!res?.success) throw new Error(res?.error || "Delete failed");
+      } catch {
+        // Restore the prior state if the server delete failed.
+        setPublishedContent(prevPublished);
+        setActive(prevActive);
+      }
+    },
+    [publishedContent, active],
+  );
 
 
   return (
@@ -302,10 +351,10 @@ export default function WorkflowsPage() {
       </div>
 
       {/* ── Indicators ── */}
-      <ControlStrip data={stats} approvalStats={approvalStats} />
+      <ControlStrip data={stats} posts={publishedContent} />
 
       {/* ── Published Content ── */}
-      <PublishedContentPanel data={publishedContent} />
+      <PublishedContentPanel data={publishedContent} onDelete={handleDeletePost} />
 
       {/* ── Live Workflow Runs ── */}
       <ActiveOrchestrations

@@ -14,7 +14,10 @@ const QUEUE_CLOSED = '(resolved,cancelled)';        // queue items no longer in 
 const INCIDENT_CLOSED = '(resolved,closed)';        // incidents no longer open
 
 function applyRunScope(query: any, workspaceId: string, filters: OperationsScopeFilters = {}) {
-  let scoped = query.eq('workspace_id', workspaceId);
+  // Exclude archived (soft-deleted) runs so the Operations indicators match the
+  // runs list (which also filters archived_at IS NULL). Without this, archiving
+  // runs empties the list but leaves the indicator counts showing stale totals.
+  let scoped = query.eq('workspace_id', workspaceId).is('archived_at', null);
   if (filters.environment) scoped = scoped.eq('environment', filters.environment);
   if (filters.brand_id) scoped = scoped.eq('brand_id', filters.brand_id);
   if (filters.brand_name) scoped = scoped.ilike('brand_name', filters.brand_name);
@@ -75,8 +78,10 @@ export async function getOperationsStats(workspaceId: string, filters: Operation
   // (failed / policy-blocked / quarantined), as a real percentage across the
   // current scope. Replaces the previous static agent trust average.
   const problemRuns = failed + policyBlocked + quarantined;
+  // No runs in scope → 0 (so all indicators read 0 on a cleared/empty Operations
+  // page) rather than a misleading 100%.
   const operationsHealthScore =
-    total > 0 ? Math.max(0, Math.round(((total - problemRuns) / total) * 100)) : 100;
+    total > 0 ? Math.max(0, Math.round(((total - problemRuns) / total) * 100)) : 0;
 
   const denom = total || 1;
   return {

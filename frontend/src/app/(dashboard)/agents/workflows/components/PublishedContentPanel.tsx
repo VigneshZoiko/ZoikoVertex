@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Send, Clock, Bot, ImageIcon, FileText, ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
+import { Send, Clock, Bot, ImageIcon, FileText, ShieldCheck, ShieldAlert, ShieldX, Trash2 } from "lucide-react";
 
 export interface PublishCheck {
   verdict: "safe" | "review" | "block";
@@ -42,8 +42,10 @@ function timeAgo(iso?: string | null): string {
 
 export default function PublishedContentPanel({
   data,
+  onDelete,
 }: {
   data?: PublishedContentItem[];
+  onDelete?: (item: PublishedContentItem) => void;
 }) {
   if (!data) {
     return <div className="h-48 animate-pulse bg-[var(--surface)] rounded-2xl" />;
@@ -174,6 +176,20 @@ export default function PublishedContentPanel({
                   </span>
                 </div>
               </div>
+
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(item);
+                  }}
+                  title="Remove from view"
+                  aria-label="Remove post from view"
+                  className="shrink-0 self-start p-1 rounded-md text-[var(--text-muted)] hover:text-error-text hover:bg-error-text/10 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           ))}
           </div>

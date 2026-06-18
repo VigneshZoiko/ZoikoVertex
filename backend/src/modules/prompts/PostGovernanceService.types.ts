@@ -32,6 +32,11 @@ export interface GovernanceResult {
   evidence_event_id?: string;
   prompt_id?: string;
   prompt_status?: string;
+  // When decision is BLOCK, the agent key that drove it (e.g. 'approval_rules').
+  blocking_agent_key?: string;
+  // For an Approval-Rules block: the customer keyword(s) that matched, surfaced
+  // on the post card / run as the blocked word(s). No governed prompt is attached.
+  approval_block?: { keywords: string[] };
 }
 
 export interface PromptActivationRecord {
