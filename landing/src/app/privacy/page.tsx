@@ -221,7 +221,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-[#f5f6f8]">
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="bg-[#080d1a] pt-[68px]">
+      <section className="bg-[#080d1a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12 sm:py-16">
           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.15em] text-white/30 mb-8 flex-wrap">
             <span>ZoikoVertex</span>

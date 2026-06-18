@@ -167,7 +167,7 @@ export default function PricingSection() {
   }, []);
 
   return (
-    <section className="bg-[#080E1A] py-24 px-6">
+    <section className="bg-[#080E1A] py-24 pt-16 px-6">
       <div ref={ref} className="max-w-[1200] mx-auto">
 
         {/* Header */}

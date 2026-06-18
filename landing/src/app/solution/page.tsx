@@ -12,7 +12,7 @@ import {
 export default function SolutionPage() {
   return (
     <main>
-      <div className="pt-16">   {/* 👈 this pushes content below fixed navbar */}
+      <div>
        <SolutionHero />
        <SolutionStats />
        <SolutionPathways />

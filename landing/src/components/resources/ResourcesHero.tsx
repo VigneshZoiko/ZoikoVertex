@@ -90,7 +90,7 @@ export default function ResourcesHero() {
   }, []);
 
   return (
-    <section className="bg-[#070D1F] min-h-screen pt-28 pb-16 px-6 overflow-hidden">
+    <section className="bg-[#070D1F] min-h-screen pt-16 pb-16 px-6 overflow-hidden">
       <div ref={ref} className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
 
         {/* ── LEFT ── */}

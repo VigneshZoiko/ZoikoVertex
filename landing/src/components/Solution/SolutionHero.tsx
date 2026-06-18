@@ -17,7 +17,7 @@ export default function SolutionHero() {
   }, []);
 
   return (
-    <section className="bg-[#080E1A] min-h-screen pt-20 pb-16 px-6 overflow-hidden">
+    <section className="bg-[#080E1A] min-h-screen pt-16 pb-16 px-6 overflow-hidden">
       <div
         ref={ref}
         className="max-w-[1200] mx-auto grid lg:grid-cols-2 gap-12 items-center"
