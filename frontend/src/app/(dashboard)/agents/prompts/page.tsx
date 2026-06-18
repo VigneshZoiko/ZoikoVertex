@@ -1878,7 +1878,17 @@ function DeploymentConfirmation({ data, prompt, onClose }: {
       .catch(() => { /* fall back to prompt-level links below */ });
   }, [prompt.id]);
 
-  const agents = affectedAgents.length ? affectedAgents : (data.linked_agent && data.linked_agent !== "—" ? [data.linked_agent] : []);
+  // Prefer the full validation chain (every agent the post passed through, in
+  // order) recorded by the runtime pipeline; fall back to graph edges, then the
+  // single linked agent.
+  const validationChain: string[] = Array.isArray(prompt.metadata?.validation_agents)
+    ? (prompt.metadata!.validation_agents as { name?: string }[]).map((a) => String(a?.name || "")).filter(Boolean)
+    : [];
+  const agents = validationChain.length
+    ? validationChain
+    : affectedAgents.length
+      ? affectedAgents
+      : (data.linked_agent && data.linked_agent !== "—" ? [data.linked_agent] : []);
   const workflows = affectedWorkflows.length ? affectedWorkflows : (data.linked_workflow && data.linked_workflow !== "—" ? [data.linked_workflow] : []);
 
   const rows: { label: string; value: string }[] = [

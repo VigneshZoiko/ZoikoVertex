@@ -80,6 +80,9 @@ function mapActiveInstance(instance: any) {
         instance.assigned_agent_name,
       "Assigned Agent",
     ),
+    validationAgents: Array.isArray(instance.validationAgents)
+      ? instance.validationAgents
+      : [],
     owner: safeStr(instance.owner || instance.started_by) || undefined,
     status: INSTANCE_STATUS_MAP[instance.status] || safeStr(instance.status, "Pending"),
     timeInStep: formatRelativeMinutes(

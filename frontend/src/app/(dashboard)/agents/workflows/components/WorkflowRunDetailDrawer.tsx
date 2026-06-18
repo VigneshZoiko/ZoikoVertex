@@ -27,6 +27,7 @@ interface RunData {
   workflowId?: string;
   workflowName: string;
   agentAssigned: string;
+  validationAgents?: { name: string; result: string }[];
   status: string;
   timeInStep: string;
   riskScore?: number;
@@ -112,22 +113,57 @@ const JOURNEY_STEPS = [
   { key: "outcome", label: "Completed / Blocked / Failed", icon: AlertTriangle },
 ];
 
+const journeyIndex = (key: string) => JOURNEY_STEPS.findIndex((s) => s.key === key);
+
+// Work out which journey step a run is currently sitting on. Prefer the run's
+// own currentStep text (mapped onto the journey), and fall back to a sensible
+// per-status default so the timeline is never blank for in-flight runs.
+function resolveActiveIndex(run: RunData): number {
+  const cs = (run.currentStep || "").toLowerCase();
+  if (cs && cs !== "awaiting step") {
+    const direct = JOURNEY_STEPS.findIndex(
+      (s) => cs.includes(s.key) || cs.includes(s.label.toLowerCase()),
+    );
+    if (direct >= 0) return direct;
+    if (/(submit|intake)/.test(cs)) return journeyIndex("submitted");
+    if (/(creat|build|init)/.test(cs)) return journeyIndex("created");
+    if (/(agent|trigger|route|assign)/.test(cs)) return journeyIndex("agent");
+    if (/(prompt|generat|execut)/.test(cs)) return journeyIndex("prompt");
+    if (/(knowledge|\bkb\b|search|retriev)/.test(cs)) return journeyIndex("knowledge");
+    if (/(policy|claim|valid|complian|governance)/.test(cs)) return journeyIndex("policy");
+    if (/(review|approv)/.test(cs)) return journeyIndex("review");
+    if (/(complet|block|fail|outcome|final)/.test(cs)) return journeyIndex("outcome");
+  }
+  switch (run.status) {
+    case "Pending":
+    case "Paused":
+      return journeyIndex("created");
+    case "Waiting":
+      return journeyIndex("review");
+    case "In Progress":
+    case "Processing":
+    default:
+      return journeyIndex("agent");
+  }
+}
+
 function getJourneyState(
   stepKey: string,
-  status: string,
+  run: RunData,
 ): "completed" | "active" | "blocked" | "failed" | "missing" {
+  const status = run.status;
   if (status === "Completed") return "completed";
   if (status === "Blocked" || status === "Failed") {
     if (stepKey === "outcome") return status === "Blocked" ? "blocked" : "failed";
     return "completed";
   }
-  if (status === "In Progress" || status === "Processing") {
-    const activeIndex = JOURNEY_STEPS.findIndex((s) => s.key === "agent");
-    const stepIndex = JOURNEY_STEPS.findIndex((s) => s.key === stepKey);
-    if (stepIndex < activeIndex) return "completed";
-    if (stepIndex === activeIndex) return "active";
-    return "missing";
-  }
+  // Every other status — In Progress, Processing, Pending, Waiting, Paused, or an
+  // unmapped backend value — is treated as an in-flight run: steps up to the
+  // current one are done, the current one is active, later ones are still pending.
+  const activeIndex = resolveActiveIndex(run);
+  const stepIndex = journeyIndex(stepKey);
+  if (stepIndex < activeIndex) return "completed";
+  if (stepIndex === activeIndex) return "active";
   return "missing";
 }
 
@@ -263,7 +299,37 @@ export default function WorkflowRunDetailDrawer({
       case "resources":
         return (
           <div className="rounded-xl border border-[var(--border)] p-4 space-y-0.5 bg-[var(--surface-hover)]/20">
-            <DetailRow label="Agent Linked" value={safeStr(run.agentAssigned)} icon={<Bot className="w-3.5 h-3.5 text-success-text" />} />
+            {run.validationAgents && run.validationAgents.length > 0 ? (
+              <div className="py-2 border-b border-[var(--border)]">
+                <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1.5 mb-2">
+                  <Bot className="w-3.5 h-3.5 text-success-text" />
+                  Validation Agents ({run.validationAgents.length}) — every agent the post passed through
+                </div>
+                <ol className="space-y-1.5">
+                  {run.validationAgents.map((a, i) => {
+                    const verdict = (a.result || "").trim().toUpperCase();
+                    const tone = verdict.startsWith("BLOCK")
+                      ? "text-error-text"
+                      : verdict.startsWith("REVIEW")
+                        ? "text-warning-text"
+                        : verdict.startsWith("SKIPPED")
+                          ? "text-[var(--text-muted)]"
+                          : "text-success-text";
+                    return (
+                      <li key={i} className="flex items-start justify-between gap-3 text-xs">
+                        <span className="text-[var(--text-primary)] font-medium flex items-center gap-1.5">
+                          <span className="text-[var(--text-muted)]">{i + 1}.</span>
+                          {a.name}
+                        </span>
+                        <span className={`text-right max-w-[55%] break-words ${tone}`}>{a.result}</span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            ) : (
+              <DetailRow label="Agent Linked" value={safeStr(run.agentAssigned)} icon={<Bot className="w-3.5 h-3.5 text-success-text" />} />
+            )}
             <DetailRow label="Prompt Linked" value={safeStr(run.prompt)} icon={<MessageSquare className="w-3.5 h-3.5 text-sky-400" />} />
             <DetailRow
               label="Knowledge Base Source"
@@ -286,7 +352,7 @@ export default function WorkflowRunDetailDrawer({
         return (
           <div className="space-y-1.5">
             {JOURNEY_STEPS.map((step) => {
-              const state = getJourneyState(step.key, run.status);
+              const state = getJourneyState(step.key, run);
               return (
                 <div key={step.key} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${getJourneyColor(state)}`}>
                   {getJourneyIcon(state, step.icon)}
