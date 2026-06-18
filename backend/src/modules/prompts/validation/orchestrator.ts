@@ -60,6 +60,10 @@ export interface OrchestrationOutcome {
   risk: { level: string; score: number; categories: Record<string, boolean> };
   knowledge: { checked: boolean; status: string; matches?: KnowledgeMatch[] };
   findings: AgentFinding[];
+  // When decision is BLOCK, which agent's verdict drove it. Lets downstream
+  // (PostGovernanceService / Workflows) special-case an Approval-Rules block —
+  // the customer's own keyword rule — and NOT attach a governed prompt to it.
+  blockingAgentKey?: AgentKey;
 }
 
 /** Build a normalized PostInput from loosely-typed publish payloads. */
@@ -189,6 +193,11 @@ function aggregate(findings: AgentFinding[]): OrchestrationOutcome {
 
   // ── BLOCK: any agent blocked ──────────────────────────────────────────
   if (realBlocks.length > 0) {
+    // An Approval-Rules block (the customer's own keyword rule) takes precedence
+    // as the reported blocker so the UI can show "Blocked due to Approval Rules"
+    // and avoid wiring a governed prompt; otherwise report the first blocker.
+    const primaryBlock =
+      realBlocks.find((b) => b.agentKey === 'approval_rules') || realBlocks[0];
     return {
       decision: 'BLOCK',
       possibilityKey: 'POLICY_VIOLATION',
@@ -200,6 +209,7 @@ function aggregate(findings: AgentFinding[]): OrchestrationOutcome {
       },
       knowledge: { checked: knowledge.checked, status: 'Not checked' },
       findings,
+      blockingAgentKey: primaryBlock.agentKey,
     };
   }
 

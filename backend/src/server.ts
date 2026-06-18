@@ -277,6 +277,7 @@ import {
   validateReadiness,
   getActiveOrchestrations,
   getPublishedContent,
+  deletePublishedContentItem,
   getWorkflowStats,
   getWorkflowAnalytics,
   getControlStrip,
@@ -928,6 +929,7 @@ app.get('/api/v1/agents/workflows/control-strip', authenticate, workflowView, sc
 app.get('/api/v1/agents/workflows/analytics', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowAnalytics);
 app.get('/api/v1/agents/workflows/active', authenticate, workflowView, scopeGuard('read:agents', '*'), getActiveOrchestrations);
 app.get('/api/v1/agents/workflows/published-content', authenticate, workflowView, scopeGuard('read:agents', '*'), getPublishedContent);
+app.delete('/api/v1/agents/workflows/published-content/:id', authenticate, scopeGuard('write:content', 'write:publish', '*'), deletePublishedContentItem);
 app.get('/api/v1/agents/workflows/graph', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowGraphGeneral);
 app.get('/api/v1/agents/workflows/escalations', authenticate, workflowView, scopeGuard('read:agents', '*'), getEscalationPaths);
 app.get('/api/v1/agents/workflows/approvals', authenticate, workflowView, scopeGuard('read:agents', '*'), getApprovals);

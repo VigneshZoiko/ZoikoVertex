@@ -356,8 +356,10 @@ function RegistryTab({
     return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
   }, []);
 
-  const failedBlockedCount = useCallback((p: PromptRecord): number => {
-    return (p.metadata?.block_count || 0) + (p.metadata?.fail_count || 0);
+  // How many posts this prompt has been used to check/validate — the
+  // usage_count stamped on every real post run by PostGovernanceService.
+  const postsCheckedCount = useCallback((p: PromptRecord): number => {
+    return (p.metadata?.usage_count as number) || 0;
   }, []);
 
   // Knowledge Base sources the prompt actually consulted on its last run. Falls
@@ -384,12 +386,10 @@ function RegistryTab({
             <col style={{ width: "170px" }} />
             <col style={{ width: "190px" }} />
             <col style={{ width: "130px" }} />
-            <col style={{ width: "130px" }} />
             <col style={{ width: "150px" }} />
             <col style={{ width: "150px" }} />
             <col style={{ width: "110px" }} />
-            <col style={{ width: "120px" }} />
-            <col style={{ width: "110px" }} />
+            <col style={{ width: "140px" }} />
           </colgroup>
           <thead>
             <tr className="border-b border-border bg-card/60">
@@ -397,11 +397,10 @@ function RegistryTab({
                 { label: "Prompt Name", width: "170px" },
                 { label: "Purpose", width: "190px" },
                 { label: "Workflow Name", width: "130px" },
-                { label: "Linked Agent", width: "130px" },
                 { label: "Knowledge Source", width: "150px" },
                 { label: "Last Used", width: "150px" },
                 { label: "Status", width: "110px" },
-                { label: "Failed / Blocked", width: "120px" }
+                { label: "Posts Checked", width: "140px" }
               ].map((h) => (
                 <th key={h.label} style={{ width: h.width }} className="py-4 px-3 text-[10px] font-black text-foreground-muted uppercase tracking-widest text-center">{h.label}</th>
               ))}
@@ -423,9 +422,6 @@ function RegistryTab({
                   <span className="text-xs text-foreground-muted truncate block max-w-[120px] mx-auto">{p.linked_workflow !== "—" && p.linked_workflow !== "" ? p.linked_workflow : <span className="italic text-foreground-muted">Pending workflow</span>}</span>
                 </td>
                 <td className="py-4 px-3 text-center">
-                  <span className="text-xs text-foreground-muted truncate block max-w-[120px] mx-auto">{p.linked_agent !== "—" && p.linked_agent !== "" ? p.linked_agent : <span className="italic text-foreground-muted">Not linked</span>}</span>
-                </td>
-                <td className="py-4 px-3 text-center">
                   {(() => {
                     const kb = kbSourceFor(p);
                     if (!kb) return <span className="text-xs italic text-foreground-muted">—</span>;
@@ -442,14 +438,14 @@ function RegistryTab({
                 </td>
                 <td className="py-4 px-3 text-center"><SimplifiedStatusBadge p={p} /></td>
                 <td className="py-4 px-3 text-center">
-                  <span className="text-xs text-foreground-muted">{failedBlockedCount(p) > 0 ? failedBlockedCount(p) : "—"}</span>
+                  <span className="text-xs font-semibold text-foreground">{postsCheckedCount(p) > 0 ? postsCheckedCount(p).toLocaleString() : "—"}</span>
                 </td>
               </tr>
               );
             })}
             {prompts.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
+                <td colSpan={7} className="py-20 text-center text-sm text-foreground-muted">No system prompts available.</td>
               </tr>
             )}
           </tbody>

@@ -87,6 +87,10 @@ interface AgentRun {
   retry_count?: number;
   permitted_actions?: RuntimeActionType[];
   action_gates?: Array<{ action: RuntimeActionType; allowed: boolean; reason?: string }>;
+  // Who published the run: the agent (auto, after passing all checks) or the
+  // human who approved it from the Approval Console.
+  posted_by?: string | null;
+  posted_by_type?: "agent" | "manual" | null;
 }
 
 interface RunEvent {
@@ -1503,25 +1507,6 @@ export default function AgentOperationsPage() {
           <p className="text-foreground-muted text-sm">Live supervision · Runtime intervention · Evidence capture</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Context selectors */}
-          <div className="relative">
-            <Building2 className="w-3.5 h-3.5 text-foreground-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-card border border-border rounded-xl pl-7 pr-3 py-1.5 text-xs text-foreground-muted appearance-none focus:outline-none focus:border-border">
-              <option value="">All Brands</option>
-              {[...new Set(runs.map((r) => r.brand_name).filter(Boolean))].sort().map((b) => (
-                <option key={b} value={b!}>{b}</option>
-              ))}
-            </select>
-          </div>
-          <div className="relative">
-            <Globe className="w-3.5 h-3.5 text-foreground-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <select value={envFilter} onChange={(e) => setEnvFilter(e.target.value)} className="bg-card border border-border rounded-xl pl-7 pr-3 py-1.5 text-xs text-foreground-muted appearance-none focus:outline-none focus:border-border">
-              <option value="">All Envs</option>
-              <option value="production">Production</option>
-              <option value="staging">Staging</option>
-              <option value="development">Development</option>
-            </select>
-          </div>
 
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-400">
             <Radio className="w-3 h-3" />
@@ -1626,80 +1611,6 @@ export default function AgentOperationsPage() {
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-foreground-muted" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-foreground-muted focus:outline-none focus:border-border"
-              >
-                <option value="">All Statuses</option>
-                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                  <option key={key} value={key}>{cfg.label}</option>
-                ))}
-              </select>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                aria-label="Sort runs by"
-                className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-foreground-muted focus:outline-none focus:border-border"
-              >
-                <option value="created_at">Created</option>
-                <option value="last_event_at">Last event</option>
-                <option value="due_at">Due</option>
-                <option value="priority">Priority</option>
-                <option value="severity">Severity</option>
-                <option value="status">Status</option>
-              </select>
-              <button
-                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                aria-label={`Sort direction: ${sortDir === "asc" ? "ascending" : "descending"}`}
-                title={sortDir === "asc" ? "Ascending" : "Descending"}
-                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors"
-              >
-                {sortDir === "asc" ? "↑" : "↓"}
-              </button>
-              <div className="flex items-center gap-1.5 text-[10px] text-foreground-muted">
-                <CalendarRange className="w-3.5 h-3.5" />
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  aria-label="Created from date"
-                  className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground-muted focus:outline-none focus:border-border"
-                />
-                <span>–</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  aria-label="Created to date"
-                  className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground-muted focus:outline-none focus:border-border"
-                />
-                {(dateFrom || dateTo) && (
-                  <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-foreground-muted hover:text-foreground" aria-label="Clear date range" title="Clear dates">✕</button>
-                )}
-              </div>
-              {/* Saved operational views */}
-              <select
-                value=""
-                onChange={(e) => { if (e.target.value) applySavedView(e.target.value); }}
-                aria-label="Apply saved view"
-                className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-foreground-muted focus:outline-none focus:border-border"
-              >
-                <option value="">Saved views…</option>
-                {savedViews.map((v) => (
-                  <option key={v.name} value={v.name}>{v.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={saveCurrentView}
-                title="Save current filters as a view"
-                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors"
-              >
-                Save view
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-[10px] text-foreground-muted">
                 <SeverityDot severity="critical" /><span>Critical</span>
                 <span className="mx-1.5" />
@@ -1732,26 +1643,25 @@ export default function AgentOperationsPage() {
               <p className="text-emerald-400 font-semibold mb-1">No Active Runs</p>
               <p className="text-foreground-muted text-sm mb-4">Agent operations are clear. No runs match the current filter.</p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
-                <button onClick={() => setStatusFilter("SCHEDULED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-foreground hover:border-border transition-colors flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Scheduled Runs</button>
                 <a href="/agents/studio" className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-foreground hover:border-border transition-colors flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" />Agent Catalog</a>
-                <button onClick={() => setStatusFilter("COMPLETED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-foreground hover:border-border transition-colors flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />Recent Completed</button>
               </div>
             </div>
           ) : viewMode === "list" ? (
             /* ── List View ── */
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
+                <span>Posted By</span>
               </div>
               <div className="divide-y divide-border">
                 {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   return (
-                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1784,6 +1694,17 @@ export default function AgentOperationsPage() {
                           </span>
                         ) : (
                           <EvidenceBadge status={run.evidence_status} />
+                        )}
+                      </div>
+                      {/* Posted By — agent (auto-published) or the human approver */}
+                      <div>
+                        {run.posted_by ? (
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${run.posted_by_type === "manual" ? "text-indigo-400" : "text-emerald-400"}`} title={run.posted_by_type === "manual" ? "Approved from the Approval Console" : "Auto-published by agent"}>
+                            {run.posted_by_type === "manual" ? <UserCheck className="w-3 h-3 shrink-0" /> : <Bot className="w-3 h-3 shrink-0" />}
+                            <span className="truncate">{run.posted_by}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-foreground-muted">—</span>
                         )}
                       </div>
                     </div>

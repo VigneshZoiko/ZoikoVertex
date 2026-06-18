@@ -151,10 +151,9 @@ export const submitIntent = async (
     //         (green when safe, red when flagged, via risk_level).
     // Fail-safe: if the safety check errors, the post goes to review, never
     // auto-publish.
-    const AUTO_PUBLISH_LEVELS = new Set(['L4', 'L5', 'L6']);
     const { data: wsAgents } = await supabaseAdmin
       .from('agents')
-      .select('id, name, type, status, platforms, linked_channels, autonomy_level')
+      .select('id, name, type, status, platforms, linked_channels')
       .eq('workspace_id', targetWorkspaceId)
       .limit(50);
     const agentList = wsAgents || [];
@@ -231,16 +230,17 @@ export const submitIntent = async (
       row.risk_level = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(gov.riskLevel) ? gov.riskLevel : 'LOW';
       row.risk_score = gov.riskScore;
 
-      const autonomyOk = !!agent && AUTO_PUBLISH_LEVELS.has(String(agent.autonomy_level || 'L0').toUpperCase());
-
-      // Route from the aggregated 6-agent verdict:
-      //   • any agent BLOCK            → GOVERNANCE_BLOCKED (never reaches console)
-      //   • all APPROVE + 100% safe + L4–L6 agent → APPROVED (auto-publish)
-      //   • everything else (incl. any REVIEW) → PENDING_REVIEW (Approval Console)
+      // Route from the aggregated 6-agent verdict (no per-agent autonomy level —
+      // the L1–L6 gate was removed). A post auto-publishes ONLY when it is 100%
+      // safe: every agent + prompt check passed (decision APPROVE) AND the safety
+      // backstop found zero risk. Anything else goes to the Approval Console.
+      //   • any agent BLOCK                      → GOVERNANCE_BLOCKED (never reaches console)
+      //   • all checks pass + 100% safe          → APPROVED (auto-publish, attributed to the agent)
+      //   • everything else (incl. any REVIEW)   → PENDING_REVIEW (Approval Console)
       if (gov.decision === 'BLOCK') {
         row.status = 'GOVERNANCE_BLOCKED';
         row.feedback = gov.reason;
-      } else if (gov.decision === 'APPROVE' && gov.safeRisk === 0 && autonomyOk) {
+      } else if (gov.decision === 'APPROVE' && gov.safeRisk === 0) {
         row.status = 'APPROVED';
       } else {
         row.status = 'PENDING_REVIEW';
@@ -254,24 +254,52 @@ export const submitIntent = async (
     // missing display column, strip whatever column PostgREST reports as unknown
     // and retry. The routing decision (status) and the workflow wiring below
     // rely only on base columns, so stripping these never breaks publishing.
+    // Fallback status to use when the live intent_status enum is missing a value
+    // we tried to write (until the matching migration is applied). A blocked post
+    // still surfaces as BLOCKED in the Workflows view (that badge comes from the
+    // linked workflow instance's verdict, not this status), so a terminal
+    // REJECTED keeps it out of the human review console while never 500-ing the
+    // publish. See migrations/intent_status_governance_blocked.sql.
+    const ENUM_STATUS_FALLBACK: Record<string, string> = {
+      GOVERNANCE_BLOCKED: 'REJECTED',
+    };
     let data: any[] | null = null;
     let error: any = null;
     let rowsToInsert = intentsToCreate as any[];
     const strippedColumns: string[] = [];
+    const remappedStatuses: string[] = [];
     for (let attempt = 0; attempt < 6; attempt++) {
       const res2 = await supabaseAdmin.from('publish_intents').insert(rowsToInsert).select();
       if (!res2.error) { data = res2.data; error = null; break; }
       error = res2.error;
-      const missing = /Could not find the '([^']+)' column/.exec(res2.error.message || '');
-      if (!missing) break; // a different error — don't loop
-      const col = missing[1];
-      strippedColumns.push(col);
-      rowsToInsert = rowsToInsert.map((r) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [col]: _omit, ...rest } = r;
-        return rest;
-      });
-      logger.warn({ col }, '[Governance] publish_intents missing column — retrying insert without it');
+      const msg = res2.error.message || '';
+      const missing = /Could not find the '([^']+)' column/.exec(msg);
+      if (missing) {
+        const col = missing[1];
+        strippedColumns.push(col);
+        rowsToInsert = rowsToInsert.map((r) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [col]: _omit, ...rest } = r;
+          return rest;
+        });
+        logger.warn({ col }, '[Governance] publish_intents missing column — retrying insert without it');
+        continue;
+      }
+      // Invalid enum value (e.g. 'GOVERNANCE_BLOCKED' not yet added to
+      // intent_status). Remap the offending status to a valid fallback and retry
+      // rather than 500-ing the whole publish.
+      const badEnum = /invalid input value for enum \w+: "([^"]+)"/.exec(msg);
+      if (badEnum) {
+        const badVal = badEnum[1];
+        const fallback = ENUM_STATUS_FALLBACK[badVal] || 'PENDING_REVIEW';
+        remappedStatuses.push(`${badVal}→${fallback}`);
+        rowsToInsert = rowsToInsert.map((r) =>
+          r.status === badVal ? { ...r, status: fallback } : r,
+        );
+        logger.warn({ badVal, fallback }, '[Governance] intent_status enum missing value — remapping and retrying (apply intent_status_governance_blocked.sql)');
+        continue;
+      }
+      break; // a different error — don't loop
     }
 
     if (error || !data) {
@@ -281,6 +309,9 @@ export const submitIntent = async (
         error: error?.message || 'Insert failed',
         detail: (error as any)?.details || (error as any)?.hint || null,
       });
+    }
+    if (remappedStatuses.length > 0) {
+      logger.warn({ remappedStatuses }, '[Governance] published with remapped intent_status — apply intent_status_governance_blocked.sql for the real status');
     }
     if (strippedColumns.length > 0) {
       logger.warn({ strippedColumns }, '[Governance] published with missing columns stripped — apply migration to enable risk display');
@@ -336,6 +367,8 @@ export const submitIntent = async (
           content: intent.caption ?? intent.content ?? '',
           postId: intent.id,
           scheduled: false,
+          // Pass attached media so the workflow/card verdict also scans images.
+          imageUrls: intent.media_urls ?? (intent.media_url ? [intent.media_url] : []),
         }),
       ),
     )

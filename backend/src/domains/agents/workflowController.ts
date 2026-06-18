@@ -14,7 +14,7 @@ import * as builderService from '../../services/workflowBuilder.service';
 import * as threeKeyService from '../../services/workflowThreeKey.service';
 import * as exportService from '../../services/workflowExport.service';
 import * as notificationService from '../../services/workflowNotification.service';
-import { enrichInstancesWithReview, getRecentPublishedContent } from '../../services/workflowPublishLink.service';
+import { enrichInstancesWithReview, getRecentPublishedContent, deletePublishedContent } from '../../services/workflowPublishLink.service';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 import { executeInstance } from '../../modules/workflow-engine/executor';
 
@@ -472,6 +472,22 @@ export const getPublishedContent = async (req: AuthRequest, res: Response, next:
     res.json({ success: true, data: items });
   } catch (err) {
     logger.error({ err }, 'Failed to get published content');
+    next(err);
+  }
+};
+
+/** DELETE /api/v1/agents/workflows/published-content/:id — remove a post and its workflow footprint (real DB delete). */
+export const deletePublishedContentItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const id = String(req.params.id || '');
+    if (!id) return res.status(400).json({ error: 'Post id is required' });
+    const source = getQueryValue(req, 'source') === 'schedule' ? 'schedule' : 'publish';
+    const result = await deletePublishedContent(workspaceId, id, source);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to delete published content');
     next(err);
   }
 };

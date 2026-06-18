@@ -2,8 +2,9 @@
 // Agent 3 — Approval Rules Agent
 //
 // Main purpose: enforce the words THIS customer banned. Reads the
-// tenant-configured `keyword_rules` on ACTIVE rows of the `approval_rules`
-// table (the Approval Rules page) and flags the post when its text contains a
+// tenant-configured `keyword_rules` on every enforceable row of the
+// `approval_rules` table (any status except DISABLED/ARCHIVED/INVALID — see
+// KEYWORD_RULE_OFF_STATUSES) and flags the post when its text contains a
 // blocked keyword. The rule's own action decides the verdict:
 //   • action BLOCK          → BLOCK
 //   • action REQUEST_REVIEW  → REVIEW
@@ -24,8 +25,17 @@ export interface KeywordRule {
   action: 'BLOCK' | 'REQUEST_REVIEW';
 }
 
+// Statuses that mean the rule is explicitly turned OFF and must NOT be enforced.
+// Everything else (DRAFT, NEEDS_REVIEW, READY_TO_PUBLISH, ACTIVE,
+// ACTIVE_WITH_DRAFT_CHANGES, CONFLICT_DETECTED) is enforced at publish time.
+// Rationale: the Approval Rules page creates keyword rules as DRAFT and exposes
+// no publish/activate action, so a DRAFT rule would otherwise NEVER enforce — a
+// banned word like "zoiko" would silently pass through to the claim agents.
+// This matches the Validation Desk test surface, which already includes DRAFT.
+const KEYWORD_RULE_OFF_STATUSES = ['DISABLED', 'ARCHIVED', 'INVALID'];
+
 /**
- * Load every keyword rule from ACTIVE approval rules in the workspace.
+ * Load every enforceable keyword rule for the workspace.
  * Shared with the Image Validation Agent so the blocked-word list is fetched
  * from one place and matched against both post text and image-OCR text.
  * Fails safe to an empty list (so a DB/migration issue never hard-blocks posts).
@@ -38,7 +48,7 @@ export async function loadKeywordRules(
     let query = supabaseAdmin
       .from('approval_rules')
       .select('id, keyword_rules, rule_status, workspace_id, tenant_id')
-      .in('rule_status', ['ACTIVE', 'ACTIVE_WITH_DRAFT_CHANGES']);
+      .not('rule_status', 'in', `(${KEYWORD_RULE_OFF_STATUSES.join(',')})`);
 
     if (tenantId) query = query.eq('tenant_id', tenantId);
     else query = query.eq('workspace_id', workspaceId);

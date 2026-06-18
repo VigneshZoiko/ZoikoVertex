@@ -118,7 +118,7 @@ export default function ActiveOrchestrations({
             <GitMerge className="w-5 h-5 text-info-text" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">Live Workflow Runs</h2>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">Active Workflows</h2>
             <p className="text-xs text-[var(--text-secondary)]">
               Real-time workflow instance monitoring
             </p>
@@ -142,7 +142,6 @@ export default function ActiveOrchestrations({
               <th className="px-5 py-3 font-medium bg-[var(--surface)]">Next Step</th>
               <th className="px-5 py-3 font-medium bg-[var(--surface)]">Risk Score</th>
 
-              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Agent Linked</th>
               <th className="px-5 py-3 font-medium bg-[var(--surface)]">Prompt</th>
               <th className="px-5 py-3 font-medium bg-[var(--surface)]">Knowledge Base Source</th>
               <th className="px-5 py-3 font-medium bg-[var(--surface)]">Time</th>
@@ -151,7 +150,7 @@ export default function ActiveOrchestrations({
           <tbody className="divide-y divide-[var(--border)]">
             {data.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-sm text-[var(--text-muted)]">
+                <td colSpan={7} className="px-5 py-12 text-center text-sm text-[var(--text-muted)]">
                   No active workflow instances. When workflows run, instances appear here in real time.
                 </td>
               </tr>
@@ -182,9 +181,6 @@ export default function ActiveOrchestrations({
                   ) : (
                     <span className="text-xs text-[var(--text-muted)]">—</span>
                   )}
-                </td>
-                <td className="px-5 py-4 text-xs text-[var(--text-secondary)]">
-                  {orch.agentAssigned}
                 </td>
                 <td className="px-5 py-4">
                   <span className="text-xs text-[var(--text-secondary)] max-w-[140px] block truncate">

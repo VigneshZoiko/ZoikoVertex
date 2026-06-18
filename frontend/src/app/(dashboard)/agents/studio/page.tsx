@@ -898,182 +898,6 @@ export default function StudioPage() {
             </div>
           </div>
 
-          {/* Filters row */}
-          <div className="grid gap-3 xl:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by agent, owner, brand, or type"
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] py-3 pl-11 pr-4 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
-              />
-            </div>
-            <select
-              value={brandFilter}
-              onChange={(e) => setBrandFilter(e.target.value)}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
-            >
-              <option value="">All brands</option>
-              {brandOptions.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-            <select
-              value={environmentFilter}
-              onChange={(e) => setEnvironmentFilter(e.target.value)}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
-            >
-              <option value="">All environments</option>
-              <option value="sandbox">Sandbox</option>
-              <option value="staging">Staging</option>
-              <option value="production">Production</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s || "all-status"} value={s}>
-                  {s ? STATUS_LABELS[s] || s : "All statuses"}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <select
-                value={riskFilter}
-                onChange={(e) => setRiskFilter(e.target.value)}
-                className="min-w-0 flex-1 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
-              >
-                {RISK_OPTIONS.map((r) => (
-                  <option key={r || "all-risk"} value={r}>
-                    {r
-                      ? `${r[0].toUpperCase()}${r.slice(1)} risk`
-                      : "All risk tiers"}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowAdvancedFilters((c) => !c)}
-                className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                  showAdvancedFilters || hasFilters
-                    ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-500"
-                    : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-indigo-500/30 hover:text-indigo-500"
-                }`}
-              >
-                <Filter className="h-4 w-4" />
-                Filters
-              </button>
-            </div>
-          </div>
-
-          {/* Advanced filters */}
-          {showAdvancedFilters && (
-            <div className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 md:grid-cols-2 xl:grid-cols-4">
-              <select
-                value={ownerFilter}
-                onChange={(e) => setOwnerFilter(e.target.value)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-              >
-                <option value="">All owners</option>
-                {ownerOptions.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={channelFilter}
-                onChange={(e) => setChannelFilter(e.target.value)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-              >
-                <option value="">All channels</option>
-                {channelOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={workflowFilter}
-                onChange={(e) => setWorkflowFilter(e.target.value)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-              >
-                <option value="">All workflows</option>
-                {workflowOptions.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={knowledgeFilter}
-                onChange={(e) => setKnowledgeFilter(e.target.value)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-              >
-                <option value="">All knowledge sources</option>
-                {knowledgeOptions.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--foreground-muted)]">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5">
-                <Globe className="h-3.5 w-3.5" />
-                Workspace scoped authority
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5">
-                <Zap className="h-3.5 w-3.5" />
-                {filteredAgents.length} visible agents
-              </div>
-              {dismissedIds.length > 0 && (
-                <button
-                  onClick={restoreDismissedAgents}
-                  title="Show retired agents you removed from view"
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 transition hover:border-indigo-500/30 hover:text-indigo-500"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Show {dismissedIds.length} dismissed
-                </button>
-              )}
-              {!canManageAuthority && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-amber-500">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Read-only authority view
-                </div>
-              )}
-            </div>
-            <div className="inline-flex items-center gap-1 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-1">
-              <button
-                onClick={() => setViewMode("table")}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                  viewMode === "table"
-                    ? "bg-indigo-500/10 text-indigo-500"
-                    : "text-[var(--foreground-muted)]"
-                }`}
-              >
-                <LayoutList className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("card")}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                  viewMode === "card"
-                    ? "bg-indigo-500/10 text-indigo-500"
-                    : "text-[var(--foreground-muted)]"
-                }`}
-              >
-                <Grid2X2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1141,52 +965,6 @@ export default function StudioPage() {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* ── Governance summary cards ── */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
-          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
-            Authority Readiness
-          </div>
-          <div className="mt-2 text-sm text-[var(--foreground-muted)]">
-            Agents must have an owner, backup owner, prompt, workflow,
-            knowledge, channel scope, and passing trust thresholds before safe
-            activation.
-          </div>
-          <div className="mt-4 text-2xl font-bold text-[var(--foreground)]">
-            {agents.filter((a) => getReadiness(a) >= 80).length}/
-            {agents.length || 0}
-          </div>
-        </div>
-        <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
-          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
-            Linked Governance Assets
-          </div>
-          <div className="mt-2 text-sm text-[var(--foreground-muted)]">
-            Prompt versions, workflows, policies, and knowledge bindings
-            attached across the visible agent inventory.
-          </div>
-          <div className="mt-4 text-2xl font-bold text-[var(--foreground)]">
-            {agents.reduce((sum, a) => sum + getResourceCount(a), 0)}
-          </div>
-        </div>
-        <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
-          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
-            Next Operator Focus
-          </div>
-          <div className="mt-2 text-sm text-[var(--foreground-muted)]">
-            {summary.governanceDebt > 0
-              ? `${summary.governanceDebt} agents need setup, certification, or governance completion before promotion.`
-              : "Authority inventory is in a healthy state with no immediate governance debt."}
-          </div>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-indigo-500">
-            <Sparkles className="h-3.5 w-3.5" />
-            {summary.governanceDebt > 0
-              ? "Review incomplete agents"
-              : "Ready for review cycle"}
-          </div>
-        </div>
       </div>
 
       {/* ── Agent Catalog ── */}
@@ -1468,17 +1246,6 @@ export default function StudioPage() {
                             View Details
                           </button>
 
-                          {/* Certify/Upgrade → CertificationSandbox */}
-                          {!isRetired && (
-                            <button
-                              onClick={() => openSandbox(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-                            >
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              Certify / Upgrade
-                            </button>
-                          )}
-
                           {/* Request Approval — DRAFT or PENDING_CERTIFICATION */}
                           {agent.status === "DRAFT" && (
                             <button
@@ -1676,13 +1443,6 @@ export default function StudioPage() {
                       </div>
                     </div>
                   </div>
-                  <span
-                    className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] ${getAutonomyStyle(
-                      agent.autonomy_level,
-                    )}`}
-                  >
-                    {agent.autonomy_level}
-                  </span>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -1741,15 +1501,6 @@ export default function StudioPage() {
                     <Eye className="h-3.5 w-3.5" />
                     View Details
                   </button>
-                  {!isRetired && (
-                    <button
-                      onClick={() => openSandbox(agent)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-                    >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Certify / Upgrade
-                    </button>
-                  )}
                   <button
                     onClick={() => runAgentAction(agent, "clone")}
                     disabled={
@@ -1798,23 +1549,6 @@ export default function StudioPage() {
         </div>
       )}
 
-      {/* ── Footer governance note ── */}
-      <div className="flex items-start gap-3 rounded-3xl border border-indigo-500/15 bg-indigo-500/5 p-5 text-sm text-[var(--foreground-muted)]">
-        <Shield className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" />
-        <div>
-          <div className="font-semibold text-[var(--foreground)]">
-            Agent Studio is a governed control plane, not a prompt playground.
-          </div>
-          <div className="mt-1">
-            No agent may publish, approve, respond, schedule, modify, or execute
-            externally unless it has a named owner, approved role, bounded
-            permissions, attached knowledge, approved prompt version, workflow
-            assignment, runtime policy, and evidence trail. Every CTA on this
-            page creates, tests, approves, deploys, pauses, rolls back, retires,
-            or evidences a governed agent record.
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

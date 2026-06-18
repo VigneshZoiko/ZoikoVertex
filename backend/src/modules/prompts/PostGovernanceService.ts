@@ -96,17 +96,37 @@ export class PostGovernanceService {
       POSSIBILITY_BY_KEY[outcome.possibilityKey] || POSSIBILITY_BY_KEY.BASIC_POST;
     const promptLabel = PROMPT_LABELS[outcome.possibilityKey] || PROMPT_LABELS.BASIC_POST;
 
+    // An Approval-Rules block is the customer's own banned-word rule, not one of
+    // the governed prompts. It must short-circuit the prompt lifecycle: NO prompt
+    // is connected/activated, the run just reads "Blocked due to Approval Rules",
+    // and no Knowledge Base is consulted.
+    const isApprovalBlock =
+      outcome.decision === 'BLOCK' && outcome.blockingAgentKey === 'approval_rules';
+    const approvalFinding = outcome.findings.find((f) => f.agentKey === 'approval_rules');
+    const approvalKeywords =
+      isApprovalBlock && Array.isArray(approvalFinding?.details?.blockedKeywords)
+        ? (approvalFinding!.details!.blockedKeywords as unknown[]).map(String).filter(Boolean)
+        : [];
+
     const result: GovernanceResult = {
       decision: outcome.decision,
       possibility,
-      governed_prompt: { label: promptLabel },
-      reason: outcome.reason,
+      governed_prompt: { label: isApprovalBlock ? '' : promptLabel },
+      reason: isApprovalBlock
+        ? `Blocked due to Approval Rules${approvalKeywords.length ? `: ${approvalKeywords.map((k) => `"${k}"`).join(', ')}` : ''}`
+        : outcome.reason,
       risk: outcome.risk,
-      knowledge: outcome.knowledge,
+      knowledge: isApprovalBlock ? { checked: false, status: 'Not checked' } : outcome.knowledge,
       steps: findingsToSteps(outcome.findings),
+      blocking_agent_key: outcome.blockingAgentKey,
+      approval_block: isApprovalBlock ? { keywords: approvalKeywords } : undefined,
     };
 
-    await PostGovernanceService.activatePrompt(result, workspaceId);
+    // Approval-Rules blocks bypass the governed-prompt lifecycle entirely — do not
+    // connect, activate, or record a prompt run for them.
+    if (!isApprovalBlock) {
+      await PostGovernanceService.activatePrompt(result, workspaceId);
+    }
     return result;
   }
 

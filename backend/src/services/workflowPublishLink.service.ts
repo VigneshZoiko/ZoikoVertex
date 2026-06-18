@@ -45,8 +45,11 @@ async function runAgentChecks(
   postId: string | undefined,
   workspaceId: string,
   platform?: string,
+  imageUrls?: string[],
 ): Promise<PublishCheck | null> {
-  if (!content || !content.trim()) return null;
+  // Run even with empty caption when media is attached — an image-only post
+  // (e.g. a drug photo with no text) must still be scanned, not short-circuited.
+  if ((!content || !content.trim()) && !(imageUrls && imageUrls.length)) return null;
   try {
     // 1. Safety moderation (existing)
     const m = await moderate({ content, subjectId: postId, workspaceId, platform });
@@ -64,7 +67,7 @@ async function runAgentChecks(
     // 2. Run full governance classification pipeline
     let governanceResult = null;
     try {
-      governanceResult = await PostGovernanceService.classify(content, platform || 'linkedin', workspaceId);
+      governanceResult = await PostGovernanceService.classify(content, platform || 'linkedin', workspaceId, { imageUrls: imageUrls || [] });
     } catch (govErr) {
       logger.warn({ err: govErr instanceof Error ? govErr.message : String(govErr) }, '[publish-link] governance classification failed (non-blocking)');
     }
@@ -95,6 +98,19 @@ async function runAgentChecks(
       }
     }
 
+    // Approval-Rules block: the customer's own banned word(s) blocked the post.
+    // Show the actual blocked word(s) on the post card as the block reason and
+    // drop any other flags — this is a clean "blocked due to Approval Rules", not
+    // a governed-prompt / policy classification.
+    const isApprovalBlock = governanceResult?.blocking_agent_key === 'approval_rules';
+    if (isApprovalBlock) {
+      const kws = governanceResult?.approval_block?.keywords || [];
+      flags.length = 0;
+      for (const kw of kws.length ? kws : ['Approval Rules']) {
+        flags.push({ category: 'approval_rules', text: kw, severity: 'high' });
+      }
+    }
+
     return {
       verdict,
       severity,
@@ -102,7 +118,12 @@ async function runAgentChecks(
       flags: flags.slice(0, 8),
       governance: governanceResult ? {
         possibility_key: governanceResult.possibility.key,
-        possibility_label: governanceResult.possibility.label,
+        // An Approval-Rules block is the customer's keyword rule, not a governed
+        // possibility — label it as such so the run reads "Approval Rules".
+        possibility_label: isApprovalBlock ? 'Approval Rules' : governanceResult.possibility.label,
+        // No governed prompt is connected to an Approval-Rules block (classify
+        // already clears governed_prompt) — the Live Workflow Runs PROMPT column
+        // renders "—".
         governed_prompt: governanceResult.governed_prompt.label,
         decision: governanceResult.decision,
         // Human-readable reason ("Post contains prohibited content: …") so the
@@ -303,6 +324,10 @@ export interface LinkPublishParams {
   postId?: string;
   scheduled?: boolean;
   scheduledTime?: string;
+  // Media (image/clip) URLs attached to the post. Passed to the Image Validation
+  // Agent so it actually scans the attached media instead of reporting "no images
+  // attached" and skipping — every attached image is rated for unsafe content.
+  imageUrls?: string[];
 }
 
 /**
@@ -312,7 +337,7 @@ export interface LinkPublishParams {
  * the workflows "active" endpoint for display (no schema change required).
  */
 export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<string | null> {
-  const { workspaceId, startedBy, platform, content, postId, scheduled, scheduledTime } = params;
+  const { workspaceId, startedBy, platform, content, postId, scheduled, scheduledTime, imageUrls } = params;
   if (!workspaceId) return null;
 
   try {
@@ -322,8 +347,8 @@ export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<
     const agent = await pickRelevantAgent(workspaceId, platform);
     const excerpt = (content || '').replace(/\s+/g, ' ').trim().slice(0, 140);
 
-    // Agent runs content safety + policy checks on the post.
-    const check = await runAgentChecks(content || '', postId, workspaceId, platform);
+    // Agent runs content safety + policy checks on the post (incl. image scan).
+    const check = await runAgentChecks(content || '', postId, workspaceId, platform, imageUrls);
 
     const stepDesc = check
       ? check.governance
@@ -530,6 +555,51 @@ export async function getRecentPublishedContent(
     return bv.localeCompare(av);
   });
   return items.slice(0, limit);
+}
+
+/**
+ * Delete a published-content post and its whole workflow footprint — the
+ * Workflows-page delete is a REAL DB delete, not UI-only. Removes:
+ *   • the post row (publish_intents or scheduled_posts)
+ *   • any publish-hub workflow_instances linked to it (trigger_source.post_id)
+ *   • the Operations agent_run mirror (agent_runs.task_id), best-effort
+ * Scoped to the workspace. Returns whether a post row was deleted.
+ */
+export async function deletePublishedContent(
+  workspaceId: string,
+  id: string,
+  source: 'publish' | 'schedule',
+): Promise<{ deleted: boolean }> {
+  if (!workspaceId || !id) return { deleted: false };
+
+  const table = source === 'schedule' ? 'scheduled_posts' : 'publish_intents';
+  const { error, count } = await supabaseAdmin
+    .from(table)
+    .delete({ count: 'exact' })
+    .eq('id', id)
+    .eq('workspace_id', workspaceId);
+  if (error) throw error;
+
+  // Remove linked publish-hub workflow instances. trigger_source is JSON TEXT,
+  // so match the embedded post_id with a LIKE on the serialized blob.
+  try {
+    await supabaseAdmin
+      .from('workflow_instances')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .like('trigger_source', `%"post_id":"${id}"%`);
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[publish-link] failed to delete linked workflow_instances');
+  }
+
+  // Remove the Operations run mirror (agent_runs.task_id === post id). Best-effort.
+  try {
+    await supabaseAdmin.from('agent_runs').delete().eq('task_id', id);
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[publish-link] failed to delete linked agent_runs');
+  }
+
+  return { deleted: (count ?? 0) > 0 };
 }
 
 /**
