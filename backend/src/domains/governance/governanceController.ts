@@ -2,7 +2,9 @@
 import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../../shared/supabase';
+import { createReviewItem } from '../../services/reviewQueue.service';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -324,6 +326,37 @@ export const submitIntent = async (
     } catch (err) {
       logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }
+
+    // Bridge: create review_items for PENDING_REVIEW posts so they surface in the Review Queue UI.
+    // Uses createReviewItem with undefined auth (bypasses queue:manage gate — governance submit
+    // is already gated by its own route-level auth). Non-blocking — publish always succeeds.
+    const pendingPosts = (data || []).filter((r: any) => r.status === 'PENDING_REVIEW');
+    await Promise.all(pendingPosts.map(async (intent: any) => {
+      try {
+        await createReviewItem({
+          tenant_id: targetWorkspaceId,
+          workspace_id: targetWorkspaceId,
+          item_type: 'social_post',
+          source_module: 'publish',
+          source_entity_id: intent.id,
+          title: (intent.content || '').slice(0, 80).trim() || `${intent.platform || 'Social'} post`,
+          content_snapshot: {
+            copy: intent.content || '',
+            urls: intent.media_urls || [],
+            platform: intent.platform,
+            target_account_ids: intent.target_account_ids || [],
+          },
+          platform: intent.platform || null,
+          campaign_id: intent.campaign_id || null,
+          submitted_by: userId,
+          assigned_to: undefined,
+          priority: intent.risk_level === 'CRITICAL' ? 'URGENT' : intent.risk_level === 'HIGH' ? 'HIGH' : 'NORMAL',
+          risk_level: intent.risk_level || 'LOW',
+        }, undefined); // undefined = skip permission check
+      } catch (err) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), intentId: intent.id }, '[Governance] review_item bridge failed for intent');
+      }
+    }));
 
     // Auto-publish the 100%-clean, high-autonomy posts (status pre-set to
     // APPROVED above). Reuse the SAME governed path the manual approval flow

@@ -17,8 +17,11 @@ export default function MediaPackManager({
   selectedUrls,
   onSelectionChange,
 }: MediaPackManagerProps) {
-  // Items not yet included in the post
-  const removedUrls = allUrls.filter(u => !selectedUrls.includes(u));
+  // Items not yet included in the post — show ALL URLs as available so the
+  // same file can be added multiple times (e.g. carousel with duplicate images).
+  // Unlike the old behavior, we no longer remove already-selected URLs from the
+  // available pool.
+  const removedUrls = [...allUrls];
 
   // ── Drag-to-reorder state ─────────────────────────────────────────────────
   const dragIndex = useRef<number | null>(null);
@@ -49,8 +52,8 @@ export default function MediaPackManager({
   }, [selectedUrls, onSelectionChange]);
 
   // ── Remove a file from the post (moves to "available" pool) ──────────────
-  const removeFromPost = (url: string) => {
-    onSelectionChange(selectedUrls.filter(u => u !== url));
+  const removeFromPost = (idx: number) => {
+    onSelectionChange(selectedUrls.filter((_, i) => i !== idx));
   };
 
   // ── Re-add a file back into the post ─────────────────────────────────────
@@ -86,7 +89,7 @@ export default function MediaPackManager({
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {selectedUrls.map((url, idx) => (
                 <div
-                  key={url}
+                  key={`selected-${idx}`}
                   draggable
                   onDragStart={() => handleDragStart(idx)}
                   onDragEnter={() => handleDragEnter(idx)}
@@ -116,7 +119,7 @@ export default function MediaPackManager({
 
                   {/* ✕ Remove button */}
                   <button
-                    onClick={() => removeFromPost(url)}
+                    onClick={() => removeFromPost(idx)}
                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-error-text text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:brightness-110 hover:scale-110 shadow z-10 text-[10px] font-black leading-none"
                     title="Remove from post"
                   >
@@ -143,7 +146,7 @@ export default function MediaPackManager({
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {removedUrls.map((url, idx) => (
                 <div
-                  key={url}
+                  key={`available-${idx}`}
                   className="relative group aspect-square rounded-xl overflow-hidden border-2 border-dashed border-[var(--border)] opacity-50 hover:opacity-90 transition-all"
                 >
                   {fileType === "video" ? (

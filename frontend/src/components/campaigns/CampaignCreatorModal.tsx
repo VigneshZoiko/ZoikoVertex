@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   X, ChevronDown, ChevronLeft, Loader2, ImageIcon, Trash2,
   Monitor, Smartphone, Globe as InstaIcon, Check, Link2,
@@ -10,7 +11,6 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import MediaVaultPicker from "@/components/MediaVaultPicker";
 
 // —— Types ——————————————————————————————————————————————————————
 
@@ -20,12 +20,20 @@ interface MetaAccount {
   ad_account_currency?: string | null;
 }
 
+interface CarouselCard {
+  image_url: string;
+  headline?: string;
+  description?: string;
+  link?: string;
+}
+
 interface AdData {
   name: string; copy: string; headline: string;
   website_url: string; cta: string; image_url: string;
-  ad_type?: "image_ad" | "video_ad" | "lead_ad";
+  ad_type?: "image_ad" | "video_ad" | "lead_ad" | "carousel_ad";
   video_url?: string;
   lead_form_id?: string;
+  carousel_cards?: CarouselCard[];
 }
 
 // —— Constants —————————————————————————————————————————————————
@@ -394,6 +402,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   editId?: string;
   prefill?: { pixel_id: string; pixel_name: string; objective: string };
 }) {
+  const router = useRouter();
   const [step,       setStep]       = useState(1);
   const [saving,     setSaving]     = useState(false);
   const [publishing,       setPublishing]       = useState(false);
@@ -536,7 +545,6 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [ads,            setAds]          = useState<AdData[]>([{ name: "New ad", copy: "", headline: "", website_url: "", cta: "Learn more", image_url: "" }]);
   const [selectedAdIdx,  setSelectedAdIdx]= useState(0);
   const [showSummary,    setShowSummary]  = useState(false);
-  const [showVaultPicker, setShowVaultPicker] = useState(false);
   const [addWebsiteUrl,    setAddWebsiteUrl]    = useState(false);
   const [welcomeMsg,       setWelcomeMsg]       = useState("");
   const [showWelcomeErr,   setShowWelcomeErr]   = useState(false);
@@ -598,11 +606,16 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
       const publicUrl = urlData?.publicUrl;
       if (!publicUrl) throw new Error("Could not get public URL from storage");
 
-      setAd(a => ({ ...a, image_url: publicUrl }));
+      const isVideo = file.type.startsWith("video/");
+      if (isVideo && (ad.ad_type || "image_ad") === "video_ad") {
+        setAd(a => ({ ...a, video_url: publicUrl }));
+      } else {
+        setAd(a => ({ ...a, image_url: publicUrl }));
+      }
       setShowMediaErr(false);
       clearErr("adImage");
       // Register in media_library so it appears in Media Vault picker
-      const mediaType = file.type.startsWith("video/") ? "video" : "image";
+      const mediaType = isVideo ? "video" : "image";
       api.post("/api/v1/library/upload", { title: file.name, urls: [publicUrl], file_type: mediaType }).catch(() => {});
     } catch (e: unknown) {
       setImageUploadErr(e instanceof Error ? e.message : "Upload failed");
@@ -869,6 +882,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
         meta_ad_type:     effectiveType,
         ad_video_url:     a.video_url    || null,
         lead_form_id:     a.lead_form_id || null,
+        carousel_cards:   a.ad_type === "carousel_ad" ? (a.carousel_cards || []).filter(c => c.image_url) : undefined,
       };
     }),
     creative: {
@@ -979,7 +993,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
       if (adType === "image_ad" && !ad.image_url)
         errs.adImage = "Add an image before continuing";
       else if (adType === "video_ad" && !ad.video_url)
-        errs.adImage = "Enter a Facebook-hosted video ID or URL";
+        errs.adImage = "Enter a video URL or Meta Video ID";
+      else if (adType === "carousel_ad" && (!ad.carousel_cards || ad.carousel_cards.filter(c => c.image_url).length < 2))
+        errs.adImage = "Add at least 2 images for the carousel";
       else if (adType === "lead_ad" && !ad.lead_form_id)
         errs.adImage = "Enter your Meta Lead Gen Form ID";
       if (convLocation === "message" && !welcomeMsg.trim())
@@ -2394,8 +2410,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           {([
                             { value: "image_ad", label: "Image Ad" },
                             { value: "video_ad", label: "Video Ad" },
+                            { value: "carousel_ad", label: "Carousel" },
                             ...(objective === "LEAD_GENERATION" ? [{ value: "lead_ad", label: "Lead Form" }] : []),
-                          ] as { value: "image_ad"|"video_ad"|"lead_ad"; label: string }[]).map(type => (
+                          ] as { value: "image_ad"|"video_ad"|"lead_ad"|"carousel_ad"; label: string }[]).map(type => (
                             <button key={type.value} type="button"
                               onClick={() => setAd(a => ({
                                 ...a,
@@ -2404,6 +2421,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 ...(type.value !== "video_ad" ? { video_url: "" } : {}),
                                 ...(type.value !== "lead_ad"  ? { lead_form_id: "" } : {}),
                                 ...(type.value !== "image_ad" ? { image_url: "" } : {}),
+                                ...(type.value !== "carousel_ad" ? { carousel_cards: undefined } : { carousel_cards: a.carousel_cards?.length ? a.carousel_cards : [{ image_url: "", headline: "", description: "", link: "" }] }),
                               }))}
                               className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all ${
                                 (ad.ad_type || "image_ad") === type.value
@@ -2417,13 +2435,142 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       </Field>
                     )}
 
-                    {/* Video URL — shown when video_ad selected */}
+                    {/* Video ad — upload or paste URL */}
                     {(ad.ad_type || "image_ad") === "video_ad" && convLocation !== "message" && (
-                      <Field label="Facebook Video ID or URL">
-                        <input type="text" value={ad.video_url || ""}
-                          onChange={e => setAd(a => ({ ...a, video_url: e.target.value }))}
-                          className={inp} placeholder="e.g. 1234567890123456" />
-                        <p className="text-[11px] text-foreground-muted mt-1.5">Upload your video in Meta Ads Manager <ArrowRight className="w-3 h-3 inline-block mx-0.5" /> Creative Hub, then paste the video ID here.</p>
+                      <div className="space-y-3">
+                        {!ad.video_url ? (
+                          <>
+                            <div className="flex gap-3">
+                              <label className={`flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl transition-colors ${imageUploading ? "border-border cursor-wait" : "border-border hover:border-border cursor-pointer"} group`}>
+                                <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
+                                  {imageUploading
+                                    ? <Loader2 className="w-5 h-5 text-foreground-muted animate-spin" />
+                                    : <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
+                                </div>
+                                <p className="text-xs text-foreground-muted group-hover:text-foreground-muted">
+                                  {imageUploading ? "Uploading..." : "Upload video"}
+                                </p>
+                                <input type="file" accept="video/*" className="hidden"
+                                  disabled={imageUploading}
+                                  onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) uploadAdImage(file);
+                                  }} />
+                              </label>
+                              <button type="button" onClick={() => router.push('/library')}
+                                className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border hover:border-border rounded-xl cursor-pointer transition-colors group">
+                                <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
+                                  <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                  </svg>
+                                </div>
+                                <p className="text-xs text-foreground-muted group-hover:text-foreground-muted">From library</p>
+                              </button>
+                            </div>
+                            {imageUploadErr && (
+                              <p className="text-[11px] text-error-text flex items-center gap-1">
+                                <span>⚠</span>{imageUploadErr}
+                              </p>
+                            )}
+                            <input type="text" value={ad.video_url || ""}
+                              onChange={e => setAd(a => ({ ...a, video_url: e.target.value }))}
+                              className={inp + " text-xs"} placeholder="Or paste a video URL or numeric Meta Video ID" />
+                            <p className="text-[10px] text-foreground-muted">
+                              Paste a direct video URL, or a Meta Video ID for videos already uploaded to Meta Ads Manager.
+                            </p>
+                          </>
+                        ) : (
+                          <div className="relative rounded-xl overflow-hidden border border-border">
+                            <video src={ad.video_url} className="w-full max-h-48 object-contain bg-black/40" controls />
+                            <button type="button" onClick={() => setAd(a => ({...a, video_url: ""}))}
+                              className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-foreground hover:bg-black transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Carousel card editor — shown when carousel_ad selected */}
+                    {(ad.ad_type || "image_ad") === "carousel_ad" && convLocation !== "message" && (
+                      <Field label="Carousel cards (2–10 images)">
+                        <div className="space-y-3">
+                          {ad.carousel_cards?.map((card, ci) => (
+                            <div key={ci} className="flex gap-3 items-start p-3 rounded-xl border border-border bg-surface/50">
+                              {card.image_url ? (
+                                <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border shrink-0">
+                                  <Image src={card.image_url} alt={`Card ${ci + 1}`} width={80} height={80} className="object-cover w-full h-full" unoptimized />
+                                  <button type="button" onClick={() => {
+                                    const next = [...(ad.carousel_cards || [])];
+                                    next[ci] = { ...next[ci], image_url: "" };
+                                    setAd(a => ({ ...a, carousel_cards: next }));
+                                  }} className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/70 rounded-full flex items-center justify-center text-foreground text-[8px]">
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-border shrink-0">
+                                  <svg className="w-4 h-4 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                  <span className="text-[8px] text-foreground-muted">Add</span>
+                                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    setImageUploading(true);
+                                    (async () => {
+                                      try {
+                                        const { data: { user } } = await supabase.auth.getUser();
+                                        const uid = user?.id || "anon";
+                                        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+                                        const path = `${uid}/carousel_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}.${ext}`;
+                                        await supabase.storage.from("campaign-images").upload(path, file, { upsert: true, contentType: file.type });
+                                        const { data: urlData } = supabase.storage.from("campaign-images").getPublicUrl(path);
+                                        if (urlData?.publicUrl) {
+                                          const next = [...(ad.carousel_cards || [])];
+                                          next[ci] = { ...next[ci], image_url: urlData.publicUrl };
+                                          setAd(a => ({ ...a, carousel_cards: next }));
+                                        }
+                                      } catch {
+                                        // upload failed — user can retry
+                                      } finally {
+                                        setImageUploading(false);
+                                      }
+                                    })();
+                                  }} />
+                                </label>
+                              )}
+                              <div className="flex-1 min-w-0 space-y-1.5">
+                                <input type="text" value={card.headline || ""} onChange={e => {
+                                  const next = [...(ad.carousel_cards || [])];
+                                  next[ci] = { ...next[ci], headline: e.target.value };
+                                  setAd(a => ({ ...a, carousel_cards: next }));
+                                }} placeholder="Card headline" className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-foreground-muted/50 focus:outline-none focus:ring-1 focus:ring-border" />
+                                <input type="text" value={card.description || ""} onChange={e => {
+                                  const next = [...(ad.carousel_cards || [])];
+                                  next[ci] = { ...next[ci], description: e.target.value };
+                                  setAd(a => ({ ...a, carousel_cards: next }));
+                                }} placeholder="Card description (optional)" className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-foreground-muted/50 focus:outline-none focus:ring-1 focus:ring-border" />
+                                <input type="text" value={card.link || ""} onChange={e => {
+                                  const next = [...(ad.carousel_cards || [])];
+                                  next[ci] = { ...next[ci], link: e.target.value };
+                                  setAd(a => ({ ...a, carousel_cards: next }));
+                                }} placeholder="Card link (optional, defaults to ad URL)" className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-foreground-muted/50 focus:outline-none focus:ring-1 focus:ring-border" />
+                              </div>
+                              <button type="button" onClick={() => {
+                                const next = ad.carousel_cards?.filter((_, i) => i !== ci) || [];
+                                setAd(a => ({ ...a, carousel_cards: next }));
+                              }} className="p-1.5 rounded-lg hover:bg-error-text/10 text-foreground-muted hover:text-error-text transition-colors shrink-0">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => {
+                            const next = [...(ad.carousel_cards || []), { image_url: "", headline: "", description: "", link: "" }];
+                            setAd(a => ({ ...a, carousel_cards: next }));
+                          }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border hover:border-border text-foreground-muted hover:text-foreground-muted transition-colors text-sm font-semibold">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            Add card
+                          </button>
+                        </div>
                       </Field>
                     )}
 
@@ -2472,7 +2619,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 if (file) uploadAdImage(file);
                               }} />
                           </label>
-                          <button type="button" onClick={() => setShowVaultPicker(true)}
+                          <button type="button" onClick={() => router.push('/library')}
                             className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border hover:border-border rounded-xl cursor-pointer transition-colors group">
                             <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
                               <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2808,29 +2955,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     document.body
   );
 
-  // Render Media Vault Picker portal when open
-  const vaultPickerPortal = showVaultPicker && typeof window !== "undefined"
-    ? createPortal(
-        <MediaVaultPicker
-          title="Choose from Media Vault"
-          hint="Select an image to use as your ad creative"
-          typeFilter="image"
-          onSelect={url => {
-            setAd(a => ({ ...a, image_url: url }));
-            setShowMediaErr(false);
-            clearErr("adImage");
-            setShowVaultPicker(false);
-          }}
-          onClose={() => setShowVaultPicker(false)}
-        />,
-        document.body
-      )
-    : null;
-
   return (
     <>
       {modal}
-      {vaultPickerPortal}
     </>
   );
 }

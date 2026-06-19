@@ -34,7 +34,7 @@ export default function MediaVaultPicker({
     setLoading(true);
     try {
       const r = await api.get(`/api/v1/library?type=${typeFilter}&search=${encodeURIComponent(q)}`);
-      setAssets(r.data ?? []);
+      setAssets(r ?? []);
     } finally { setLoading(false); }
   }, [typeFilter]);
 
@@ -47,7 +47,8 @@ export default function MediaVaultPicker({
 
   return (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl shadow-2xl"
+        style={{ height: "80vh", display: "grid", gridTemplateRows: "auto auto 1fr auto", overflow: "hidden" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
@@ -73,7 +74,7 @@ export default function MediaVaultPicker({
         </div>
 
         {/* Grid */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center h-40">
               <Loader2 className="w-6 h-6 animate-spin text-foreground-muted" />

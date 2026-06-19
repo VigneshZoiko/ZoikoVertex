@@ -894,7 +894,37 @@ export async function publishCampaignToMeta(
 
     let storySpec: Record<string, any>;
 
-    if (metaAdType === 'lead_ad') {
+    if (metaAdType === 'carousel_ad') {
+      // Carousel ad — uses child_attachments with multiple image cards
+      const cards = adData.carousel_cards || [];
+      if (cards.length < 2) {
+        const errMsg = 'Carousel ads require at least 2 image cards.';
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) { await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {}); await saveMetaError(campaignId, errMsg); return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') }; }
+        continue;
+      }
+      const childAttachments = cards.map((c: any) => ({
+        ...(c.link || validUrl ? { link: c.link || validUrl } : {}),
+        ...(c.headline ? { name: c.headline } : {}),
+        ...(c.description ? { description: c.description } : {}),
+        picture: c.image_url,
+      }));
+      storySpec = {
+        object_story_spec: {
+          page_id: pageId,
+          link_data: {
+            link: validUrl || `https://www.facebook.com/${pageId}`,
+            ...(message ? { message } : {}),
+            name: headline,
+            child_attachments: childAttachments,
+            call_to_action: {
+              type: ctaType || 'LEARN_MORE',
+              value: { link: validUrl || `https://www.facebook.com/${pageId}` },
+            },
+          },
+        },
+      };
+    } else if (metaAdType === 'lead_ad') {
       // Lead generation ad — requires a valid numeric Meta Lead Gen Form ID
       if (!leadFormId) {
         const errMsg = 'Lead Form ID is required for Lead Ads. Go to Meta Ads Manager → Advertise → Lead Ads Forms, create a form, and paste the numeric Form ID here.';
@@ -929,18 +959,26 @@ export async function publishCampaignToMeta(
         },
       };
     } else if (metaAdType === 'video_ad' && videoUrl) {
-      // Video ad — video_id must be a numeric Meta video ID, NOT a CDN URL.
-      if (/^https?:\/\//i.test(videoUrl)) {
-        const errMsg = `Video field contains a URL ("${videoUrl.slice(0, 60)}...") — Meta requires a numeric Video ID, not a URL. Go to Meta Ads Manager → Creative Hub → Videos, find your video, and copy the numeric ID (e.g. "1234567890").`;
-        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
-        if (idx === 0) {
-          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
-          await saveMetaError(campaignId, errMsg);
-          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
-        }
-        continue;
-      }
-      if (!/^\d+$/.test(String(videoUrl).trim())) {
+      // Video ad — supports both numeric Meta Video IDs and direct file URLs.
+      const isUrl = /^https?:\/\//i.test(videoUrl);
+      if (isUrl) {
+        // Direct file URL — use file_url so Meta fetches the video.
+        storySpec = {
+          object_story_spec: {
+            page_id:    pageId,
+            video_data: {
+              file_url:  videoUrl,
+              title:     headline,
+              ...(message     ? { message }             : {}),
+              ...(imageUrl    ? { image_url: imageUrl }  : {}),
+              call_to_action: {
+                type:  ctaType || 'LEARN_MORE',
+                value: { link: validUrl || `https://www.facebook.com/${pageId}` },
+              },
+            },
+          },
+        };
+      } else if (!/^\d+$/.test(String(videoUrl).trim())) {
         const errMsg = `Video ID "${videoUrl}" is not a valid Meta Video ID — expected a numeric string (e.g. "1234567890"). Find it in Meta Ads Manager → Creative Hub → Videos.`;
         reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
         if (idx === 0) {
@@ -949,22 +987,23 @@ export async function publishCampaignToMeta(
           return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
         }
         continue;
-      }
-      storySpec = {
-        object_story_spec: {
-          page_id:    pageId,
-          video_data: {
-            video_id:  videoUrl,
-            title:     headline,
-            ...(message     ? { message }             : {}),
-            ...(imageUrl    ? { image_url: imageUrl }  : {}),
-            call_to_action: {
-              type:  ctaType || 'LEARN_MORE',
-              value: { link: validUrl || `https://www.facebook.com/${pageId}` },
+      } else {
+        storySpec = {
+          object_story_spec: {
+            page_id:    pageId,
+            video_data: {
+              video_id:  videoUrl,
+              title:     headline,
+              ...(message     ? { message }             : {}),
+              ...(imageUrl    ? { image_url: imageUrl }  : {}),
+              call_to_action: {
+                type:  ctaType || 'LEARN_MORE',
+                value: { link: validUrl || `https://www.facebook.com/${pageId}` },
+              },
             },
           },
-        },
-      };
+        };
+      }
     } else if (isMessage) {
       // Message / Messenger ad
       // Instagram DM: ig.me/m/ requires Instagram username (account_handle), NOT Facebook Page ID.

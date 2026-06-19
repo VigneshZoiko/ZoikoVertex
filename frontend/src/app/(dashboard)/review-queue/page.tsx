@@ -267,7 +267,7 @@ export default function ReviewQueuePage() {
   const filtered = items
     .filter((item) => {
       if (activeTab === "needs_review")
-        return item.status === "PENDING_REVIEW" && !item.assigned_to;
+        return (item.status === "PENDING_REVIEW" || item.status === "RESUBMITTED") && !item.assigned_to;
       if (activeTab === "resolve")
         return (
           item.assigned_to === currentUserId &&
@@ -302,7 +302,7 @@ export default function ReviewQueuePage() {
 
   const counts = {
     needs_review: items.filter(
-      (i) => i.status === "PENDING_REVIEW" && !i.assigned_to,
+      (i) => (i.status === "PENDING_REVIEW" || i.status === "RESUBMITTED") && !i.assigned_to,
     ).length,
     resolve: items.filter(
       (i) =>
