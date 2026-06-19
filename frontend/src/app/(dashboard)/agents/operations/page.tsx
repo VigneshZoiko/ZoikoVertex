@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bot,
-  Activity,
   RefreshCcw,
   AlertCircle,
   CheckCircle2,
@@ -160,6 +159,7 @@ interface QueueItem {
 
 interface OperationsStats {
   active_runs: number;
+  successful_runs?: number;
   queued_tasks: number;
   failed_runs: number;
   policy_blocks: number;
@@ -196,12 +196,18 @@ const POLICY_CONFIG: Record<string, { label: string; color: string; bg: string }
   NOT_APPLICABLE: { label: "N/A",            color: "text-foreground-muted",      bg: "bg-surface"        },
 };
 
-const EVIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
-  CAPTURED:     { label: "Captured",     color: "text-emerald-400" },
-  PARTIAL:      { label: "Partial",      color: "text-amber-400"   },
-  FAILED:       { label: "Failed",       color: "text-rose-400"    },
-  LOCKED:       { label: "Locked",       color: "text-blue-400"    },
-  EXPORT_READY: { label: "Export Ready", color: "text-indigo-400"  },
+// Keyed by the UPPER-CASED evidence_status. The backend stores these lower-case
+// (pending, capturing, captured, partial, failed, locked, export_ready), so the
+// badge normalizes the case before lookup — otherwise the indicator renders as
+// raw, unstyled text.
+const EVIDENCE_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
+  PENDING:      { label: "Pending",      color: "text-foreground-muted", dot: "bg-gray-400"                  },
+  CAPTURING:    { label: "Capturing",    color: "text-sky-400",          dot: "bg-sky-400 animate-pulse"     },
+  CAPTURED:     { label: "Captured",     color: "text-emerald-400",      dot: "bg-emerald-400"               },
+  PARTIAL:      { label: "Partial",      color: "text-amber-400",        dot: "bg-amber-400"                 },
+  FAILED:       { label: "Failed",       color: "text-rose-400",         dot: "bg-rose-400"                  },
+  LOCKED:       { label: "Locked",       color: "text-blue-400",         dot: "bg-blue-400"                  },
+  EXPORT_READY: { label: "Export Ready", color: "text-indigo-400",       dot: "bg-indigo-400"                },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -268,8 +274,19 @@ function PolicyBadge({ result }: { result: string }) {
 }
 
 function EvidenceBadge({ status }: { status: string }) {
-  const cfg = EVIDENCE_CONFIG[status] || { label: status, color: "text-foreground-muted" };
-  return <span className={`text-[10px] font-medium ${cfg.color}`}>{cfg.label}</span>;
+  const key = String(status || "").toUpperCase();
+  // Normalize case before lookup so lower-case backend values match. Unknown or
+  // empty values fall back to a humanized label + neutral dot so the indicator
+  // always shows something legible instead of raw text or a blank cell.
+  const cfg =
+    EVIDENCE_CONFIG[key] ||
+    { label: status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—", color: "text-foreground-muted", dot: "bg-gray-400" };
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium ${cfg.color}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
+      {cfg.label}
+    </span>
+  );
 }
 
 function SeverityDot({ severity }: { severity: string }) {
@@ -1558,7 +1575,7 @@ export default function AgentOperationsPage() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
           {[
-            { label: "Active Runs",    val: stats.active_runs,    icon: <Activity className="w-3.5 h-3.5" />, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+            { label: "Successful Runs", val: stats.successful_runs ?? 0, icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "text-emerald-400", bg: "bg-emerald-500/10" },
             { label: "Queued",         val: stats.queued_tasks,   icon: <Clock className="w-3.5 h-3.5" />,    color: "text-amber-400",   bg: "bg-amber-500/10"  },
             { label: "Failed",         val: stats.failed_runs,    icon: <XCircle className="w-3.5 h-3.5" />, color: "text-red-400",      bg: "bg-red-500/10"    },
             { label: "Policy Blocks",  val: stats.policy_blocks,  icon: <Ban className="w-3.5 h-3.5" />,     color: "text-rose-400",     bg: "bg-rose-500/10"   },

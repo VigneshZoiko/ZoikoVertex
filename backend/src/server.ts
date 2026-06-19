@@ -253,7 +253,7 @@ import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } fr
 import { getSidebarCounts } from './domains/sidebar/sidebarController';
 import { getCalendarEvents } from './domains/calendar/calendarController';
 // New features from Naresh
-import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
+import { listNotifications, markAsRead, markAllRead, clearNotifications, deleteNotification } from './domains/identity/notificationController';
 import {
   exportWorkflow,
   exportApprovals,
@@ -930,6 +930,7 @@ app.delete('/api/v1/units/:id/evidence-scope/:scopeId', authenticate, requireRol
 app.get('/api/v1/notifications', authenticate, listNotifications);
 app.patch('/api/v1/notifications/:id/read', authenticate, markAsRead);
 app.post('/api/v1/notifications/mark-all-read', authenticate, markAllRead);
+app.delete('/api/v1/notifications/:id', authenticate, deleteNotification);
 app.delete('/api/v1/notifications', authenticate, clearNotifications);
 
 // Protected Agent/Workflow Routes

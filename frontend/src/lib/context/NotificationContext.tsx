@@ -51,6 +51,7 @@ const NotificationContext = createContext<{
   state: NotificationState;
   dispatch: React.Dispatch<NotificationEvent>;
   addNotification: (notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  removeNotification: (id: string) => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   clearAll: () => Promise<void>;
@@ -112,8 +113,9 @@ function typeToPriority(t: string, cat: string): NotificationPriority {
 }
 
 function formatNotification(n: any): Notification {
-  const category = n.category || typeToCategory(n.type || '');
-  const priority = n.priority || typeToPriority(n.type || '', n.sub_type || '');
+  const isRejection = n.type === 'POST_REJECTED';
+  const category = n.category || (isRejection ? 'SECURITY' : typeToCategory(n.type || ''));
+  const priority = n.priority || (isRejection ? 'URGENT' : typeToPriority(n.type || '', n.sub_type || ''));
   return {
     ...n,
     message: n.message || n.body || '',
@@ -121,6 +123,8 @@ function formatNotification(n: any): Notification {
     category,
     priority,
     actions: n.actions || typeToActions(n),
+    // Tag so the panel can render the red rejection card (red heading + white reason).
+    metadata: isRejection ? { ...(n.metadata || {}), kind: 'POST_REJECTED' } : n.metadata,
   };
 }
 
@@ -180,6 +184,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     dispatch({ type: 'ADD', payload: newNotif });
   }, []);
 
+  const removeNotification = useCallback(async (id: string) => {
+    dispatch({ type: 'REMOVE', payload: id });
+    try {
+      // Persist the deletion so it doesn't reappear on reload. Best-effort:
+      // transient (client-only) notifications won't exist in the backend.
+      await api.delete(`/api/v1/notifications/${id}`);
+    } catch (err) {
+      console.warn("Failed to delete notification in backend:", err);
+    }
+  }, []);
+
   const markAsRead = useCallback(async (id: string) => {
     dispatch({ type: 'MARK_READ', payload: id });
     try {
@@ -220,21 +235,39 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const { data: { session } } = await supabase.auth.getSession();
             const user = session?.user;
             if (user && newRow.creator_id === user.id) {
-              addNotification({
-                title: `Workflow Update: ${newRow.status}`,
-                message: `Your post "${newRow.title || 'Untitled'}" was moved to ${newRow.status}.`,
-                category: 'WORKFLOW',
-                priority: newRow.status === 'RETURNED' ? 'HIGH' : 'MEDIUM',
-                actions: [
-                  { label: 'View Details', href: `/publish/${newRow.id}`, primary: true }
-                ]
-              });
+              if (newRow.status === 'REJECTED') {
+                // Red rejection card: red heading + white reason (the reviewer's input).
+                addNotification({
+                  title: 'Your post has been rejected',
+                  message: newRow.feedback?.trim()
+                    ? newRow.feedback.trim()
+                    : 'A reviewer rejected this post. No reason was provided.',
+                  category: 'SECURITY',
+                  priority: 'URGENT',
+                  metadata: { kind: 'POST_REJECTED' },
+                  actions: [
+                    { label: 'View Details', href: `/governance/reviews?item=${newRow.id}`, primary: true }
+                  ]
+                });
+              } else {
+                addNotification({
+                  title: `Workflow Update: ${newRow.status}`,
+                  message: `Your post "${newRow.title || 'Untitled'}" was moved to ${newRow.status}.`,
+                  category: 'WORKFLOW',
+                  priority: newRow.status === 'RETURNED' ? 'HIGH' : 'MEDIUM',
+                  actions: [
+                    { label: 'View Details', href: `/publish/${newRow.id}`, primary: true }
+                  ]
+                });
+              }
 
               if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                const title = `Post ${newRow.status}`;
+                const title = newRow.status === 'REJECTED' ? 'Your post has been rejected' : `Post ${newRow.status}`;
                 const body = newRow.status === 'RETURNED'
                   ? `Revision requested: "${newRow.feedback || 'Please check comments'}"`
-                  : `Your post has been ${newRow.status.toLowerCase()}.`;
+                  : newRow.status === 'REJECTED'
+                    ? (newRow.feedback?.trim() ? `Reason: ${newRow.feedback.trim()}` : 'Your post has been rejected.')
+                    : `Your post has been ${newRow.status.toLowerCase()}.`;
                 new Notification(title, { body, icon: '/favicon.ico' });
               }
             }
@@ -258,7 +291,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [addNotification]);
 
   return (
-    <NotificationContext.Provider value={{ state, dispatch, addNotification, markAsRead, markAllRead, clearAll, fetchAdminNotifications }}>
+    <NotificationContext.Provider value={{ state, dispatch, addNotification, removeNotification, markAsRead, markAllRead, clearAll, fetchAdminNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

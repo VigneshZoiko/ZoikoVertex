@@ -135,7 +135,14 @@ export async function runPostValidation(post: PostInput): Promise<OrchestrationO
     // its turn — it just reports "nothing to verify" instead of calling the KB.
     if (agent.key === 'evidence_kb') {
       const general = findings.find((f) => f.agentKey === 'general_content');
-      if (!general?.details?.hasClaim) {
+      const image = findings.find((f) => f.agentKey === 'image_validation');
+      // Run the KB check when a claim was detected OR when an image was blocked.
+      // A blocked image can be justified by an approved KB source (documented
+      // proof), and the only way to weigh that is to actually query the KB here —
+      // so we no longer skip the KB check for an image-blocked post even if its
+      // caption wasn't detected as a formal "claim".
+      const imageBlocked = image?.verdict === 'BLOCK' && !image.skipped;
+      if (!general?.details?.hasClaim && !imageBlocked) {
         findings.push({
           agentKey: 'evidence_kb',
           label: agent.label,
@@ -179,20 +186,45 @@ function aggregate(findings: AgentFinding[]): OrchestrationOutcome {
   const evidence = byKey('evidence_kb');
 
   const hasClaim = Boolean(general?.details?.hasClaim);
+  const evidenceRan = !!evidence && !evidence.skipped;
   const kbMatches = evidence?.evidence || [];
-  const knowledge = hasClaim
+  // Reflect the KB result whenever the Evidence agent actually ran — which now
+  // includes the image-blocked path, not just the claim path.
+  const knowledge = evidenceRan
     ? {
-        checked: !evidence?.skipped,
+        checked: true,
         status: (evidence?.details?.kbStatus as string) || (kbMatches.length ? 'Evidence found' : 'No evidence found'),
         matches: kbMatches,
       }
-    : { checked: false, status: 'Not needed' };
+    : { checked: false, status: hasClaim ? 'Not checked' : 'Not needed' };
 
   const realBlocks = findings.filter((f) => f.verdict === 'BLOCK' && !f.skipped);
   const realReviews = findings.filter((f) => f.verdict === 'REVIEW' && !f.skipped);
 
   // ── BLOCK: any agent blocked ──────────────────────────────────────────
   if (realBlocks.length > 0) {
+    // ── KB override: an image-only block backed by approved KB evidence ──
+    // If the ONLY thing blocking the post is the image scan, but an approved
+    // Knowledge Base source genuinely SUPPORTS the post's content (e.g. a
+    // violent image used as documented proof, or a "say no to drugs" recovery
+    // message), don't hard-block. Downgrade to a HIGH-risk human review so a
+    // reviewer makes the final call — the post is NEVER auto-published. A block
+    // from any other agent (policy/approval-rules) is NOT overridable this way.
+    const nonImageBlocks = realBlocks.filter((b) => b.agentKey !== 'image_validation');
+    const kbSupports = evidenceRan && kbMatches.length > 0;
+    if (nonImageBlocks.length === 0 && kbSupports) {
+      return {
+        decision: 'REVIEW',
+        possibilityKey: 'HIGH_RISK_CLAIM',
+        reason:
+          'Image flagged as unsafe but supported by approved Knowledge Base evidence — ' +
+          `escalated for human review at elevated risk. (${realBlocks.map((b) => b.reason).join(' | ')})`,
+        risk: { level: 'High', score: 85, categories },
+        knowledge,
+        findings,
+      };
+    }
+
     // An Approval-Rules block (the customer's own keyword rule) takes precedence
     // as the reported blocker so the UI can show "Blocked due to Approval Rules"
     // and avoid wiring a governed prompt; otherwise report the first blocker.
