@@ -76,6 +76,51 @@ async function requireUnitAccess(
   return { unit: data, error: null };
 }
 
+async function validateParentUnit(
+  parentId: string | null | undefined,
+  workspaceId: string | undefined | null,
+  isSuperAdmin: boolean | undefined,
+  currentUnitId?: string,
+): Promise<{ error: { status: number; message: string } | null }> {
+  if (!parentId) return { error: null };
+
+  // Check that parent exists and belongs to the same workspace
+  let query = supabaseAdmin.from('business_units').select('id, workspace_id, parent_id, status').eq('id', parentId);
+  if (!isSuperAdmin && workspaceId) {
+    query = query.eq('workspace_id', workspaceId);
+  }
+  const { data: parent, error: parentError } = await query.single();
+  if (parentError || !parent) {
+    return { error: { status: 400, message: 'Parent unit not found or does not belong to this workspace' } };
+  }
+
+  if (parent.status === 'ARCHIVED') {
+    return { error: { status: 400, message: 'Cannot set an archived unit as parent' } };
+  }
+
+  // Circular reference check: walk up the parent chain
+  if (currentUnitId) {
+    let current: { id: string; parent_id: string | null } | null = parent;
+    const visited = new Set<string>();
+    visited.add(currentUnitId);
+    while (current && current.parent_id) {
+      if (visited.has(current.parent_id)) {
+        return { error: { status: 400, message: 'Circular reference detected: a unit cannot be its own ancestor' } };
+      }
+      visited.add(current.parent_id);
+      const { data: next } = await supabaseAdmin
+        .from('business_units')
+        .select('id, parent_id')
+        .eq('id', current.parent_id)
+        .single();
+      if (!next) break;
+      current = next as { id: string; parent_id: string | null };
+    }
+  }
+
+  return { error: null };
+}
+
 async function checkCampaignsOrEvidence(unitId: string): Promise<boolean> {
   const { count: campaignCount } = await supabaseAdmin
     .from('campaigns')
@@ -106,7 +151,7 @@ export const listUnits = async (req: AuthRequest, res: Response, next: NextFunct
       return res.status(403).json({ error: 'Workspace context missing' });
     }
 
-    const { owner, type, status, search } = req.query;
+    const { owner, type, status, search, parent_id } = req.query;
 
     let query = supabaseAdmin
       .from('business_units')
@@ -133,6 +178,11 @@ export const listUnits = async (req: AuthRequest, res: Response, next: NextFunct
     }
     if (search) {
       query = query.ilike('name', `%${search}%`);
+    }
+    if (parent_id === 'null') {
+      query = query.is('parent_id', null);
+    } else if (parent_id) {
+      query = query.eq('parent_id', parent_id as string);
     }
 
     const { data: units, error } = await query;
@@ -274,6 +324,77 @@ export const getUnit = async (req: AuthRequest, res: Response, next: NextFunctio
   }
 };
 
+// ─── GET /api/v1/units/:id/children ────────────────────────────────────────────
+
+export const getUnitChildren = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
+    const id = req.params.id as string;
+
+    const access = await requireUnitAccess(id, workspaceId, isSuperAdmin);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
+
+    let query = supabaseAdmin
+      .from('business_units')
+      .select('id, name, description, color, status, unit_type, parent_id, owner_id, created_at')
+      .eq('parent_id', id)
+      .order('name', { ascending: true });
+
+    if (!isSuperAdmin) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data: children, error } = await query;
+    if (error) throw error;
+
+    // Batch-fetch owner names and member counts
+    const childList = children || [];
+    const ownerIdSet = new Set(childList.map(u => u.owner_id).filter(Boolean));
+    const ownerNameMap = new Map<string, string>();
+    if (ownerIdSet.size > 0) {
+      const { data: wmRows } = await supabaseAdmin
+        .from('workspace_members')
+        .select('id, user_id')
+        .in('id', [...ownerIdSet]);
+      const userIds = [...new Set((wmRows || []).map(w => w.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: userRows } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name')
+          .in('id', userIds);
+        const userMap = new Map((userRows || []).map(u => [u.id, { email: u.email, full_name: u.full_name }]));
+        for (const w of (wmRows || [])) {
+          const user = userMap.get(w.user_id);
+          if (user) ownerNameMap.set(w.id, user.full_name || user.email?.split('@')[0] || 'Assigned');
+        }
+      }
+    }
+
+    const childIds = childList.map(u => u.id);
+    const memberCountMap = new Map<string, number>();
+    if (childIds.length > 0) {
+      const { data: members } = await supabaseAdmin
+        .from('business_unit_members')
+        .select('business_unit_id')
+        .in('business_unit_id', childIds);
+      for (const m of (members || [])) {
+        memberCountMap.set(m.business_unit_id, (memberCountMap.get(m.business_unit_id) || 0) + 1);
+      }
+    }
+
+    const enriched = childList.map(u => ({
+      ...u,
+      owner_name: u.owner_id ? (ownerNameMap.get(u.owner_id) || null) : null,
+      member_count: memberCountMap.get(u.id) || 0,
+    }));
+
+    res.json({ success: true, data: enriched });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ─── POST /api/v1/units ───────────────────────────────────────────────────────
 
 export const createUnit = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -297,6 +418,9 @@ export const createUnit = async (req: AuthRequest, res: Response, next: NextFunc
 
     const finalWorkspaceId = isSuperAdmin ? (req.body.target_workspace_id || workspaceId) : workspaceId;
     if (!finalWorkspaceId) return res.status(400).json({ error: 'Workspace required' });
+
+    const parentValidation = await validateParentUnit(parent_id, finalWorkspaceId, isSuperAdmin);
+    if (parentValidation.error) return res.status(parentValidation.error.status).json({ error: parentValidation.error.message });
 
     const { data, error } = await supabaseAdmin
       .from('business_units')
@@ -355,6 +479,10 @@ export const updateUnit = async (req: AuthRequest, res: Response, next: NextFunc
       if (req.body[field] !== undefined) {
         if (field === 'unit_type' && !VALID_UNIT_TYPES.includes(req.body[field])) {
           return res.status(400).json({ error: `Invalid unit_type. Must be one of: ${VALID_UNIT_TYPES.join(', ')}` });
+        }
+        if (field === 'parent_id') {
+          const parentValidation = await validateParentUnit(req.body[field], workspaceId, isSuperAdmin, id);
+          if (parentValidation.error) return res.status(parentValidation.error.status).json({ error: parentValidation.error.message });
         }
         beforeState[field] = existing[field];
         updates[field] = req.body[field];

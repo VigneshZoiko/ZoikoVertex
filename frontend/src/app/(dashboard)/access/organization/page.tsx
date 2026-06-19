@@ -122,6 +122,7 @@ export default function OrganizationStructurePage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [filterOwner, setFilterOwner] = useState("all");
+  const [filterParent, setFilterParent] = useState("all");
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);

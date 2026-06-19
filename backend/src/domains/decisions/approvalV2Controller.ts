@@ -49,6 +49,7 @@ const CreateItemSchema = z.object({
   risk_level: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   due_at: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  business_unit_id: z.string().uuid().nullable().optional(),
 });
 
 const ActionSchema = z.object({
@@ -86,6 +87,7 @@ export const createApprovalItem = async (req: AuthRequest, res: Response, next: 
       tenant_id: tenantId,
       workspace_id: tenantId,
       ...input,
+      business_unit_id: input.business_unit_id || null,
       submitted_by: userId,
     }, auth);
     res.status(201).json({ success: true, data: item });
@@ -108,6 +110,7 @@ export const listApprovalItems = async (req: AuthRequest, res: Response, next: N
       assigned_to: queryStr(req, 'assigned_to'),
       submitted_by: queryStr(req, 'submitted_by'),
       risk_level: queryStr(req, 'risk_level'),
+      business_unit_id: queryStr(req, 'business_unit_id'),
       search: queryStr(req, 'search'),
       overdue: req.query.overdue === 'true',
       limit: queryNum(req, 'limit') || 50,

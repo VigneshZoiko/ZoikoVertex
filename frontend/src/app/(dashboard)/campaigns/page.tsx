@@ -32,6 +32,7 @@ interface Campaign {
   created_at: string;
   wizard_step?: number;
   campaign_boosts?: Array<{ meta_campaign_id?: string | null; ad_account_id?: string | null }>;
+  business_unit_id?: string | null;
   // metrics from boost sync
   impressions?: number;
   reach?: number;
@@ -987,12 +988,15 @@ export default function CampaignsPage() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
   const [deleteCampaignId, setDeleteCampaignId] = useState<string | null>(null);
+  const [filterUnitId, setFilterUnitId] = useState("");
+  const [businessUnits, setBusinessUnits] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
+      const url = filterUnitId ? `/api/v1/campaigns?business_unit_id=${filterUnitId}` : "/api/v1/campaigns";
       const [c, s, a] = await Promise.allSettled([
-        api.get("/api/v1/campaigns"),
+        api.get(url),
         api.get("/api/v1/campaigns/stats"),
         api.get("/api/v1/campaigns/meta/accounts"),
       ]);
@@ -1011,9 +1015,13 @@ export default function CampaignsPage() {
     } catch { setError("Failed to load"); }
     finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filterUnitId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+  }, []);
 
   const selAcc = accounts.find(a => a.id === selAccount);
   const hasAdAcc = selAcc?.has_ad_account;
@@ -1126,6 +1134,15 @@ export default function CampaignsPage() {
           <div className="flex items-center gap-2.5">
             {tab !== "pixels" && (
               <AccountSelector accounts={accounts} selectedId={selAccount} onSelect={id => { setSelAccount(id); load(); }} onReload={load} />
+            )}
+            {tab !== "pixels" && (
+              <select value={filterUnitId} onChange={e => setFilterUnitId(e.target.value)}
+                className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none">
+                <option value="">All units</option>
+                {businessUnits.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
             )}
             <button onClick={load} className="p-1.5 text-foreground-muted hover:text-foreground-muted transition-colors rounded-lg hover:bg-surface-hover">
               <RefreshCw className="w-4 h-4" />

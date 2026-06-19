@@ -14,6 +14,7 @@ export interface WorkflowTemplate {
   owner_id: string;
   owner_name: string;
   platforms: string[];
+  business_unit_id?: string | null;
   current_version_id: string;
   total_runs: number;
   active_runs_count: number;
@@ -29,6 +30,7 @@ export async function listTemplates(params: {
   type?: string;
   owner_id?: string;
   search?: string;
+  business_unit_id?: string;
   limit: number;
   offset: number;
 }) {
@@ -43,6 +45,7 @@ export async function listTemplates(params: {
   if (params.risk_level) query = query.eq("risk_level", params.risk_level);
   if (params.type) query = query.eq("type", params.type);
   if (params.owner_id) query = query.eq("owner_id", params.owner_id);
+  if (params.business_unit_id) query = query.eq("business_unit_id", params.business_unit_id);
   if (params.search) {
     query = query.or(
       `name.ilike.%${params.search}%,description.ilike.%${params.search}%`,
@@ -77,6 +80,7 @@ export async function createTemplate(params: {
   brand_ids?: string[];
   platforms?: string[];
   type?: string;
+  business_unit_id?: string | null;
 }) {
   const id = uuidv4();
 
@@ -103,6 +107,7 @@ export async function createTemplate(params: {
     owner_name: params.owner_name || null,
     brand_ids: params.brand_ids || [],
     platforms: params.platforms || [],
+    business_unit_id: params.business_unit_id || null,
   });
   if (error) throw error;
   return { id };
@@ -117,6 +122,7 @@ export async function updateTemplate(
     owner_name: string;
     brand_ids: string[];
     platforms: string[];
+    business_unit_id: string | null;
   }>,
 ) {
   const { data: existing, error: fetchError } = await supabaseAdmin
@@ -161,6 +167,7 @@ export async function duplicateTemplate(templateId: string, newName: string) {
     owner_name: original.owner_name,
     brand_ids: original.brand_ids,
     platforms: original.platforms,
+    business_unit_id: original.business_unit_id,
   }); 
   if (error) throw error;
   return { id, original_id: templateId };

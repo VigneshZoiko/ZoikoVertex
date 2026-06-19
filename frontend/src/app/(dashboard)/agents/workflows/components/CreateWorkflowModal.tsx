@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, GitBranch, Loader2, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -41,6 +41,12 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
   const [platforms, setPlatforms]     = useState<string[]>([]);
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState<string | null>(null);
+  const [businessUnitId, setBusinessUnitId] = useState("");
+  const [businessUnits, setBusinessUnits] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+  }, []);
 
   if (!open) return null;
 
@@ -54,6 +60,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
     setRiskLevel("medium");
     setType("content_creation");
     setPlatforms([]);
+    setBusinessUnitId("");
     setError(null);
   };
 
@@ -85,6 +92,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
         type,
         platforms,
         brand_ids: [],
+        business_unit_id: businessUnitId || null,
       });
 
       // FIX: backend returns { success: true, data: { id } }.
@@ -235,6 +243,20 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+              Business Unit <span className="text-[var(--text-muted)] font-normal">(optional)</span>
+            </label>
+            <select value={businessUnitId} onChange={e => setBusinessUnitId(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-info-border/40"
+              disabled={submitting}>
+              <option value="">— No unit —</option>
+              {businessUnits.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="pt-3 border-t border-[var(--border)] flex justify-end gap-2">

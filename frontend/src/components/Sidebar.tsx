@@ -810,8 +810,12 @@ function Sidebar() {
                           }`}
                         >
                           <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`} />
-                          <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 ease-in-out text-sm flex-1 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[140px] opacity-100 ml-3"}`}>
-                            {item.name}
+                          <span className={`overflow-hidden transition-[max-width,opacity,margin] duration-300 ease-in-out text-sm flex-1 leading-tight ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[140px] opacity-100 ml-3"}`}>
+                            {item.name === "Organization Structure" ? (
+                              <>Organization<br />Structure</>
+                            ) : (
+                              item.name
+                            )}
                           </span>
                           {badges}
                           {item.dirty && isDirty && (

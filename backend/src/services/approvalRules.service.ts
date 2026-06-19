@@ -27,6 +27,7 @@ export interface ApprovalRule {
   keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   created_by: string;
   updated_by: string;
+  business_unit_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +45,7 @@ export interface ApprovalRuleInput {
   tags?: string[];
   keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   created_by: string;
+  business_unit_id?: string | null;
 }
 
 export async function createRule(input: ApprovalRuleInput, auth?: AuthContext): Promise<ApprovalRule> {
@@ -78,6 +80,7 @@ export async function createRule(input: ApprovalRuleInput, auth?: AuthContext): 
       expires_at: input.expires_at || null,
       tags: input.tags || [],
       keyword_rules: input.keyword_rules || [],
+      business_unit_id: input.business_unit_id || null,
     })
     .select()
     .single();
@@ -104,6 +107,7 @@ export async function listRules(params: {
   status?: string[];
   risk_classification?: string;
   search?: string;
+  business_unit_id?: string;
   limit?: number;
   offset?: number;
 }) {
@@ -118,6 +122,9 @@ export async function listRules(params: {
   }
   if (params.risk_classification) {
     query = query.eq('risk_classification', params.risk_classification);
+  }
+  if (params.business_unit_id) {
+    query = query.eq('business_unit_id', params.business_unit_id);
   }
   if (params.search) {
     query = query.or(`rule_name.ilike.%${params.search}%,rule_description.ilike.%${params.search}%`);

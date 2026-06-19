@@ -133,6 +133,7 @@ export const listWorkflows = async (req: AuthRequest, res: Response, next: NextF
     const type       = getQueryValue(req, 'type');
     const owner_id   = getQueryValue(req, 'owner_id');
     const search     = getQueryValue(req, 'search');
+    const business_unit_id = getQueryValue(req, 'business_unit_id');
     const limit      = getQueryNumber(req, 'limit', 50);
     const offset     = getQueryNumber(req, 'offset', 0);
     const result = await templateService.listTemplates({
@@ -142,6 +143,7 @@ export const listWorkflows = async (req: AuthRequest, res: Response, next: NextF
       type,
       owner_id,
       search,
+      business_unit_id,
       limit,
       offset,
     });
@@ -175,7 +177,7 @@ export const createWorkflow = async (req: AuthRequest, res: Response, _next: Nex
       return res.status(403).json({ success: false, error: 'Workspace not found' });
     }
 
-    const { name, description, risk_level, brand_ids, platforms, type } = req.body;
+    const { name, description, risk_level, brand_ids, platforms, type, business_unit_id } = req.body;
 
     // ── FIX: validate required fields and return 400 instead of letting
     //    Supabase throw a not-null / check-constraint error that surfaces as 500.
@@ -196,6 +198,7 @@ export const createWorkflow = async (req: AuthRequest, res: Response, _next: Nex
       brand_ids:    Array.isArray(brand_ids) ? brand_ids : [],
       platforms:    Array.isArray(platforms) ? platforms : [],
       type:         type || 'governed',
+      business_unit_id: business_unit_id || null,
     });
 
     res.json({ success: true, data: result });
@@ -211,8 +214,8 @@ export const createWorkflow = async (req: AuthRequest, res: Response, _next: Nex
 export const updateWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const id = getParam(req, 'id');
-    const { name, description, risk_level, owner_id, owner_name, brand_ids, platforms } = req.body;
-    const result = await templateService.updateTemplate(id, { name, description, risk_level, owner_id, owner_name, brand_ids, platforms });
+    const { name, description, risk_level, owner_id, owner_name, brand_ids, platforms, business_unit_id } = req.body;
+    const result = await templateService.updateTemplate(id, { name, description, risk_level, owner_id, owner_name, brand_ids, platforms, business_unit_id });
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to update workflow');

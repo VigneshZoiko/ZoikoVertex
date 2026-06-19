@@ -7,6 +7,7 @@ import {
   AlertTriangle, CheckCircle2, Loader2, Info,
   History, Link2, Unlink, UserPlus, UserMinus,
   Archive, RotateCcw, Trash2, Eye,
+  GitBranch, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -95,6 +96,7 @@ function formatDate(d: string | null | undefined): string {
 
 const DETAIL_TABS = [
   { key: "overview",    label: "Overview",       icon: Info },
+  { key: "structure",   label: "Structure",      icon: GitBranch },
   { key: "members",     label: "Members",        icon: Users },
   { key: "brands",      label: "Brands & Assets", icon: BookOpen },
   { key: "evidence",    label: "Evidence Scope", icon: Eye },
@@ -104,8 +106,22 @@ const DETAIL_TABS = [
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ unit }: { unit: BusinessUnitExtended }) {
+function OverviewTab({ unit, unitId }: { unit: BusinessUnitExtended; unitId: string }) {
   const statusCfg = STATUS_CONFIG[unit.status] || STATUS_CONFIG.DRAFT;
+  const [parentName, setParentName] = useState<string | null>(null);
+  const [childCount, setChildCount] = useState(0);
+
+  useEffect(() => {
+    if (unit.parent_id) {
+      api.get(`/api/v1/units/${unit.parent_id}`).then(r => {
+        if (r.success !== false && r.data) setParentName(r.data.name || null);
+      }).catch(() => {});
+    }
+    api.get(`/api/v1/units/${unitId}/children`).then(r => {
+      if (r.success !== false && Array.isArray(r.data)) setChildCount(r.data.length);
+    }).catch(() => {});
+  }, [unit.parent_id, unitId]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -137,6 +153,16 @@ function OverviewTab({ unit }: { unit: BusinessUnitExtended }) {
             <p className="text-sm font-semibold text-[var(--foreground)]">{formatDate(unit.archived_at)}</p>
           </div>
         )}
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
+          <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wide mb-1">Parent Unit</p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">
+            {unit.parent_id ? (parentName || "Loading...") : "Top-level (no parent)"}
+          </p>
+        </div>
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
+          <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wide mb-1">Child Units</p>
+          <p className="text-sm font-semibold text-[var(--foreground)]">{childCount}</p>
+        </div>
       </div>
       {unit.description && (
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
@@ -144,6 +170,106 @@ function OverviewTab({ unit }: { unit: BusinessUnitExtended }) {
           <p className="text-sm text-[var(--foreground)]">{unit.description}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Structure Tab ────────────────────────────────────────────────────────────
+
+interface TreeNode {
+  id: string; name: string; unit_type: string; status: string;
+  color: string; owner_name: string | null; member_count: number;
+  children: TreeNode[];
+}
+
+function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
+  const [expanded, setExpanded] = useState(true);
+  const [children, setChildren] = useState<TreeNode[]>(node.children || []);
+  const [loading, setLoading] = useState(false);
+
+  const toggle = async () => {
+    if (expanded) { setExpanded(false); return; }
+    if (children.length > 0) { setExpanded(true); return; }
+    setLoading(true);
+    try {
+      const res = await api.get(`/api/v1/units/${node.id}/children`);
+      if (res.success !== false && Array.isArray(res.data)) {
+        setChildren(res.data.map((c: any) => ({ ...c, children: [] })));
+      }
+    } catch { /* ignore */ }
+    finally { setExpanded(true); setLoading(false); }
+  };
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--surface-hover)] cursor-pointer transition-colors"
+        style={{ marginLeft: depth * 24 }}
+        onClick={toggle}
+      >
+        {loading ? (
+          <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-[var(--foreground-muted)]" />
+        ) : children.length > 0 || expanded ? (
+          <ChevronDown className="w-3.5 h-3.5 shrink-0 text-[var(--foreground-muted)]" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[var(--foreground-muted)]" />
+        )}
+        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: node.color || '#6366f1' }} />
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium text-[var(--foreground)]">{node.name}</span>
+          <span className="ml-2 text-[10px] text-[var(--foreground-muted)] uppercase">{node.unit_type}</span>
+        </div>
+        <span className={`text-[10px] font-semibold uppercase ${node.status === 'ACTIVE' ? 'text-success-text' : 'text-warning-text'}`}>{node.status}</span>
+        {node.owner_name && <span className="text-[11px] text-[var(--foreground-muted)] hidden md:block">{node.owner_name}</span>}
+        <span className="text-[11px] text-[var(--foreground-muted)]">{node.member_count} members</span>
+      </div>
+      {expanded && children.length > 0 && (
+        <div>
+          {children.map(child => (
+            <TreeNodeRow key={child.id} node={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StructureTab({ unitId }: { unitId: string }) {
+  const [tree, setTree] = useState<TreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    // Start from the top — fetch root-level units (parent_id IS NULL)
+    api.get("/api/v1/units?parent_id=null").then(async (res) => {
+      if (res.success !== false && Array.isArray(res.data)) {
+        const roots: TreeNode[] = res.data.map((u: any) => ({ ...u, children: [] }));
+        // Find which root contains the current unitId, pre-expand that branch
+        setTree(roots);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [unitId]);
+
+  if (loading) {
+    return <div className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] py-8"><Loader2 className="w-4 h-4 animate-spin" /> Loading structure…</div>;
+  }
+
+  if (tree.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <GitBranch className="w-8 h-8 mx-auto text-[var(--foreground-muted)] mb-3" />
+        <p className="text-sm text-[var(--foreground-muted)]">No hierarchy defined yet</p>
+        <p className="text-xs text-[var(--foreground-muted)] mt-1">Set a parent unit when creating or editing a unit to build the org tree.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-[var(--foreground-muted)] mb-3 font-medium">Click any unit to expand/collapse its children.</p>
+      {tree.map(root => (
+        <TreeNodeRow key={root.id} node={root} depth={0} />
+      ))}
     </div>
   );
 }
@@ -888,7 +1014,8 @@ export default function UnitDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Tab Content */}
       <div className="min-h-[300px]">
-        {activeTab === "overview" && <OverviewTab unit={unit} />}
+        {activeTab === "overview" && <OverviewTab unit={unit} unitId={id} />}
+        {activeTab === "structure" && <StructureTab unitId={unit.id} />}
         {activeTab === "members" && <MembersTab unitId={unit.id} />}
         {activeTab === "brands" && <BrandsTab unitId={unit.id} />}
         {activeTab === "evidence" && <EvidenceScopesTab unitId={unit.id} />}

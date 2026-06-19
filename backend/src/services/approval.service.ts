@@ -26,6 +26,7 @@ export interface ApprovalItem {
   risk_level: string; due_at?: string;
   submitted_at: string; completed_at?: string; archived_at?: string;
   metadata?: Record<string, unknown>;
+  business_unit_id?: string | null;
   created_at: string; updated_at: string;
 }
 
@@ -37,6 +38,7 @@ export interface ApprovalItemInput {
   required_approval_level?: number; assigned_approver_id?: string;
   submitted_by: string; risk_level?: string; due_at?: string;
   metadata?: Record<string, unknown>;
+  business_unit_id?: string | null;
 }
 
 export interface ApprovalDecision {
@@ -113,6 +115,7 @@ export async function createApprovalItem(input: ApprovalItemInput, auth?: AuthCo
     risk_level: input.risk_level || 'LOW',
     due_at: input.due_at || null,
     metadata: input.metadata || {},
+    business_unit_id: input.business_unit_id || null,
   }).select().single();
   if (error) throw error;
 
@@ -139,6 +142,7 @@ export async function listApprovalItems(params: {
   tenant_id: string; status?: string[]; item_type?: string;
   source_module?: string; assigned_to?: string; submitted_by?: string;
   risk_level?: string; search?: string; overdue?: boolean;
+  business_unit_id?: string;
   limit?: number; offset?: number;
 }) {
   let query = supabaseAdmin
@@ -155,6 +159,7 @@ export async function listApprovalItems(params: {
   if (params.assigned_to) query = query.eq('assigned_approver_id', params.assigned_to);
   if (params.submitted_by) query = query.eq('submitted_by', params.submitted_by);
   if (params.risk_level) query = query.eq('risk_level', params.risk_level);
+  if (params.business_unit_id) query = query.eq('business_unit_id', params.business_unit_id);
   if (params.overdue) query = query.lt('due_at', new Date().toISOString()).not('approval_status', 'in', '("APPROVED","REJECTED","CANCELLED","COMPLETED","ARCHIVED")');
   if (params.search) {
     query = query.or(`title.ilike.%${params.search}%,source_module.ilike.%${params.search}%`);

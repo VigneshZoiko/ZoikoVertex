@@ -129,6 +129,9 @@ export const CreateSchema = z.object({
   welcome_message:          z.string().nullable().optional(),
   device_type:              z.string().nullable().optional(),
 
+  // Business unit scoping
+  business_unit_id:       z.string().uuid().nullable().optional(),
+
   // JSONB fields
   targeting:              TargetingSchema,
   creative:               CreativeSchema,
@@ -175,11 +178,12 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
-    const { status, risk_tier, campaign_type, needs_action } = req.query;
+    const { status, risk_tier, campaign_type, needs_action, business_unit_id } = req.query;
 
     if (status && status !== 'ALL') query = query.eq('status', String(status));
     if (risk_tier) query = query.eq('risk_tier', String(risk_tier));
     if (campaign_type) query = query.eq('campaign_type', String(campaign_type));
+    if (business_unit_id) query = query.eq('business_unit_id', String(business_unit_id));
 
     // "Needs Action" filter: statuses that require user attention
     if (needs_action === 'true') {
@@ -294,6 +298,7 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       conversion_event,
       welcome_message,
       device_type,
+      business_unit_id: buId,
       ...coreData
     } = parsed.data;
 
@@ -305,6 +310,8 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
         org_id:                   ws.org_id,
         created_by:               userId,
         status:                   'DRAFT',
+        // Business unit scoping
+        business_unit_id:         buId ?? null,
         // Meta / paid ads columns (from migrations 56-59)
         selected_meta_account_id: selected_meta_account_id ?? null,
         ads_data:                 ads_data ?? null,
@@ -385,6 +392,7 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
       conversion_event:         upd_ce,
       welcome_message:          upd_wm,
       device_type:              upd_dt,
+      business_unit_id:         upd_bu,
       ...coreUpdateData
     } = parsed.data;
 
@@ -400,6 +408,7 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
     if (upd_ben !== undefined) updates.eu_beneficiary           = upd_ben ?? null;
     if (upd_pay !== undefined) updates.eu_payer                 = upd_pay ?? null;
     if (upd_px  !== undefined) updates.tracking_pixel_id        = upd_px  ?? null;
+    if (upd_bu  !== undefined) updates.business_unit_id         = upd_bu  ?? null;
     if (upd_ce  !== undefined) updates.conversion_event         = upd_ce  ?? null;
     if (upd_wm  !== undefined) updates.welcome_message          = upd_wm  ?? null;
     if (upd_dt  !== undefined) updates.device_type              = upd_dt  ?? null;

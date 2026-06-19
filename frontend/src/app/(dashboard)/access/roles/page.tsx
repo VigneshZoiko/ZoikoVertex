@@ -15,19 +15,13 @@ import {
   Plus,
   Trash2,
   X,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { ROLE_ARCHITECTURE, CONTROL_LAYERS } from "@/lib/roles";
 import { api } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface BusinessUnit {
-  id: string;
-  name: string;
-  description: string | null;
-  color: string;
-  created_at: string;
-}
 
 // ─── Colour presets for the unit picker ──────────────────────────────────────
 
@@ -202,17 +196,33 @@ function RolesTab() {
 
 // ─── Units Tab ────────────────────────────────────────────────────────────────
 
+const UNIT_TYPES = [
+  { value: "department", label: "Department" },
+  { value: "region", label: "Region" },
+  { value: "team", label: "Team" },
+  { value: "division", label: "Division" },
+  { value: "project", label: "Project" },
+];
+
+interface WorkspaceMember {
+  id: string; workspace_member_id?: string;
+  full_name: string; email: string; role: string;
+}
+
 function UnitsTab() {
-  const [units, setUnits] = useState<BusinessUnit[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(COLOR_PRESETS[0]);
+  const [unitType, setUnitType] = useState("department");
+  const [ownerId, setOwnerId] = useState("");
 
   const fetchUnits = async () => {
     setLoading(true);
@@ -231,6 +241,9 @@ function UnitsTab() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     fetchUnits();
+    api.get("/api/v1/team/members").then((r) => {
+      if (r.success !== false) setMembers(r.data || []);
+    }).catch(() => {});
   }, []);
 
   const handleCreate = async () => {
@@ -242,11 +255,15 @@ function UnitsTab() {
         name: name.trim(),
         description: description.trim() || null,
         color,
+        unit_type: unitType,
+        owner_id: ownerId || null,
       });
-      setUnits((prev) => [...prev, res.data as BusinessUnit]);
+      fetchUnits();
       setName("");
       setDescription("");
       setColor(COLOR_PRESETS[0]);
+      setUnitType("department");
+      setOwnerId("");
       setShowForm(false);
     } catch {
       setError("Failed to create business unit.");
@@ -255,13 +272,17 @@ function UnitsTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleAction = async (action: "archive" | "restore" | "delete", id: string) => {
     setDeletingId(id);
     try {
-      await api.delete(`/api/v1/units/${id}`);
-      setUnits((prev) => prev.filter((u) => u.id !== id));
+      if (action === "delete") {
+        await api.delete(`/api/v1/units/${id}`);
+      } else {
+        await api.post(`/api/v1/units/${id}/${action}`, {});
+      }
+      fetchUnits();
     } catch {
-      setError("Failed to delete business unit.");
+      setError(`Failed to ${action} business unit.`);
     } finally {
       setDeletingId(null);
     }
@@ -315,66 +336,54 @@ function UnitsTab() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">
-                Name *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+              <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Name *</label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Marketing, APAC Region"
-                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all"
-              />
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">
-                Description
-              </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+              <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Description</label>
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional short description"
-                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all"
-              />
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Unit Type</label>
+              <select value={unitType} onChange={(e) => setUnitType(e.target.value)}
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+                {UNIT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Owner (optional)</label>
+              <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)}
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+                <option value="">— No owner —</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.workspace_member_id || m.id}>{m.full_name} ({m.email})</option>
+                ))}
+              </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-2 uppercase tracking-wide">
-              Colour
-            </label>
+            <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-2 uppercase tracking-wide">Colour</label>
             <div className="flex items-center gap-2 flex-wrap">
               {COLOR_PRESETS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  title={c}
-                  className={`w-7 h-7 rounded-lg transition-all ${
-                    color === c
-                      ? "ring-2 ring-offset-2 ring-offset-[var(--card)] ring-white scale-110"
-                      : "hover:scale-110"
-                  }`}
-                  style={{ background: c }}
-                />
+                <button key={c} onClick={() => setColor(c)} title={c}
+                  className={`w-7 h-7 rounded-lg transition-all ${color === c ? "ring-2 ring-offset-2 ring-offset-[var(--card)] ring-white scale-110" : "hover:scale-110"}`}
+                  style={{ background: c }} />
               ))}
             </div>
           </div>
 
           <div className="flex items-center gap-3 pt-1">
-            <button
-              onClick={handleCreate}
-              disabled={submitting || !name.trim()}
-              className="px-5 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground text-sm font-semibold rounded-xl transition-colors"
-            >
+            <button onClick={handleCreate} disabled={submitting || !name.trim()}
+              className="px-5 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground text-sm font-semibold rounded-xl transition-colors">
               {submitting ? "Creating…" : "Create Unit"}
             </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-sm transition-colors"
-            >
-              Cancel
-            </button>
+            <button onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-sm transition-colors">Cancel</button>
           </div>
         </div>
       )}
@@ -383,10 +392,7 @@ function UnitsTab() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-24 bg-[var(--card)] border border-[var(--border)] rounded-2xl animate-pulse"
-            />
+            <div key={i} className="h-24 bg-[var(--card)] border border-[var(--border)] rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : units.length === 0 ? (
@@ -394,44 +400,48 @@ function UnitsTab() {
           <div className="w-14 h-14 rounded-2xl bg-[var(--surface-hover)] flex items-center justify-center mb-4">
             <Building2 className="w-7 h-7 text-[var(--foreground-muted)]" />
           </div>
-          <p className="text-[var(--foreground)] font-semibold mb-1">
-            No business units yet
-          </p>
-          <p className="text-[var(--foreground-muted)] text-sm max-w-xs">
-            Create your first unit to organise teams, regions, or departments.
-          </p>
+          <p className="text-[var(--foreground)] font-semibold mb-1">No business units yet</p>
+          <p className="text-[var(--foreground-muted)] text-sm max-w-xs">Create your first unit to organise teams, regions, or departments.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {units.map((unit) => (
-            <div
-              key={unit.id}
-              className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 flex items-start justify-between group hover:border-info-border/30 transition-all"
-            >
+          {units.map((unit: any) => (
+            <div key={unit.id}
+              className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 group hover:border-info-border/30 transition-all">
               <div className="flex items-start gap-3">
-                <div
-                  className="w-3 h-3 rounded-full mt-1 shrink-0"
-                  style={{ background: unit.color }}
-                />
-                <div>
-                  <p className="text-[var(--foreground)] font-semibold text-sm">
-                    {unit.name}
-                  </p>
+                <div className="w-3 h-3 rounded-full mt-1 shrink-0" style={{ background: unit.color }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[var(--foreground)] font-semibold text-sm">{unit.name}</p>
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${unit.status === 'ACTIVE' ? 'bg-success-text/10 text-success-text' : 'bg-warning-text/10 text-warning-text'}`}>{unit.status}</span>
+                  </div>
                   {unit.description && (
-                    <p className="text-[var(--foreground-muted)] text-xs mt-0.5 leading-relaxed">
-                      {unit.description}
-                    </p>
+                    <p className="text-[var(--foreground-muted)] text-xs mt-0.5 leading-relaxed">{unit.description}</p>
                   )}
+                  <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--foreground-muted)]">
+                    <span className="capitalize">{unit.unit_type || 'department'}</span>
+                    {unit.owner_name && <span>{unit.owner_name}</span>}
+                    <span>{unit.member_count || 0} members</span>
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(unit.id)}
-                disabled={deletingId === unit.id}
-                className="opacity-0 group-hover:opacity-100 ml-2 p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                title="Delete unit"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                {unit.status === "ACTIVE" ? (
+                  <button onClick={() => handleAction("archive", unit.id)} disabled={deletingId === unit.id}
+                    className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-warning-text hover:bg-warning-text/10 transition-all disabled:opacity-50" title="Archive unit">
+                    <Archive className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button onClick={() => handleAction("restore", unit.id)} disabled={deletingId === unit.id}
+                    className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-success-text hover:bg-success-text/10 transition-all disabled:opacity-50" title="Restore unit">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button onClick={() => handleAction("delete", unit.id)} disabled={deletingId === unit.id}
+                  className="p-1.5 rounded-lg text-[var(--foreground-muted)] hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50" title="Delete unit">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -221,6 +221,7 @@ const CreateAgentSchema = z.object({
   linked_channels: z.array(z.string()).default([]),
   evidence_required: z.boolean().default(true),
   approval_required: z.boolean().default(true),
+  business_unit_id: z.string().nullable().optional(),
 });
 
 export const cloneAgent = async (req: Request, res: Response, next: NextFunction) => {
@@ -284,6 +285,7 @@ export const cloneAgent = async (req: Request, res: Response, next: NextFunction
       approval_required: original.approval_required ?? true,
       trust_score: 0,
       faithfulness_score: 0,
+      business_unit_id: original.business_unit_id || null,
     };
     
     const { data: newAgent, error: createError } = await supabaseAdmin
@@ -695,6 +697,8 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
 
     if (statusFilter) query = query.eq('status', statusFilter);
     if (riskFilter) query = query.eq('risk_level', riskFilter);
+    const unitFilter = getQueryValue(req, 'business_unit_id');
+    if (unitFilter) query = query.eq('business_unit_id', unitFilter);
 
     const { data: agents, error } = await query;
     if (error) throw error;
@@ -846,6 +850,7 @@ export const registerAgent = async (req: Request, res: Response, next: NextFunct
       trust_score: 0.0,
       faithfulness_score: 0.0,
       risk_level: payload.risk_level || 'medium',
+      business_unit_id: payload.business_unit_id || null,
     };
 
     const fullInsert = {
@@ -1214,7 +1219,7 @@ export const updateAgent = async (req: Request, res: Response, next: NextFunctio
     const allowed = ['name', 'purpose', 'type', 'primary_dri_id', 'backup_dri_id', 'assigned_brand',
       'permitted_actions', 'prohibited_actions', 'linked_channels', 'linked_prompts', 'linked_workflows',
       'linked_policies', 'linked_knowledge_sources', 'risk_level', 'evidence_required', 'approval_required',
-      'success_metrics', 'prohibited_outcomes', 'compliance_notes', 'mode'];
+      'success_metrics', 'prohibited_outcomes', 'compliance_notes', 'mode', 'business_unit_id'];
 
     const updates: Record<string, unknown> = {};
     for (const key of allowed) {

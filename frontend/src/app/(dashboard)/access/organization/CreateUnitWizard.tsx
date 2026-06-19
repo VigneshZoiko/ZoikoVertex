@@ -35,6 +35,8 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
   const [color, setColor] = useState(COLOR_PRESETS[0]);
   const [unitType, setUnitType] = useState("department");
   const [ownerId, setOwnerId] = useState("");
+  const [parentId, setParentId] = useState("");
+  const [units, setUnits] = useState<{ id: string; name: string; unit_type: string }[]>([]);
 
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [availableMembers, setAvailableMembers] = useState<WorkspaceMember[]>([]);
@@ -50,7 +52,10 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
         setAvailableMembers(res.data || []);
       }).catch(() => {}).finally(() => setLoadingMembers(false));
     }
-  }, [availableMembers.length]);
+    if (units.length === 0) {
+      api.get("/api/v1/units").then((res) => { if (res.success !== false) setUnits(res.data || []); }).catch(() => {});
+    }
+  }, [availableMembers.length, units.length]);
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -63,6 +68,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
         color,
         unit_type: unitType,
         owner_id: ownerId || null,
+        parent_id: parentId || null,
       });
 
       if (createRes.success === false) {
@@ -151,6 +157,16 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
                 </select>
               </div>
               <div>
+                <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Parent Unit <span className="font-normal normal-case tracking-normal text-[var(--foreground-muted)]">(optional)</span></label>
+                <select value={parentId} onChange={(e) => setParentId(e.target.value)}
+                  className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+                  <option value="">— No parent (top-level) —</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.unit_type})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-2 uppercase tracking-wide">Colour</label>
                 <div className="flex items-center gap-2 flex-wrap">
                   {COLOR_PRESETS.map((c) => (
@@ -204,6 +220,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-[var(--foreground-muted)]">Type:</span> <span className="text-[var(--foreground)] font-medium">{UNIT_TYPES.find(t => t.value === unitType)?.label}</span></div>
                   <div><span className="text-[var(--foreground-muted)]">Owner:</span> <span className="text-[var(--foreground)] font-medium">{ownerId ? availableMembers.find(m => (m.workspace_member_id || m.id) === ownerId)?.full_name || "Assigned" : "None"}</span></div>
+                  <div><span className="text-[var(--foreground-muted)]">Parent:</span> <span className="text-[var(--foreground)] font-medium">{parentId ? units.find(u => u.id === parentId)?.name || "Unknown" : "Top-level"}</span></div>
                   <div><span className="text-[var(--foreground-muted)]">Members:</span> <span className="text-[var(--foreground)] font-medium">{selectedMembers.length}</span></div>
                 </div>
               </div>

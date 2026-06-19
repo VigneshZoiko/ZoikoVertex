@@ -210,7 +210,7 @@ import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember, updateMemberRole } from './domains/identity/teamController';
 import {
-  listUnits, getUnit, getUnitStats, createUnit, updateUnit, archiveUnit, deleteUnit, restoreUnit,
+  listUnits, getUnit, getUnitStats, getUnitChildren, createUnit, updateUnit, archiveUnit, deleteUnit, restoreUnit,
   getUnitMembers, addUnitMember, removeUnitMember,
   getUnitBrands, linkUnitBrand, unlinkUnitBrand,
   getUnitActivity,
@@ -904,6 +904,7 @@ app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 app.get('/api/v1/units/stats', authenticate, getUnitStats);
 app.get('/api/v1/units', authenticate, listUnits);
 app.get('/api/v1/units/:id', authenticate, getUnit);
+app.get('/api/v1/units/:id/children', authenticate, getUnitChildren);
 app.post('/api/v1/units', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), createUnit);
 app.put('/api/v1/units/:id', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateUnit);
 app.post('/api/v1/units/:id/archive', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), archiveUnit);

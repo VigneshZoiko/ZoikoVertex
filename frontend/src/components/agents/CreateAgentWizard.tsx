@@ -79,6 +79,7 @@ interface AgentTemplateData {
   linked_channels?: string[];
   evidence_required?: boolean;
   approval_required?: boolean;
+  business_unit_id?: string;
 }
 
 interface CreateAgentWizardProps {
@@ -203,6 +204,7 @@ export default function CreateAgentWizard({
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>(
     [],
   );
+  const [businessUnits, setBusinessUnits] = useState<{ id: string; name: string }[]>([]);
   const [showTemplates, setShowTemplates] = useState(true);
 
   // ── FIX: manual resource input state ──
@@ -232,6 +234,7 @@ export default function CreateAgentWizard({
     linked_channels: [] as string[],
     evidence_required: true,
     approval_required: true,
+    business_unit_id: "",
   });
 
   const [actionInput, setActionInput] = useState({
@@ -265,6 +268,7 @@ export default function CreateAgentWizard({
           linked_channels: initialData.linked_channels ?? prev.linked_channels,
           evidence_required: initialData.evidence_required ?? prev.evidence_required,
           approval_required: initialData.approval_required ?? prev.approval_required,
+          business_unit_id: initialData.business_unit_id ?? prev.business_unit_id,
         }));
         setShowTemplates(false); // skip the template picker — go straight to step 1
       } else {
@@ -288,6 +292,7 @@ export default function CreateAgentWizard({
           linked_channels: [],
           evidence_required: true,
           approval_required: true,
+          business_unit_id: "",
         });
         setShowTemplates(true);
       }
@@ -313,6 +318,8 @@ export default function CreateAgentWizard({
             workspace_id: contextRes.value.data.workspace_id || "",
           }));
         }
+
+        api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
 
         let workspaceId =
           contextRes.status === "fulfilled" && contextRes.value.success
@@ -699,6 +706,7 @@ export default function CreateAgentWizard({
         linked_workflows: formData.linked_workflows,
         linked_policies: formData.linked_policies,
         linked_knowledge_sources: formData.linked_knowledge_sources,
+        business_unit_id: formData.business_unit_id || null,
       };
 
       // ── DEV logging ─────────────────────────────────────────────────────────
@@ -975,6 +983,18 @@ export default function CreateAgentWizard({
                     </button>
                   ))}
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">
+                  Business Unit <span className="font-normal normal-case tracking-normal text-[var(--foreground-muted)]">(optional)</span>
+                </label>
+                <select value={formData.business_unit_id} onChange={e => setFormData(prev => ({ ...prev, business_unit_id: e.target.value }))}
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 focus:ring-2 focus:ring-info-text/20 outline-none transition-all text-[var(--foreground)] text-sm">
+                  <option value="">— No unit —</option>
+                  {businessUnits.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
               </div>
               <button
                 onClick={() => setShowTemplates(true)}
