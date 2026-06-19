@@ -30,6 +30,7 @@ import {
   MoreHorizontal,
   RotateCcw,
 } from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 
 import dynamic from "next/dynamic";
@@ -1362,12 +1363,13 @@ function PublishPageInner() {
 
       if (reviewItemId) {
         // Resubmit mode — update the existing review item and send back to queue
-        await api.post(`/api/v1/review-queue/items/${reviewItemId}/action`, {
+        const res = await api.post(`/api/v1/review-queue/items/${reviewItemId}/action`, {
           action: 'resubmit',
           new_urls: finalUrls,
           content: payload.content,
           topic: payload.topic,
         });
+        if (!res.success) throw new Error(res.error || 'Resubmit failed');
         setMessage({ type: 'success', text: 'Resubmitted for review. The reviewer has been notified.' });
         setIsDirty(false);
         setTimeout(() => router.push('/returned'), 1500);
@@ -1395,7 +1397,7 @@ function PublishPageInner() {
     } catch (err: any) {
       setMessage({
         type: "error",
-        text: "Failed to publish. Please try again.",
+        text: err?.message || err?.error || "Failed to publish. Please try again.",
       });
     }
     setSubmitting(false);
@@ -1665,7 +1667,8 @@ function PublishPageInner() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 px-6">
+    <>
+      <div className="max-w-6xl mx-auto pb-20 px-6">
       {/* Decent Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div className="flex items-center gap-4">
@@ -1813,11 +1816,17 @@ function PublishPageInner() {
               <h3 className="text-sm font-bold text-[var(--foreground)]">
                 Media
               </h3>
-              {mediaUrls.length > 1 && (
-                <span className="text-xs text-info-text font-bold bg-info-text/10 border border-info-border/20 px-3 py-1 rounded-lg">
-                  Pack · {mediaUrls.length} files
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {mediaUrls.length > 1 && (
+                  <span className="text-xs text-info-text font-bold bg-info-text/10 border border-info-border/20 px-3 py-1 rounded-lg">
+                    Pack · {mediaUrls.length} files
+                  </span>
+                )}
+                <button type="button" onClick={() => router.push('/library')}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
+                  Media Vault
+                </button>
+              </div>
             </div>
 
             {/* Carousel preview when library pack is loaded */}
@@ -2901,6 +2910,7 @@ function PublishPageInner() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

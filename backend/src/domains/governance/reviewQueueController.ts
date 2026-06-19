@@ -310,7 +310,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
     }
 
     if (action === 'resubmit') {
-      // Merge any updated fields into content_snapshot (media, captions, topic)
+      // Build the content_snapshot patch (merge updated media, captions, topic)
       const existing = (item as any).content_snapshot || {};
       const snapshotPatch: Record<string, unknown> = {};
       if (new_urls?.length) snapshotPatch.urls = new_urls;
@@ -322,16 +322,67 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       if (resubmitContent?.platforms && Object.keys(resubmitContent.platforms).length > 0) {
         snapshotPatch.platform_captions = resubmitContent.platforms;
       }
+
+      // Single atomic update: status, assigned_to clear, and optional snapshot patch.
+      // We use supabaseAdmin directly (bypasses the service's queue:manage permission gate)
+      // because CREATOR role is allowed to resubmit their own items via returnedWrite middleware.
+      const newTitle = resubmitContent?.universal?.trim()
+        ? resubmitContent.universal.slice(0, 80).trim()
+        : resubmitTopic?.trim()
+          ? resubmitTopic.slice(0, 80).trim()
+          : null;
+      const resubmitFields: Record<string, unknown> = {
+        status: 'PENDING_REVIEW',
+        assigned_to: null,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...(newTitle ? { title: newTitle } : {}),
+      };
       if (Object.keys(snapshotPatch).length > 0) {
-        await supabaseAdmin.from('review_items')
-          .update({ content_snapshot: { ...existing, ...snapshotPatch } })
-          .eq('id', id)
-          .eq('tenant_id', tenantId);
+        resubmitFields.content_snapshot = { ...existing, ...snapshotPatch };
       }
 
-      const updated = await reviewQueueService.updateReviewItemStatus({
-        id, tenant_id: tenantId, status: 'PENDING_REVIEW', feedback: undefined, userId,
-      }, auth);
+      const { data: updated, error: resubmitError } = await supabaseAdmin
+        .from('review_items')
+        .update(resubmitFields)
+        .eq('id', id)
+        .eq('tenant_id', tenantId)
+        .select()
+        .single();
+
+      if (resubmitError) throw resubmitError;
+
+      // Upsert an approval_items entry so the item also appears in the Approval Console
+      const { data: existingApproval } = await supabaseAdmin
+        .from('approval_items')
+        .select('id')
+        .eq('source_entity_id', id)
+        .eq('source_module', 'review_queue')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (existingApproval) {
+        await supabaseAdmin
+          .from('approval_items')
+          .update({ approval_status: 'PENDING_APPROVAL', updated_at: new Date().toISOString() })
+          .eq('id', existingApproval.id)
+          .eq('tenant_id', tenantId);
+      } else {
+        await supabaseAdmin.from('approval_items').insert({
+          id: uuidv4(),
+          tenant_id: tenantId,
+          workspace_id: workspaceId,
+          source_module: 'review_queue',
+          source_entity_id: id,
+          item_type: (item as any).item_type || 'SOCIAL_POST',
+          title: item.title,
+          approval_status: 'PENDING_APPROVAL',
+          submitted_by: userId,
+          risk_level: item.risk_level || 'LOW',
+          required_approval_level: 1,
+          submitted_at: new Date().toISOString(),
+        });
+      }
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.resubmitted',

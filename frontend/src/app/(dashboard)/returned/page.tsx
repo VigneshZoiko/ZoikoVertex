@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   RotateCcw, AlertTriangle, RefreshCcw,
@@ -36,6 +36,7 @@ interface ApprovalItem {
   title: string;
   item_type: string;
   source_module: string;
+  source_entity_id?: string;
   platform?: string;
   submitter_name?: string;
   submitted_by: string;
@@ -95,6 +96,7 @@ function ReviewCard({
   const [notesLoading, setNotesLoading] = useState(true);
   const [resubmitting, setResubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [resubmitError, setResubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get(`/api/v1/review-queue/items/${item.id}/notes`)
@@ -105,9 +107,12 @@ function ReviewCard({
 
   const handleResubmit = async () => {
     setResubmitting(true);
+    setResubmitError(null);
     try {
       await onResubmit(item.id);
       setDone(true);
+    } catch (e: any) {
+      setResubmitError(e?.message || e?.error || 'Resubmit failed. Please try again or contact support.');
     } finally {
       setResubmitting(false);
     }
@@ -197,6 +202,14 @@ function ReviewCard({
         )}
       </div>
 
+      {/* Error */}
+      {resubmitError && (
+        <div className="flex items-start gap-2 px-4 py-2.5 bg-red-500/5 border-t border-red-500/20 text-xs text-red-400">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>{resubmitError}</span>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
         <a
@@ -225,9 +238,47 @@ function ReviewCard({
 
 // ── Approval Card ──────────────────────────────────────────────────────────
 
-function ApprovalCard({ item }: { item: ApprovalItem }) {
+function ApprovalCard({
+  item,
+  onResubmitApproval,
+}: {
+  item: ApprovalItem;
+  onResubmitApproval: (id: string) => Promise<void>;
+}) {
   const platformKey = (item.platform || "").toLowerCase();
   const riskKey = (item.risk_level || "LOW").toUpperCase();
+  const [resubmitting, setResubmitting] = useState(false);
+  const [resubmitError, setResubmitError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const isPost = item.source_module === "publish" ||
+    item.item_type?.toLowerCase().includes("post");
+  const editHref = isPost && item.source_entity_id
+    ? `/publish?review_item_id=${item.source_entity_id}`
+    : undefined;
+  const editLabel = isPost ? "Edit Post" : "Edit Media";
+
+  const handleResubmit = async () => {
+    setResubmitting(true);
+    setResubmitError(null);
+    try {
+      await onResubmitApproval(item.id);
+      setDone(true);
+    } catch (e: any) {
+      setResubmitError(e?.message || e?.error || 'Resubmit failed.');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="flex items-center gap-3 px-5 py-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm">
+        <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <span><span className="font-medium">{item.title}</span> resubmitted.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
@@ -258,7 +309,7 @@ function ApprovalCard({ item }: { item: ApprovalItem }) {
                 {riskKey}
               </span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider bg-amber-500/10 text-amber-400 border-amber-500/20">
-                Changes Requested
+                Returned from Approval
               </span>
             </div>
           </div>
@@ -272,14 +323,28 @@ function ApprovalCard({ item }: { item: ApprovalItem }) {
         </div>
       </div>
 
+      {resubmitError && (
+        <div className="flex items-start gap-2 px-4 py-2.5 bg-red-500/5 border-t border-red-500/20 text-xs text-red-400">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>{resubmitError}</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-end gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
-        <a
-          href="/governance/approvals"
-          className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors px-3 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)]"
-        >
-          Open in Approval Console
-          <ExternalLink className="w-3 h-3" />
-        </a>
+        {editHref && (
+          <a href={editHref}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
+            <Pencil className="w-3.5 h-3.5" />
+            {editLabel}
+          </a>
+        )}
+        {item.source_entity_id && (
+          <button onClick={handleResubmit} disabled={resubmitting}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50">
+            {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+            Submit for Review
+          </button>
+        )}
       </div>
     </div>
   );
@@ -309,15 +374,13 @@ export default function ReturnedItemsPage() {
   const [approvalItems, setApprovalItems] = useState<ApprovalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const fetchedRef = useRef(false);
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [rqRes, apRes] = await Promise.allSettled([
         api.get("/api/v1/review-queue?status=AWAITING_REVISION&submitted_by=me&limit=100"),
-        api.get("/api/v1/approvals-v2/items"),
+        api.get("/api/v1/approvals-v2/items?submitted_by=me"),
       ]);
 
       if (rqRes.status === "fulfilled" && rqRes.value.success) {
@@ -325,7 +388,7 @@ export default function ReturnedItemsPage() {
       }
       if (apRes.status === "fulfilled" && apRes.value.success) {
         const all: ApprovalItem[] = apRes.value.data?.items || apRes.value.data || [];
-        setApprovalItems(all.filter(i => i.approval_status === "CHANGES_REQUESTED"));
+        setApprovalItems(all.filter(i => i.approval_status === "CHANGES_REQUESTED" || i.approval_status === "RETURNED_TO_CREATOR"));
       }
     } catch (e: any) {
       setError(e.message || "Failed to load returned items.");
@@ -335,15 +398,22 @@ export default function ReturnedItemsPage() {
   }, []);
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
     load();
   }, [load]);
 
   const handleResubmit = useCallback(async (id: string) => {
-    await api.post(`/api/v1/review-queue/items/${id}/action`, { action: "resubmit" });
+    const res = await api.post(`/api/v1/review-queue/items/${id}/action`, { action: "resubmit" });
+    if (!res.success) throw new Error(res.error || 'Resubmit failed');
     setReviewItems(prev => prev.filter(i => i.id !== id));
   }, []);
+
+  const handleResubmitApproval = useCallback(async (approvalId: string) => {
+    const item = approvalItems.find(i => i.id === approvalId);
+    if (!item?.source_entity_id) throw new Error('Cannot resubmit — missing source item reference');
+    const res = await api.post(`/api/v1/review-queue/items/${item.source_entity_id}/action`, { action: "resubmit" });
+    if (!res.success) throw new Error(res.error || 'Resubmit failed');
+    setApprovalItems(prev => prev.filter(i => i.id !== approvalId));
+  }, [approvalItems]);
 
   const totalReturned = reviewItems.length + approvalItems.length;
 
@@ -375,7 +445,7 @@ export default function ReturnedItemsPage() {
           </div>
         </div>
         <button
-          onClick={() => { fetchedRef.current = false; load(); }}
+          onClick={() => load()}
           disabled={loading}
           className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors"
         >
@@ -441,7 +511,7 @@ export default function ReturnedItemsPage() {
         ) : (
           <div className="space-y-3">
             {approvalItems.map(item => (
-              <ApprovalCard key={item.id} item={item} />
+              <ApprovalCard key={item.id} item={item} onResubmitApproval={handleResubmitApproval} />
             ))}
           </div>
         )
