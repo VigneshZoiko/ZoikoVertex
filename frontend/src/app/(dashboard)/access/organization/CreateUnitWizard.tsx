@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, X } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -43,19 +43,21 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
   const [loadingMembers, setLoadingMembers] = useState(false);
 
   const steps = ["Unit Details", "Assign Members", "Review"];
+  const fetchedRef = useRef({ members: false, units: false });
 
   useEffect(() => {
-    if (availableMembers.length === 0) {
+    if (!fetchedRef.current.members) {
+      fetchedRef.current.members = true;
       setLoadingMembers(true);
       api.get("/api/v1/team/members").then((res) => {
-        if (res.success === false) { setError(String(res.error || "Failed to load members")); return; }
-        setAvailableMembers(res.data || []);
+        if (res.success !== false) setAvailableMembers(res.data || []);
       }).catch(() => {}).finally(() => setLoadingMembers(false));
     }
-    if (units.length === 0) {
+    if (!fetchedRef.current.units) {
+      fetchedRef.current.units = true;
       api.get("/api/v1/units").then((res) => { if (res.success !== false) setUnits(res.data || []); }).catch(() => {});
     }
-  }, [availableMembers.length, units.length]);
+  }, []);
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -77,14 +79,18 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
         return;
       }
 
-      if (selectedMembers.length > 0 && createRes?.data?.id) {
-        await Promise.all(selectedMembers.map((mid) =>
-          api.post(`/api/v1/units/${createRes.data.id}/members`, { member_id: mid })
-        ));
-      }
-
       onCreated();
       onClose();
+
+      if (selectedMembers.length > 0 && createRes?.data?.id) {
+        const results = await Promise.allSettled(selectedMembers.map((mid) =>
+          api.post(`/api/v1/units/${createRes.data.id}/members`, { member_id: mid })
+        ));
+        const failures = results.filter(r => r.status === "rejected");
+        if (failures.length > 0) {
+          console.warn(`${failures.length} member(s) could not be added to unit ${createRes.data.id}`);
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create business unit";
       setError(msg);

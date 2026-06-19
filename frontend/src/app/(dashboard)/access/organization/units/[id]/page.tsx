@@ -109,13 +109,16 @@ const DETAIL_TABS = [
 function OverviewTab({ unit, unitId }: { unit: BusinessUnitExtended; unitId: string }) {
   const statusCfg = STATUS_CONFIG[unit.status] || STATUS_CONFIG.DRAFT;
   const [parentName, setParentName] = useState<string | null>(null);
+  const [parentNameFailed, setParentNameFailed] = useState(false);
   const [childCount, setChildCount] = useState(0);
 
   useEffect(() => {
     if (unit.parent_id) {
+      setParentNameFailed(false);
       api.get(`/api/v1/units/${unit.parent_id}`).then(r => {
         if (r.success !== false && r.data) setParentName(r.data.name || null);
-      }).catch(() => {});
+        else setParentNameFailed(true);
+      }).catch(() => setParentNameFailed(true));
     }
     api.get(`/api/v1/units/${unitId}/children`).then(r => {
       if (r.success !== false && Array.isArray(r.data)) setChildCount(r.data.length);
@@ -156,7 +159,7 @@ function OverviewTab({ unit, unitId }: { unit: BusinessUnitExtended; unitId: str
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
           <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wide mb-1">Parent Unit</p>
           <p className="text-sm font-semibold text-[var(--foreground)]">
-            {unit.parent_id ? (parentName || "Loading...") : "Top-level (no parent)"}
+            {unit.parent_id ? (parentName || (parentNameFailed ? "Unknown" : "Loading...")) : "Top-level (no parent)"}
           </p>
         </div>
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
@@ -183,7 +186,7 @@ interface TreeNode {
 }
 
 function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<TreeNode[]>(node.children || []);
   const [loading, setLoading] = useState(false);
 
@@ -745,13 +748,16 @@ function SettingsTab({ unit, onUpdated }: { unit: BusinessUnit; onUpdated: () =>
   const [description, setDescription] = useState(unit.description || "");
   const [color, setColor] = useState(unit.color);
   const [unitType, setUnitType] = useState(unit.unit_type);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setName(unit.name);
-    setDescription(unit.description || "");
-    setColor(unit.color);
-    setUnitType(unit.unit_type);
-  }, [unit.id, unit.name, unit.description, unit.color, unit.unit_type]);
+    if (!dirty) {
+      setName(unit.name);
+      setDescription(unit.description || "");
+      setColor(unit.color);
+      setUnitType(unit.unit_type);
+    }
+  }, [unit.id, unit.name, unit.description, unit.color, unit.unit_type, dirty]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -780,17 +786,17 @@ function SettingsTab({ unit, onUpdated }: { unit: BusinessUnit; onUpdated: () =>
       )}
       <div>
         <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+        <input type="text" value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }}
           className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all" />
       </div>
       <div>
         <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Description</label>
-        <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
+        <input type="text" value={description} onChange={(e) => { setDescription(e.target.value); setDirty(true); }}
           className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all" />
       </div>
       <div>
         <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-1.5 uppercase tracking-wide">Unit Type</label>
-        <select value={unitType} onChange={(e) => setUnitType(e.target.value)}
+        <select value={unitType} onChange={(e) => { setUnitType(e.target.value); setDirty(true); }}
           className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
           {["department","region","team","division","project"].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
         </select>
@@ -799,7 +805,7 @@ function SettingsTab({ unit, onUpdated }: { unit: BusinessUnit; onUpdated: () =>
         <label className="block text-xs font-semibold text-[var(--foreground-muted)] mb-2 uppercase tracking-wide">Colour</label>
         <div className="flex items-center gap-2 flex-wrap">
           {["#6366f1","#8b5cf6","#ec4899","#f43f5e","#f97316","#eab308","#22c55e","#14b8a6","#3b82f6","#06b6d4","#64748b","#a16207"].map((c) => (
-            <button key={c} onClick={() => setColor(c)}
+            <button key={c} onClick={() => { setColor(c); setDirty(true); }}
               className={`w-7 h-7 rounded-lg transition-all ${color === c ? "ring-2 ring-offset-2 ring-offset-[var(--card)] ring-white scale-110" : "hover:scale-110"}`}
               style={{ background: c }} />
           ))}
@@ -870,7 +876,8 @@ export default function UnitDetailPage({ params }: { params: Promise<{ id: strin
       const res = await api.delete(`/api/v1/units/${id}`);
       if (res.success === false) { setActionToast({ message: String(res.error || "Failed to delete"), type: "error" }); setShowDeleteConfirm(false); return; }
       setActionToast({ message: res.archived ? "Unit archived (has dependent data)" : "Unit deleted permanently", type: "success" });
-      setTimeout(() => router.push("/access/organization"), 1200);
+      const timer = setTimeout(() => router.push("/access/organization"), 1200);
+      return () => clearTimeout(timer);
     } catch { setActionToast({ message: "Failed to delete", type: "error" }); } finally { setDeleting(false); setShowDeleteConfirm(false); }
   };
 

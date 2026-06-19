@@ -448,7 +448,7 @@ export default function OrganizationStructurePage() {
                 className="px-4 py-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
                 Cancel
               </button>
-              <button onClick={() => { const t = deleteTarget; handleDelete(t.id, t.name); setDeleteTarget(null); }}
+              <button onClick={() => { if (!deleteTarget) return; const t = deleteTarget; handleDelete(t.id, t.name); setDeleteTarget(null); }}
                 className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
                 Delete
               </button>
