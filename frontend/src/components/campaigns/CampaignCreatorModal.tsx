@@ -448,6 +448,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [specialCat,  setSpecial]      = useState(false);
   const [specialCatType, setSpecialCatType] = useState("");
 
+  // Business unit
+  const [businessUnits, setBusinessUnits] = useState<{ id: string; name: string }[]>([]);
+  const [businessUnitId, setBusinessUnitId] = useState("");
+
   // Step 2
   const [ageMin,      setAgeMin]         = useState("18");
   const [ageMax,      setAgeMax]         = useState("65");
@@ -677,6 +681,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ageMin, ageMax, gender, location]);
 
+  // Fetch business units
+  useEffect(() => {
+    api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+  }, []);
+
   // Load existing campaign data when editing
   useEffect(() => {
     if (!editId) return;
@@ -735,6 +744,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
       if (c.conversion_event)  setConvEvent(c.conversion_event);
       if (c.welcome_message)   setWelcomeMsg(c.welcome_message);
       if (c.selected_meta_account_id) setAcc(c.selected_meta_account_id);
+      if (c.business_unit_id)  setBusinessUnitId(c.business_unit_id);
 
       // Creative — use ads_data array if present, fall back to single creative
       const cr = c.creative || {};
@@ -838,6 +848,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     platforms:     ["Meta"],
     budget_total:  budgetType === "total" ? parseFloat(budgetAmt) : null,
     budget_daily:  budgetType === "daily" ? parseFloat(budgetAmt) : null,
+    business_unit_id: businessUnitId || null,
     budget_currency: adAccounts.find(a => a.id === selectedAcc)?.ad_account_currency || "USD",
     start_at:      startDate || null,
     end_at:        endDate   || null,
@@ -1205,6 +1216,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                   {fieldErrors.selectedPage && (
                     <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedPage}</p>
                   )}
+                </div>
+
+                <div className="border-t border-border pt-5 space-y-5">
+                  {/* Business unit */}
+                  <Field label="Organization Unit" hint="Assign this campaign to a business unit.">
+                    <div className="relative">
+                      <select value={businessUnitId} onChange={e => setBusinessUnitId(e.target.value)}
+                        className={inp + " pr-8 appearance-none"}>
+                        <option value="">— No unit —</option>
+                        {businessUnits.map(u => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-foreground-muted absolute right-3 top-2.5 pointer-events-none" />
+                    </div>
+                  </Field>
                 </div>
 
                 <div className="border-t border-border pt-5 space-y-5">
