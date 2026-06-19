@@ -911,8 +911,8 @@ app.post('/api/v1/units/:id/archive', authenticate, requireRole('ADMIN', 'WORKSP
 app.post('/api/v1/units/:id/restore', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), restoreUnit);
 app.delete('/api/v1/units/:id', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), deleteUnit);
 // Unit members
-app.get('/api/v1/units/:id/members', authenticate, getUnitMembers);
 app.get('/api/v1/units/:id/members/available', authenticate, getAvailableMembers);
+app.get('/api/v1/units/:id/members', authenticate, getUnitMembers);
 app.post('/api/v1/units/:id/members', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), addUnitMember);
 app.delete('/api/v1/units/:id/members/:memberId', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), removeUnitMember);
 // Unit brands
