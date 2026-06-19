@@ -381,12 +381,13 @@ function computeHash(input: string): string {
 }
 
 function sortedObject(obj: unknown): unknown {
-  if (obj === null || obj === undefined) return null;
+  if (obj === null) return null;           // JSON null → keep as null (SQL sorted_jsonb preserves it)
+  if (obj === undefined) return null;      // JS undefined → treat as null
   if (Array.isArray(obj)) return obj.map(item => sortedObject(item));
   if (typeof obj !== 'object') return obj;
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (v !== null && v !== undefined) {
+    if (v !== undefined) {               // only skip JS undefined (not null) — JSON null IS stored in JSONB
       result[k] = sortedObject(v);
     }
   }

@@ -453,6 +453,10 @@ app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN');
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN');
+// Allows content creators/publishers to read their own returned items from the review queue
+const returnedView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
+// Allows creators/publishers to write (resubmit) their own returned items
+const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
 
 app.post('/api/v1/ai/generate', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateContent);
 app.post('/api/v1/ai/generate-ad-copy', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateAdCopy);
@@ -1503,15 +1507,15 @@ app.post('/api/v1/governance/rules/:id/mark-invalid', authenticate, acctWrite, s
 
 // ─── Review Queue Routes (Accountability Layer) ──────────────────────
 app.post('/api/v1/review-queue', authenticate, acctWrite, scopeGuard('write:governance', '*'), createReviewItem);
-app.get('/api/v1/review-queue', authenticate, acctView, scopeGuard('read:governance', '*'), listReviewItems);
+app.get('/api/v1/review-queue', authenticate, returnedView, scopeGuard('read:governance', '*'), listReviewItems);
 app.get('/api/v1/review-queue/stats', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewStats);
-app.get('/api/v1/review-queue/items/:id', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewItem);
-app.post('/api/v1/review-queue/items/:id/action', authenticate, acctWrite, scopeGuard('write:publish', '*'), takeReviewAction);
+app.get('/api/v1/review-queue/items/:id', authenticate, returnedView, scopeGuard('read:governance', '*'), getReviewItem);
+app.post('/api/v1/review-queue/items/:id/action', authenticate, returnedWrite, scopeGuard('write:publish', '*'), takeReviewAction);
 app.get('/api/v1/review-queue/items/:id/eligibility', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewEligibility);
 app.get('/api/v1/review-queue/items/:id/audit-log', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewAuditLog);
 app.get('/api/v1/review-queue/items/:id/validation', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewValidation);
 app.get('/api/v1/review-queue/items/:id/policy-flags', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewPolicyFlags);
-app.get('/api/v1/review-queue/items/:id/notes', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewNotesHandler);
+app.get('/api/v1/review-queue/items/:id/notes', authenticate, returnedView, scopeGuard('read:governance', '*'), getReviewNotesHandler);
 app.get('/api/v1/review-queue/items/:id/revision-history', authenticate, acctView, scopeGuard('read:governance', '*'), getReviewRevisionHistory);
 app.patch('/api/v1/review-queue/items/:id/assign', authenticate, acctWrite, scopeGuard('write:governance', '*'), assignReviewItemHandler);
 app.post('/api/v1/review-queue/items/:id/notes', authenticate, acctWrite, scopeGuard('write:governance', '*'), addReviewNoteHandler);

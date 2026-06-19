@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, FileText, CheckCircle2, AlertCircle,
   Loader2, Image as ImageIcon, Video as VideoIcon,
   ArrowRight, ShieldCheck, X, Play, Film, FileImage,
-  CloudUpload, Plus
+  CloudUpload, Plus, RotateCcw, ArrowLeft, MessageSquare,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { api } from "@/lib/api";
 
@@ -18,19 +18,28 @@ const MAX_VIDEO_MB = 500;
 interface FileEntry {
   file: File;
   previewUrl: string;
-  progress: number; // 0–100
+  progress: number;
   status: 'pending' | 'uploading' | 'done' | 'error';
   publicUrl?: string;
   error?: string;
 }
 
-function isVideo(file: File) {
-  return file.type.startsWith('video/');
+interface ExistingMedia {
+  url: string;
+  type: 'image' | 'video';
+  kept: boolean; // false = user removed it, new file replaces it
 }
 
-function formatMB(bytes: number) {
-  return (bytes / (1024 * 1024)).toFixed(1);
+interface ReviewItem {
+  id: string;
+  title: string;
+  content_snapshot: { urls?: string[]; file_type?: string; copy?: string };
+  notes?: { id: string; note_body: string; created_at: string }[];
 }
+
+function isVideo(file: File) { return file.type.startsWith('video/'); }
+function isVideoUrl(url: string) { return /\.(mp4|mov|webm|ogg|avi)(\?|$)/i.test(url); }
+function formatMB(bytes: number) { return (bytes / (1024 * 1024)).toFixed(1); }
 
 function validateFile(file: File): string | null {
   if (isVideo(file)) {
@@ -47,6 +56,16 @@ function validateFile(file: File): string | null {
 
 export default function CreatorUploadPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reviewItemId = searchParams.get('review_item_id');
+
+  // Edit-mode state
+  const [reviewItem, setReviewItem] = useState<ReviewItem | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<{ id: string; note_body: string; created_at: string }[]>([]);
+  const [existingMedia, setExistingMedia] = useState<ExistingMedia[]>([]);
+  const [loadingReviewItem, setLoadingReviewItem] = useState(!!reviewItemId);
+
+  // Upload state
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -56,21 +75,40 @@ export default function CreatorUploadPage() {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const dropRef = useRef<HTMLDivElement>(null);
 
+  const isEditMode = !!reviewItemId;
+
+  // Load review item data when in edit mode
+  useEffect(() => {
+    if (!reviewItemId) return;
+    Promise.all([
+      api.get(`/api/v1/review-queue/items/${reviewItemId}`),
+      api.get(`/api/v1/review-queue/items/${reviewItemId}/notes`),
+    ]).then(([itemRes, notesRes]) => {
+      if (itemRes?.item || itemRes?.data) {
+        const item: ReviewItem = itemRes.item || itemRes.data;
+        setReviewItem(item);
+        setTitle(item.title || "");
+        const urls: string[] = item.content_snapshot?.urls || [];
+        setExistingMedia(urls.map(url => ({
+          url,
+          type: isVideoUrl(url) ? 'video' : 'image',
+          kept: true,
+        })));
+      }
+      if (notesRes?.data) {
+        setReviewNotes(notesRes.data);
+      }
+    }).catch(() => {}).finally(() => setLoadingReviewItem(false));
+  }, [reviewItemId]);
+
   const addFiles = useCallback((incoming: File[]) => {
     const errors: string[] = [];
     const valid: FileEntry[] = [];
-
     for (const file of incoming) {
       const err = validateFile(file);
       if (err) { errors.push(`${file.name}: ${err}`); continue; }
-      valid.push({
-        file,
-        previewUrl: URL.createObjectURL(file),
-        progress: 0,
-        status: 'pending',
-      });
+      valid.push({ file, previewUrl: URL.createObjectURL(file), progress: 0, status: 'pending' });
     }
-
     setValidationErrors(errors);
     setEntries(prev => [...prev, ...valid]);
   }, []);
@@ -87,30 +125,25 @@ export default function CreatorUploadPage() {
     });
   };
 
+  const removeExisting = (idx: number) => {
+    setExistingMedia(prev => prev.map((m, i) => i === idx ? { ...m, kept: false } : m));
+  };
+
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    addFiles(dropped);
+    addFiles(Array.from(e.dataTransfer.files));
   };
 
-  const uploadSingleFile = async (
-    idx: number,
-    file: File,
-    userId: string,
-  ): Promise<string> => {
+  const uploadSingleFile = async (idx: number, file: File, userId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `library/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Use XMLHttpRequest for progress tracking
     return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
       supabase.storage.from('media').createSignedUploadUrl(path).then(({ data, error }) => {
         if (error || !data) {
-          // Fall back to standard upload without progress
           supabase.storage.from('media').upload(path, file).then(({ error: upErr }) => {
             if (upErr) return reject(upErr);
             const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
@@ -120,13 +153,13 @@ export default function CreatorUploadPage() {
           return;
         }
 
+        const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener('progress', (ev) => {
           if (ev.lengthComputable) {
             const pct = Math.round((ev.loaded / ev.total) * 100);
             setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: pct } : e));
           }
         });
-
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
@@ -136,17 +169,8 @@ export default function CreatorUploadPage() {
             reject(new Error(`Upload failed: ${xhr.statusText}`));
           }
         });
-
-        xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-
+        xhr.addEventListener('error', () => reject(new Error('Network error')));
         xhr.open('PUT', data.signedUrl);
-        // The signed-upload endpoint expects the SAME multipart body that
-        // supabase-js's uploadToSignedUrl sends: a FormData with the file under
-        // an empty field name plus cacheControl. Sending the raw file with a
-        // plain Content-Type returns 2xx but does NOT persist the object,
-        // leaving a dangling URL that 404s ("Object not found") on read.
-        // Do NOT set Content-Type manually — the browser sets the multipart
-        // boundary header for FormData automatically.
         xhr.setRequestHeader('x-upsert', 'true');
         const form = new FormData();
         form.append('cacheControl', '3600');
@@ -156,9 +180,12 @@ export default function CreatorUploadPage() {
     });
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (entries.length === 0 || !title.trim()) {
+    const keptUrls = existingMedia.filter(m => m.kept).map(m => m.url);
+    const hasMedia = entries.length > 0 || keptUrls.length > 0;
+
+    if (!hasMedia || !title.trim()) {
       setMessage({ type: 'error', text: 'Please add at least one file and a title.' });
       return;
     }
@@ -170,48 +197,54 @@ export default function CreatorUploadPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Mark all as uploading
       setEntries(prev => prev.map(e => ({ ...e, status: 'uploading' as const })));
 
-      const publicUrls: string[] = [];
+      const newUrls: string[] = [];
       for (let i = 0; i < entries.length; i++) {
         try {
           const url = await uploadSingleFile(i, entries[i].file, user.id);
-          publicUrls.push(url);
-        } catch (err) {
-          setEntries(prev => prev.map((e, idx) => idx === i
-            ? { ...e, status: 'error', error: 'Upload failed' }
-            : e));
-          throw err;
+          newUrls.push(url);
+        } catch {
+          setEntries(prev => prev.map((e, idx) => idx === i ? { ...e, status: 'error', error: 'Upload failed' } : e));
+          throw new Error('Upload failed');
         }
       }
 
-      // Determine overall file_type and total size across all files in this upload
-      const hasVideo = entries.some(e => isVideo(e.file));
-      const hasImage = entries.some(e => e.file.type.startsWith('image/'));
-      const fileType = hasVideo && hasImage ? 'mixed' : hasVideo ? 'video' : 'image';
-      const totalSizeBytes = entries.reduce((acc, e) => acc + e.file.size, 0);
+      const finalUrls = [...keptUrls, ...newUrls];
 
-      const result = await api.post('/api/v1/library/upload', {
-        title: title.trim(),
-        urls: publicUrls,
-        file_type: fileType,
-        file_size_bytes: totalSizeBytes,
-      });
-
-      const n = entries.length;
-      const filesLabel = `${n} file${n !== 1 ? 's' : ''}`;
-      if (result?.status === 'pending_review') {
-        setMessage({ type: 'success', text: `${filesLabel} sent to the Review Queue — a reviewer will approve before it appears in the library.` });
-      } else if (result?.status === 'blocked') {
-        setMessage({ type: 'error', text: `${filesLabel} flagged by the safety scanner and sent for review. It will not be published until a reviewer approves it.` });
+      if (isEditMode && reviewItemId) {
+        // Replace media + resubmit to review queue
+        await api.post(`/api/v1/review-queue/items/${reviewItemId}/action`, {
+          action: 'resubmit',
+          new_urls: finalUrls,
+        });
+        setMessage({ type: 'success', text: 'Media updated and resubmitted for review!' });
+        setTimeout(() => router.push('/returned'), 1500);
       } else {
-        setMessage({ type: 'success', text: `${filesLabel} uploaded to the Common Library!` });
+        // Normal library upload
+        const hasVideo = entries.some(e => isVideo(e.file));
+        const hasImage = entries.some(e => e.file.type.startsWith('image/'));
+        const fileType = hasVideo && hasImage ? 'mixed' : hasVideo ? 'video' : 'image';
+        const totalSizeBytes = entries.reduce((acc, e) => acc + e.file.size, 0);
+
+        const result = await api.post('/api/v1/library/upload', {
+          title: title.trim(),
+          urls: newUrls,
+          file_type: fileType,
+          file_size_bytes: totalSizeBytes,
+        });
+
+        const n = entries.length;
+        const filesLabel = `${n} file${n !== 1 ? 's' : ''}`;
+        if (result?.status === 'pending_review') {
+          setMessage({ type: 'success', text: `${filesLabel} sent to the Review Queue — a reviewer will approve before it appears in the library.` });
+        } else if (result?.status === 'blocked') {
+          setMessage({ type: 'error', text: `${filesLabel} flagged by the safety scanner and sent for review.` });
+        } else {
+          setMessage({ type: 'success', text: `${filesLabel} uploaded to the Common Library!` });
+        }
+        setTitle(""); setDescription(""); setEntries([]); setValidationErrors([]);
       }
-      setTitle("");
-      setDescription("");
-      setEntries([]);
-      setValidationErrors([]);
     } catch {
       setMessage({ type: 'error', text: 'Upload failed. Please try again.' });
     } finally {
@@ -221,28 +254,65 @@ export default function CreatorUploadPage() {
 
   const imageCount = entries.filter(e => !isVideo(e.file)).length;
   const videoCount = entries.filter(e => isVideo(e.file)).length;
+  const keptCount = existingMedia.filter(m => m.kept).length;
+
+  if (loadingReviewItem) {
+    return (
+      <div className="max-w-4xl mx-auto p-8 flex items-center justify-center py-32">
+        <Loader2 className="w-6 h-6 animate-spin text-[var(--foreground-muted)]" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Creator Upload Center</h1>
-        <p className="text-[var(--foreground-muted)]">Upload images and videos for the team to pick and publish.</p>
-        <div className="flex items-center gap-4 mt-3">
-          <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
-            <FileImage className="w-3.5 h-3.5 text-sky-400" /> Images up to {MAX_IMAGE_MB} MB
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
-            <Film className="w-3.5 h-3.5 text-violet-400" /> Videos up to {MAX_VIDEO_MB} MB
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
-            <CloudUpload className="w-3.5 h-3.5 text-success-text" /> JPG, PNG, MP4, MOV, WebM
-          </span>
-        </div>
+        {isEditMode && (
+          <button
+            onClick={() => router.push('/returned')}
+            className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Returned Items
+          </button>
+        )}
+        <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
+          {isEditMode ? 'Edit & Resubmit Media' : 'Creator Upload Center'}
+        </h1>
+        <p className="text-[var(--foreground-muted)]">
+          {isEditMode
+            ? 'Replace the media, review the notes, then resubmit for review.'
+            : 'Upload images and videos for the team to pick and publish.'}
+        </p>
+        {!isEditMode && (
+          <div className="flex items-center gap-4 mt-3">
+            <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
+              <FileImage className="w-3.5 h-3.5 text-sky-400" /> Images up to {MAX_IMAGE_MB} MB
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
+              <Film className="w-3.5 h-3.5 text-violet-400" /> Videos up to {MAX_VIDEO_MB} MB
+            </span>
+          </div>
+        )}
       </div>
 
+      {/* Reviewer notes banner (edit mode only) */}
+      {isEditMode && reviewNotes.length > 0 && (
+        <div className="mb-6 p-4 rounded-2xl border border-orange-500/20 bg-orange-500/5">
+          <div className="flex items-center gap-2 mb-2">
+            <MessageSquare className="w-4 h-4 text-orange-400" />
+            <span className="text-sm font-semibold text-orange-400">Reviewer Notes</span>
+          </div>
+          <ul className="space-y-1.5">
+            {reviewNotes.map(n => (
+              <li key={n.id} className="text-sm text-[var(--foreground)]">{n.note_body}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="bg-[var(--card)]/50 border border-[var(--border)] rounded-3xl p-8 backdrop-blur-xl">
-        <form onSubmit={handleUpload} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Title */}
           <div>
@@ -262,24 +332,84 @@ export default function CreatorUploadPage() {
             </div>
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-              Description <span className="text-[var(--foreground-muted)] font-normal">(optional)</span>
-            </label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Brief notes for the manager — usage context, campaign, restrictions…"
-              rows={2}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3 px-4 text-[var(--foreground)] focus:ring-2 focus:ring-info-text transition-all outline-none resize-none text-sm"
-            />
-          </div>
+          {/* Description (normal mode only) */}
+          {!isEditMode && (
+            <div>
+              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                Description <span className="text-[var(--foreground-muted)] font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Brief notes for the manager…"
+                rows={2}
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3 px-4 text-[var(--foreground)] focus:ring-2 focus:ring-info-text transition-all outline-none resize-none text-sm"
+              />
+            </div>
+          )}
+
+          {/* Existing media (edit mode) */}
+          {isEditMode && existingMedia.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                Current Media
+                <span className="text-xs font-normal text-[var(--foreground-muted)] ml-2">
+                  Remove to replace with a new file
+                </span>
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {existingMedia.map((media, idx) => (
+                  <div
+                    key={idx}
+                    className={`relative aspect-video rounded-xl overflow-hidden border transition-all group/existing ${
+                      media.kept
+                        ? 'border-[var(--border)] bg-black/60'
+                        : 'border-red-500/40 bg-red-500/5 opacity-40'
+                    }`}
+                  >
+                    {media.type === 'video' ? (
+                      <video src={media.url} className="w-full h-full object-cover opacity-70" muted preload="metadata" />
+                    ) : (
+                      <Image src={media.url} alt="Current media" fill className="object-cover opacity-80" unoptimized />
+                    )}
+
+                    {media.kept ? (
+                      <button
+                        type="button"
+                        onClick={() => removeExisting(idx)}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/existing:opacity-100 transition-all shadow-lg"
+                        title="Remove this media"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-xs font-semibold text-red-400 bg-black/60 px-2 py-1 rounded">Removed</span>
+                        <button
+                          type="button"
+                          onClick={() => setExistingMedia(prev => prev.map((m, i) => i === idx ? { ...m, kept: true } : m))}
+                          className="absolute bottom-2 right-2 text-[10px] text-[var(--foreground-muted)] hover:text-[var(--foreground)] underline"
+                        >
+                          Undo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Drop Zone */}
           <div>
             <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-              Media Files <span className="text-error-text">*</span>
+              {isEditMode ? 'New Media' : 'Media Files'}{' '}
+              {!isEditMode && <span className="text-error-text">*</span>}
+              {isEditMode && (
+                <span className="text-xs font-normal text-[var(--foreground-muted)] ml-2">
+                  {keptCount > 0 ? 'Optional — add replacement files' : 'Required — add at least one file'}
+                </span>
+              )}
             </label>
 
             <div
@@ -295,22 +425,12 @@ export default function CreatorUploadPage() {
                     : 'border-success-border/40 bg-success-text/5'
               }`}
             >
-              {/* Empty drop zone */}
               {entries.length === 0 && (
                 <label className="block p-14 text-center cursor-pointer">
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleFileInput}
-                    accept="image/*,video/*"
-                    className="sr-only"
-                  />
+                  <input type="file" multiple onChange={handleFileInput} accept="image/*,video/*" className="sr-only" />
                   <div className="flex flex-col items-center">
                     <div className="w-16 h-16 bg-[var(--card)] rounded-2xl flex items-center justify-center mb-4 border border-[var(--border)]">
-                      {isDragging
-                        ? <CloudUpload className="w-7 h-7 text-info-text" />
-                        : <Upload className="w-7 h-7 text-[var(--foreground-muted)]" />
-                      }
+                      {isDragging ? <CloudUpload className="w-7 h-7 text-info-text" /> : <Upload className="w-7 h-7 text-[var(--foreground-muted)]" />}
                     </div>
                     <p className="text-[var(--foreground)] font-semibold mb-1">
                       {isDragging ? 'Drop files here' : 'Drag & drop or click to browse'}
@@ -328,23 +448,14 @@ export default function CreatorUploadPage() {
                 </label>
               )}
 
-              {/* Files grid */}
               {entries.length > 0 && (
                 <div className="p-4">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                     {entries.map((entry, idx) => (
                       <div key={idx} className="relative aspect-video rounded-xl overflow-hidden bg-black/60 border border-[var(--border)] group/thumb">
-
-                        {/* Preview */}
                         {isVideo(entry.file) ? (
                           <>
-                            <video
-                              src={entry.previewUrl}
-                              className="w-full h-full object-cover opacity-70"
-                              muted
-                              preload="metadata"
-                            />
-                            {/* Play icon overlay */}
+                            <video src={entry.previewUrl} className="w-full h-full object-cover opacity-70" muted preload="metadata" />
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <div className="w-10 h-10 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm">
                                 <Play className="w-4 h-4 text-foreground fill-white ml-0.5" />
@@ -354,42 +465,29 @@ export default function CreatorUploadPage() {
                         ) : (
                           <Image src={entry.previewUrl} alt={`Preview ${idx + 1}`} fill className="object-cover opacity-80" unoptimized />
                         )}
-
-                        {/* Type badge */}
                         <div className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm ${
                           isVideo(entry.file) ? 'bg-violet-600/80 text-foreground' : 'bg-sky-600/80 text-foreground'
                         }`}>
                           {isVideo(entry.file) ? <Film className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />}
                           {isVideo(entry.file) ? 'VIDEO' : 'IMAGE'}
                         </div>
-
-                        {/* Remove button */}
                         {!isUploading && (
                           <button
                             type="button"
                             onClick={() => removeEntry(idx)}
-                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-error-text text-foreground flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-all hover:bg-error-text hover:scale-110 shadow-lg z-10"
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-error-text text-foreground flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-all hover:scale-110 shadow-lg z-10"
                           >
                             <X className="w-3 h-3" />
                           </button>
                         )}
-
-                        {/* Progress bar */}
                         {entry.status === 'uploading' && (
                           <div className="absolute inset-x-0 bottom-0">
                             <div className="h-1.5 bg-black/40">
-                              <div
-                                className="h-full bg-info-text transition-all duration-300"
-                                style={{ width: `${entry.progress}%` }}
-                              />
+                              <div className="h-full bg-info-text transition-all duration-300" style={{ width: `${entry.progress}%` }} />
                             </div>
-                            <div className="bg-black/60 backdrop-blur text-center text-[10px] text-foreground py-1">
-                              {entry.progress}%
-                            </div>
+                            <div className="bg-black/60 backdrop-blur text-center text-[10px] text-foreground py-1">{entry.progress}%</div>
                           </div>
                         )}
-
-                        {/* Done / Error overlay */}
                         {entry.status === 'done' && (
                           <div className="absolute inset-0 bg-success-text/20 flex items-center justify-center">
                             <CheckCircle2 className="w-6 h-6 text-success-text" />
@@ -400,8 +498,6 @@ export default function CreatorUploadPage() {
                             <AlertCircle className="w-5 h-5 text-error-text" />
                           </div>
                         )}
-
-                        {/* File info on hover */}
                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none">
                           <p className="text-[10px] text-foreground truncate font-medium">{entry.file.name}</p>
                           <p className="text-[9px] text-white/60">{formatMB(entry.file.size)} MB</p>
@@ -409,23 +505,15 @@ export default function CreatorUploadPage() {
                       </div>
                     ))}
 
-                    {/* Add more */}
                     {!isUploading && (
                       <label className="relative aspect-video rounded-xl border-2 border-dashed border-[var(--border)] hover:border-info-border bg-[var(--surface)] hover:bg-info-text/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group/add">
-                        <input
-                          type="file"
-                          multiple
-                          onChange={handleFileInput}
-                          accept="image/*,video/*"
-                          className="sr-only"
-                        />
+                        <input type="file" multiple onChange={handleFileInput} accept="image/*,video/*" className="sr-only" />
                         <Plus className="w-6 h-6 text-[var(--foreground-muted)] group-hover/add:text-info-text transition-colors" />
                         <span className="text-xs text-[var(--foreground-muted)] group-hover/add:text-info-text transition-colors font-medium">Add more</span>
                       </label>
                     )}
                   </div>
 
-                  {/* Summary bar */}
                   <div className="flex items-center justify-between px-2">
                     <div className="flex items-center gap-3 text-sm">
                       {imageCount > 0 && (
@@ -445,7 +533,6 @@ export default function CreatorUploadPage() {
               )}
             </div>
 
-            {/* Validation errors */}
             {validationErrors.length > 0 && (
               <div className="mt-3 space-y-1">
                 {validationErrors.map((err, i) => (
@@ -472,17 +559,26 @@ export default function CreatorUploadPage() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isUploading || entries.length === 0 || !title.trim()}
+            disabled={isUploading || (!title.trim()) || (entries.length === 0 && keptCount === 0)}
             className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
-              isUploading || entries.length === 0 || !title.trim()
+              isUploading || !title.trim() || (entries.length === 0 && keptCount === 0)
                 ? 'bg-[var(--surface)] text-[var(--foreground-muted)] cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-foreground hover:shadow-lg hover:shadow-info-text/20 active:scale-[0.98]'
+                : isEditMode
+                  ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white hover:shadow-lg hover:shadow-orange-500/20 active:scale-[0.98]'
+                  : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-foreground hover:shadow-lg hover:shadow-info-text/20 active:scale-[0.98]'
             }`}
           >
             {isUploading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Uploading {entries.filter(e => e.status === 'done').length} / {entries.length}…
+                {entries.length > 0
+                  ? `Uploading ${entries.filter(e => e.status === 'done').length} / ${entries.length}…`
+                  : 'Resubmitting…'}
+              </>
+            ) : isEditMode ? (
+              <>
+                <RotateCcw className="w-5 h-5" />
+                {entries.length > 0 ? 'Update Media & Resubmit for Review' : 'Resubmit for Review'}
               </>
             ) : (
               <>
@@ -494,16 +590,18 @@ export default function CreatorUploadPage() {
         </form>
       </div>
 
-      <div className="mt-6 flex items-center justify-center gap-4 text-[var(--foreground-muted)] text-sm">
-        <p>Uploads are visible to all Managers in the team</p>
-        <span>•</span>
-        <button
-          onClick={() => router.push('/library')}
-          className="text-info-text hover:text-info-text transition-colors flex items-center gap-1"
-        >
-          View Library <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
+      {!isEditMode && (
+        <div className="mt-6 flex items-center justify-center gap-4 text-[var(--foreground-muted)] text-sm">
+          <p>Uploads are visible to all Managers in the team</p>
+          <span>•</span>
+          <button
+            onClick={() => router.push('/library')}
+            className="text-info-text hover:text-info-text transition-colors flex items-center gap-1"
+          >
+            View Library <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

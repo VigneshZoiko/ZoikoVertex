@@ -28,6 +28,7 @@ import {
   Heart,
   Repeat2,
   MoreHorizontal,
+  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -635,10 +636,15 @@ function PublishPageInner() {
   // Manual Scheduler State
   const [manualScheduleDate, setManualScheduleDate] = useState<string>('');
   const [manualScheduleTime, setManualScheduleTime] = useState<string>('');
+
+  // Edit mode — returned post from review queue
+  const [reviewItem, setReviewItem] = useState<any>(null);
+  const [reviewNotes, setReviewNotes] = useState<any[]>([]);
   const assetUrls = searchParams.get('assetUrls');
   const assetUrl  = searchParams.get('assetUrl');
   const assetType = searchParams.get('assetType');
   const assetTitle = searchParams.get('assetTitle');
+  const reviewItemId = searchParams.get('review_item_id');
 
   useEffect(() => {
     const timers = pollTimers.current;
@@ -663,6 +669,49 @@ function PublishPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUrls, assetUrl, assetTitle]);
 
+  // Prefill all fields when editing a returned review-queue post
+  useEffect(() => {
+    if (!reviewItemId) return;
+    api.get(`/api/v1/review-queue/items/${reviewItemId}`)
+      .then(r => {
+        if (!r.success || !r.data) return;
+        const it = r.data;
+        setReviewItem(it);
+        const snap = (it.content_snapshot || {}) as any;
+        // Topic / title
+        if (snap.topic) setTopic(snap.topic);
+        else if (it.title) setTopic(it.title);
+        // Media
+        if (Array.isArray(snap.urls) && snap.urls.length > 0) {
+          setMediaUrls(snap.urls);
+          setSelectedUrls(snap.urls);
+          setMediaPreview(snap.urls[0]);
+          setCarouselIndex(0);
+        }
+        // Captions — prefer platform-specific if present
+        if (snap.platform_captions && Object.keys(snap.platform_captions).length > 0) {
+          setIsPlatformSpecific(true);
+          setPlatformCaptions(snap.platform_captions);
+          const first = Object.keys(snap.platform_captions)[0];
+          if (first) setActivePlatformTab(first);
+          // Also populate universal textarea from first caption as fallback
+          if (!description) setDescription(snap.copy || snap.universal || '');
+        } else if (snap.copy || snap.universal) {
+          setIsPlatformSpecific(false);
+          setDescription(snap.copy || snap.universal || '');
+        }
+        // Target accounts
+        if (Array.isArray(snap.target_account_ids) && snap.target_account_ids.length > 0) {
+          setSelectedAccountIds(snap.target_account_ids);
+        }
+      })
+      .catch(() => {});
+
+    api.get(`/api/v1/review-queue/items/${reviewItemId}/notes`)
+      .then(r => setReviewNotes(r.data || []))
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewItemId]);
 
   // Mark draft as dirty whenever meaningful content exists
   useEffect(() => {
@@ -1266,25 +1315,38 @@ function PublishPageInner() {
         scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
       };
 
-      const result = await api.post("/api/v1/governance/submit", payload);
-
-      setMessage({
-        type: "success",
-        text: `Publishing ${result.count || ""} post${(result.count || 0) > 1 ? "s" : ""} to your selected accounts!`,
-      });
-
-      // Cleanup State
-      setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
-      setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
-      setSuggestedTimes([]); setActiveRevisionId(null);
-      setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
-      setCustomTime(""); setSelectedTime("immediate"); setScheduledFor("");
+      if (reviewItemId) {
+        // Resubmit mode — update the existing review item and send back to queue
+        await api.post(`/api/v1/review-queue/items/${reviewItemId}/action`, {
+          action: 'resubmit',
+          new_urls: finalUrls,
+          content: payload.content,
+          topic: payload.topic,
+        });
+        setMessage({ type: 'success', text: 'Resubmitted for review. The reviewer has been notified.' });
         setIsDirty(false);
-      fetchUserData();
-      // Poll for publish result — backend needs a moment to process
-      const t1 = setTimeout(() => fetchRecentPosts(), 3000);
-      const t2 = setTimeout(() => fetchRecentPosts(), 8000);
-      pollTimers.current.push(t1, t2);
+        setTimeout(() => router.push('/returned'), 1500);
+      } else {
+        const result = await api.post("/api/v1/governance/submit", payload);
+
+        setMessage({
+          type: "success",
+          text: `Publishing ${result.count || ""} post${(result.count || 0) > 1 ? "s" : ""} to your selected accounts!`,
+        });
+
+        // Cleanup State
+        setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
+        setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
+        setSuggestedTimes([]); setActiveRevisionId(null);
+        setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
+        setCustomTime(""); setSelectedTime("immediate"); setScheduledFor("");
+        setIsDirty(false);
+        fetchUserData();
+        // Poll for publish result — backend needs a moment to process
+        const t1 = setTimeout(() => fetchRecentPosts(), 3000);
+        const t2 = setTimeout(() => fetchRecentPosts(), 8000);
+        pollTimers.current.push(t1, t2);
+      }
     } catch (err: any) {
       setMessage({
         type: "error",
@@ -1659,6 +1721,35 @@ function PublishPageInner() {
         {/* Main Composer - Left Side */}
         <div className="lg:col-span-7 space-y-4">
 
+          {/* Returned-post edit mode banner */}
+          {reviewItemId && (
+            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 overflow-hidden">
+              <div className="flex items-start gap-3 px-5 py-4 border-b border-orange-500/10">
+                <RotateCcw className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-orange-400">Editing Returned Post</p>
+                  <p className="text-xs text-orange-300/70 mt-0.5 truncate">
+                    {reviewItem?.title || "Review item"} — make your changes then click Resubmit for Review
+                  </p>
+                </div>
+              </div>
+              {reviewNotes.length > 0 && (
+                <div className="px-5 py-3 space-y-2">
+                  <p className="text-[10px] font-bold text-orange-400/60 uppercase tracking-wider">
+                    Reviewer Instructions
+                  </p>
+                  {reviewNotes.map(n => (
+                    <div
+                      key={n.id}
+                      className="text-xs text-[var(--foreground)] bg-orange-500/5 border border-orange-500/10 rounded-lg px-3 py-2 leading-relaxed"
+                    >
+                      {n.note_body}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Post To — Account Dropdown (top) ───────────────────────────── */}
           <AccountDropdown
@@ -2239,18 +2330,26 @@ function PublishPageInner() {
             onClick={handleSubmitIntent}
             disabled={submitting || !canPublish}
             title={!canPublish ? "Your role cannot publish content" : undefined}
-            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-info-text text-foreground hover:bg-info-text"
+            className={`w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+              reviewItemId
+                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20"
+                : "bg-info-text text-foreground hover:bg-info-text"
+            }`}
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : reviewItemId ? (
+              <RotateCcw className="w-4 h-4" />
             ) : (
               <Send className="w-4 h-4" />
             )}
             {submitting
-              ? "Publishing…"
-              : activeRevisionId
-                ? "Republish"
-                : "Publish Now"}
+              ? (reviewItemId ? "Resubmitting…" : "Publishing…")
+              : reviewItemId
+                ? "Update & Resubmit for Review"
+                : activeRevisionId
+                  ? "Republish"
+                  : "Publish Now"}
           </button>
         </div>
 

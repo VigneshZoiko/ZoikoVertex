@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  RotateCcw, AlertTriangle, Clock, ExternalLink, RefreshCcw,
-  CheckCircle2, MessageSquare, Layers, ChevronDown, ChevronUp,
-  ArrowRight, FileText, Inbox,
+  RotateCcw, AlertTriangle, RefreshCcw,
+  CheckCircle2, ArrowRight, Pencil, Send, MessageSquare, ExternalLink,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -16,7 +15,13 @@ interface ReviewQueueItem {
   item_type: string;
   source_module: string;
   title: string;
-  content_snapshot: { copy?: string; violation_reason?: string };
+  content_snapshot: {
+    copy?: string;
+    violation_reason?: string;
+    urls?: string[];
+    platform_captions?: Record<string, string>;
+    topic?: string;
+  };
   platform?: string;
   submitter_name?: string;
   submitted_by: string;
@@ -86,27 +91,17 @@ function ReviewCard({
   item: ReviewQueueItem;
   onResubmit: (id: string) => Promise<void>;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState<ReviewNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesLoading, setNotesLoading] = useState(true);
   const [resubmitting, setResubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const loadNotes = useCallback(async () => {
-    if (notes.length > 0) { setExpanded(v => !v); return; }
-    setExpanded(true);
-    setNotesLoading(true);
-    try {
-      const r = await api.get(`/api/v1/review-queue/items/${item.id}/notes`);
-      setNotes(r.data || []);
-    } catch { /* non-fatal */ }
-    finally { setNotesLoading(false); }
-  }, [item.id, notes.length]);
-
-  const handleToggle = () => {
-    if (expanded) { setExpanded(false); return; }
-    loadNotes();
-  };
+  useEffect(() => {
+    api.get(`/api/v1/review-queue/items/${item.id}/notes`)
+      .then(r => setNotes(r.data || []))
+      .catch(() => {})
+      .finally(() => setNotesLoading(false));
+  }, [item.id]);
 
   const handleResubmit = async () => {
     setResubmitting(true);
@@ -120,13 +115,19 @@ function ReviewCard({
 
   const platformKey = (item.platform || "").toLowerCase();
   const riskKey = (item.risk_level || "LOW").toUpperCase();
+  const isPost = item.source_module === "publish" ||
+    item.item_type?.toLowerCase().includes("post");
+  const editHref = isPost
+    ? `/publish?review_item_id=${item.id}`
+    : `/library/upload?review_item_id=${item.id}`;
+  const editLabel = isPost ? "Edit Post" : "Edit Media";
 
   if (done) {
     return (
       <div className="flex items-center gap-3 px-5 py-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm">
         <CheckCircle2 className="w-4 h-4 shrink-0" />
         <span>
-          <span className="font-medium">{item.title}</span> marked as resubmitted — reviewers have been notified.
+          <span className="font-medium">{item.title}</span> resubmitted — back in the review queue.
         </span>
       </div>
     );
@@ -134,11 +135,9 @@ function ReviewCard({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+      {/* Header */}
       <div className="flex items-start gap-4 p-4">
-        {/* Left accent */}
         <div className="mt-1 shrink-0 w-1.5 h-10 rounded-full bg-orange-500/60" />
-
-        {/* Main content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
@@ -166,7 +165,6 @@ function ReviewCard({
               </span>
             </div>
           </div>
-
           {item.content_snapshot?.copy && (
             <p className="mt-2 text-xs text-[var(--foreground-muted)] line-clamp-2">
               {item.content_snapshot.copy}
@@ -175,61 +173,52 @@ function ReviewCard({
         </div>
       </div>
 
+      {/* Reviewer notes — always visible */}
+      <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]/60">
+        <div className="flex items-center gap-1.5 mb-2">
+          <MessageSquare className="w-3.5 h-3.5 text-orange-400" />
+          <span className="text-xs font-semibold text-orange-400">Reviewer Notes</span>
+        </div>
+        {notesLoading ? (
+          <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+            <RefreshCcw className="w-3 h-3 animate-spin" /> Loading notes…
+          </div>
+        ) : notes.length === 0 ? (
+          <p className="text-xs text-[var(--foreground-muted)] italic">No revision notes left by reviewer.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {notes.map(n => (
+              <li key={n.id} className="text-xs text-[var(--foreground)] bg-orange-500/5 border border-orange-500/10 rounded-lg px-3 py-2">
+                <span className="text-[var(--foreground-muted)] mr-2">{formatRelative(n.created_at)}</span>
+                {n.note_body}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* Actions */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
-        <button
-          onClick={handleToggle}
-          className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          Reviewer Notes
-          {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
-
-        <div className="flex-1" />
-
+      <div className="flex items-center justify-end gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
         <a
-          href="/review-queue"
-          className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors px-3 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)]"
+          href={editHref}
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors"
         >
-          Open in Queue
-          <ExternalLink className="w-3 h-3" />
+          <Pencil className="w-3.5 h-3.5" />
+          {editLabel}
         </a>
         <button
           onClick={handleResubmit}
           disabled={resubmitting}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
         >
           {resubmitting ? (
             <RefreshCcw className="w-3 h-3 animate-spin" />
           ) : (
-            <RotateCcw className="w-3 h-3" />
+            <Send className="w-3 h-3" />
           )}
-          Mark Resubmitted
+          Submit for Review
         </button>
       </div>
-
-      {/* Expanded reviewer notes */}
-      {expanded && (
-        <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]/50">
-          {notesLoading ? (
-            <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-              <RefreshCcw className="w-3 h-3 animate-spin" /> Loading notes…
-            </div>
-          ) : notes.length === 0 ? (
-            <p className="text-xs text-[var(--foreground-muted)] italic">No revision notes left by reviewer.</p>
-          ) : (
-            <ul className="space-y-2">
-              {notes.map(n => (
-                <li key={n.id} className="text-xs text-[var(--foreground)]">
-                  <span className="text-[var(--foreground-muted)] mr-2">{formatRelative(n.created_at)}</span>
-                  {n.note_body}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -327,13 +316,12 @@ export default function ReturnedItemsPage() {
     setError(null);
     try {
       const [rqRes, apRes] = await Promise.allSettled([
-        api.get("/api/v1/review-queue?limit=100"),
+        api.get("/api/v1/review-queue?status=AWAITING_REVISION&submitted_by=me&limit=100"),
         api.get("/api/v1/approvals-v2/items"),
       ]);
 
       if (rqRes.status === "fulfilled" && rqRes.value.success) {
-        const all: ReviewQueueItem[] = rqRes.value.data?.items || rqRes.value.data || [];
-        setReviewItems(all.filter(i => i.status === "AWAITING_REVISION"));
+        setReviewItems(rqRes.value.items || []);
       }
       if (apRes.status === "fulfilled" && apRes.value.success) {
         const all: ApprovalItem[] = apRes.value.data?.items || apRes.value.data || [];
