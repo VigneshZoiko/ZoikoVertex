@@ -483,10 +483,10 @@ export default function LeadershipPage() {
             {/* Blockquote */}
             <blockquote className="border-l-[3px] border-[#20E7F2] pl-5 py-4 pr-5 bg-[#20E7F2]/6 rounded-r-xl mb-8">
               <p className="text-[14px] text-white font-semibold leading-relaxed mb-3">
-                "ZoikoVertex is not being built to automate marketing recklessly.
+                &ldquo;ZoikoVertex is not being built to automate marketing recklessly.
                 It is being built to help organizations move faster while
                 preserving the controls, evidence, and accountability that
-                serious enterprises require."
+                serious enterprises require.&rdquo;
               </p>
               <cite className="text-[9.5px] font-mono uppercase tracking-[0.18em] text-[#20E7F2] not-italic">
                 Lennox McLeod · Founder and Executive Chairman, Zoiko Group
@@ -623,10 +623,10 @@ export default function LeadershipPage() {
             </p>
             <div className="p-5 rounded-xl bg-[#20E7F2]/8 border border-[#20E7F2]/18">
               <p className="text-[13.5px] text-white font-medium leading-relaxed italic">
-                "ZoikoVertex leadership should never position AI as a
+                &ldquo;ZoikoVertex leadership should never position AI as a
                 replacement for organizational responsibility. The platform must
                 help teams use AI with clearer control, stronger review
-                pathways, and better evidence."
+                pathways, and better evidence.&rdquo;
               </p>
             </div>
           </div>
