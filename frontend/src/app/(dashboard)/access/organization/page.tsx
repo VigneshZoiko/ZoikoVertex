@@ -16,6 +16,7 @@ interface ApiResponse {
   success: boolean;
   error?: string;
   archived?: boolean;
+  message?: string;
   data?: unknown;
 }
 
@@ -163,7 +164,7 @@ export default function OrganizationStructurePage() {
       const msg = action === "archive" ? `"${name}" archived`
         : action === "restore" ? `"${name}" restored`
         : res.archived ? `"${name}" archived (has dependent data)`
-        : `"${name}" deleted permanently`;
+        : res.message || `"${name}" deleted permanently`;
       setToast({ message: msg, type: "success" });
       fetchData();
     } catch {

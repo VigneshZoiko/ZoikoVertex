@@ -875,9 +875,8 @@ export default function UnitDetailPage({ params }: { params: Promise<{ id: strin
     try {
       const res = await api.delete(`/api/v1/units/${id}`);
       if (res.success === false) { setActionToast({ message: String(res.error || "Failed to delete"), type: "error" }); setShowDeleteConfirm(false); return; }
-      setActionToast({ message: res.archived ? "Unit archived (has dependent data)" : "Unit deleted permanently", type: "success" });
-      const timer = setTimeout(() => router.push("/access/organization"), 1200);
-      return () => clearTimeout(timer);
+      setActionToast({ message: res.archived ? "Unit archived (has dependent data)" : (res.message || "Unit deleted permanently"), type: "success" });
+      setTimeout(() => router.push("/access/organization"), 1200);
     } catch { setActionToast({ message: "Failed to delete", type: "error" }); } finally { setDeleting(false); setShowDeleteConfirm(false); }
   };
 
