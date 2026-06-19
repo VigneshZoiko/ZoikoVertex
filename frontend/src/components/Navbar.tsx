@@ -101,7 +101,7 @@ export default function Navbar() {
   return (
     <nav
       ref={navRef}
-      style={{ position: "sticky", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(21,34,56,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+      style={{ position: "sticky", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(4,10,23,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
@@ -205,7 +205,7 @@ export default function Navbar() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="lg:hidden" style={{ background: "#0d1a2e", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "8px 20px 24px", maxHeight: "calc(100vh - 68px)", overflowY: "auto" }}>
+        <div className="lg:hidden" style={{ background: "#040A17", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "8px 20px 24px", maxHeight: "calc(100vh - 68px)", overflowY: "auto" }}>
           {NAV_ITEMS.map((item, i) => (
             <Link
               key={item.label}
