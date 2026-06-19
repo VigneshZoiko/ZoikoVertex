@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import {
   Users, GitBranch, ShieldAlert, Plus, X, RefreshCw,
@@ -238,8 +238,8 @@ export default function IdentityLedgerPage() {
                 </thead>
                 <tbody>
                   {actors.map((a: any) => (
-                    <>
-                      <tr key={a.id} onClick={() => setExpanded(expanded === a.id ? null : a.id)}
+                    <React.Fragment key={a.id}>
+                      <tr onClick={() => setExpanded(expanded === a.id ? null : a.id)}
                         className="border-b border-border last:border-0 hover:bg-surface-hover cursor-pointer">
                         <td className="p-3">
                           <p className="font-medium text-foreground">{a.display_name || a.email || a.actor_id}</p>
@@ -262,7 +262,7 @@ export default function IdentityLedgerPage() {
                         </td>
                       </tr>
                       {expanded === a.id && (
-                        <tr key={`${a.id}-detail`} className="border-b border-border bg-surface-hover">
+                        <tr className="border-b border-border bg-surface-hover">
                           <td colSpan={6} className="px-4 py-3">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                               <div><p className="text-foreground-muted mb-1">Email</p><p className="text-foreground">{a.email || "—"}</p></div>
@@ -273,7 +273,7 @@ export default function IdentityLedgerPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                   {actors.length === 0 && (
                     <tr><td colSpan={6} className="p-10 text-center text-foreground-muted">

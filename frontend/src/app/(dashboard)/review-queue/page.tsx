@@ -267,7 +267,7 @@ export default function ReviewQueuePage() {
   const filtered = items
     .filter((item) => {
       if (activeTab === "needs_review")
-        return item.status === "PENDING_REVIEW" && !item.assigned_to;
+        return (item.status === "PENDING_REVIEW" || item.status === "RESUBMITTED") && !item.assigned_to;
       if (activeTab === "resolve")
         return (
           item.assigned_to === currentUserId &&
@@ -302,7 +302,7 @@ export default function ReviewQueuePage() {
 
   const counts = {
     needs_review: items.filter(
-      (i) => i.status === "PENDING_REVIEW" && !i.assigned_to,
+      (i) => (i.status === "PENDING_REVIEW" || i.status === "RESUBMITTED") && !i.assigned_to,
     ).length,
     resolve: items.filter(
       (i) =>
@@ -333,6 +333,10 @@ export default function ReviewQueuePage() {
   const isFlagged =
     selectedItem?.status === "BLOCKED" || selectedItem?.status === "REJECTED";
   const snapCopy = selectedItem?.content_snapshot?.copy as string | undefined;
+  const snapTopic = selectedItem?.content_snapshot?.topic as string | undefined;
+  const platformCaptions = selectedItem?.content_snapshot?.platform_captions as Record<string, string> | undefined;
+  const isPostItem = selectedItem?.source_module === 'publish' ||
+    (selectedItem?.item_type?.toLowerCase().includes('post') ?? false);
   const violation = selectedItem?.content_snapshot?.violation_reason as
     | string
     | undefined;
@@ -598,12 +602,41 @@ export default function ReviewQueuePage() {
                       </p>
                     </div>
 
-                    {/* Copy text */}
+                    {/* Topic */}
+                    {snapTopic && (
+                      <div className="text-[9px] text-foreground-muted">
+                        Topic: <span className="text-foreground font-semibold">{snapTopic}</span>
+                      </div>
+                    )}
+
+                    {/* Copy / Universal caption */}
                     {snapCopy && (
                       <div className="bg-background border border-border rounded-lg p-2.5">
+                        <p className="text-[9px] font-bold text-foreground-muted uppercase tracking-wider mb-1">
+                          {isPostItem && platformCaptions ? "Universal Caption" : "Content"}
+                        </p>
                         <p className="text-[10px] text-foreground-muted leading-relaxed">
                           {snapCopy}
                         </p>
+                      </div>
+                    )}
+
+                    {/* Platform-specific captions */}
+                    {isPostItem && platformCaptions && Object.keys(platformCaptions).length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] font-bold text-foreground-muted uppercase tracking-wider">
+                          Platform Captions
+                        </p>
+                        {Object.entries(platformCaptions).slice(0, 4).map(([platform, caption]) => (
+                          <div key={platform} className="bg-background border border-border rounded-lg p-2">
+                            <p className="text-[8px] font-bold text-foreground-muted uppercase mb-0.5">
+                              {platform}
+                            </p>
+                            <p className="text-[10px] text-foreground-muted leading-relaxed line-clamp-3">
+                              {caption}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     )}
 

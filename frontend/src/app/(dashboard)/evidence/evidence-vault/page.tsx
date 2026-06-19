@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import {
   Archive, Package, Plus, X, RefreshCw, Lock, AlertTriangle, Filter,
+  RotateCcw, Gavel,
 } from "lucide-react";
 
 type TabId = "items" | "packages";
@@ -44,6 +45,7 @@ export default function EvidenceVaultPage() {
   const [itemsLoading, setItemsLoading] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
+  const [evidenceTypeFilter, setEvidenceTypeFilter] = useState("");
   const [showPreserve, setShowPreserve] = useState(false);
 
   // Packages
@@ -62,10 +64,15 @@ export default function EvidenceVaultPage() {
       if (stateFilter) p.set("vault_state", stateFilter);
       p.set("limit", "50");
       const res = await api.get(`/api/evidence-vault/items?${p}`);
-      if (res.success) { setItems(res.data || []); setItemsTotal(res.total || 0); }
+      if (res.success) {
+        let data = res.data || [];
+        if (evidenceTypeFilter) data = data.filter((i: any) => i.evidence_type === evidenceTypeFilter);
+        setItems(data);
+        setItemsTotal(evidenceTypeFilter ? data.length : (res.total || 0));
+      }
     } catch (e: any) { setError(e.message); }
     finally { setItemsLoading(false); }
-  }, [sourceFilter, stateFilter]);
+  }, [sourceFilter, stateFilter, evidenceTypeFilter]);
 
   const fetchPackages = useCallback(async () => {
     setPkgsLoading(true);
@@ -134,6 +141,31 @@ export default function EvidenceVaultPage() {
       {/* Items Tab */}
       {tab === "items" && (
         <>
+          {/* Quick filter: Returned Media Cases */}
+          <div className="mb-3">
+            <button
+              onClick={() => {
+                if (evidenceTypeFilter === 'media_revision_request') {
+                  setEvidenceTypeFilter(''); setSourceFilter('');
+                } else {
+                  setEvidenceTypeFilter('media_revision_request');
+                  setSourceFilter('social_payload');
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all ${
+                evidenceTypeFilter === 'media_revision_request'
+                  ? 'border-orange-500/40 bg-orange-500/10 text-orange-400'
+                  : 'border-border bg-surface text-foreground-muted hover:border-orange-500/30 hover:text-orange-400'
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Returned Media Cases
+              {evidenceTypeFilter === 'media_revision_request' && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-orange-500" />
+              )}
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
               className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground">
@@ -152,8 +184,8 @@ export default function EvidenceVaultPage() {
               <option value="legal_hold">Legal Hold</option>
               <option value="archived">Archived</option>
             </select>
-            {(sourceFilter || stateFilter) && (
-              <button onClick={() => { setSourceFilter(""); setStateFilter(""); }}
+            {(sourceFilter || stateFilter || evidenceTypeFilter) && (
+              <button onClick={() => { setSourceFilter(""); setStateFilter(""); setEvidenceTypeFilter(""); }}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-foreground-muted hover:text-foreground">
                 <X className="w-3 h-3" /> Clear
               </button>
@@ -167,6 +199,7 @@ export default function EvidenceVaultPage() {
                 <thead>
                   <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                     <th className="text-left p-3 font-medium">Item ID</th>
+                    <th className="text-left p-3 font-medium">Evidence Type</th>
                     <th className="text-left p-3 font-medium">Source</th>
                     <th className="text-left p-3 font-medium">State</th>
                     <th className="text-left p-3 font-medium">Retention</th>
@@ -181,6 +214,17 @@ export default function EvidenceVaultPage() {
                       onClick={() => router.push(`/evidence/evidence-vault/items/${item.id}`)}
                       className="border-b border-border last:border-0 hover:bg-surface-hover cursor-pointer">
                       <td className="p-3 font-mono text-[11px] text-foreground">{item.item_id}</td>
+                      <td className="p-3">
+                        {item.evidence_type === 'media_revision_request' ? (
+                          <span className="flex items-center gap-1 text-orange-400 text-[10px] bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full w-fit">
+                            <RotateCcw className="w-2.5 h-2.5" /> Returned Media
+                          </span>
+                        ) : item.evidence_type ? (
+                          <span className="text-[11px] text-foreground-muted">{item.evidence_type.replace(/_/g, ' ')}</span>
+                        ) : (
+                          <span className="text-foreground-muted opacity-30">—</span>
+                        )}
+                      </td>
                       <td className="p-3 text-foreground-muted">
                         {item.source_type}
                         {item.source_id && <span className="ml-1 opacity-50">:{item.source_id.substring(0, 8)}</span>}
@@ -201,7 +245,7 @@ export default function EvidenceVaultPage() {
                     </tr>
                   ))}
                   {items.length === 0 && (
-                    <tr><td colSpan={7} className="p-10 text-center text-foreground-muted">
+                    <tr><td colSpan={8} className="p-10 text-center text-foreground-muted">
                       <Archive className="w-7 h-7 mx-auto mb-2 opacity-30" />
                       <p>No evidence items yet</p>
                     </td></tr>

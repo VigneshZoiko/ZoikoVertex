@@ -52,7 +52,7 @@ const CreateItemSchema = z.object({
 });
 
 const ActionSchema = z.object({
-  action: z.enum(['approve', 'reject', 'request_changes', 'conditional_approval', 'escalate', 'cancel']),
+  action: z.enum(['approve', 'reject', 'request_changes', 'conditional_approval', 'escalate', 'cancel', 'return_to_creator']),
   reason: z.string().optional(),
   note: z.string().optional(),
   condition_text: z.string().optional(),
@@ -100,13 +100,16 @@ export const listApprovalItems = async (req: AuthRequest, res: Response, next: N
     const statusRaw = queryStr(req, 'status');
     const statusFilter = statusRaw ? statusRaw.split(',') : undefined;
 
+    let submittedBy = queryStr(req, 'submitted_by');
+    if (submittedBy === 'me') submittedBy = getUserId(req);
+
     const result = await approvalService.listApprovalItems({
       tenant_id: tenantId,
       status: statusFilter,
       item_type: queryStr(req, 'item_type'),
       source_module: queryStr(req, 'source_module'),
       assigned_to: queryStr(req, 'assigned_to'),
-      submitted_by: queryStr(req, 'submitted_by'),
+      submitted_by: submittedBy,
       risk_level: queryStr(req, 'risk_level'),
       search: queryStr(req, 'search'),
       overdue: req.query.overdue === 'true',
@@ -169,6 +172,10 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
         break;
       case 'cancel':
         result = await approvalService.cancelApproval(id, tenantId, userId, auth);
+        break;
+      case 'return_to_creator':
+        if (!reason) return res.status(400).json({ error: 'Return to creator requires a reason' });
+        result = await approvalService.returnToCreator(id, tenantId, userId, reason, note, auth);
         break;
       default:
         return res.status(400).json({ error: 'Invalid action' });
@@ -339,6 +346,7 @@ export const bulkApprovalAction = async (req: AuthRequest, res: Response, next: 
           case 'conditional_approval': result = await approvalService.approveWithConditions(id, tenantId, userId, condition_text, condition_owner, condition_due_at, note, auth); break;
           case 'escalate': result = await approvalService.escalateItem(id, tenantId, userId, target_role, reason, note, auth); break;
           case 'cancel': result = await approvalService.cancelApproval(id, tenantId, userId, auth); break;
+          case 'return_to_creator': result = await approvalService.returnToCreator(id, tenantId, userId, reason || 'Returned to creator', note, auth); break;
           default: results.push({ id, success: false, error: 'Invalid action' }); continue;
         }
         results.push({ id, success: true, data: result });

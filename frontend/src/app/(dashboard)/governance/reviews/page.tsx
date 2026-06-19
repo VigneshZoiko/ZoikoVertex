@@ -93,6 +93,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING_GOVERNANCE: { label: "Pending", color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
   IN_REVIEW: { label: "In Review", color: "bg-amber-500/10 text-amber-300 border-amber-500/20" },
   AWAITING_REVISION: { label: "Returned", color: "bg-orange-500/10 text-orange-300 border-orange-500/20" },
+  RETURNED: { label: "Returned", color: "bg-orange-500/10 text-orange-300 border-orange-500/20" },
   APPROVED: { label: "Approved", color: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" },
   RELEASED: { label: "Released", color: "bg-emerald-600/10 text-emerald-300 border-emerald-600/20" },
   REJECTED: { label: "Rejected", color: "bg-red-500/10 text-red-400 border-red-500/20" },
@@ -230,6 +231,15 @@ export default function ApprovalConsolePage() {
   const [drawerText, setDrawerText] = useState("");
   const [activeMediaIdx, setActiveMediaIdx] = useState(0);
   const initialSelectDone = useRef(false);
+  // Deep-link target: ?item=<intentId> from a rejection notification's
+  // "View Details". Read client-side (avoids a Suspense boundary requirement).
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const focusHandled = useRef(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setFocusId(new URLSearchParams(window.location.search).get("item"));
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -238,7 +248,7 @@ export default function ApprovalConsolePage() {
       if (res.success) {
         const all = (res.data || []) as AgentPost[];
         setPosts(all);
-        if (all.length > 0 && !initialSelectDone.current) {
+        if (all.length > 0 && !initialSelectDone.current && !new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("item")) {
           initialSelectDone.current = true;
           const pending = all.find((p) => String(p.status || "").startsWith("PENDING"));
           if (pending) setSelectedItem(agentPostToReviewItem(pending));
@@ -254,6 +264,25 @@ export default function ApprovalConsolePage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Deep-link: once posts load, select the ?item= post and open the container
+  // (tab) that holds it — Rejected/Returned for a rejected post.
+  useEffect(() => {
+    if (!focusId || focusHandled.current || posts.length === 0) return;
+    const target = posts.find((p) => p.id === focusId);
+    if (!target) return;
+    focusHandled.current = true;
+    initialSelectDone.current = true;
+    const s = String(target.status || "");
+    const tab =
+      s === "APPROVED" || s === "RELEASED"
+        ? "approved"
+        : s === "REJECTED" || s === "GOVERNANCE_BLOCKED" || s === "AWAITING_REVISION" || s === "RETURNED"
+          ? "rejected"
+          : "pending";
+    setActiveTab(tab);
+    setSelectedItem(agentPostToReviewItem(target));
+  }, [posts, focusId]);
 
   const handleSelect = (item: ReviewItem) => {
     setSelectedItem(item);
@@ -311,7 +340,7 @@ export default function ApprovalConsolePage() {
   const isPending = (s: string) => s.startsWith("PENDING") || s === "IN_REVIEW";
   const isApproved = (s: string) => s === "APPROVED" || s === "RELEASED";
   const isRejected = (s: string) =>
-    s === "REJECTED" || s === "GOVERNANCE_BLOCKED" || s === "AWAITING_REVISION";
+    s === "REJECTED" || s === "GOVERNANCE_BLOCKED" || s === "AWAITING_REVISION" || s === "RETURNED";
 
   const filtered = items
     .filter((item) => {

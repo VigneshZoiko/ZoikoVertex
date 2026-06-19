@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 export async function getSidebarCounts(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
     if (!workspaceId) {
       return res.json({ success: true, data: { pending_count: 0, returned_count: 0 } });
     }
@@ -19,6 +20,7 @@ export async function getSidebarCounts(req: AuthRequest, res: Response, next: Ne
         .from('review_items')
         .select('id', { count: 'exact', head: true })
         .eq('workspace_id', workspaceId)
+        .eq('submitted_by', userId)
         .in('status', ['AWAITING_REVISION', 'RESUBMITTED']),
     ]);
 

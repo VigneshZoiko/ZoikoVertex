@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import {
@@ -201,8 +201,8 @@ export default function AuditTrailPage() {
             </thead>
             <tbody>
               {events.map(ev => (
-                <>
-                  <tr key={ev.id}
+                <React.Fragment key={ev.id}>
+                  <tr
                     onClick={() => router.push(`/evidence/audit-trail/events/${ev.id}`)}
                     className="border-b border-border last:border-0 hover:bg-surface-hover cursor-pointer">
                     <td className="p-3 text-foreground-muted font-mono text-[11px] whitespace-nowrap">{fmt(ev.timestamp_utc)}</td>
@@ -233,7 +233,7 @@ export default function AuditTrailPage() {
                     </td>
                   </tr>
                   {expanded === ev.id && (
-                    <tr key={`${ev.id}-detail`} className="border-b border-border bg-surface-hover">
+                    <tr className="border-b border-border bg-surface-hover">
                       <td colSpan={7} className="px-4 py-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                           <div>
@@ -258,7 +258,7 @@ export default function AuditTrailPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

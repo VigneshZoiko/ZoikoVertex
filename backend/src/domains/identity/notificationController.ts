@@ -80,6 +80,31 @@ export const markAllRead = async (req: AuthRequest, res: Response, next: NextFun
 };
 
 /**
+ * DELETE /api/v1/notifications/:id
+ * Permanently remove a single notification for the user (so it doesn't come
+ * back on reload). Scoped to the caller's own notifications.
+ */
+export const deleteNotification = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { error } = await supabaseAdmin
+      .from('notifications')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * DELETE /api/v1/notifications
  * Clear all notifications for the user
  */

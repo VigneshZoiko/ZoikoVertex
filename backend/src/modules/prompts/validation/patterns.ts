@@ -25,7 +25,10 @@ export const CLAIM_PATTERNS: RegExp[] = [
   /\breduce[ds]?\b/i,
   /\bboost\b/i,
   /\b([0-9]+)\s*%\b/,
-  /\b₹?\s*[0-9,]+\s*(rs\.?|rupees?)?\s*(\/|per)?\b/i,
+  // Monetary/amount claim — MUST start with a digit (e.g. ₹500, 1,000 rupees,
+  // 5/per). [0-9][0-9,]* avoids matching a lone comma, which previously flagged
+  // any caption containing "," as a quantified claim.
+  /\b₹?\s*[0-9][0-9,]*\s*(rs\.?|rupees?)?\s*(\/|per)?\b/i,
   /\bdollars?\b|\$\s*[0-9]/i,
   /\bclinically\s+proven\b/i,
   /\bscientifically\s+(proven|backed|tested)\b/i,

@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import * as reviewQueueService from '../../services/reviewQueue.service';
 import * as validationService from '../../services/validationDesk.service';
+import * as reviewEvidence from '../../services/reviewEvidence.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { buildAuthContext } from '../../shared/serviceAuth';
 
@@ -98,7 +99,10 @@ export async function listItems(req: AuthRequest, res: Response, next: NextFunct
       offset: q.offset ? parseInt(q.offset, 10) : undefined,
     });
 
-    const rawItems: any[] = (result as any).items || [];
+    let rawItems: any[] = (result as any).items || [];
+    if (q.submitted_by === 'me') {
+      rawItems = rawItems.filter((i: any) => i.submitted_by === userId);
+    }
     const userIds = [...new Set(rawItems.map((i: any) => i.submitted_by).filter(Boolean))] as string[];
     const userMap = await resolveUserInfo(userIds);
     const enrichedItems = rawItems.map((i: any) => ({
@@ -176,10 +180,11 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
     const params = req.params as { id: string };
     const id = params.id;
-    const { action, reason, note } = req.body;
+    const { action, reason, note, new_urls, content: resubmitContent, topic: resubmitTopic } = req.body;
 
     const item = await reviewQueueService.getReviewItem(id, tenantId);
     if (!item) return res.status(404).json({ error: 'Review item not found' });
+    const workspaceId: string = (item as any).workspace_id || tenantId;
 
     const userRole = String((req.user as any)?.role || 'REVIEWER').toUpperCase();
     const eligibility = reviewQueueService.calculateEligibility(item, userRole);
@@ -227,6 +232,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
+      await reviewEvidence.safeRecord('approve', () => reviewEvidence.recordApprove({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
     }
 
@@ -261,6 +267,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         await supabaseAdmin.from('media_library').update({ status: 'blocked' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
+      await reviewEvidence.safeRecord('reject', () => reviewEvidence.recordReject({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
     }
 
@@ -274,6 +281,13 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'REVISION_REQUESTED', reason, note, decided_by: userId,
       }, auth);
 
+      // Save note to review_notes so creator can see it on /returned
+      await supabaseAdmin.from('review_notes').insert({
+        review_item_id: id,
+        note_body: note,
+        created_by: userId,
+      });
+
       // Notify creator with revision instructions
       await supabaseAdmin.from('notifications').insert({
         id: uuidv4(),
@@ -281,7 +295,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '🔄 Media Returned — Revision Required',
         body: `Your media "${item.title}" was returned by the reviewer with revision instructions: ${note}. Please correct and resubmit.`,
         type: 'GOVERNANCE',
-        link: '/review-queue',
+        link: '/returned',
         read: false,
       });
 
@@ -291,6 +305,92 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         itemType: item.item_type, riskLevel: item.risk_level,
       });
 
+      await reviewEvidence.safeRecord('request_revision', () => reviewEvidence.recordRequestRevision({ item, tenantId, workspaceId, userId, reason, note, auth }));
+      return res.json({ success: true, data: updated });
+    }
+
+    if (action === 'resubmit') {
+      // Build the content_snapshot patch (merge updated media, captions, topic)
+      const existing = (item as any).content_snapshot || {};
+      const snapshotPatch: Record<string, unknown> = {};
+      if (new_urls?.length) snapshotPatch.urls = new_urls;
+      if (resubmitTopic) snapshotPatch.topic = resubmitTopic;
+      if (resubmitContent?.universal !== undefined) {
+        snapshotPatch.copy = resubmitContent.universal;
+        snapshotPatch.universal = resubmitContent.universal;
+      }
+      if (resubmitContent?.platforms && Object.keys(resubmitContent.platforms).length > 0) {
+        snapshotPatch.platform_captions = resubmitContent.platforms;
+      }
+
+      // Single atomic update: status, assigned_to clear, and optional snapshot patch.
+      // We use supabaseAdmin directly (bypasses the service's queue:manage permission gate)
+      // because CREATOR role is allowed to resubmit their own items via returnedWrite middleware.
+      const newTitle = resubmitContent?.universal?.trim()
+        ? resubmitContent.universal.slice(0, 80).trim()
+        : resubmitTopic?.trim()
+          ? resubmitTopic.slice(0, 80).trim()
+          : null;
+      const resubmitFields: Record<string, unknown> = {
+        status: 'PENDING_REVIEW',
+        assigned_to: null,
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...(newTitle ? { title: newTitle } : {}),
+      };
+      if (Object.keys(snapshotPatch).length > 0) {
+        resubmitFields.content_snapshot = { ...existing, ...snapshotPatch };
+      }
+
+      const { data: updated, error: resubmitError } = await supabaseAdmin
+        .from('review_items')
+        .update(resubmitFields)
+        .eq('id', id)
+        .eq('tenant_id', tenantId)
+        .select()
+        .single();
+
+      if (resubmitError) throw resubmitError;
+
+      // Upsert an approval_items entry so the item also appears in the Approval Console
+      const { data: existingApproval } = await supabaseAdmin
+        .from('approval_items')
+        .select('id')
+        .eq('source_entity_id', id)
+        .eq('source_module', 'review_queue')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (existingApproval) {
+        await supabaseAdmin
+          .from('approval_items')
+          .update({ approval_status: 'PENDING_APPROVAL', updated_at: new Date().toISOString() })
+          .eq('id', existingApproval.id)
+          .eq('tenant_id', tenantId);
+      } else {
+        await supabaseAdmin.from('approval_items').insert({
+          id: uuidv4(),
+          tenant_id: tenantId,
+          workspace_id: workspaceId,
+          source_module: 'review_queue',
+          source_entity_id: id,
+          item_type: (item as any).item_type || 'SOCIAL_POST',
+          title: item.title,
+          approval_status: 'PENDING_APPROVAL',
+          submitted_by: userId,
+          risk_level: item.risk_level || 'LOW',
+          required_approval_level: 1,
+          submitted_at: new Date().toISOString(),
+        });
+      }
+
+      await logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.resubmitted',
+        summary: `"${item.title}" resubmitted by creator for re-review`,
+        itemType: item.item_type, riskLevel: item.risk_level,
+      });
+
+      await reviewEvidence.safeRecord('resubmit', () => reviewEvidence.recordResubmit({ item, tenantId, workspaceId, userId, reason, note, auth, new_urls }));
       return res.json({ success: true, data: updated });
     }
 
@@ -349,6 +449,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         }
       } catch { /* non-blocking — notifications never fail the main action */ }
 
+      await reviewEvidence.safeRecord('escalate', () => reviewEvidence.recordEscalate({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
     }
 
@@ -378,6 +479,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
+      await reviewEvidence.safeRecord('override', () => reviewEvidence.recordOverride({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
     }
 
@@ -396,6 +498,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         itemType: item.item_type, riskLevel: item.risk_level,
       });
 
+      await reviewEvidence.safeRecord('assign', () => reviewEvidence.recordAssign({ item, tenantId, workspaceId, userId, reason, note, auth, assigned_to: (req.body as any).assigned_to }));
       return res.json({ success: true, data: updated });
     }
 
@@ -420,6 +523,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
+      await reviewEvidence.safeRecord('release', () => reviewEvidence.recordRelease({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
     }
 
@@ -430,6 +534,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, note_body: note, created_by: userId,
       }, auth);
 
+      await reviewEvidence.safeRecord('add_note', () => reviewEvidence.recordAddNote({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: result });
     }
 
@@ -453,6 +558,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         summary: `Review item "${item.title}" claimed by reviewer`,
         itemType: item.item_type, riskLevel: item.risk_level,
       });
+      await reviewEvidence.safeRecord('claim', () => reviewEvidence.recordClaim({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
     }
 
@@ -472,6 +578,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         summary: `Review item "${item.title}" returned to shared pool`,
         itemType: item.item_type, riskLevel: item.risk_level,
       });
+      await reviewEvidence.safeRecord('unclaim', () => reviewEvidence.recordUnclaim({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, message: 'Item released back to shared review queue' });
     }
 

@@ -28,7 +28,9 @@ import {
   Heart,
   Repeat2,
   MoreHorizontal,
+  RotateCcw,
 } from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 
 import dynamic from "next/dynamic";
@@ -60,6 +62,10 @@ const PendingPostItem = dynamic(
 );
 const MediaPackManager = dynamic(
   () => import("@/components/publish/MediaPackManager"),
+  { ssr: false },
+);
+const EmojiPicker = dynamic(
+  () => import("emoji-picker-react").then(m => ({ default: m.default })),
   { ssr: false },
 );
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
@@ -635,10 +641,20 @@ function PublishPageInner() {
   // Manual Scheduler State
   const [manualScheduleDate, setManualScheduleDate] = useState<string>('');
   const [manualScheduleTime, setManualScheduleTime] = useState<string>('');
+
+  // Edit mode — returned post from review queue
+  const [reviewItem, setReviewItem] = useState<any>(null);
+  const [reviewNotes, setReviewNotes] = useState<any[]>([]);
+
+  // Emoji picker
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const assetUrls = searchParams.get('assetUrls');
   const assetUrl  = searchParams.get('assetUrl');
   const assetType = searchParams.get('assetType');
   const assetTitle = searchParams.get('assetTitle');
+  const reviewItemId = searchParams.get('review_item_id');
 
   useEffect(() => {
     const timers = pollTimers.current;
@@ -663,6 +679,49 @@ function PublishPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUrls, assetUrl, assetTitle]);
 
+  // Prefill all fields when editing a returned review-queue post
+  useEffect(() => {
+    if (!reviewItemId) return;
+    api.get(`/api/v1/review-queue/items/${reviewItemId}`)
+      .then(r => {
+        if (!r.success || !r.data) return;
+        const it = r.data;
+        setReviewItem(it);
+        const snap = (it.content_snapshot || {}) as any;
+        // Topic / title
+        if (snap.topic) setTopic(snap.topic);
+        else if (it.title) setTopic(it.title);
+        // Media
+        if (Array.isArray(snap.urls) && snap.urls.length > 0) {
+          setMediaUrls(snap.urls);
+          setSelectedUrls(snap.urls);
+          setMediaPreview(snap.urls[0]);
+          setCarouselIndex(0);
+        }
+        // Captions — prefer platform-specific if present
+        if (snap.platform_captions && Object.keys(snap.platform_captions).length > 0) {
+          setIsPlatformSpecific(true);
+          setPlatformCaptions(snap.platform_captions);
+          const first = Object.keys(snap.platform_captions)[0];
+          if (first) setActivePlatformTab(first);
+          // Also populate universal textarea from first caption as fallback
+          if (!description) setDescription(snap.copy || snap.universal || '');
+        } else if (snap.copy || snap.universal) {
+          setIsPlatformSpecific(false);
+          setDescription(snap.copy || snap.universal || '');
+        }
+        // Target accounts
+        if (Array.isArray(snap.target_account_ids) && snap.target_account_ids.length > 0) {
+          setSelectedAccountIds(snap.target_account_ids);
+        }
+      })
+      .catch(() => {});
+
+    api.get(`/api/v1/review-queue/items/${reviewItemId}/notes`)
+      .then(r => setReviewNotes(r.data || []))
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewItemId]);
 
   // Mark draft as dirty whenever meaningful content exists
   useEffect(() => {
@@ -686,6 +745,42 @@ function PublishPageInner() {
       text: "Draft discarded. Start fresh anytime.",
     });
   }, [setIsDirty]);
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handleClick = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showEmojiPicker]);
+
+  // Insert emoji at cursor position in the active caption
+  const handleEmojiSelect = useCallback((emojiData: any) => {
+    const emoji: string = emojiData.emoji;
+    const textarea = textareaRef.current;
+    const cursorPos = textarea?.selectionStart ?? null;
+
+    if (isPlatformSpecific) {
+      const current = platformCaptions[activePlatformTab] || '';
+      const pos = cursorPos ?? current.length;
+      const next = current.slice(0, pos) + emoji + current.slice(pos);
+      setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: next }));
+      setTimeout(() => {
+        if (textarea) { textarea.focus(); textarea.selectionStart = textarea.selectionEnd = pos + emoji.length; }
+      }, 0);
+    } else {
+      const pos = cursorPos ?? description.length;
+      const next = description.slice(0, pos) + emoji + description.slice(pos);
+      setDescription(next);
+      setTimeout(() => {
+        if (textarea) { textarea.focus(); textarea.selectionStart = textarea.selectionEnd = pos + emoji.length; }
+      }, 0);
+    }
+  }, [isPlatformSpecific, activePlatformTab, platformCaptions, description]);
+
   const [isFetchingRecommendations, setIsFetchingRecommendations] =
     useState(false);
 
@@ -1112,7 +1207,7 @@ function PublishPageInner() {
             sentiment_score: data.metadata.sentiment_score,
           });
         }
-        setSuggestedTimes(data.suggestedTimes || []);
+        // suggestedTimes intentionally NOT set here — only shown when user clicks "Get Best Times"
       } else {
         const errorMsg =
           typeof data.error === "object" ? data.error.message : data.error;
@@ -1266,29 +1361,43 @@ function PublishPageInner() {
         scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
       };
 
-      const result = await api.post("/api/v1/governance/submit", payload);
-
-      setMessage({
-        type: "success",
-        text: `Publishing ${result.count || ""} post${(result.count || 0) > 1 ? "s" : ""} to your selected accounts!`,
-      });
-
-      // Cleanup State
-      setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
-      setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
-      setSuggestedTimes([]); setActiveRevisionId(null);
-      setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
-      setCustomTime(""); setSelectedTime("immediate"); setScheduledFor("");
+      if (reviewItemId) {
+        // Resubmit mode — update the existing review item and send back to queue
+        const res = await api.post(`/api/v1/review-queue/items/${reviewItemId}/action`, {
+          action: 'resubmit',
+          new_urls: finalUrls,
+          content: payload.content,
+          topic: payload.topic,
+        });
+        if (!res.success) throw new Error(res.error || 'Resubmit failed');
+        setMessage({ type: 'success', text: 'Resubmitted for review. The reviewer has been notified.' });
         setIsDirty(false);
-      fetchUserData();
-      // Poll for publish result — backend needs a moment to process
-      const t1 = setTimeout(() => fetchRecentPosts(), 3000);
-      const t2 = setTimeout(() => fetchRecentPosts(), 8000);
-      pollTimers.current.push(t1, t2);
+        setTimeout(() => router.push('/returned'), 1500);
+      } else {
+        const result = await api.post("/api/v1/governance/submit", payload);
+
+        setMessage({
+          type: "success",
+          text: `Publishing ${result.count || ""} post${(result.count || 0) > 1 ? "s" : ""} to your selected accounts!`,
+        });
+
+        // Cleanup State
+        setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
+        setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
+        setSuggestedTimes([]); setActiveRevisionId(null);
+        setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
+        setCustomTime(""); setSelectedTime("immediate"); setScheduledFor("");
+        setIsDirty(false);
+        fetchUserData();
+        // Poll for publish result — backend needs a moment to process
+        const t1 = setTimeout(() => fetchRecentPosts(), 3000);
+        const t2 = setTimeout(() => fetchRecentPosts(), 8000);
+        pollTimers.current.push(t1, t2);
+      }
     } catch (err: any) {
       setMessage({
         type: "error",
-        text: "Failed to publish. Please try again.",
+        text: err?.message || err?.error || "Failed to publish. Please try again.",
       });
     }
     setSubmitting(false);
@@ -1558,7 +1667,8 @@ function PublishPageInner() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 px-6">
+    <>
+      <div className="max-w-6xl mx-auto pb-20 px-6">
       {/* Decent Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div className="flex items-center gap-4">
@@ -1659,6 +1769,35 @@ function PublishPageInner() {
         {/* Main Composer - Left Side */}
         <div className="lg:col-span-7 space-y-4">
 
+          {/* Returned-post edit mode banner */}
+          {reviewItemId && (
+            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 overflow-hidden">
+              <div className="flex items-start gap-3 px-5 py-4 border-b border-orange-500/10">
+                <RotateCcw className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-orange-400">Editing Returned Post</p>
+                  <p className="text-xs text-orange-300/70 mt-0.5 truncate">
+                    {reviewItem?.title || "Review item"} — make your changes then click Resubmit for Review
+                  </p>
+                </div>
+              </div>
+              {reviewNotes.length > 0 && (
+                <div className="px-5 py-3 space-y-2">
+                  <p className="text-[10px] font-bold text-orange-400/60 uppercase tracking-wider">
+                    Reviewer Instructions
+                  </p>
+                  {reviewNotes.map(n => (
+                    <div
+                      key={n.id}
+                      className="text-xs text-[var(--foreground)] bg-orange-500/5 border border-orange-500/10 rounded-lg px-3 py-2 leading-relaxed"
+                    >
+                      {n.note_body}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Post To — Account Dropdown (top) ───────────────────────────── */}
           <AccountDropdown
@@ -1677,11 +1816,17 @@ function PublishPageInner() {
               <h3 className="text-sm font-bold text-[var(--foreground)]">
                 Media
               </h3>
-              {mediaUrls.length > 1 && (
-                <span className="text-xs text-info-text font-bold bg-info-text/10 border border-info-border/20 px-3 py-1 rounded-lg">
-                  Pack · {mediaUrls.length} files
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {mediaUrls.length > 1 && (
+                  <span className="text-xs text-info-text font-bold bg-info-text/10 border border-info-border/20 px-3 py-1 rounded-lg">
+                    Pack · {mediaUrls.length} files
+                  </span>
+                )}
+                <button type="button" onClick={() => router.push('/library')}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
+                  Media Vault
+                </button>
+              </div>
             </div>
 
             {/* Carousel preview when library pack is loaded */}
@@ -1933,6 +2078,7 @@ function PublishPageInner() {
 
               <div className="relative bg-[var(--surface)]/50 border border-[var(--border)] rounded-2xl transition-all focus-within:border-[var(--card-border)]">
                 <textarea
+                  ref={textareaRef}
                   value={
                     isPlatformSpecific
                       ? platformCaptions[activePlatformTab] || ""
@@ -1966,12 +2112,28 @@ function PublishPageInner() {
                       <Sparkles className="w-3.5 h-3.5" />
                       AI Studio
                     </button>
-                    <button
-                      onClick={() => setUseEmojis(!useEmojis)}
-                      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? "bg-warning-text/10 border-warning-border/20 text-warning-text" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]"}`}
-                    >
-                      😊
-                    </button>
+                    <div className="relative" ref={emojiPickerRef}>
+                      <button
+                        onClick={() => setShowEmojiPicker(v => !v)}
+                        title="Insert emoji"
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border text-base ${showEmojiPicker ? "bg-warning-text/10 border-warning-border/20" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)]"}`}
+                      >
+                        😊
+                      </button>
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden">
+                          <EmojiPicker
+                            onEmojiClick={handleEmojiSelect}
+                            theme={"dark" as any}
+                            searchPlaceHolder="Search emojis…"
+                            width={320}
+                            height={420}
+                            lazyLoadEmojis
+                            skinTonesDisabled
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end">
                     <span
@@ -2013,10 +2175,6 @@ function PublishPageInner() {
                 onContentTypeChange={setContentType}
                 aiLength={aiLength}
                 onAiLengthChange={setAiLength}
-                aiTone={aiTone}
-                onAiToneChange={setAiTone}
-                styleMode={aiStyleMode}
-                onStyleModeChange={setAiStyleMode}
                 audience={aiAudience}
                 onAudienceChange={setAiAudience}
                 onGenerate={handleGenerateAI}
@@ -2186,71 +2344,31 @@ function PublishPageInner() {
           })()}
 
 
-          {/* Target Publish Date — optional, shown on calendar */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[var(--foreground-muted)] flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-info-text" />
-                Target Publish Date
-                <span className="text-[10px] font-normal opacity-60 ml-1">(optional)</span>
-              </label>
-              <button
-                type="button"
-                disabled={bestSlotLoading}
-                onClick={async () => {
-                  const selectedPlats = getSelectedPlatforms();
-                  const platform = selectedPlats[0];
-                  if (!platform) { setMessage({ type: 'error', text: 'Select a platform first.' }); return; }
-                  setBestSlotLoading(true);
-                  try {
-                    const r = await api.post('/api/v1/scheduler/best-slot', { platform });
-                    if (r.success && r.data?.suggested_time) {
-                      const local = new Date(r.data.suggested_time);
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      setScheduledFor(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`);
-                      setMessage({ type: 'success', text: `Best slot found: ${local.toLocaleString()} (${r.data.source === 'engagement_data' ? 'based on your engagement history' : 'platform defaults'})` });
-                    }
-                  } catch { /* non-blocking */ }
-                  finally { setBestSlotLoading(false); }
-                }}
-                className="text-[10px] font-semibold text-info-text hover:opacity-80 transition-opacity disabled:opacity-40 flex items-center gap-1"
-              >
-                {bestSlotLoading ? '...' : '✦ Best Time'}
-              </button>
-            </div>
-            <input
-              type="datetime-local"
-              value={scheduledFor}
-              onChange={(e) => setScheduledFor(e.target.value)}
-              className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
-            />
-            {scheduledFor && (
-              <button
-                onClick={() => setScheduledFor("")}
-                className="mt-1.5 text-[10px] text-[var(--foreground-muted)] hover:text-error-text transition-colors"
-              >
-                Clear date
-              </button>
-            )}
-          </div>
-
           {/* Submit */}
           <button
             onClick={handleSubmitIntent}
             disabled={submitting || !canPublish}
             title={!canPublish ? "Your role cannot publish content" : undefined}
-            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-info-text text-foreground hover:bg-info-text"
+            className={`w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+              reviewItemId
+                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20"
+                : "bg-info-text text-foreground hover:bg-info-text"
+            }`}
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : reviewItemId ? (
+              <RotateCcw className="w-4 h-4" />
             ) : (
               <Send className="w-4 h-4" />
             )}
             {submitting
-              ? "Publishing…"
-              : activeRevisionId
-                ? "Republish"
-                : "Publish Now"}
+              ? (reviewItemId ? "Resubmitting…" : "Publishing…")
+              : reviewItemId
+                ? "Update & Resubmit for Review"
+                : activeRevisionId
+                  ? "Republish"
+                  : "Publish Now"}
           </button>
         </div>
 
@@ -2792,6 +2910,7 @@ function PublishPageInner() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
