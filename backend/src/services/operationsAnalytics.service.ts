@@ -51,13 +51,18 @@ export async function getOperationsStats(workspaceId: string, filters: Operation
   const [
     activeRuns, queueDepth, failedRuns, policyBlockedRuns, totalRuns,
     pendingQueues, openIncidents, slaBreaches, escalations, quarantinedRuns,
+    completedRuns,
   ] = await Promise.all([
     applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'RUNNING'),
     // Queue backlog = every queue item that is not yet resolved/cancelled.
     applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED),
     applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'FAILED'),
-    // Policy blocked = currently blocked OR evaluated as blocked.
-    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).or('status.eq.POLICY_BLOCKED,policy_result.eq.blocked'),
+    // Policy blocked = runs currently in the POLICY_BLOCKED state. Counting by
+    // status only (not policy_result) keeps this card consistent with the table
+    // and with the status-based Active/Failed cards; a run that was policy-blocked
+    // but has since moved on (e.g. FAILED) is counted under that state instead,
+    // so it is never double-counted across two cards.
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'POLICY_BLOCKED'),
     applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters),
     applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED),
     applyQueueIncidentScope(supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', INCIDENT_CLOSED),
@@ -67,6 +72,8 @@ export async function getOperationsStats(workspaceId: string, filters: Operation
       ? supabaseAdmin.from('runtime_control_actions').select('id', { count: 'exact', head: true }).eq('action_type', 'escalate').in('run_id', runIds)
       : Promise.resolve({ count: 0 }),
     applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'QUARANTINED'),
+    // Successful runs = runs that completed cleanly.
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'COMPLETED'),
   ]);
 
   const total = totalRuns.count || 0;
@@ -86,6 +93,7 @@ export async function getOperationsStats(workspaceId: string, filters: Operation
   const denom = total || 1;
   return {
     active_runs: activeRuns.count || 0,
+    successful_runs: completedRuns.count || 0,
     queue_depth: queueDepth.count || 0,
     queued_tasks: queueDepth.count || 0,
     pending_queues: pendingQueues.count || 0,
@@ -119,8 +127,9 @@ export async function getAnalyticsMetrics(workspaceId: string, filters: Operatio
   const runScope = () => applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters);
   const incidentScope = () => applyQueueIncidentScope(supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds);
   const evidenceScope = () => applyQueueIncidentScope(supabaseAdmin.from('evidence_bundles').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds);
-  // Policy-blocked filter shared across periods.
-  const policyBlockedScope = () => runScope().or('status.eq.POLICY_BLOCKED,policy_result.eq.blocked');
+  // Policy-blocked filter shared across periods. Status-only, matching the live
+  // Policy Blocks card so trend data and the headline count never diverge.
+  const policyBlockedScope = () => runScope().eq('status', 'POLICY_BLOCKED');
 
   const results = await Promise.all([
     runScope().eq('status', 'RUNNING'),                                                   // 0 activeRuns

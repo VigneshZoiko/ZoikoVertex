@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 type Tab = 'ALL' | 'UNREAD' | 'WORKFLOW';
 
 export default function NotificationPanel() {
-  const { state, dispatch, markAsRead, markAllRead, clearAll } = useNotifications();
+  const { state, removeNotification, markAsRead, markAllRead, clearAll } = useNotifications();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('ALL');
@@ -127,6 +127,8 @@ export default function NotificationPanel() {
               ) : (
                 filteredNotifications.map((notif, index) => {
                   const navHref = notif.actions?.find(a => a.href)?.href;
+                  // Rejection notifications render as a red card: red heading + white reason.
+                  const isRejection = notif.metadata?.kind === 'POST_REJECTED';
                   const cardContent = (
                     <div className="flex gap-4">
                       {/* Priority Indicator & Icon */}
@@ -139,7 +141,7 @@ export default function NotificationPanel() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
-                          <p className={`text-sm font-bold truncate tracking-tight ${!notif.read ? 'text-[var(--foreground)]' : 'text-[var(--foreground-muted)]'}`}>
+                          <p className={`text-sm font-bold truncate tracking-tight ${isRejection ? 'text-[var(--error-text)]' : !notif.read ? 'text-[var(--foreground)]' : 'text-[var(--foreground-muted)]'}`}>
                             {notif.title}
                           </p>
                           <span className="text-[10px] text-[var(--foreground-muted)] font-medium whitespace-nowrap">
@@ -147,7 +149,7 @@ export default function NotificationPanel() {
                           </span>
                         </div>
 
-                        <p className="text-xs text-[var(--foreground-muted)] leading-relaxed font-medium mb-3">
+                        <p className={`text-xs leading-relaxed font-medium mb-3 ${isRejection ? 'text-white' : 'text-[var(--foreground-muted)]'}`}>
                           {notif.message}
                         </p>
 
@@ -199,7 +201,7 @@ export default function NotificationPanel() {
                     <div
                       key={notif.id}
                       style={{ animationDelay: `${index * 30}ms` }}
-                      className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both cursor-pointer ${!notif.read ? 'bg-[var(--accent)]/[0.02]' : ''}`}
+                      className={`px-5 py-4 border-b border-[var(--border)] last:border-0 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both cursor-pointer ${isRejection ? 'bg-[var(--error-bg)] border-l-4 border-l-[var(--error-text)] hover:bg-[var(--error-bg)]/80' : `hover:bg-[var(--surface-hover)]/60 ${!notif.read ? 'bg-[var(--accent)]/[0.02]' : ''}`}`}
                       onClick={handleCardClick}
                     >
                       {cardContent}
@@ -212,7 +214,7 @@ export default function NotificationPanel() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          dispatch({ type: 'REMOVE', payload: notif.id });
+                          removeNotification(notif.id);
                         }}
                         className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--error-bg)] text-[var(--foreground-muted)] hover:text-[var(--error-text)] transition-all shadow-sm bg-[var(--surface)]"
                         aria-label="Remove notification"

@@ -1,4 +1,5 @@
- 
+
+import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
@@ -654,6 +655,18 @@ export const getQueue = async (
       return res.status(200).json({ success: true, data: [] });
     }
 
+    // The Approval Console renders Pending / Approved / Rejected-Returned tabs and
+    // matching stat cards, so the queue must include recently-decided intents too
+    // — not just pending ones. Without the decided states the Approved/Rejected
+    // indicators stay at 0 even straight after a decision. Bounded by a recent
+    // window (see RECENT_QUEUE_LIMIT) so the payload stays small.
+    const CONSOLE_DECIDED = new Set([
+      'APPROVED', 'RELEASED', 'REJECTED', 'GOVERNANCE_BLOCKED', 'RETURNED',
+    ]);
+    const isConsoleVisible = (s: unknown): boolean =>
+      typeof s === 'string' && (s.startsWith('PENDING_') || CONSOLE_DECIDED.has(s));
+    const RECENT_QUEUE_LIMIT = 300;
+
     let query = supabaseAdmin.from('publish_intents').select('*');
 
     if (isSuperAdmin) {
@@ -664,19 +677,21 @@ export const getQueue = async (
       const { data: allData, error: allErr } = await supabaseAdmin
         .from('publish_intents')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(RECENT_QUEUE_LIMIT);
 
       if (allErr) {
         if ((allErr as any).code === '42P01') return res.status(200).json({ success: true, data: [] });
         throw allErr;
       }
 
-      const pending = (allData || []).filter((r: any) =>
-        typeof r.status === 'string' && r.status.startsWith('PENDING_')
-      );
-      return res.status(200).json({ success: true, data: pending });
+      const visible = (allData || []).filter((r: any) => isConsoleVisible(r.status));
+      return res.status(200).json({ success: true, data: visible });
     } else if (role === 'CREATOR') {
-      query = query.eq('creator_id', userId).eq('status', 'RETURNED');
+      // Creators see their own posts that need their attention or were decided
+      // against them — returned for revision, rejected, or governance-blocked —
+      // so a rejection notification's "View Details" can open the post here.
+      query = query.eq('creator_id', userId).in('status', ['RETURNED', 'REJECTED', 'GOVERNANCE_BLOCKED']);
     } else {
       // Fetch pending intents scoped to this workspace, filter in JS to avoid
       // invalid enum errors from Postgres enum literals.
@@ -685,17 +700,16 @@ export const getQueue = async (
         .from('publish_intents')
         .select('*')
         .eq('workspace_id', workspaceId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(RECENT_QUEUE_LIMIT);
 
       if (allErr) {
         if ((allErr as any).code === '42P01') return res.status(200).json({ success: true, data: [] });
         throw allErr;
       }
 
-      const pending = (allData || []).filter((r: any) =>
-        typeof r.status === 'string' && r.status.startsWith('PENDING_')
-      );
-      return res.status(200).json({ success: true, data: pending });
+      const visible = (allData || []).filter((r: any) => isConsoleVisible(r.status));
+      return res.status(200).json({ success: true, data: visible });
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -793,6 +807,39 @@ async function recordReviewer(intentId: string, reviewerId: string, reason?: str
   }
 }
 
+// Persist a notification to the post's creator. Best-effort: a notification
+// failure must never block the review decision. `type: 'POST_REJECTED'` is the
+// signal the bell/notification panel uses to render the red rejection card
+// (red heading + white reason).
+async function notifyCreatorRejected(
+  creatorId: string | null | undefined,
+  reason: string | null | undefined,
+  intentId: string,
+): Promise<void> {
+  if (!creatorId) return;
+  try {
+    await supabaseAdmin.from('notifications').insert({
+      id: randomUUID(),
+      user_id: creatorId,
+      title: 'Your post has been rejected',
+      body: reason && reason.trim()
+        ? reason.trim()
+        : 'A reviewer rejected this post. No reason was provided.',
+      type: 'POST_REJECTED',
+      // Deep-link straight to the Approval Console with this post focused; the
+      // console selects it and opens the Rejected / Returned container.
+      link: `/governance/reviews?item=${intentId}`,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), intentId },
+      '[review-action] creator rejection notification skipped',
+    );
+  }
+}
+
 export const reviewActionIntent = async (
   req: AuthRequest,
   res: Response,
@@ -826,16 +873,36 @@ export const reviewActionIntent = async (
     }).catch(() => undefined);
 
     if (action === 'approve') {
-      // Same governed path the manual approval + auto-publish use.
-      const decision = await evaluateIntent(intentId, '', workspaceId);
-      if (!decision.governance_cleared) {
+      // Re-run the governed decision for the audit record, but the human
+      // reviewer's approval is the governing decision in the Approval Console —
+      // this console IS the escalation target. So only a HARD reject (high-risk
+      // ≥80 or a regulatory policy violation, i.e. decision.status === 'REJECTED')
+      // overrides the reviewer. An ESCALATED outcome merely means "a human must
+      // decide", which has now happened, so it proceeds to publish. Previously
+      // any non-cleared decision — including routine escalations and the
+      // resiliency-mode escalation triggered by a transient governance-DB hiccup
+      // — silently re-blocked the post, so reviewers could never approve &
+      // publish a flagged/warning post.
+      // The re-evaluation must never crash the human decision. If the Decision
+      // Engine (e.g. the content-safety classifier / Groq) is unavailable, we
+      // defer to the reviewer who explicitly approved rather than 500-ing.
+      let decision: Awaited<ReturnType<typeof evaluateIntent>> | null = null;
+      try {
+        decision = await evaluateIntent(intentId, '', workspaceId);
+      } catch (evalErr) {
+        logger.warn(
+          { err: evalErr instanceof Error ? evalErr.message : String(evalErr), intentId },
+          '[review-action] decision re-evaluation failed — honoring reviewer approval',
+        );
+      }
+      if (decision && decision.status === 'REJECTED') {
         await setIntentStatus(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`, decision.decision_id);
         await recordReviewer(intentId, userId, reason);
         await syncWorkflowInstanceStatus(intentId, 'blocked');
         await syncAgentRunFromIntent(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`);
         return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
       }
-      await setIntentStatus(intentId, 'APPROVED', reason || null, decision.decision_id);
+      await setIntentStatus(intentId, 'APPROVED', reason || null, decision?.decision_id);
       await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'completed');
       await syncAgentRunFromIntent(intentId, 'APPROVED');
@@ -854,6 +921,9 @@ export const reviewActionIntent = async (
       await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'failed');
       await syncAgentRunFromIntent(intentId, 'REJECTED', reason ? `Rejected: ${reason}` : 'Rejected by reviewer');
+      // Notify the post's creator (whoever they are) that it was rejected, with
+      // the reviewer's reason. Persisted so it shows even if they were offline.
+      await notifyCreatorRejected(intent.creator_id, reason, intentId);
       return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
     }
 
