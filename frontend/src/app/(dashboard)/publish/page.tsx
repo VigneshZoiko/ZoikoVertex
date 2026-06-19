@@ -63,6 +63,10 @@ const MediaPackManager = dynamic(
   () => import("@/components/publish/MediaPackManager"),
   { ssr: false },
 );
+const EmojiPicker = dynamic(
+  () => import("emoji-picker-react").then(m => ({ default: m.default })),
+  { ssr: false },
+);
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import { api } from "@/lib/api";
 import { MediaPreview } from "@/components/MediaPreview";
@@ -640,6 +644,11 @@ function PublishPageInner() {
   // Edit mode — returned post from review queue
   const [reviewItem, setReviewItem] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState<any[]>([]);
+
+  // Emoji picker
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const assetUrls = searchParams.get('assetUrls');
   const assetUrl  = searchParams.get('assetUrl');
   const assetType = searchParams.get('assetType');
@@ -735,6 +744,42 @@ function PublishPageInner() {
       text: "Draft discarded. Start fresh anytime.",
     });
   }, [setIsDirty]);
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handleClick = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showEmojiPicker]);
+
+  // Insert emoji at cursor position in the active caption
+  const handleEmojiSelect = useCallback((emojiData: any) => {
+    const emoji: string = emojiData.emoji;
+    const textarea = textareaRef.current;
+    const cursorPos = textarea?.selectionStart ?? null;
+
+    if (isPlatformSpecific) {
+      const current = platformCaptions[activePlatformTab] || '';
+      const pos = cursorPos ?? current.length;
+      const next = current.slice(0, pos) + emoji + current.slice(pos);
+      setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: next }));
+      setTimeout(() => {
+        if (textarea) { textarea.focus(); textarea.selectionStart = textarea.selectionEnd = pos + emoji.length; }
+      }, 0);
+    } else {
+      const pos = cursorPos ?? description.length;
+      const next = description.slice(0, pos) + emoji + description.slice(pos);
+      setDescription(next);
+      setTimeout(() => {
+        if (textarea) { textarea.focus(); textarea.selectionStart = textarea.selectionEnd = pos + emoji.length; }
+      }, 0);
+    }
+  }, [isPlatformSpecific, activePlatformTab, platformCaptions, description]);
+
   const [isFetchingRecommendations, setIsFetchingRecommendations] =
     useState(false);
 
@@ -1161,7 +1206,7 @@ function PublishPageInner() {
             sentiment_score: data.metadata.sentiment_score,
           });
         }
-        setSuggestedTimes(data.suggestedTimes || []);
+        // suggestedTimes intentionally NOT set here — only shown when user clicks "Get Best Times"
       } else {
         const errorMsg =
           typeof data.error === "object" ? data.error.message : data.error;
@@ -2024,6 +2069,7 @@ function PublishPageInner() {
 
               <div className="relative bg-[var(--surface)]/50 border border-[var(--border)] rounded-2xl transition-all focus-within:border-[var(--card-border)]">
                 <textarea
+                  ref={textareaRef}
                   value={
                     isPlatformSpecific
                       ? platformCaptions[activePlatformTab] || ""
@@ -2057,12 +2103,28 @@ function PublishPageInner() {
                       <Sparkles className="w-3.5 h-3.5" />
                       AI Studio
                     </button>
-                    <button
-                      onClick={() => setUseEmojis(!useEmojis)}
-                      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? "bg-warning-text/10 border-warning-border/20 text-warning-text" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]"}`}
-                    >
-                      😊
-                    </button>
+                    <div className="relative" ref={emojiPickerRef}>
+                      <button
+                        onClick={() => setShowEmojiPicker(v => !v)}
+                        title="Insert emoji"
+                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border text-base ${showEmojiPicker ? "bg-warning-text/10 border-warning-border/20" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--border-hover)]"}`}
+                      >
+                        😊
+                      </button>
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden">
+                          <EmojiPicker
+                            onEmojiClick={handleEmojiSelect}
+                            theme={"dark" as any}
+                            searchPlaceHolder="Search emojis…"
+                            width={320}
+                            height={420}
+                            lazyLoadEmojis
+                            skinTonesDisabled
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end">
                     <span
@@ -2104,10 +2166,6 @@ function PublishPageInner() {
                 onContentTypeChange={setContentType}
                 aiLength={aiLength}
                 onAiLengthChange={setAiLength}
-                aiTone={aiTone}
-                onAiToneChange={setAiTone}
-                styleMode={aiStyleMode}
-                onStyleModeChange={setAiStyleMode}
                 audience={aiAudience}
                 onAudienceChange={setAiAudience}
                 onGenerate={handleGenerateAI}
@@ -2276,54 +2334,6 @@ function PublishPageInner() {
             );
           })()}
 
-
-          {/* Target Publish Date — optional, shown on calendar */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[var(--foreground-muted)] flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-info-text" />
-                Target Publish Date
-                <span className="text-[10px] font-normal opacity-60 ml-1">(optional)</span>
-              </label>
-              <button
-                type="button"
-                disabled={bestSlotLoading}
-                onClick={async () => {
-                  const selectedPlats = getSelectedPlatforms();
-                  const platform = selectedPlats[0];
-                  if (!platform) { setMessage({ type: 'error', text: 'Select a platform first.' }); return; }
-                  setBestSlotLoading(true);
-                  try {
-                    const r = await api.post('/api/v1/scheduler/best-slot', { platform });
-                    if (r.success && r.data?.suggested_time) {
-                      const local = new Date(r.data.suggested_time);
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      setScheduledFor(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`);
-                      setMessage({ type: 'success', text: `Best slot found: ${local.toLocaleString()} (${r.data.source === 'engagement_data' ? 'based on your engagement history' : 'platform defaults'})` });
-                    }
-                  } catch { /* non-blocking */ }
-                  finally { setBestSlotLoading(false); }
-                }}
-                className="text-[10px] font-semibold text-info-text hover:opacity-80 transition-opacity disabled:opacity-40 flex items-center gap-1"
-              >
-                {bestSlotLoading ? '...' : '✦ Best Time'}
-              </button>
-            </div>
-            <input
-              type="datetime-local"
-              value={scheduledFor}
-              onChange={(e) => setScheduledFor(e.target.value)}
-              className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
-            />
-            {scheduledFor && (
-              <button
-                onClick={() => setScheduledFor("")}
-                className="mt-1.5 text-[10px] text-[var(--foreground-muted)] hover:text-error-text transition-colors"
-              >
-                Clear date
-              </button>
-            )}
-          </div>
 
           {/* Submit */}
           <button
