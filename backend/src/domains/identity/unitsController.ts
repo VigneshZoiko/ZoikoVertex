@@ -132,12 +132,7 @@ async function checkCampaignsOrEvidence(unitId: string): Promise<boolean> {
     .select('*', { count: 'exact', head: true })
     .eq('business_unit_id', unitId);
 
-  const { count: historyCount } = await supabaseAdmin
-    .from('business_unit_activity_log')
-    .select('*', { count: 'exact', head: true })
-    .eq('business_unit_id', unitId);
-
-  return (campaignCount ?? 0) > 0 || (evidenceCount ?? 0) > 0 || (historyCount ?? 0) > 0;
+  return (campaignCount ?? 0) > 0 || (evidenceCount ?? 0) > 0;
 }
 
 // ─── GET /api/v1/units ────────────────────────────────────────────────────────
@@ -615,6 +610,13 @@ export const deleteUnit = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     // Hard-delete only if no dependent data
+    await Promise.all([
+      supabaseAdmin.from('business_unit_members').delete().eq('business_unit_id', id),
+      supabaseAdmin.from('business_unit_brands').delete().eq('business_unit_id', id),
+      supabaseAdmin.from('business_unit_activity_log').delete().eq('business_unit_id', id),
+      supabaseAdmin.from('business_unit_evidence_scope').delete().eq('business_unit_id', id),
+    ]);
+
     let deleteQuery = supabaseAdmin.from('business_units').delete().eq('id', id);
     if (!isSuperAdmin) deleteQuery = deleteQuery.eq('workspace_id', workspaceId);
     const { error: deleteError } = await deleteQuery;
