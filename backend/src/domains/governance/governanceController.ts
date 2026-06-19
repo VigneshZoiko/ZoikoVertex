@@ -2,7 +2,6 @@
 import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '../../shared/supabase';
 import { createReviewItem } from '../../services/reviewQueue.service';
 import { logger } from '../../shared/logger';
