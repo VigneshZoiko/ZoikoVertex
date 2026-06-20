@@ -7,7 +7,7 @@ import {
   ChevronRight, UserPlus, ShieldCheck, FileText,
   Eye, EyeOff, Download, Settings,
   Flag, Activity, ThumbsUp,
-  ThumbsDown, MessageCircle,
+  ThumbsDown, MessageCircle, RotateCcw,
   Info, ExternalLink,
   ClipboardList,
 } from "lucide-react";
@@ -827,6 +827,13 @@ export default function ApprovalsPage() {
                     </button>
                     <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-warning-bg text-warning-text rounded-lg text-xs font-medium hover:bg-warning-text/25 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Request Changes
+                    </button>
+                    <button onClick={() => {
+                      if (!selectedId) return;
+                      const r = window.prompt("Reason for returning to publisher:");
+                      if (r) handleAction("return_to_creator", selectedId, { reason: r, note: r });
+                    }} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
+                      <RotateCcw className="w-3.5 h-3.5" /> Return to Publisher
                     </button>
                     <button onClick={() => selectedId && handleAction("conditional_approval", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
                       <Flag className="w-3.5 h-3.5" /> Approve with Conditions

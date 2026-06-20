@@ -6,9 +6,9 @@ import { logger } from '../shared/logger';
 import type { AuthContext } from '../shared/serviceAuth';
 import { requireAnyPermission } from '../shared/serviceAuth';
 
-export type ApprovalItemStatus = 'PENDING_APPROVAL' | 'IN_REVIEW' | 'WAITING_ON_OTHERS' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'ESCALATED' | 'CONDITIONAL_APPROVAL' | 'BLOCKED' | 'CANCELLED' | 'COMPLETED' | 'ARCHIVED';
+export type ApprovalItemStatus = 'PENDING_APPROVAL' | 'IN_REVIEW' | 'WAITING_ON_OTHERS' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'ESCALATED' | 'CONDITIONAL_APPROVAL' | 'BLOCKED' | 'CANCELLED' | 'COMPLETED' | 'ARCHIVED' | 'RETURNED_TO_CREATOR';
 export type ApprovalItemType = 'SOCIAL_POST' | 'INBOX_REPLY' | 'CAMPAIGN_ASSET' | 'AGENT_ACTION' | 'WORKFLOW_OUTPUT' | 'VALIDATION_OVERRIDE' | 'EXCEPTION_OUTCOME' | 'RESTRICTED_OPERATION' | 'COMPLIANCE_SENSITIVE_ITEM' | 'PUBLISHING_ACTION';
-export type DecisionValue = 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'CONDITIONAL_APPROVAL' | 'ESCALATED';
+export type DecisionValue = 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'CONDITIONAL_APPROVAL' | 'ESCALATED' | 'RETURNED_TO_CREATOR';
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED' | 'SKIPPED' | 'ESCALATED';
 export type PathType = 'SINGLE' | 'SEQUENTIAL' | 'PARALLEL' | 'QUORUM' | 'ROLE_BASED' | 'SPECIALIST' | 'CONDITIONAL' | 'EMERGENCY' | 'EXECUTIVE';
 export type CallbackStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
@@ -789,6 +789,37 @@ export async function retryCallback(callbackId: string, auth?: AuthContext): Pro
   await supabaseAdmin.from('approval_callbacks')
     .update({ callback_status: 'PENDING', retry_count: 0 })
     .eq('id', callbackId);
+}
+
+// ─── Return to Creator ─────────────────────────────────────────────────────
+
+export async function returnToCreator(itemId: string, tenant_id: string, userId: string, reason: string, note?: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
+  const item = await getApprovalItem(itemId, tenant_id);
+  if (!item) throw new Error('Approval item not found');
+  if (!reason) throw new Error('Return to creator requires a reason');
+
+  const decision = await recordDecision({
+    approval_item_id: itemId, approver_id: userId,
+    decision: 'RETURNED_TO_CREATOR', reason, note,
+  });
+
+  await supabaseAdmin.from('approval_items')
+    .update({ approval_status: 'RETURNED_TO_CREATOR' })
+    .eq('id', itemId);
+
+  await createAuditLog({
+    tenant_id, approval_item_id: itemId,
+    action: `item.returned_to_creator by ${userId}`,
+    previous_value: item.approval_status, new_value: 'RETURNED_TO_CREATOR',
+    performed_by: userId,
+  });
+
+  broadcastWebhookEvent(item.workspace_id, 'approval.returned_to_creator', {
+    approval_item_id: itemId, reason, decision_id: decision.id,
+  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
+
+  return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
 // ─── Export ────────────────────────────────────────────────────────────────
