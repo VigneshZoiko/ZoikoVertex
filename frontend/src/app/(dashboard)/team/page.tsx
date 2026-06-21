@@ -162,6 +162,7 @@ export default function TeamPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageMembers) return;
+    if (password.length < 8) { setMessage({ type: "error", text: "Password must be at least 8 characters" }); return; }
     setFormLoading(true);
     setMessage(null);
     try {

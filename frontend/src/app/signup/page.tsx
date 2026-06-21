@@ -151,6 +151,7 @@ export default function SignupPage() {
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (password !== confirmPwd) { setError("Passwords do not match"); return; }
     if (strength < 3) { setError("Password too weak - add numbers and special characters"); return; }
     if (!agreedToS) { setError("Please agree to the Terms of Service and Privacy Policy"); return; }
