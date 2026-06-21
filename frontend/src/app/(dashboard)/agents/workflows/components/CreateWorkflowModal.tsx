@@ -45,7 +45,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
   const [businessUnits, setBusinessUnits] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+    api.get("/api/v1/units").then(r => setBusinessUnits(Array.isArray(r?.data) ? r.data : [])).catch(() => setBusinessUnits([]));
   }, []);
 
   if (!open) return null;

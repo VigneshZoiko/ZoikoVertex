@@ -50,8 +50,8 @@ export default function SecurityCenterPage() {
         api.get("/api/v1/governance/audit/trail?limit=25"),
         api.get("/api/v1/team/members"),
       ]);
-      setAuditEvents(auditRes.data || []);
-      setMembers(membersRes.data || []);
+      setAuditEvents(Array.isArray(auditRes?.data) ? auditRes.data : []);
+      setMembers(Array.isArray(membersRes?.data) ? membersRes.data : []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load security data");
     } finally {

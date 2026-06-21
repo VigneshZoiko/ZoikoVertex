@@ -319,7 +319,7 @@ export default function CreateAgentWizard({
           }));
         }
 
-        api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+        api.get("/api/v1/units").then(r => setBusinessUnits(Array.isArray(r?.data) ? r.data : [])).catch(() => setBusinessUnits([]));
 
         let workspaceId =
           contextRes.status === "fulfilled" && contextRes.value.success

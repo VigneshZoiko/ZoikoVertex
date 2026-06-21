@@ -696,7 +696,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
 
   // Fetch business units
   useEffect(() => {
-    api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+    api.get("/api/v1/units").then(r => setBusinessUnits(Array.isArray(r?.data) ? r.data : [])).catch(() => setBusinessUnits([]));
   }, []);
 
   // Load existing campaign data when editing

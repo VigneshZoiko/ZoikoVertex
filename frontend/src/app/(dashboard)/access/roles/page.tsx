@@ -228,7 +228,7 @@ function UnitsTab() {
     setLoading(true);
     try {
       const res = await api.get("/api/v1/units");
-      setUnits(res.data || []);
+      setUnits(Array.isArray(res?.data) ? res.data : []);
     } catch {
       setError("Failed to load business units.");
     } finally {
@@ -258,13 +258,17 @@ function UnitsTab() {
         unit_type: unitType,
         owner_id: ownerId || null,
       });
-      fetchUnits();
-      setName("");
-      setDescription("");
-      setColor(COLOR_PRESETS[0]);
-      setUnitType("department");
-      setOwnerId("");
-      setShowForm(false);
+      if (res.success !== false) {
+        fetchUnits();
+        setName("");
+        setDescription("");
+        setColor(COLOR_PRESETS[0]);
+        setUnitType("department");
+        setOwnerId("");
+        setShowForm(false);
+      } else {
+        setError(res.error || "Failed to create business unit.");
+      }
     } catch {
       setError("Failed to create business unit.");
     } finally {
@@ -275,12 +279,17 @@ function UnitsTab() {
   const handleAction = async (action: "archive" | "restore" | "delete", id: string) => {
     setDeletingId(id);
     try {
+      let res;
       if (action === "delete") {
-        await api.delete(`/api/v1/units/${id}`);
+        res = await api.delete(`/api/v1/units/${id}`);
       } else {
-        await api.post(`/api/v1/units/${id}/${action}`, {});
+        res = await api.post(`/api/v1/units/${id}/${action}`, {});
       }
-      fetchUnits();
+      if (res.success !== false) {
+        fetchUnits();
+      } else {
+        setError(res.error || `Failed to ${action} business unit.`);
+      }
     } catch {
       setError(`Failed to ${action} business unit.`);
     } finally {

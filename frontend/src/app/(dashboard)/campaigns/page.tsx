@@ -1020,7 +1020,7 @@ export default function CampaignsPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    api.get("/api/v1/units").then(r => setBusinessUnits(r.data || [])).catch(() => setBusinessUnits([]));
+    api.get("/api/v1/units").then(r => setBusinessUnits(Array.isArray(r?.data) ? r.data : [])).catch(() => setBusinessUnits([]));
   }, []);
 
   const selAcc = accounts.find(a => a.id === selAccount);
