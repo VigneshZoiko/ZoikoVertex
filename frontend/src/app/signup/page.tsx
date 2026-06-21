@@ -164,11 +164,11 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
-      const res = await response.json().catch(() => ({}));
-      if (response.status === 409 && res.exists) {
+      if (response.status === 409) {
         router.push(`/login?email=${encodeURIComponent(email.trim())}`);
         return;
       }
+      const res = await response.json().catch(() => ({}));
       if (response.ok && res.success) {
         setStep(3);
         setResendTimer(60);

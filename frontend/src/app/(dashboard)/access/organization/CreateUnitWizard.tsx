@@ -46,17 +46,23 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
   const fetchedRef = useRef({ members: false, units: false });
 
   useEffect(() => {
+    const ac = new AbortController();
     if (!fetchedRef.current.members) {
       fetchedRef.current.members = true;
       setLoadingMembers(true);
-      api.get("/api/v1/team/members").then((res) => {
+      api.get("/api/v1/team/members", { signal: ac.signal }).then((res) => {
+        if (ac.signal.aborted) return;
         if (res.success !== false) setAvailableMembers(res.data || []);
-      }).catch(() => {}).finally(() => setLoadingMembers(false));
+      }).catch(() => {}).finally(() => { if (!ac.signal.aborted) setLoadingMembers(false); });
     }
     if (!fetchedRef.current.units) {
       fetchedRef.current.units = true;
-      api.get("/api/v1/units").then((res) => { if (res.success !== false) setUnits(res.data || []); }).catch(() => {});
+      api.get("/api/v1/units", { signal: ac.signal }).then((res) => {
+        if (ac.signal.aborted) return;
+        if (res.success !== false) setUnits(res.data || []);
+      }).catch(() => {});
     }
+    return () => ac.abort();
   }, []);
 
   const handleCreate = async () => {
@@ -80,7 +86,6 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
       }
 
       onCreated();
-      onClose();
 
       if (selectedMembers.length > 0 && createRes?.data?.id) {
         const results = await Promise.allSettled(selectedMembers.map((mid) =>
@@ -91,6 +96,8 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
           console.warn(`${failures.length} member(s) could not be added to unit ${createRes.data.id}`);
         }
       }
+
+      onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create business unit";
       setError(msg);

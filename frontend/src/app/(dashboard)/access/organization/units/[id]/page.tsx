@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useCallback } from "react";
+import { useState, useEffect, use, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2, ArrowLeft, Users, BookOpen, Settings, X,
@@ -113,16 +113,20 @@ function OverviewTab({ unit, unitId }: { unit: BusinessUnitExtended; unitId: str
   const [childCount, setChildCount] = useState(0);
 
   useEffect(() => {
+    const ac = new AbortController();
     if (unit.parent_id) {
       setParentNameFailed(false);
-      api.get(`/api/v1/units/${unit.parent_id}`).then(r => {
+      api.get(`/api/v1/units/${unit.parent_id}`, { signal: ac.signal }).then(r => {
+        if (ac.signal.aborted) return;
         if (r.success !== false && r.data) setParentName(r.data.name || null);
         else setParentNameFailed(true);
-      }).catch(() => setParentNameFailed(true));
+      }).catch(() => { if (!ac.signal.aborted) setParentNameFailed(true); });
     }
-    api.get(`/api/v1/units/${unitId}/children`).then(r => {
+    api.get(`/api/v1/units/${unitId}/children`, { signal: ac.signal }).then(r => {
+      if (ac.signal.aborted) return;
       if (r.success !== false && Array.isArray(r.data)) setChildCount(r.data.length);
     }).catch(() => {});
+    return () => ac.abort();
   }, [unit.parent_id, unitId]);
 
   return (
@@ -187,8 +191,17 @@ interface TreeNode {
 
 function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
   const [expanded, setExpanded] = useState(false);
-  const [children, setChildren] = useState<TreeNode[]>(node.children || []);
+  const [children, setChildren] = useState<TreeNode[]>(() => node.children || []);
   const [loading, setLoading] = useState(false);
+  const prevNodeId = useRef(node.id);
+
+  useEffect(() => {
+    if (prevNodeId.current !== node.id) {
+      setChildren(node.children || []);
+      setExpanded(false);
+      prevNodeId.current = node.id;
+    }
+  }, [node.id, node.children]);
 
   const toggle = async () => {
     if (expanded) { setExpanded(false); return; }
@@ -772,6 +785,7 @@ function SettingsTab({ unit, onUpdated }: { unit: BusinessUnit; onUpdated: () =>
         unit_type: unitType,
       });
       if (res.success === false) { setToast(String(res.error || "Failed to save settings")); setSaving(false); return; }
+      setDirty(false);
       setToast("Settings saved");
       onUpdated();
     } catch { setToast("Failed to save settings"); } finally { setSaving(false); }
