@@ -420,7 +420,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
     if (statsMap[pixelId] || statsLoading[pixelId]) return;
     setStatsLoading(s => ({ ...s, [pixelId]: true }));
     api.get(`/api/v1/campaigns/meta/pixels/${pixelId}/stats`)
-      .then(r => { if (r.data) setStatsMap(m => ({ ...m, [pixelId]: r.data })); })
+      .then(r => { if (r.success && r.data) setStatsMap(m => ({ ...m, [pixelId]: r.data })); })
       .catch(() => {})
       .finally(() => setStatsLoading(s => ({ ...s, [pixelId]: false })));
   };
@@ -457,7 +457,8 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
     if (!renameVal.trim()) { setRenamingId(null); return; }
     setRenaming(true);
     try {
-      await api.patch(`/api/v1/campaigns/meta/pixels/${pixelId}`, { name: renameVal.trim() });
+      const r = await api.patch(`/api/v1/campaigns/meta/pixels/${pixelId}`, { name: renameVal.trim() });
+      if (!r.success) throw new Error(r.error || "Failed to rename");
       setPixels(p => p.map(x => x.id === pixelId ? { ...x, name: renameVal.trim() } : x));
       setRenamingId(null);
     } catch { /* keep editing on error */ }

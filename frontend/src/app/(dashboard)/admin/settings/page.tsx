@@ -113,7 +113,8 @@ export default function WorkspaceSettingsPage() {
     setSaving(true);
     setSaveStatus("idle");
     try {
-      await api.patch("/api/v1/workspace/settings", { name: name.trim() });
+      const r = await api.patch("/api/v1/workspace/settings", { name: name.trim() });
+      if (!r.success) throw new Error(r.error || "Failed to update");
       setSettings(prev => prev ? { ...prev, name: name.trim() } : prev);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 3000);

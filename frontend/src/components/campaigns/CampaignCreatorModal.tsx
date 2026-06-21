@@ -703,6 +703,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   useEffect(() => {
     if (!editId) return;
     api.get(`/api/v1/campaigns/${editId}`).then(r => {
+      if (!r.success) { setError(r.error || "Failed to load campaign"); return; }
       const c = r.data;
       if (!c) return;
       if (c.name)      setCampName(c.name);
@@ -923,13 +924,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     try {
       const payload = buildPayload(step);
       if (campaignId) {
-        await api.patch(`/api/v1/campaigns/${campaignId}`, payload);
+        const r = await api.patch(`/api/v1/campaigns/${campaignId}`, payload);
+        if (!r.success) throw new Error(r.error || "Failed to save draft");
       } else {
         const r = await api.post("/api/v1/campaigns", payload);
+        if (!r.success) throw new Error(r.error || "Failed to save draft");
         if (r.data?.id) setCampaignId(r.data.id);
       }
       onCreated();
-    } catch { setError("Failed to save draft"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "Failed to save draft"); }
     finally { setSaving(false); }
   };
 

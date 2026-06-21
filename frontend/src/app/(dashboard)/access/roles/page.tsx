@@ -228,7 +228,8 @@ function UnitsTab() {
     setLoading(true);
     try {
       const res = await api.get("/api/v1/units");
-      setUnits(Array.isArray(res?.data) ? res.data : []);
+      if (res.success !== false) setUnits(Array.isArray(res?.data) ? res.data : []);
+      else setError(res.error || "Failed to load business units.");
     } catch {
       setError("Failed to load business units.");
     } finally {

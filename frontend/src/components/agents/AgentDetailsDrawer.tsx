@@ -149,7 +149,8 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
     try {
       setActionError(null);
       setActionBusy(action);
-      await api.post(commandMap[action].url, commandMap[action].body);
+      const r = await api.post(commandMap[action].url, commandMap[action].body);
+      if (!r.success) throw new Error(r.error || `Unable to ${action} agent.`);
       onUpdate();
       if (action === 'clone') {
         onClose();
