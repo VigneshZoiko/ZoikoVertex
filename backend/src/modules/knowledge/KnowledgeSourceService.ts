@@ -104,10 +104,16 @@ export class KnowledgeSourceService {
     return data;
   }
 
+  static allowedUpdateFields = ['title', 'content', 'source_url', 'file_path', 'kb_id', 'source_type', 'authority_level', 'sensitivity_level', 'risk_tier', 'retrieval_policy', 'locale', 'jurisdiction', 'product', 'brand', 'channel', 'review_date', 'expiry_date', 'metadata'];
+
   static async update(id: string, input: Partial<CreateSourceInput>) {
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const k of KnowledgeSourceService.allowedUpdateFields) {
+      if (input[k as keyof CreateSourceInput] !== undefined) update[k] = input[k as keyof CreateSourceInput];
+    }
     const { data, error } = await supabaseAdmin
       .from('knowledge_sources')
-      .update({ ...input, updated_at: new Date().toISOString() })
+      .update(update)
       .eq('id', id)
       .select()
       .single();

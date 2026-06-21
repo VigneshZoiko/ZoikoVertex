@@ -344,6 +344,17 @@ export default function AccountsPage() {
         process.env.NEXT_PUBLIC_BACKEND_URL ||
         "http://localhost:5006";
 
+      // Get CSRF nonce for OAuth state
+      let nonce = "";
+      try {
+        const nr = await fetch(`${backendUrl}/api/auth/oauth/nonce`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workspaceId }),
+        });
+        const nj = await nr.json();
+        if (nj.success) nonce = nj.data.nonce;
+      } catch { /* nonce is optional — fallback to no CSRF protection */ }
+
       if (platformId === "facebook" || platformId === "instagram") {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || "";
         if (!appId) {
@@ -368,18 +379,18 @@ export default function AccountsPage() {
           // Business
           "business_management",
         ].join(",");
-        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId, nonce }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
         const clientId = process.env.NEXT_PUBLIC_LINKEDIN_PERSONAL_CLIENT_ID || process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin" }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin", nonce }));
         const scope = encodeURIComponent("openid profile email w_member_social");
         window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
       } else if (platformId === "linkedin_page") {
         const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin", flowType: "page" }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin", flowType: "page", nonce }));
         const scope = encodeURIComponent("openid profile email w_member_social r_organization_social w_organization_social");
         window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
       } else if (platformId === "pinterest") {

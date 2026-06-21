@@ -235,8 +235,12 @@ export const provisionGuard = async (
     const token = authHeader.split(" ")[1];
 
     // Service-to-service path: match against shared secret
-    if (env.INTERNAL_SERVICE_SECRET && token === env.INTERNAL_SERVICE_SECRET) {
-      return next();
+    if (env.INTERNAL_SERVICE_SECRET) {
+      try {
+        const a = Buffer.from(token);
+        const b = Buffer.from(env.INTERNAL_SERVICE_SECRET);
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) return next();
+      } catch { /* not a match */ }
     }
 
     // SUPERADMIN user path: validate JWT then check is_superadmin

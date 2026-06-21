@@ -172,7 +172,7 @@ import {
 } from './domains/governance/routingController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages, generateOAuthNonce } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost, getSchedulerHealth, getBestSlot } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
@@ -378,7 +378,7 @@ import {
 } from './domains/agents/operationsController';
 import { requireOperationsAccess } from './services/operationsAuthorization.service';
 
-const upload = multer({ dest: os.tmpdir() });
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 50 * 1024 * 1024 } });
 const app = express();
 const port = env.PORT;
 
@@ -440,11 +440,34 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
+// ─── IP-based rate limiter for auth endpoints ────────────────────────────────
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitStore) {
+    if (entry.resetAt < now) rateLimitStore.delete(ip);
+  }
+}, 60000); // ponytail: global cleanup every 60s, per-IP sliding window
+const authRateLimit = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  let entry = rateLimitStore.get(ip);
+  if (!entry || entry.resetAt < now) {
+    entry = { count: 0, resetAt: now + 60000 };
+    rateLimitStore.set(ip, entry);
+  }
+  entry.count++;
+  if (entry.count > 20) {
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
+  next();
+};
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
-app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
-app.post('/api/v1/auth/otp/send', sendOtpCode);
-app.post('/api/v1/auth/otp/verify', verifyOtpCode);
-app.post('/api/v1/auth/otp/resend', resendOtpCode);
+app.post('/api/v1/auth/signup-enterprise', authRateLimit, enterpriseSignup);
+app.post('/api/v1/auth/otp/send', authRateLimit, sendOtpCode);
+app.post('/api/v1/auth/otp/verify', authRateLimit, verifyOtpCode);
+app.post('/api/v1/auth/otp/resend', authRateLimit, resendOtpCode);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/onboarding/complete', completeOnboarding);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
@@ -747,6 +770,7 @@ app.get('/api/v1/governance/brand/claims', authenticate, govGuard, scopeGuard('r
 app.post('/api/v1/governance/brand/rules', authenticate, govGuard, scopeGuard('read:governance', '*'), updateBrandRule);
 
 // Public OAuth
+app.post('/api/auth/oauth/nonce', generateOAuthNonce);
 app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
@@ -1623,7 +1647,7 @@ app.get('/api/v1/inbox/messages/:id/audit',            authenticate, inboxGuard,
 app.get('/api/v1/inbox/messages/:id/post-preview',     authenticate, inboxGuard, scopeGuard('read:content', '*'),  getPostPreview);
 // Meta webhook endpoints (no auth — verified by hub.verify_token / X-Hub-Signature-256)
 app.get('/api/v1/inbox/webhook/meta',  verifyMetaWebhook);
-app.post('/api/v1/inbox/webhook/meta', handleMetaWebhook);
+app.post('/api/v1/inbox/webhook/meta', express.raw({ type: 'application/json' }), handleMetaWebhook);
 
 
 

@@ -69,9 +69,14 @@ export class KnowledgeCollectionService {
   }
 
   static async update(id: string, input: UpdateCollectionInput) {
+    const allowed = ['name', 'description', 'type', 'risk_tier', 'retrieval_policy', 'scope', 'review_cadence', 'status'];
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const k of allowed) {
+      if (input[k as keyof UpdateCollectionInput] !== undefined) update[k] = input[k as keyof UpdateCollectionInput];
+    }
     const { data, error } = await supabaseAdmin
       .from('knowledge_collections')
-      .update({ ...input, updated_at: new Date().toISOString() })
+      .update(update)
       .eq('id', id)
       .select()
       .single();

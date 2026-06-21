@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { env } from '../../config/env';
@@ -89,7 +90,27 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
   // Acknowledge immediately — Meta requires < 5s response or retries
   res.status(200).send('EVENT_RECEIVED');
 
-  const body = req.body;
+  // Verify X-Hub-Signature-256
+  const signature = req.headers['x-hub-signature-256'] as string | undefined;
+  const appSecret = env.META_APP_SECRET;
+  if (appSecret && signature) {
+    const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body));
+    const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+        console.warn('[Webhook] Signature mismatch — ignoring event');
+        return;
+      }
+    } catch {
+      console.warn('[Webhook] Signature verification error — ignoring event');
+      return;
+    }
+  } else if (appSecret && !signature) {
+    console.warn('[Webhook] Missing X-Hub-Signature-256 header — ignoring event');
+    return;
+  }
+
+  const body = typeof req.body === 'object' && !Buffer.isBuffer(req.body) ? req.body : JSON.parse(req.body.toString());
   if (!body?.entry) return;
 
   const isInstagram = body.object === 'instagram';

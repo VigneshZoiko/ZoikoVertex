@@ -717,7 +717,7 @@ export const syncBoostMetrics = async (req: AuthRequest, res: Response, next: Ne
     }
 
     const { data: updated } = await supabaseAdmin
-      .from('campaign_boosts').select('*').eq('id', req.params.id).single();
+      .from('campaign_boosts').select('*').eq('id', req.params.id).eq('workspace_id', workspaceId).single();
 
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }

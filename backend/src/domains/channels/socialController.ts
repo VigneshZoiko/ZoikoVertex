@@ -1,10 +1,30 @@
- 
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
+
+// CSRF nonce store for OAuth state verification (5 min TTL)
+const oauthNonces = new Map<string, { wsId: string; expiresAt: number }>();
+
+export const generateOAuthNonce = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { workspaceId } = req.body;
+    if (!workspaceId) return res.status(400).json({ error: 'workspaceId required' });
+    const nonce = randomUUID();
+    oauthNonces.set(nonce, { wsId: workspaceId, expiresAt: Date.now() + 5 * 60 * 1000 });
+    res.json({ success: true, data: { nonce } });
+  } catch (err) { next(err); }
+};
+
+function consumeNonce(nonce: string, expectedWsId: string): boolean {
+  const entry = oauthNonces.get(nonce);
+  if (!entry) return false;
+  oauthNonces.delete(nonce);
+  return entry.wsId === expectedWsId && entry.expiresAt > Date.now();
+}
 
 // In-memory session store for short-lived OAuth page-selection sessions (10 min TTL)
 const _sessionStore = new Map<string, { data: string; expiresAt: number }>();
@@ -43,11 +63,19 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
 
     // Parse state from JSON
     let workspaceId: string;
+    let nonce: string | undefined;
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
+      nonce = stateObj.nonce;
     } catch {
       workspaceId = stateParam as string;
+    }
+
+    // Verify CSRF nonce if present
+    if (nonce && !consumeNonce(nonce, workspaceId)) {
+      logger.warn(`[Social] Facebook callback with invalid/expired nonce — possible CSRF attack`);
+      return res.status(403).json({ error: 'Invalid state parameter. Please reconnect your account.' });
     }
 
     logger.info(`[Social] Handling Facebook callback for workspace: ${workspaceId}`);
@@ -175,12 +203,19 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     let workspaceId: string;
     let flowType: string | undefined;
+    let nonce: string | undefined;
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
       flowType = stateObj.flowType;
+      nonce = stateObj.nonce;
     } catch {
       workspaceId = stateParam as string;
+    }
+
+    if (nonce && !consumeNonce(nonce, workspaceId)) {
+      logger.warn(`[Social] LinkedIn callback with invalid/expired nonce — possible CSRF attack`);
+      return res.status(403).json({ error: 'Invalid state parameter. Please reconnect your account.' });
     }
 
     logger.info(`[Social] Handling LinkedIn callback for workspace: ${workspaceId}, flow: ${flowType || 'personal'}`);

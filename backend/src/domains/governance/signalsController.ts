@@ -415,7 +415,9 @@ export const classifySafetySignal = async (req: AuthRequest, res: Response, next
 
     let signal: any = null;
     try {
-      const { data } = await supabaseAdmin.from('agent_safety_signals').select('*').eq('id', id).single();
+      let query = supabaseAdmin.from('agent_safety_signals').select('*').eq('id', id);
+      if (!isSuperAdmin) query = query.eq('workspace_id', workspaceId);
+      const { data } = await query.single();
       signal = data;
     } catch {
       signal = fallbackSignals.find(s => s.id === id);
@@ -544,7 +546,9 @@ export const routeSafetySignal = async (req: AuthRequest, res: Response, next: N
 
     let signal: any = null;
     try {
-      const { data } = await supabaseAdmin.from('agent_safety_signals').select('*').eq('id', id).single();
+      let query = supabaseAdmin.from('agent_safety_signals').select('*').eq('id', id);
+      if (!isSuperAdmin) query = query.eq('workspace_id', workspaceId);
+      const { data } = await query.single();
       signal = data;
     } catch {
       signal = fallbackSignals.find(s => s.id === id);
@@ -733,7 +737,9 @@ export const closeSafetySignal = async (req: AuthRequest, res: Response, next: N
 
     let signal: any = null;
     try {
-      const { data } = await supabaseAdmin.from('agent_safety_signals').select('*').eq('id', id).single();
+      let query = supabaseAdmin.from('agent_safety_signals').select('*').eq('id', id);
+      if (!isSuperAdmin) query = query.eq('workspace_id', workspaceId);
+      const { data } = await query.single();
       signal = data;
     } catch {
       signal = fallbackSignals.find(s => s.id === id);

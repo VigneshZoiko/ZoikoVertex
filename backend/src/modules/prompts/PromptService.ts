@@ -193,8 +193,13 @@ export class PromptService {
     return data;
   }
 
+  static allowedUpdateFields = ['name', 'description', 'linked_agent', 'linked_agent_id', 'linked_workflow', 'linked_workflow_id', 'knowledge_sources', 'tools_permitted'];
+
   static async update(id: string, input: Partial<CreatePromptInput & { status?: string }>, workspaceId?: string) {
-    const update: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() };
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const k of PromptService.allowedUpdateFields) {
+      if (input[k as keyof CreatePromptInput] !== undefined) update[k] = input[k as keyof CreatePromptInput];
+    }
     if (input.status) update.status = normalizePromptStatus(input.status);
     if (input.risk_tier) update.risk_tier = normalizePromptRiskTier(input.risk_tier);
     if (input.prompt_type) update.prompt_type = normalizePromptType(input.prompt_type);

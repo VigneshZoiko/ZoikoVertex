@@ -166,10 +166,10 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
 
         sendOrgWelcomeEmail(company_name.trim(), email, name);
 
-        return res.status(201).json({
-          success: true,
-          data: { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', temp_password: userPassword, is_own_password: !!password },
-        });
+        const respData: Record<string, unknown> = { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', is_own_password: !!password };
+        if (!password) respData.temp_password = userPassword;
+        res.set('Cache-Control', 'no-store');
+        return res.status(201).json({ success: true, data: respData });
       }
 
       logger.error(`[Onboarding] createUser error: ${createError.message}`);
@@ -211,10 +211,10 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
 
     logger.info(`[Onboarding] Complete for ${email}: user=${userId}, org=${org.id}, ws=${ws.id}`);
 
-    res.status(201).json({
-      success: true,
-      data: { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', temp_password: userPassword, is_own_password: !!password },
-    });
+    const respData: Record<string, unknown> = { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', is_own_password: !!password };
+    if (!password) respData.temp_password = userPassword;
+    res.set('Cache-Control', 'no-store');
+    res.status(201).json({ success: true, data: respData });
   } catch (err) {
     logger.error(`[Onboarding] completeOnboarding error: ${err}`);
     next(err);
