@@ -6,13 +6,14 @@ import {
   ShieldCheck,
   Settings,
   FileText,
+  Menu,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationPanel from "@/components/NotificationPanel";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { useRoleContext } from "@/lib/context/RoleContext";
 
-export default function Header() {
+export default function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { fullName, role, orgName, isSuperAdmin } = useRoleContext();
 
   const formatRole = (r: string | null) => {
@@ -22,14 +23,23 @@ export default function Header() {
   };
 
   return (
-    <header className="h-16 bg-[var(--header-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] flex items-center justify-between px-8 z-20 sticky top-0 shadow-sm transition-colors">
+    <header className="h-14 sm:h-16 bg-[var(--header-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] flex items-center gap-2 px-4 sm:px-6 md:px-8 z-20 sticky top-0 shadow-sm transition-colors">
+      {/* Mobile hamburger */}
+      <button
+        onClick={onMenuToggle}
+        className="md:hidden p-2 -ml-1 rounded-lg text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors shrink-0"
+        aria-label="Toggle navigation"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
       {/* Left side: Breadcrumbs */}
       <div className="flex-1 hidden md:block">
         <Breadcrumbs />
       </div>
 
       {/* Right-side utilities */}
-      <div className="flex-1 flex items-center justify-end gap-3">
+      <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3">
         {isSuperAdmin && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--info-bg)] border-[var(--info-border)] rounded-full text-[10px] font-bold text-[var(--info-text)] uppercase tracking-wider">
             <ShieldCheck className="w-3 h-3" />

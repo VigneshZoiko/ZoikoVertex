@@ -26,6 +26,7 @@ export default function DashboardLayout({
   const router   = useRouter();
   const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role, refresh } = useRoleContext();
   const { enabled: sidebarCollapseEnabled } = useSidebarCollapse();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [accessDenied, setAccessDenied] = useState<
     | { reason: 'role' }
     | { reason: 'plan'; requiredPlan: Plan; feature: Feature }
@@ -132,9 +133,9 @@ export default function DashboardLayout({
             </div>
           </div>
           {/* Content skeleton */}
-          <div className="flex-1 p-8 flex flex-col gap-5">
+          <div className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col gap-5">
             <div className="h-8 w-56 rounded-lg bg-white/5 animate-pulse" />
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="h-28 rounded-2xl bg-white/5 animate-pulse" />
               ))}
@@ -164,12 +165,30 @@ export default function DashboardLayout({
   return (
     <NotificationProvider>
       <DraftGuardProvider>
-        <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
-          <div className={`shrink-0 transition-all duration-200 ${sidebarCollapseEnabled ? 'w-16' : 'w-64'} ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
-            <Sidebar />
+        <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors relative">
+          {/* Mobile backdrop */}
+          {mobileSidebarOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+              onClick={() => setMobileSidebarOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* Sidebar wrapper — overlay on mobile, inline on desktop */}
+          <div className={`
+            fixed md:static inset-y-0 left-0 z-50 md:z-auto
+            shrink-0 transition-transform duration-300 ease-in-out
+            w-64
+            ${sidebarCollapseEnabled ? 'md:w-16' : 'md:w-64'}
+            ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}
+          `}>
+            <Sidebar onMobileClose={() => setMobileSidebarOpen(false)} />
           </div>
+
           <div className="flex-1 flex flex-col min-w-0 h-full">
-            <Header />
+            <Header onMenuToggle={() => setMobileSidebarOpen(prev => !prev)} />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
               {isSuspended ? (
                 <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} planType={planType} premiumPaidUntil={premiumPaidUntil} />
@@ -183,7 +202,7 @@ export default function DashboardLayout({
                   className={`page-enter flex-1 ${
                     pathname === '/inbox' || pathname?.startsWith('/campaigns') || pathname?.startsWith('/campaigns/')
                       ? 'overflow-hidden'
-                      : 'overflow-y-auto p-8'
+                      : 'overflow-y-auto p-4 sm:p-6 lg:p-8'
                   }`}
                 >
                   {children}

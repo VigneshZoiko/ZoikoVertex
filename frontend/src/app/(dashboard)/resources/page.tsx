@@ -206,7 +206,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
       {/* Slide-over panel */}
       <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl flex flex-col bg-background border-l border-border shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-success-text/10 rounded-xl">
               <HardDrive className="w-4 h-4 text-success-text" />
@@ -222,9 +222,9 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
+        <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-3 border-b border-border shrink-0">
           {/* Search */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
               value={search}
@@ -235,7 +235,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
           </div>
 
           {/* Type filter */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
@@ -253,7 +253,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
 
         {/* Selection bar */}
         {filteredItems.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-2.5 bg-card/50 border-b border-border shrink-0">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 bg-card/50 border-b border-border shrink-0">
             <button onClick={toggleAll} className="flex items-center gap-2 text-sm text-foreground hover:text-foreground transition-colors">
               {allSelected
                 ? <CheckSquare className="w-4 h-4 text-success-text" />
@@ -288,7 +288,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
                   <li
                     key={item.id}
                     onClick={() => toggleOne(item.id)}
-                    className={`flex items-center gap-4 px-6 py-3.5 cursor-pointer transition-colors select-none
+                    className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 cursor-pointer transition-colors select-none
                       ${isChecked ? "bg-error-text/5 hover:bg-error-text/8" : "hover:bg-card/50"}`}
                   >
                     {/* Checkbox */}
@@ -339,7 +339,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
         </div>
 
         {/* Footer action bar */}
-        <div className="shrink-0 border-t border-border px-6 py-4 bg-background">
+        <div className="shrink-0 border-t border-border px-4 sm:px-6 py-4 bg-background">
           {deleteError && (
             <p className="text-xs text-error-text mb-3 flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />{deleteError}
@@ -572,17 +572,17 @@ export default function ResourceMonitoringPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)]">
             Resource Monitoring
           </h1>
           <p className="text-sm text-[var(--foreground-muted)] mt-1">
             Token consumption, API usage, storage, and infrastructure cost.
           </p>
           {billingPeriod && (
-            <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border)] px-3 py-1 rounded-full">
-              <CalendarClock className="w-3.5 h-3.5 text-info-text" />
+            <div className="mt-2 inline-flex flex-wrap items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border)] px-3 py-1 rounded-full">
+              <CalendarClock className="w-3.5 h-3.5 text-info-text shrink-0" />
               <span>
                 Cycle: <strong className="text-[var(--foreground)]">{formatCycleDate(billingPeriod.start)} – {formatCycleDate(billingPeriod.end)}</strong>
               </span>
@@ -593,7 +593,7 @@ export default function ResourceMonitoringPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-right">
             <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wide">This Cycle Spend</p>
             <p className="text-lg font-bold text-[var(--foreground)] tabular-nums">
@@ -602,10 +602,10 @@ export default function ResourceMonitoringPage() {
           </div>
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--surface)] transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--surface)] transition-colors min-h-[44px]"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
@@ -866,7 +866,7 @@ export default function ResourceMonitoringPage() {
       })()}
 
       {/* ── Resource Type Cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {summaryTypes.map((type) => {
           const meta = getResourceMeta(type);
           const Icon = meta.icon;
@@ -947,7 +947,7 @@ export default function ResourceMonitoringPage() {
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-96 flex-1">
+          <div className="overflow-y-auto overflow-x-auto max-h-96 flex-1">
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -967,7 +967,7 @@ export default function ResourceMonitoringPage() {
                 <p className="text-sm text-[var(--foreground-muted)] italic">No usage records yet.</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[580px] text-sm">
                 <thead className="sticky top-0 bg-[var(--card)] border-b border-[var(--border)]">
                   <tr>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wide">Type</th>
