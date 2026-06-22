@@ -20,7 +20,7 @@ export default function Hero() {
   return (
     <section className="bg-[#080812] pt-10 pb-10 px-4 lg:px-6 overflow-x-hidden">
       <div
-        className="mx-auto w-full grid gap-4 items-center lg:grid-cols-2 overflow-hidden"
+        className="mx-auto w-full grid gap-4 items-center lg:grid-cols-[40%_60%] overflow-hidden"
         style={{ width: "100%", maxWidth: "100vw" }}
       >
         <div className="w-full">
@@ -85,12 +85,12 @@ export default function Hero() {
         </div>
 
         <div className="relative hidden lg:flex items-center justify-center w-full">
-          <div className="relative w-full max-w-[850px] h-auto rounded-2xl overflow-hidden">
+          <div className="relative w-full h-auto rounded-[14px] overflow-hidden">
             <Image
-              src="/images/Vertex img.png"
-              alt="ZoikoVertex dashboard"
-              width={850}
-              height={531}
+              src="/images/hero-command-center.png"
+              alt="ZoikoVertex Executive Command Center showing AI-agent workflows, approval controls, ROI evidence, and governance status"
+              width={711}
+              height={511}
               className="w-full h-auto"
               priority
             />
