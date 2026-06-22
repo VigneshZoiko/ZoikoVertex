@@ -168,13 +168,13 @@ export default function SupportInbox() {
                     {ticket.status === 'IN_PROGRESS' ? 'IN PROGRESS' : ticket.status}
                   </span>
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                    ticket.urgency.includes('Critical')
+                    (ticket.urgency || '').includes('Critical')
                       ? 'bg-error-bg text-error-text'
-                      : ticket.urgency.includes('Urgent')
+                      : (ticket.urgency || '').includes('Urgent')
                         ? 'bg-warning-bg text-warning-text'
                         : 'bg-info-bg text-info-text'
                   }`}>
-                    {ticket.urgency.split(' ')[0]}
+                    {((ticket.urgency || '').split(' ')[0]) || '—'}
                   </span>
                   <span className="text-xs text-[var(--foreground-muted)] flex items-center gap-1 ml-auto">
                     <Clock className="w-3 h-3" />
@@ -205,7 +205,7 @@ export default function SupportInbox() {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     {!showLog && ticket.status !== 'RESOLVED' && (
                       <>
                         {ticket.status === 'OPEN' && (

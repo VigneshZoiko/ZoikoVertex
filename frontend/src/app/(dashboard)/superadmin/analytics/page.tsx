@@ -45,9 +45,11 @@ export default function PlatformAnalytics() {
     setFetching(true);
     try {
       const result = await api.get('/api/v1/superadmin/analytics');
-      if (result.success) {
+      if (result.success !== false) {
         setOrganizations(result.data);
         setStats(result.stats);
+      } else {
+        setError(result.error || "Failed to load platform data");
       }
     } catch (err) {
       console.error("Failed to fetch superadmin data", err);
@@ -76,11 +78,12 @@ export default function PlatformAnalytics() {
     setActionLoading(orgId);
     setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
     try {
-      await api.post(`/api/v1/superadmin/organizations/${orgId}/resume`, {});
+      const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/resume`, {});
+      if (res.success === false) throw new Error(res.error || "Failed to resume");
       setSuccess("Organization resumed. Normal operations restored.");
     } catch (err) {
       setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'SUSPENDED' } : o));
-      setError("Failed to resume organization.");
+      setError(err instanceof Error ? err.message : "Failed to resume organization.");
     } finally {
       setActionLoading(null);
     }
@@ -134,11 +137,12 @@ export default function PlatformAnalytics() {
     setActionLoading(orgId);
     setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
     try {
-      await api.post(`/api/v1/superadmin/organizations/${orgId}/restore`, {});
+      const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/restore`, {});
+      if (res.success === false) throw new Error(res.error || "Failed to restore");
       setSuccess("Organization restored and reactivated.");
     } catch (err) {
       setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
-      setError("Failed to restore organization.");
+      setError(err instanceof Error ? err.message : "Failed to restore organization.");
     } finally {
       setActionLoading(null);
     }
@@ -152,33 +156,36 @@ export default function PlatformAnalytics() {
     if (type === 'delete') {
       setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
       try {
-        await api.delete(`/api/v1/superadmin/organizations/${orgId}`);
+        const res = await api.delete(`/api/v1/superadmin/organizations/${orgId}`);
+        if (res.success === false) throw new Error(res.error || "Deletion failed");
         setSuccess("Organization permanently banned and all data purged.");
       } catch (err) {
         setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-        setError("Deletion failed. Organization may have active dependencies.");
+        setError(err instanceof Error ? err.message : "Deletion failed. Organization may have active dependencies.");
       } finally {
         setActionLoading(null);
       }
     } else if (type === 'restrict') {
       setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'RESTRICTED' } : o));
       try {
-        await api.post(`/api/v1/superadmin/organizations/${orgId}/restrict`, {});
+        const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/restrict`, {});
+        if (res.success === false) throw new Error(res.error || "Failed to restrict");
         setSuccess("Organization temporarily banned.");
-      } catch {
+      } catch (err) {
         setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-        setError("Failed to restrict organization.");
+        setError(err instanceof Error ? err.message : "Failed to restrict organization.");
       } finally {
         setActionLoading(null);
       }
     } else if (type === 'pause') {
       setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'SUSPENDED' } : o));
       try {
-        await api.post(`/api/v1/superadmin/organizations/${orgId}/pause`, {});
+        const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/pause`, {});
+        if (res.success === false) throw new Error(res.error || "Failed to pause");
         setSuccess("Organization paused. All workspaces restricted.");
       } catch (err) {
         setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-        setError("Failed to pause organization.");
+        setError(err instanceof Error ? err.message : "Failed to pause organization.");
       } finally {
         setActionLoading(null);
       }
@@ -195,7 +202,7 @@ export default function PlatformAnalytics() {
     if (tabFilter === 'restricted') return org.status === 'RESTRICTED';
     return org.status !== 'DELETED';
   }).filter(org => 
-    org.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    (org.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -394,7 +401,7 @@ export default function PlatformAnalytics() {
                         ) : null}
                         {org.status !== 'DELETED' && (
                           <button
-                            onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type); }}
+                            onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type || 'GROWTH'); }}
                             disabled={!!actionLoading}
                             className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-info-text border border-[var(--border)] rounded transition-colors"
                             title="Upgrade Plan"
