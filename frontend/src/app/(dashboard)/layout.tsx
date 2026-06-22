@@ -177,7 +177,7 @@ export default function DashboardLayout({
 
           {/* Sidebar wrapper — overlay on mobile, inline on desktop */}
           <div className={`
-            fixed md:static inset-y-0 left-0 z-50 md:z-auto
+            fixed md:static inset-y-0 left-0 z-50 md:z-30
             shrink-0 transition-transform duration-300 ease-in-out
             w-64
             ${sidebarCollapseEnabled ? 'md:w-16' : 'md:w-64'}
