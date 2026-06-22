@@ -5,9 +5,10 @@ import { env } from '../../config/env';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
+import { AuthRequest } from '../../shared/authMiddleware';
 
 // CSRF nonce store for OAuth state verification (5 min TTL)
-const oauthNonces = new Map<string, { wsId: string; expiresAt: number }>();
+const oauthNonces = new Map<string, { wsId: string; expiresAt: number; codeVerifier?: string }>();
 
 export const generateOAuthNonce = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -72,8 +73,8 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
       workspaceId = stateParam as string;
     }
 
-    // Verify CSRF nonce if present
-    if (nonce && !consumeNonce(nonce, workspaceId)) {
+    // Verify CSRF nonce (required)
+    if (!nonce || !consumeNonce(nonce, workspaceId)) {
       logger.warn(`[Social] Facebook callback with invalid/expired nonce — possible CSRF attack`);
       return res.status(403).json({ error: 'Invalid state parameter. Please reconnect your account.' });
     }
@@ -395,11 +396,12 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
+      if (stateObj.nonce && !consumeNonce(stateObj.nonce, workspaceId)) {
+        return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=pinterest&reason=${encodeURIComponent('Session expired. Please try again.')}`);
+      }
     } catch {
       workspaceId = stateParam as string;
     }
-
-    logger.info(`[Social] Handling Pinterest callback for workspace: ${workspaceId}`);
 
     const credentials = Buffer.from(`${env.PINTEREST_CLIENT_ID}:${env.PINTEREST_CLIENT_SECRET}`).toString('base64');
     const pinterestBase = env.PINTEREST_API_BASE || 'https://api.pinterest.com';
@@ -475,11 +477,12 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
+      if (stateObj.nonce && !consumeNonce(stateObj.nonce, workspaceId)) {
+        return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=threads&reason=${encodeURIComponent('Session expired. Please try again.')}`);
+      }
     } catch {
       workspaceId = stateParam as string;
     }
-
-    logger.info(`[Social] Handling Threads callback for workspace: ${workspaceId}`);
 
     const redirectUri = env.THREADS_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/threads/callback`;
 
@@ -546,6 +549,20 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
 };
 
 /**
+ * Twitter OAuth init — generates nonce + PKCE code_verifier
+ */
+export const initTwitterOAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace not found' });
+    const nonce = randomUUID();
+    const codeVerifier = crypto.randomBytes(32).toString('hex');
+    oauthNonces.set(nonce, { wsId: workspaceId, expiresAt: Date.now() + 5 * 60 * 1000, codeVerifier });
+    res.json({ success: true, data: { nonce, codeVerifier } });
+  } catch (err) { next(err); }
+};
+
+/**
  * Handles the Twitter OAuth 2.0 callback
  */
 export const handleTwitterCallback = async (req: Request, res: Response, next: NextFunction) => {
@@ -563,8 +580,22 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('No authorization code returned from Twitter')}`);
     }
 
-    const codeVerifier = 'zoikovertex_twitter_oauth2_pkce_plain_challenge_string';
-    const workspaceId = stateParam as string;
+    let nonce: string;
+    let workspaceId: string;
+    let codeVerifier: string;
+    try {
+      const stateObj = JSON.parse(stateParam as string);
+      nonce = stateObj.nonce;
+      workspaceId = stateObj.workspaceId;
+      const entry = oauthNonces.get(nonce);
+      if (!entry || entry.wsId !== workspaceId || entry.expiresAt < Date.now()) {
+        return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Session expired. Please try again.')}`);
+      }
+      codeVerifier = entry.codeVerifier || '';
+      oauthNonces.delete(nonce);
+    } catch {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Invalid session. Please try again.')}`);
+    }
 
     logger.info(`[Social] Handling Twitter callback for workspace: ${workspaceId}`);
 
@@ -718,8 +749,16 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('No authorization code returned from Google')}`);
     }
 
-    const workspaceId = stateParam as string;
-    logger.info(`[Social] Handling YouTube callback for workspace: ${workspaceId}`);
+    let workspaceId: string;
+    try {
+      const stateObj = JSON.parse(stateParam as string);
+      workspaceId = stateObj.workspaceId;
+      if (stateObj.nonce && !consumeNonce(stateObj.nonce, workspaceId)) {
+        return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('Session expired. Please try again.')}`);
+      }
+    } catch {
+      workspaceId = stateParam as string;
+    }
 
     const redirectUri = env.YOUTUBE_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/youtube/callback`;
 

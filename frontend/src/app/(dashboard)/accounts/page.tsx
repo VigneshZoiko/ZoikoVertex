@@ -347,11 +347,7 @@ export default function AccountsPage() {
       // Get CSRF nonce for OAuth state
       let nonce = "";
       try {
-        const nr = await fetch(`${backendUrl}/api/auth/oauth/nonce`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workspaceId }),
-        });
-        const nj = await nr.json();
+        const nj = await api.post('/api/auth/oauth/nonce', { workspaceId });
         if (nj.success) nonce = nj.data.nonce;
       } catch { /* nonce is optional — fallback to no CSRF protection */ }
 
@@ -401,7 +397,7 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/pinterest/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, nonce }));
         window.location.assign(`https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=boards:read,boards:write,pins:read,pins:write,user_accounts:read&state=${state}`);
       } else if (platformId === "threads") {
         const appId = process.env.NEXT_PUBLIC_THREADS_APP_ID || "";
@@ -411,7 +407,7 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, nonce }));
         window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights&state=${state}&response_type=code`);
       } else if (platformId === "twitter") {
         const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "";
@@ -421,13 +417,12 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/twitter/callback`);
-        // Generate a cryptographically random PKCE challenge for each auth attempt
-        const randomBytes = new Uint8Array(32);
-        window.crypto.getRandomValues(randomBytes);
-        const codeChallenge = Array.from(randomBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-        const state = encodeURIComponent(workspaceId);
         const scope = encodeURIComponent("tweet.read tweet.write dm.read dm.write users.read media.write offline.access");
-        window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=plain`);
+        const initRes = await api.post('/api/auth/twitter/init', { workspaceId });
+        if (initRes.success === false) { setError(initRes.error || 'Failed to start Twitter OAuth'); setIsSubmitting(null); return; }
+        const { nonce, codeVerifier } = initRes.data;
+        const state = encodeURIComponent(JSON.stringify({ nonce, workspaceId }));
+        window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeVerifier}&code_challenge_method=plain`);
       } else if (platformId === "youtube") {
         const clientId = process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
         if (!clientId) {
@@ -436,7 +431,7 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/youtube/callback`);
-        const state = encodeURIComponent(workspaceId);
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, nonce }));
         const scope = encodeURIComponent("https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly");
         window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`);
       } else {

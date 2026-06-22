@@ -27,9 +27,16 @@ const ResendVerificationSchema = z.object({
 
 const IDENTITY_SERVICE = 'Identity';
 
+const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER', 'ADMIN']);
+
 export const provisionUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { email, password, full_name, role, workspace_id: bodyWorkspaceId } = ProvisionSchema.parse(req.body);
+
+    // Non-superadmins cannot create WORKSPACE_OWNER or ADMIN (privilege escalation)
+    if (!req.user?.is_superadmin && ESCALATION_ROLES.has(role)) {
+      return res.status(403).json({ error: 'Forbidden: Cannot provision users with ' + role + ' role' });
+    }
 
     // Non-superadmins must provision within their own workspace (multi-tenancy enforcement)
     const workspace_id = req.user?.is_superadmin

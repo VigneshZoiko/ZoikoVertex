@@ -172,7 +172,7 @@ import {
 } from './domains/governance/routingController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages, generateOAuthNonce } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages, generateOAuthNonce, initTwitterOAuth } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost, getSchedulerHealth, getBestSlot } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
@@ -469,9 +469,9 @@ app.post('/api/v1/auth/otp/send', authRateLimit, sendOtpCode);
 app.post('/api/v1/auth/otp/verify', authRateLimit, verifyOtpCode);
 app.post('/api/v1/auth/otp/resend', authRateLimit, resendOtpCode);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
-app.post('/api/v1/onboarding/complete', completeOnboarding);
+app.post('/api/v1/onboarding/complete', authenticate, completeOnboarding);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
-app.post('/api/v1/users/resend-verification', resendVerificationEmail);
+app.post('/api/v1/users/resend-verification', authenticate, resendVerificationEmail);
 
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN');
@@ -770,13 +770,14 @@ app.get('/api/v1/governance/brand/claims', authenticate, govGuard, scopeGuard('r
 app.post('/api/v1/governance/brand/rules', authenticate, govGuard, scopeGuard('read:governance', '*'), updateBrandRule);
 
 // Public OAuth
-app.post('/api/auth/oauth/nonce', generateOAuthNonce);
+app.post('/api/auth/oauth/nonce', authenticate, authRateLimit, generateOAuthNonce);
 app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
 app.get('/api/auth/threads/callback', handleThreadsCallback);
 app.post('/api/auth/threads/deauthorize', handleThreadsDeauthorize);
 app.post('/api/auth/threads/data-deletion', handleThreadsDataDeletion);
+app.post('/api/auth/twitter/init', authenticate, initTwitterOAuth);
 app.get('/api/auth/twitter/callback', handleTwitterCallback);
 app.get('/api/auth/youtube/callback', handleYoutubeCallback);
 app.get('/api/auth/googleads/callback', handleGoogleAdsCallback);

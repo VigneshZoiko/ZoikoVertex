@@ -143,21 +143,22 @@ export class KnowledgeSourceService {
     return true;
   }
 
-  static async incrementVersion(id: string) {
+  static async incrementVersion(id: string, retries = 3): Promise<any> {
     const { data: current } = await supabaseAdmin
       .from('knowledge_sources')
       .select('version')
       .eq('id', id)
       .single();
-
-    const newVersion = (current?.version || 0) + 1;
+    const nextVersion = (current?.version || 0) + 1;
     const { data, error } = await supabaseAdmin
       .from('knowledge_sources')
-      .update({ version: newVersion, updated_at: new Date().toISOString() })
+      .update({ version: nextVersion, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('version', current?.version ?? 0)
       .select()
       .single();
     if (error) throw error;
+    if (!data && retries > 0) return this.incrementVersion(id, retries - 1);
     return data;
   }
 }

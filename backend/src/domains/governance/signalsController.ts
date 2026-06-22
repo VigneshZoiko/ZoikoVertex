@@ -252,11 +252,12 @@ export const getSafetySignalDetail = async (req: AuthRequest, res: Response, nex
 
     let signal: any = null;
     try {
-      const { data, error } = await supabaseAdmin
+      const query = supabaseAdmin
         .from('agent_safety_signals')
         .select('*')
-        .eq('id', id)
-        .maybeSingle();
+        .eq('id', id);
+      if (!isSuperAdmin) query.eq('workspace_id', workspaceId);
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       signal = data;
     } catch {
@@ -657,7 +658,9 @@ export const mergeSafetySignals = async (req: AuthRequest, res: Response, next: 
     };
 
     try {
-      await supabaseAdmin.from('agent_safety_signals').update(updatedFields).eq('id', id);
+      let q = supabaseAdmin.from('agent_safety_signals').update(updatedFields).eq('id', id);
+      if (!req.user?.is_superadmin) q = q.eq('workspace_id', workspaceId);
+      await q;
       await supabaseAdmin.from('agent_safety_actions').insert([triageLog]);
     } catch {
       const idx = fallbackSignals.findIndex(s => s.id === id);
@@ -703,7 +706,9 @@ export const splitSafetySignal = async (req: AuthRequest, res: Response, next: N
     };
 
     try {
-      await supabaseAdmin.from('agent_safety_signals').update(updatedFields).eq('id', id);
+      let q = supabaseAdmin.from('agent_safety_signals').update(updatedFields).eq('id', id);
+      if (!req.user?.is_superadmin) q = q.eq('workspace_id', workspaceId);
+      await q;
       await supabaseAdmin.from('agent_safety_actions').insert([triageLog]);
     } catch {
       const idx = fallbackSignals.findIndex(s => s.id === id);
@@ -779,7 +784,9 @@ export const closeSafetySignal = async (req: AuthRequest, res: Response, next: N
     };
 
     try {
-      await supabaseAdmin.from('agent_safety_signals').update(updatedFields).eq('id', id);
+      let q = supabaseAdmin.from('agent_safety_signals').update(updatedFields).eq('id', id);
+      if (!req.user?.is_superadmin) q = q.eq('workspace_id', workspaceId);
+      await q;
       await supabaseAdmin.from('agent_safety_actions').insert([triageLog]);
     } catch {
       const idx = fallbackSignals.findIndex(s => s.id === id);
