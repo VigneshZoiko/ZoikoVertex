@@ -124,7 +124,7 @@ export default function MediaLibraryPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Common Media Library</h1>
@@ -281,7 +281,7 @@ export default function MediaLibraryPage() {
       {/* Preview Modal */}
       {previewAsset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-md" onClick={() => setPreviewAsset(null)}>
-          <div className="relative w-fit max-w-5xl min-w-[min(100%,600px)] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="relative w-full max-w-5xl flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="w-full flex justify-end mb-4">
               <button 
                 onClick={() => setPreviewAsset(null)}

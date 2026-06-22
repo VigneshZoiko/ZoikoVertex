@@ -58,7 +58,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Target Region</label>
           <select 

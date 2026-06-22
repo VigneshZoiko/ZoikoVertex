@@ -3,11 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ChevronLeft, ChevronRight, Calendar, Clock, X,
-  Edit3, Trash2, Send, ExternalLink, CheckCircle2,
+  ChevronLeft, ChevronRight, Calendar, X,
+  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical,
 } from "lucide-react";
 import Link from "next/link";
-import { MediaPreview } from "@/components/MediaPreview";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -30,20 +29,6 @@ interface CalendarPost {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function pillClass(post: CalendarPost): string {
-  if (post.source === "scheduled") {
-    if (post.status === "SCHEDULED") return "bg-success-text/10 text-success-text hover:bg-success-text/20";
-    if (post.status === "PUBLISHED")  return "bg-blue-500/10 text-blue-400";
-    return "bg-error-text/10 text-error-text";
-  }
-  // publish_intent
-  if (post.status === "APPROVED" || post.status === "PUBLISHED") return "bg-blue-500/10 text-blue-300 hover:bg-blue-500/20";
-  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "bg-warning-text/10 text-warning-text hover:bg-warning-text/20";
-  if (post.status === "RETURNED") return "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20";
-  if (post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "bg-error-text/10 text-error-text";
-  return "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20";
-}
 
 function statusBadgeClass(status: string): string {
   if (status === "SCHEDULED")  return "bg-success-text/20 text-success-text";
@@ -70,6 +55,24 @@ function intentLinkLabel(post: CalendarPost): string {
   return "View in Publishing Hub";
 }
 
+function getStatusLabel(post: CalendarPost): string {
+  if (post.source === "scheduled" && post.status === "SCHEDULED" && post.scheduled_time) {
+    const t = new Date(post.scheduled_time);
+    return `SCHEDULED · ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
+  }
+  if (post.status === "PUBLISHED" && post.scheduled_time) {
+    const t = new Date(post.scheduled_time);
+    return `PUBLISHED · ${t.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+  }
+  if (post.status === "PUBLISHED")             return "PUBLISHED";
+  if (post.status === "APPROVED")              return "PUBLISHING · READY";
+  if (post.status.startsWith("PENDING_"))      return `PENDING · ${post.status.replace("PENDING_", "")}`;
+  if (post.status === "RETURNED")              return "RETURNED";
+  if (post.status === "GOVERNANCE_BLOCKED")    return "BLOCKED";
+  if (post.status === "REJECTED")              return "REJECTED";
+  return post.status;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
@@ -77,12 +80,13 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate]     = useState(new Date());
   const [posts, setPosts]                 = useState<CalendarPost[]>([]);
   const [loading, setLoading]             = useState(true);
-  const [selectedPost, setSelectedPost]   = useState<CalendarPost | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPost, setEditingPost]     = useState<CalendarPost | null>(null);
+  const [selectedDate, setSelectedDate]   = useState(new Date());
+  const [statusFilter, setStatusFilter]   = useState<"all" | "scheduled" | "publishing">("all");
+  const [openMenuId, setOpenMenuId]       = useState<string | null>(null);
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [dayModal, setDayModal] = useState<{ day: number; posts: CalendarPost[] } | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -141,7 +145,6 @@ export default function CalendarPage() {
       const result = await api.delete(`/api/v1/scheduler/posts/${postId}`);
       if (result.success) {
         setPosts((prev) => prev.filter((p) => p.id !== postId));
-        setSelectedPost(null);
         setMessage({ type: "success", text: "Post cancelled successfully" });
       }
     } catch {
@@ -151,404 +154,265 @@ export default function CalendarPage() {
 
   // ── Calendar helpers ────────────────────────────────────────────────────────
 
-  const getDaysInMonth = (date: Date) => {
-    const year  = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay   = new Date(year, month, 1);
-    const lastDay    = new Date(year, month + 1, 0);
-    const daysInMonth  = lastDay.getDate();
-    const startingDay  = firstDay.getDay();
-    return { daysInMonth, startingDay };
-  };
-
-  const { daysInMonth, startingDay } = getDaysInMonth(currentDate);
-
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const dayNames   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-  const getPostsForDay = (day: number) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return posts.filter((p) =>
-      p.calendarDate?.startsWith(dateStr) &&
-      (p.status === "PUBLISHED" || p.status === "SCHEDULED")
-    );
+  const navigateWeek = (dir: number) => {
+    const next = new Date(currentDate);
+    next.setDate(next.getDate() + dir * 7);
+    setCurrentDate(next);
+    setSelectedDate(next);
   };
 
-  const navigateMonth = (direction: number) => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1));
+  const getWeekStart = (d: Date): Date => {
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
   };
+  const weekStart  = getWeekStart(currentDate);
+  const weekDays   = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  });
+  const DAY_LABELS = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 
-  const scheduledCount = posts.filter((p) => p.source === "scheduled" && p.status === "SCHEDULED").length;
-  const intentCount    = posts.filter((p) => p.source === "intent").length;
+  const selDateStr   = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,"0")}-${String(selectedDate.getDate()).padStart(2,"0")}`;
+  const postsForDay  = posts.filter(p => p.calendarDate?.startsWith(selDateStr));
+  const filteredDay  = postsForDay.filter(p => {
+    if (statusFilter === "scheduled")  return p.source === "scheduled";
+    if (statusFilter === "publishing") return p.source === "intent";
+    return true;
+  });
+  const upcoming     = filteredDay.filter(p => p.status !== "PUBLISHED");
+  const completed    = filteredDay.filter(p => p.status === "PUBLISHED");
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-7xl mx-auto pb-12 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Content Calendar</h1>
-        <p className="text-[var(--foreground-muted)] text-sm font-medium">
-          Unified view of scheduled posts and Publishing Hub submissions across all platforms.
-        </p>
-      </div>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-24">
 
+      {/* ── Toast ── */}
       {message && (
-        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-top-4 ${message.type === "success" ? "bg-success-text/10 border border-success-border/20 text-success-text" : "bg-error-text/10 border border-error-border/20 text-error-text"}`}>
+        <div className={`mb-4 mt-4 p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${message.type === "success" ? "bg-success-text/10 border border-success-border/20 text-success-text" : "bg-error-text/10 border border-error-border/20 text-error-text"}`}>
           {message.text}
           <button onClick={() => setMessage(null)} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* ── Calendar ── */}
-        <div className="lg:col-span-3">
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
-            {/* Header */}
-            <div className="p-6 border-b border-[var(--border)]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
-                    <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
-                  </button>
-                  <h2 className="text-xl font-bold text-[var(--foreground)]">
-                    {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                  </h2>
-                  <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
-                    <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
-                  </button>
-                </div>
-                <button onClick={() => setCurrentDate(new Date())} className="text-sm text-info-text hover:text-info-text font-medium">
-                  Today
-                </button>
-              </div>
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)]">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-success-text/30 border border-success-border/50 inline-block" />
-                  <Calendar className="w-3 h-3" />
-                  <span>Scheduled ({scheduledCount})</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-warning-text/30 border border-warning-border/50 inline-block" />
-                  <Send className="w-3 h-3" />
-                  <span>Publishing Hub ({intentCount})</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-blue-500/30 border border-blue-500/50 inline-block" />
-                  <span>Published</span>
-                </div>
-                {loading && <span className="text-info-text animate-pulse">Loading…</span>}
-              </div>
-            </div>
-
-            {/* Day headers */}
-            <div className="grid grid-cols-7 border-b border-[var(--border)]">
-              {dayNames.map((day) => (
-                <div key={day} className="p-3 text-center text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            {/* Grid */}
-            <div className="grid grid-cols-7">
-              {Array.from({ length: startingDay }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[120px] bg-[var(--surface)]/30 border-b border-r border-[var(--border)]/50" />
-              ))}
-
-              {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day      = i + 1;
-                const dayPosts = getPostsForDay(day);
-                const isToday  = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-
-                return (
-                  <div
-                    key={day}
-                    className={`min-h-[120px] border-b border-r border-[var(--border)]/50 p-2 ${isToday ? "bg-info-text/5" : "bg-[var(--card)]/30"}`}
-                  >
-                    <div className={`text-sm font-medium mb-2 ${isToday ? "text-info-text" : "text-[var(--foreground-muted)]"}`}>
-                      {day}
-                    </div>
-                    <div className="space-y-1">
-                      {dayPosts.slice(0, 2).map((post) => (
-                        <button
-                          key={post.id}
-                          onClick={() => setSelectedPost(post)}
-                          className={`w-full text-left text-xs p-1.5 rounded truncate transition-colors flex items-center gap-1 ${pillClass(post)}`}
-                        >
-                          {post.source === "intent"
-                            ? <Send className="w-2.5 h-2.5 shrink-0" />
-                            : <Calendar className="w-2.5 h-2.5 shrink-0" />
-                          }
-                          {post.platform}
-                        </button>
-                      ))}
-                      {dayPosts.length > 2 && (
-                        <button
-                          onClick={() => setDayModal({ day, posts: dayPosts })}
-                          className="text-xs text-info-text hover:text-info-text/80 font-medium w-full text-left px-1 py-0.5 rounded hover:bg-info-text/10 transition-colors"
-                        >
-                          +{dayPosts.length - 2} more
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Selected Post Detail */}
-          {selectedPost && (
-            <div className="mt-6 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-[var(--foreground)]">Post Details</h3>
-                <button onClick={() => setSelectedPost(null)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="grid gap-4">
-                <div className="flex items-center gap-3 flex-wrap text-sm">
-                  {/* Source badge */}
-                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${selectedPost.source === "scheduled" ? "bg-success-text/20 text-success-text" : "bg-warning-text/20 text-warning-text"}`}>
-                    {selectedPost.source === "scheduled" ? <Calendar className="w-3 h-3" /> : <Send className="w-3 h-3" />}
-                    {selectedPost.source === "scheduled" ? "AI Scheduled" : "Publishing Hub"}
-                  </span>
-                  {/* Platform */}
-                  <span className="px-3 py-1 bg-info-text/20 text-info-text rounded-full text-xs font-bold">
-                    {selectedPost.platform}
-                  </span>
-                  {/* Status */}
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeClass(selectedPost.status)}`}>
-                    {selectedPost.status.replace("PENDING_", "Pending: ")}
-                  </span>
-                </div>
-
-                <p className="text-[var(--foreground)] text-sm">{selectedPost.content}</p>
-
-                {/* Media thumbnail */}
-                <MediaPreview
-                  src={selectedPost.media_url}
-                  alt="Post media"
-                  className="w-full rounded-xl aspect-video"
-                  fit="contain"
-                  type={selectedPost.media_url?.match(/\.(mp4|mov|webm)/i) ? "video" : "image"}
-                  controls
-                />
-
-                <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-sm">
-                  <Clock className="w-4 h-4" />
-                  {selectedPost.source === "scheduled" && selectedPost.scheduled_time
-                    ? formatDateTime(selectedPost.scheduled_time)
-                    : selectedPost.scheduled_for
-                      ? `Target: ${formatDateTime(selectedPost.scheduled_for)}`
-                      : `Submitted ${formatDateTime(selectedPost.created_at)}`
-                  }
-                </div>
-
-                {/* Actions: only scheduled posts can be edited/cancelled */}
-                {selectedPost.source === "scheduled" && selectedPost.status === "SCHEDULED" && (
-                  <div className="flex gap-3 mt-2">
-                    <button
-                      onClick={() => {
-                        setEditingPost(selectedPost);
-                        setShowEditModal(true);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text text-foreground text-sm font-bold rounded-xl transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleCancelPost(selectedPost.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-error-text/20 hover:bg-error-text/30 text-error-text text-sm font-bold rounded-xl transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                {/* Publishing Hub: context-aware deep link — hidden for governance-destined statuses */}
-                {selectedPost.source === "intent" &&
-                  selectedPost.status !== "PUBLISHED" &&
-                  selectedPost.status !== "APPROVED" &&
-                  selectedPost.status !== "GOVERNANCE_BLOCKED" &&
-                  selectedPost.status !== "REJECTED" && (
-                  <Link
-                    href={intentLink(selectedPost)}
-                    className="inline-flex items-center gap-2 px-4 py-2 w-fit bg-warning-text/20 hover:bg-warning-text/30 text-warning-text text-sm font-bold rounded-xl transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    {intentLinkLabel(selectedPost)}
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
+      {/* ── Month header ── */}
+      <div className="flex items-center justify-between py-4">
+        <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
+          <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
+        </button>
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-[var(--foreground)]">
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </h2>
+          {loading && <span className="text-xs text-info-text animate-pulse">Loading…</span>}
         </div>
-
-        {/* ── Right Sidebar ── */}
-        <div className="space-y-6">
-          {/* Upcoming — merged list */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-info-text" />
-              Upcoming
-              <span className="ml-auto text-xs font-normal text-[var(--foreground-muted)]">
-                {posts.filter((p) => p.status === "SCHEDULED" || (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "RETURNED"))).length} pending
-              </span>
-            </h3>
-
-            <div className="space-y-2 max-h-[360px] overflow-y-auto">
-              {posts
-                .filter((p) =>
-                  p.status === "SCHEDULED" ||
-                  (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED" || p.status === "RETURNED"))
-                )
-                .sort((a, b) => a.calendarDate.localeCompare(b.calendarDate))
-                .slice(0, 15)
-                .map((post) => (
-                  <button
-                    key={`${post.source}-${post.id}`}
-                    onClick={() => setSelectedPost(post)}
-                    className="w-full text-left p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        {post.source === "intent"
-                          ? <Send className="w-3 h-3 text-warning-text" />
-                          : <Calendar className="w-3 h-3 text-success-text" />
-                        }
-                        <span className={`text-xs font-bold ${post.source === "intent" ? "text-warning-text" : "text-info-text"}`}>
-                          {post.platform}
-                        </span>
-                      </div>
-                      <span className="text-xs text-[var(--foreground-muted)]">
-                        {post.source === "scheduled" && post.scheduled_time
-                          ? formatDateTime(post.scheduled_time)
-                          : formatDateTime(post.created_at)
-                        }
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--foreground-muted)] truncate">{post.content}</p>
-                  </button>
-                ))
-              }
-              {posts.filter((p) =>
-                p.status === "SCHEDULED" ||
-                (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED" || p.status === "RETURNED"))
-              ).length === 0 && (
-                <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No pending posts</p>
-              )}
-            </div>
-          </div>
-
-          {/* Completed / Published */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-blue-400" />
-              Completed
-              <span className="ml-auto text-xs font-normal text-[var(--foreground-muted)]">
-                {posts.filter((p) => p.status === "PUBLISHED").length}
-              </span>
-            </h3>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {posts
-                .filter((p) => p.status === "PUBLISHED")
-                .sort((a, b) => b.calendarDate.localeCompare(a.calendarDate))
-                .slice(0, 10)
-                .map((post) => (
-                  <button
-                    key={`done-${post.source}-${post.id}`}
-                    onClick={() => setSelectedPost(post)}
-                    className="w-full text-left p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        {post.source === "intent"
-                          ? <Send className="w-3 h-3 text-blue-400" />
-                          : <Calendar className="w-3 h-3 text-blue-400" />
-                        }
-                        <span className="text-xs font-bold text-blue-400">{post.platform}</span>
-                      </div>
-                      <span className="text-xs text-[var(--foreground-muted)]">
-                        {formatDateTime(post.calendarDate)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--foreground-muted)] truncate">{post.content}</p>
-                  </button>
-                ))
-              }
-              {posts.filter((p) => p.status === "PUBLISHED").length === 0 && (
-                <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No completed posts yet</p>
-              )}
-            </div>
-          </div>
-        </div>
+        <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
+          <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
+        </button>
       </div>
 
-      {/* ── Day Detail Modal ("+N more") ── */}
-      {dayModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDayModal(null)}>
-          <div
-            className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-[var(--foreground)]">
-                {monthNames[currentDate.getMonth()]} {dayModal.day}, {currentDate.getFullYear()}
-                <span className="ml-2 text-sm font-normal text-[var(--foreground-muted)]">
-                  — {dayModal.posts.length} post{dayModal.posts.length !== 1 ? "s" : ""}
-                </span>
-              </h3>
-              <button onClick={() => setDayModal(null)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto space-y-2 flex-1">
-              {dayModal.posts.map((post) => (
-                <button
-                  key={`modal-${post.source}-${post.id}`}
-                  onClick={() => { setSelectedPost(post); setDayModal(null); }}
-                  className={`w-full text-left p-3 rounded-xl border border-[var(--border)] hover:border-[var(--card-border)] transition-colors flex items-start gap-3 ${pillClass(post)}`}
-                >
-                  <span className="shrink-0 mt-0.5">
-                    {post.source === "intent"
-                      ? <Send className="w-3.5 h-3.5" />
-                      : <Calendar className="w-3.5 h-3.5" />
-                    }
+      {/* ── Week strip ── */}
+      <div className="grid grid-cols-7 gap-1.5 mb-6">
+        {weekDays.map((d, i) => {
+          const isSelected = d.toDateString() === selectedDate.toDateString();
+          const isToday    = d.toDateString() === new Date().toDateString();
+          const ds         = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+          const hasPost    = posts.some(p => p.calendarDate?.startsWith(ds));
+          return (
+            <button
+              key={i}
+              onClick={() => setSelectedDate(new Date(d))}
+              className={`flex flex-col items-center py-3 rounded-2xl border transition-all ${
+                isSelected
+                  ? "bg-info-text border-info-text/50 text-[var(--background)]"
+                  : isToday
+                    ? "bg-info-text/10 border-info-text/30 text-info-text"
+                    : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--card-border)]"
+              }`}
+            >
+              <span className="text-[9px] font-bold tracking-widest uppercase mb-1">{DAY_LABELS[i]}</span>
+              <span className={`text-lg font-bold leading-none ${isSelected ? "text-[var(--background)]" : ""}`}>{d.getDate()}</span>
+              <span className={`mt-1.5 w-1.5 h-1.5 rounded-full ${hasPost ? (isSelected ? "bg-[var(--background)]" : "bg-info-text") : "bg-transparent"}`} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Filter tabs ── */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {(["all","scheduled","publishing"] as const).map((f) => {
+          const labels = { all: "ALL POSTS", scheduled: "SCHEDULED", publishing: "PUBLISHING" } as const;
+          const active = statusFilter === f;
+          return (
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold tracking-wide transition-colors ${
+                active
+                  ? "bg-info-text/15 border-info-text/40 text-info-text"
+                  : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--card-border)]"
+              }`}
+            >
+              {f === "all"        && <Calendar className="w-3.5 h-3.5" />}
+              {f === "scheduled"  && <span className="w-2 h-2 rounded-full bg-success-text inline-block" />}
+              {f === "publishing" && <span className="w-2 h-2 rounded-full bg-info-text inline-block" />}
+              {labels[f]}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── UPCOMING CONTENT ── */}
+      {upcoming.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--foreground-muted)]">Upcoming Content</span>
+            <span className="text-xs text-info-text font-semibold">{upcoming.length} Scheduled</span>
+          </div>
+          <div className="space-y-3">
+            {upcoming.map((post) => (
+              <div key={`up-${post.source}-${post.id}`} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 flex items-start gap-3">
+                {/* Thumbnail */}
+                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
+                  {post.media_url
+                    ? <img src={post.media_url} alt="" className="w-full h-full object-cover" />
+                    : <Calendar className="w-5 h-5 text-[var(--foreground-muted)]" />
+                  }
+                </div>
+                {/* Body */}
+                <div className="flex-1 min-w-0">
+                  <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md mb-1 ${statusBadgeClass(post.status)}`}>
+                    {getStatusLabel(post)}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-xs font-bold">{post.platform}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${statusBadgeClass(post.status)}`}>
-                        {post.status.replace("PENDING_", "")}
-                      </span>
-                    </div>
-                    <p className="text-xs truncate opacity-80">{post.content}</p>
-                    <p className="text-[10px] mt-1 opacity-60">
-                      {post.source === "scheduled" && post.scheduled_time
-                        ? formatDateTime(post.scheduled_time)
-                        : post.scheduled_for
-                          ? `Target: ${formatDateTime(post.scheduled_for)}`
-                          : formatDateTime(post.created_at)
-                      }
-                    </p>
+                  <p className="text-sm font-semibold text-[var(--foreground)] truncate">
+                    {post.content.length > 48 ? post.content.slice(0, 48) + "…" : post.content}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[var(--foreground-muted)]">
+                    {post.source === "scheduled" ? <Calendar className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                    <span>{post.platform}</span>
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+                {/* 3-dot menu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)}
+                    className="p-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                  {openMenuId === post.id && (
+                    <div className="absolute right-0 top-8 z-20 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden min-w-[150px]">
+                      {post.source === "scheduled" && post.status === "SCHEDULED" && (
+                        <>
+                          <button
+                            onClick={() => { setEditingPost(post); setShowEditModal(true); setOpenMenuId(null); }}
+                            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button
+                            onClick={() => { handleCancelPost(post.id); setOpenMenuId(null); }}
+                            className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-error-text hover:bg-error-text/10 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Cancel Post
+                          </button>
+                        </>
+                      )}
+                      {post.source === "intent" && (
+                        <Link
+                          href={intentLink(post)}
+                          onClick={() => setOpenMenuId(null)}
+                          className="flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> {intentLinkLabel(post)}
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
+      {/* ── COMPLETED ── */}
+      {completed.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--foreground-muted)]">Completed</span>
+            <Link href="/library" className="flex items-center gap-1 text-xs text-info-text font-semibold hover:opacity-80 transition-opacity">
+              History <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {completed.map((post) => (
+              <div key={`done-${post.source}-${post.id}`} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 flex items-start gap-3">
+                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
+                  {post.media_url
+                    ? <img src={post.media_url} alt="" className="w-full h-full object-cover" />
+                    : <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md mb-1 ${statusBadgeClass(post.status)}`}>
+                    {getStatusLabel(post)}
+                  </span>
+                  <p className="text-sm font-semibold text-[var(--foreground)] truncate">
+                    {post.content.length > 48 ? post.content.slice(0, 48) + "…" : post.content}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[var(--foreground-muted)]">
+                    {post.source === "scheduled" ? <Calendar className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                    <span>{post.platform}</span>
+                  </div>
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)}
+                    className="p-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                  {openMenuId === post.id && (
+                    <div className="absolute right-0 top-8 z-20 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden min-w-[150px]">
+                      <Link
+                        href={intentLink(post)}
+                        onClick={() => setOpenMenuId(null)}
+                        className="flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> View Post
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Empty state ── */}
+      {filteredDay.length === 0 && !loading && (
+        <div className="text-center py-16 text-[var(--foreground-muted)]">
+          <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium">No posts on this day</p>
+          <p className="text-xs mt-1 opacity-60">Select another date or create a new post</p>
+        </div>
+      )}
+
+      {/* ── Menu backdrop ── */}
+      {openMenuId && (
+        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+      )}
+
       {/* ── Edit Scheduled Post Modal ── */}
       {showEditModal && editingPost && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl p-6 w-full sm:max-w-lg">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[var(--foreground)]">Edit Scheduled Post</h3>
               <button onClick={() => setShowEditModal(false)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
@@ -591,6 +455,14 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+
+      {/* ── FAB ── */}
+      <Link
+        href="/publish"
+        className="fixed bottom-6 right-6 z-30 w-14 h-14 bg-info-text rounded-2xl flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity md:hidden"
+      >
+        <span className="text-2xl font-light text-[var(--background)] leading-none">+</span>
+      </Link>
 
     </div>
   );

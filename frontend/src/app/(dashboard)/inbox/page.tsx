@@ -654,6 +654,8 @@ export default function InboxPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<InboxMessage | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Mobile: "list" shows message list, "detail" shows conversation panel
+  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
 
   const [postPreview, setPostPreview] = useState<PostPreview | null>(null);
   const [postPreviewLoading, setPostPreviewLoading] = useState(false);
@@ -814,6 +816,7 @@ export default function InboxPage() {
       setLastSendStatus(null);
       setLastSendError(null);
     }
+    setMobileView("detail");
     setDetailLoading(true);
     try {
       const res = await api.getInboxMessage(id);
@@ -977,7 +980,7 @@ export default function InboxPage() {
     try {
       await api.archiveInboxMessage(selectedId);
       setMessages(prev => prev.filter(m => m.id !== selectedId));
-      setSelectedId(null); setDetail(null);
+      setSelectedId(null); setDetail(null); setMobileView("list");
     } catch (e: unknown) {
       setToast({ message: e instanceof Error ? e.message : "Failed to archive", type: 'error' });
     }
@@ -1046,6 +1049,7 @@ export default function InboxPage() {
       if (checkedIds.has(selectedId ?? "")) {
         setSelectedId(null);
         setDetail(null);
+        setMobileView("list");
       }
       setCheckedIds(new Set());
       setSelectMode(false);
@@ -1123,10 +1127,10 @@ export default function InboxPage() {
       </div>
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-w-0">
 
-        {/* ── Filter Panel ──────────────────────────────────────────────────── */}
-        <div className={`border-r border-border flex flex-col flex-shrink-0 overflow-hidden transition-all duration-200 ${filtersOpen ? "w-44" : "w-0"}`}>
+        {/* ── Filter Panel — hidden on mobile, slide-in on md+ ────────────── */}
+        <div className={`hidden md:flex border-r border-border flex-col flex-shrink-0 overflow-hidden transition-all duration-200 ${filtersOpen ? "w-44" : "w-0"}`}>
           <div className="w-44 flex flex-col h-full overflow-y-auto">
             <div className="px-3 py-2 border-b border-border">
               <div className="flex items-center gap-1.5 bg-background border border-border rounded-lg px-2.5 py-1.5">
@@ -1178,7 +1182,7 @@ export default function InboxPage() {
         </div>
 
         {/* ── Message List ────────────────────────────────────────────────────── */}
-        <div className="w-64 border-r border-border flex flex-col flex-shrink-0">
+        <div className={`border-r border-border flex flex-col flex-shrink-0 w-full md:w-64 ${mobileView === "detail" ? "hidden md:flex" : "flex"}`}>
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <button
               onClick={() => setFiltersOpen(v => !v)}
@@ -1270,7 +1274,7 @@ export default function InboxPage() {
         </div>
 
         {/* ── Detail Panel ──────────────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className={`flex-1 flex flex-col overflow-hidden relative min-w-0 ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
 
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
@@ -1289,6 +1293,14 @@ export default function InboxPage() {
                 commentMode ? "border-border bg-background" : "border-border"
               }`}>
                 <div className="flex items-center gap-3 min-w-0">
+                  {/* Back to list — mobile only */}
+                  <button
+                    onClick={() => setMobileView("list")}
+                    className="p-1 text-foreground-muted hover:text-foreground flex-shrink-0 md:hidden"
+                    title="Back to messages"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${
                     commentMode ? "bg-surface text-foreground-muted" : "bg-surface text-foreground-muted"
                   }`}>
@@ -1354,7 +1366,7 @@ export default function InboxPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => { setSelectedId(null); setDetail(null); }}
+                    onClick={() => { setSelectedId(null); setDetail(null); setMobileView("list"); }}
                     className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-surface-hover transition-colors"
                     title="Close"
                   >

@@ -525,7 +525,8 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
       )}
 
       {/* Pixels table */}
-      <div className="bg-surface border border-border rounded-2xl">
+      <div className="bg-surface border border-border rounded-2xl overflow-x-auto">
+        <div className="min-w-[580px]">
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-3 text-foreground-muted">
             <RefreshCw className="w-5 h-5 animate-spin" /><span className="text-sm">Loading pixels…</span>
@@ -741,6 +742,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
             })}
           </>
         )}
+        </div>{/* min-w */}
       </div>
 
       {/* Create Pixel modal */}
@@ -982,6 +984,7 @@ export default function CampaignsPage() {
   const [editCampaignId, setEditCampaignId] = useState<string | null>(null);
   const [creatorPrefill, setCreatorPrefill] = useState<{ pixel_id: string; pixel_name: string; objective: string } | null>(null);
   const [sidebarOpen,setSidebarOpen]= useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [campaigns,  setCampaigns]  = useState<Campaign[]>([]);
   const [stats,      setStats]      = useState<Stats | null>(null);
   const [accounts,   setAccounts]   = useState<MetaAccount[]>([]);
@@ -1067,12 +1070,17 @@ export default function CampaignsPage() {
 
   const isOn = (s: string) => ["ACTIVE","SCHEDULED"].includes(s);
 
+  const handleTabSelect = (id: string) => {
+    setTab(id);
+    setMobileNavOpen(false);
+  };
+
   return (
     <>
     <div className="h-full bg-card flex overflow-hidden">
 
-      {/* Sub-sidebar */}
-      <aside className={`shrink-0 border-r border-border/60 flex flex-col transition-all duration-200 ${sidebarOpen ? "w-48" : "w-10"}`}>
+      {/* Sub-sidebar — desktop only */}
+      <aside className={`hidden md:flex shrink-0 border-r border-border/60 flex-col transition-all duration-200 ${sidebarOpen ? "w-48" : "w-10"}`}>
         {/* Toggle button row */}
         <div className={`flex items-center h-12 border-b border-border/60 px-2 ${sidebarOpen ? "justify-between" : "justify-center"}`}>
           {sidebarOpen && <span className="text-sm font-bold text-foreground pl-1">Advertise</span>}
@@ -1092,7 +1100,7 @@ export default function CampaignsPage() {
               <div key={section} className="mb-4">
                 <p className="px-3 mb-1 text-[9px] font-bold text-foreground-muted uppercase tracking-widest">{section}</p>
                 {items.map(({ id, label }) => (
-                  <button key={id} onClick={() => setTab(id)}
+                  <button key={id} onClick={() => handleTabSelect(id)}
                     className={`w-full text-left flex items-center px-3 py-1.5 text-xs transition-colors ${
                       tab === id
                         ? "bg-white/5 text-foreground border-r-2 border-white font-semibold"
@@ -1107,12 +1115,58 @@ export default function CampaignsPage() {
         )}
       </aside>
 
+      {/* Sub-sidebar — mobile overlay */}
+      {mobileNavOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 w-56 bg-card border-r border-border flex flex-col md:hidden">
+            <div className="flex items-center justify-between h-12 border-b border-border/60 px-3">
+              <span className="text-sm font-bold text-foreground">Advertise</span>
+              <button
+                onClick={() => setMobileNavOpen(false)}
+                className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-md transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <nav className="flex-1 py-3 overflow-y-auto">
+              {SIDEBAR_NAV.map(({ section, items }) => (
+                <div key={section} className="mb-4">
+                  <p className="px-3 mb-1 text-[9px] font-bold text-foreground-muted uppercase tracking-widest">{section}</p>
+                  {items.map(({ id, label }) => (
+                    <button key={id} onClick={() => handleTabSelect(id)}
+                      className={`w-full text-left flex items-center px-3 py-2.5 text-sm transition-colors ${
+                        tab === id
+                          ? "bg-white/5 text-foreground border-r-2 border-white font-semibold"
+                          : "text-foreground-muted hover:bg-surface hover:text-foreground"
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </nav>
+          </div>
+        </>
+      )}
+
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
         {/* Content header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-border/60 bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 px-4 sm:px-6 py-3.5 border-b border-border/60 bg-card">
           <div className="flex items-center gap-2.5">
+            {/* Mobile nav toggle */}
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-md transition-colors md:hidden"
+              title="Navigation"
+            >
+              <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+            </button>
             {/* Facebook logo */}
             {(tab === "ad-campaigns" || tab === "drafts") && (
               <div className="w-6 h-6 rounded bg-[#1877F2] flex items-center justify-center shrink-0">
@@ -1132,7 +1186,7 @@ export default function CampaignsPage() {
               {tab === "drafts" ? "Drafts" : tab === "pixels" ? "Meta Pixels" : "All ad campaigns"}
             </h3>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {tab !== "pixels" && (
               <AccountSelector accounts={accounts} selectedId={selAccount} onSelect={id => { setSelAccount(id); load(); }} onReload={load} />
             )}
@@ -1157,7 +1211,7 @@ export default function CampaignsPage() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 pt-4 gap-3">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-4 sm:px-6 pt-4 gap-3">
 
         {/* Error */}
         {error && (
