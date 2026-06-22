@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Bell, X, Check, Clock, AlertCircle, ShieldAlert, ArrowRight } from "lucide-react";
 import { useNotifications, NotificationCategory, NotificationPriority } from "@/lib/context/NotificationContext";
 import Link from "next/link";
@@ -14,7 +14,19 @@ export default function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('ALL');
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = state.notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   const filteredNotifications = useMemo(() => {
     let filtered = state.notifications;
@@ -48,7 +60,7 @@ export default function NotificationPanel() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         onClick={togglePanel}
         aria-label="Notifications"
@@ -64,10 +76,6 @@ export default function NotificationPanel() {
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
-          />
           <div className="absolute right-0 mt-3 w-96 bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 ease-out flex flex-col max-h-[85vh]">
 
             {/* Header */}

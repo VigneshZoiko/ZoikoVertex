@@ -140,7 +140,8 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
       // Use the dedicated storage-items endpoint: returns ALL items (all statuses),
       // always scoped to current workspace only — no cross-workspace leakage.
       const r = await api.get(`/api/v1/monitoring/storage-items?${params.toString()}`);
-      setItems(r?.data ?? []);
+      const raw = r?.data ?? r;
+      setItems(Array.isArray(raw) ? raw : []);
     } catch {
       setItems([]);
     } finally {

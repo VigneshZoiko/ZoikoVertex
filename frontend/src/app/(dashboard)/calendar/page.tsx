@@ -58,7 +58,7 @@ function statusBadgeClass(status: string): string {
 function intentLink(post: CalendarPost): string {
   if (post.status === "RETURNED") return "/publish";
   if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review";
-  if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
+  if (post.status === "APPROVED" || post.status === "PUBLISHED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
   return "/publish";
 }
 
@@ -82,6 +82,7 @@ export default function CalendarPage() {
   const [editingPost, setEditingPost]     = useState<CalendarPost | null>(null);
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [dayModal, setDayModal] = useState<{ day: number; posts: CalendarPost[] } | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -167,7 +168,10 @@ export default function CalendarPage() {
 
   const getPostsForDay = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return posts.filter((p) => p.calendarDate?.startsWith(dateStr));
+    return posts.filter((p) =>
+      p.calendarDate?.startsWith(dateStr) &&
+      (p.status === "PUBLISHED" || p.status === "SCHEDULED")
+    );
   };
 
   const navigateMonth = (direction: number) => {
@@ -281,7 +285,12 @@ export default function CalendarPage() {
                         </button>
                       ))}
                       {dayPosts.length > 2 && (
-                        <div className="text-xs text-[var(--foreground-muted)]">+{dayPosts.length - 2} more</div>
+                        <button
+                          onClick={() => setDayModal({ day, posts: dayPosts })}
+                          className="text-xs text-info-text hover:text-info-text/80 font-medium w-full text-left px-1 py-0.5 rounded hover:bg-info-text/10 transition-colors"
+                        >
+                          +{dayPosts.length - 2} more
+                        </button>
                       )}
                     </div>
                   </div>
@@ -362,8 +371,12 @@ export default function CalendarPage() {
                   </div>
                 )}
 
-                {/* Publishing Hub: context-aware deep link */}
-                {selectedPost.source === "intent" && (
+                {/* Publishing Hub: context-aware deep link — hidden for governance-destined statuses */}
+                {selectedPost.source === "intent" &&
+                  selectedPost.status !== "PUBLISHED" &&
+                  selectedPost.status !== "APPROVED" &&
+                  selectedPost.status !== "GOVERNANCE_BLOCKED" &&
+                  selectedPost.status !== "REJECTED" && (
                   <Link
                     href={intentLink(selectedPost)}
                     className="inline-flex items-center gap-2 px-4 py-2 w-fit bg-warning-text/20 hover:bg-warning-text/30 text-warning-text text-sm font-bold rounded-xl transition-colors"
@@ -476,6 +489,61 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Day Detail Modal ("+N more") ── */}
+      {dayModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDayModal(null)}>
+          <div
+            className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[var(--foreground)]">
+                {monthNames[currentDate.getMonth()]} {dayModal.day}, {currentDate.getFullYear()}
+                <span className="ml-2 text-sm font-normal text-[var(--foreground-muted)]">
+                  — {dayModal.posts.length} post{dayModal.posts.length !== 1 ? "s" : ""}
+                </span>
+              </h3>
+              <button onClick={() => setDayModal(null)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto space-y-2 flex-1">
+              {dayModal.posts.map((post) => (
+                <button
+                  key={`modal-${post.source}-${post.id}`}
+                  onClick={() => { setSelectedPost(post); setDayModal(null); }}
+                  className={`w-full text-left p-3 rounded-xl border border-[var(--border)] hover:border-[var(--card-border)] transition-colors flex items-start gap-3 ${pillClass(post)}`}
+                >
+                  <span className="shrink-0 mt-0.5">
+                    {post.source === "intent"
+                      ? <Send className="w-3.5 h-3.5" />
+                      : <Calendar className="w-3.5 h-3.5" />
+                    }
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className="text-xs font-bold">{post.platform}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${statusBadgeClass(post.status)}`}>
+                        {post.status.replace("PENDING_", "")}
+                      </span>
+                    </div>
+                    <p className="text-xs truncate opacity-80">{post.content}</p>
+                    <p className="text-[10px] mt-1 opacity-60">
+                      {post.source === "scheduled" && post.scheduled_time
+                        ? formatDateTime(post.scheduled_time)
+                        : post.scheduled_for
+                          ? `Target: ${formatDateTime(post.scheduled_for)}`
+                          : formatDateTime(post.created_at)
+                      }
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Edit Scheduled Post Modal ── */}
       {showEditModal && editingPost && (
