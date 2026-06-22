@@ -98,6 +98,7 @@ function PostPreview({
   mediaPreview,
   mediaUrls,
   carouselIndex,
+  mediaType,
 }: {
   connectedAccounts: any[];
   selectedAccountIds: string[];
@@ -107,6 +108,7 @@ function PostPreview({
   mediaPreview: string | null;
   mediaUrls: string[];
   carouselIndex: number;
+  mediaType?: string;
 }) {
   const [activePlatform, setActivePlatform] = React.useState('');
 
@@ -114,8 +116,9 @@ function PostPreview({
   const platforms    = [...new Set(selectedAccs.map((a: any) => a.platform as string))];
 
   React.useEffect(() => {
-    if (platforms.length > 0 && !platforms.includes(activePlatform)) {
-      setActivePlatform(platforms[0]);
+    const lowerPlatforms = platforms.map(p => p.toLowerCase());
+    if (platforms.length > 0 && !lowerPlatforms.includes(activePlatform)) {
+      setActivePlatform(platforms[0].toLowerCase());
     }
     if (platforms.length === 0) setActivePlatform('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,6 +129,10 @@ function PostPreview({
     ? (platformCaptions[activePlatform] || platformCaptions[activePlatform?.toLowerCase()] || platformCaptions[activePlatform?.charAt(0)?.toUpperCase() + activePlatform?.slice(1)] || description)
     : description;
   const currentMedia = mediaUrls.length > 0 ? (mediaUrls[carouselIndex] || mediaUrls[0]) : mediaPreview;
+  const isVideoMedia = (src?: string | null) =>
+    mediaType?.startsWith('video') ||
+    mediaType === 'video' ||
+    !!(src?.match(/\.(mp4|mov|webm|avi|m4v)(\?.*)?$/i));
   const initials     = account?.account_name?.charAt(0)?.toUpperCase() || account?.account_handle?.charAt(0)?.toUpperCase() || '?';
   const displayName  = account?.account_name || account?.account_handle || 'Your Account';
   const handle       = account?.account_handle ? `@${account.account_handle}` : '';
@@ -141,13 +148,14 @@ function PostPreview({
     );
   }
 
-  const isFacebook  = activePlatform === 'facebook';
-  const isInstagram = activePlatform === 'instagram';
-  const isTwitter   = activePlatform === 'twitter' || activePlatform === 'x';
-  const isLinkedIn  = activePlatform === 'linkedin';
-  const isThreads   = activePlatform === 'threads';
-  const isYouTube   = activePlatform === 'youtube';
-  const isPinterest = activePlatform === 'pinterest';
+  const normalizedPlatform = activePlatform.toLowerCase();
+  const isFacebook  = normalizedPlatform === 'facebook';
+  const isInstagram = normalizedPlatform === 'instagram';
+  const isTwitter   = normalizedPlatform === 'twitter' || normalizedPlatform === 'x';
+  const isLinkedIn  = normalizedPlatform === 'linkedin';
+  const isThreads   = normalizedPlatform === 'threads';
+  const isYouTube   = normalizedPlatform === 'youtube';
+  const isPinterest = normalizedPlatform === 'pinterest';
 
   return (
     <div className="space-y-3">
@@ -156,14 +164,14 @@ function PostPreview({
         {platforms.map(p => (
           <button
             key={p}
-            onClick={() => setActivePlatform(p)}
+            onClick={() => setActivePlatform(p.toLowerCase())}
             className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${
-              activePlatform === p
+              normalizedPlatform === p.toLowerCase()
                 ? 'bg-info-text text-foreground border-info-border'
                 : 'bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-info-border/50'
             }`}
           >
-            {PLATFORM_LABEL[p] || p}
+            {PLATFORM_LABEL[p.toLowerCase()] || PLATFORM_LABEL[p] || p}
           </button>
         ))}
       </div>
@@ -177,12 +185,16 @@ function PostPreview({
             <MediaPreview
               src={currentMedia}
               alt="thumbnail"
-              type={currentMedia?.match(/\.(mp4|mov|webm)$/i) ? "video" : "image"}
+              type={isVideoMedia(currentMedia) ? "video" : "image"}
               className="w-full h-full"
               fit="cover"
+              controls={isVideoMedia(currentMedia)}
               muted
+              playsInline
             />
-            <div className="absolute bottom-2 right-2 bg-black/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
+            {!isVideoMedia(currentMedia) && (
+              <div className="absolute bottom-2 right-2 bg-black/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
+            )}
           </div>
           {/* Video info */}
           <div className="flex gap-3 p-3">
@@ -205,10 +217,12 @@ function PostPreview({
             <MediaPreview
               src={currentMedia}
               alt="pin"
-              type={currentMedia?.match(/\.(mp4|mov|webm)$/i) ? "video" : "image"}
+              type={isVideoMedia(currentMedia) ? "video" : "image"}
               className="w-full h-full"
               fit="cover"
+              controls={isVideoMedia(currentMedia)}
               muted
+              playsInline
             />
             {/* Save button overlay */}
             <button className="absolute top-2.5 right-2.5 bg-red-600 text-foreground text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
@@ -305,10 +319,12 @@ function PostPreview({
         <MediaPreview
           src={currentMedia}
           alt="preview"
-          type={currentMedia?.match(/\.(mp4|mov|webm)$/i) ? "video" : "image"}
+          type={isVideoMedia(currentMedia) ? "video" : "image"}
           className={`w-full ${isInstagram ? 'aspect-square' : 'aspect-video'}`}
           fit="cover"
+          controls={isVideoMedia(currentMedia)}
           muted
+          playsInline
         />
 
         {/* ── Facebook action bar ── */}
@@ -993,10 +1009,13 @@ function PublishPageInner() {
 
     // --- Detect video metadata (dimensions + duration) via object URL ---
     if (file.type.startsWith("video")) {
-      const objUrl = URL.createObjectURL(file);
+      const previewUrl = URL.createObjectURL(file);
+      // Keep previewUrl alive for display — use a separate URL for metadata probing
+      // so revoking the probe URL does not invalidate the preview.
+      const metaUrl = URL.createObjectURL(file);
       const videoEl = document.createElement("video");
       videoEl.preload = "metadata";
-      videoEl.src = objUrl;
+      videoEl.src = metaUrl;
       videoEl.onloadedmetadata = () => {
         const w = videoEl.videoWidth || 0,
           h = videoEl.videoHeight || 0;
@@ -1008,10 +1027,11 @@ function PublishPageInner() {
           isVertical: w > 0 && h > 0 && w < h,
           fileSize: file.size,
         });
-        URL.revokeObjectURL(objUrl);
+        URL.revokeObjectURL(metaUrl);
       };
+      videoEl.onerror = () => URL.revokeObjectURL(metaUrl);
       // Use object URL as preview for videos (efficient — no base64 for large files)
-      setMediaPreview(objUrl);
+      setMediaPreview(previewUrl);
       setIsAnalyzing(false);
       return;
     }
@@ -1869,20 +1889,26 @@ function PublishPageInner() {
                 >
                   <div className="aspect-video relative cursor-grab active:cursor-grabbing">
                     {assetType === "video" ? (
-                      <video
-                        key={
-                          selectedUrls[
-                            Math.min(carouselIndex, selectedUrls.length - 1)
-                          ]
-                        }
-                        src={
-                          selectedUrls[
-                            Math.min(carouselIndex, selectedUrls.length - 1)
-                          ]
-                        }
-                        controls
-                        className="w-full h-full object-contain pointer-events-none"
-                      />
+                      <div
+                        className="w-full h-full"
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <video
+                          key={
+                            selectedUrls[
+                              Math.min(carouselIndex, selectedUrls.length - 1)
+                            ]
+                          }
+                          src={
+                            selectedUrls[
+                              Math.min(carouselIndex, selectedUrls.length - 1)
+                            ]
+                          }
+                          controls
+                          playsInline
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                     ) : (
                       <div className="relative w-full h-full">
                         <Image
@@ -1967,14 +1993,24 @@ function PublishPageInner() {
                         }}
                         className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 relative transition-all ${i === carouselIndex ? "border-info-border" : "border-transparent opacity-60 hover:opacity-100"}`}
                       >
-                        <Image
-                          src={url}
-                          alt={`thumb ${i}`}
-                          fill
-                          sizes="64px"
-                          className="object-cover"
-                          draggable={false}
-                        />
+                        {assetType === "video" ? (
+                          <video
+                            src={url}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src={url}
+                            alt={`thumb ${i}`}
+                            fill
+                            sizes="64px"
+                            className="object-cover"
+                            draggable={false}
+                          />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -2389,6 +2425,7 @@ function PublishPageInner() {
               mediaPreview={mediaPreview}
               mediaUrls={selectedUrls}
               carouselIndex={carouselIndex}
+              mediaType={assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : undefined)}
             />
           </div>
 
