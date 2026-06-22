@@ -119,8 +119,8 @@ export default function CommandCenterPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">
+      <div className="mb-5 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">
           Command Center
         </h1>
         <p className="text-[var(--foreground-muted)] text-sm">
@@ -157,9 +157,9 @@ export default function CommandCenterPage() {
       </div>
 
       {/* Campaign Status + Ops Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Status Distribution */}
-        <div className="lg:col-span-2 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm">
+        <div className="lg:col-span-2 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 lg:p-8 shadow-sm">
           <div className="mb-6">
             <h2 className="text-lg font-bold text-[var(--foreground)]">Campaign Status Distribution</h2>
             <p className="text-sm text-[var(--foreground-muted)] mt-1">
@@ -201,7 +201,7 @@ export default function CommandCenterPage() {
         </div>
 
         {/* Ops Quick Stats */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm flex flex-col gap-6">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 lg:p-8 shadow-sm flex flex-col gap-6">
           <div>
             <h2 className="text-lg font-bold text-[var(--foreground)]">Agent Operations</h2>
             <p className="text-sm text-[var(--foreground-muted)] mt-1">Live run metrics.</p>

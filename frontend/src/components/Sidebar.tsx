@@ -484,7 +484,7 @@ const OWNER_REQUIRED_PAGES = [
 /* ─────────────────────────────────────────────
    Component
 ───────────────────────────────────────────── */
-function Sidebar() {
+function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { role, isSuperAdmin, isLoading: roleLoading } = useRoleContext();
@@ -606,14 +606,17 @@ function Sidebar() {
         e.preventDefault();
         setPendingHref(href);
         setShowDiscardModal(true);
+      } else {
+        onMobileClose?.();
       }
     },
-    [isDirty, pathname],
+    [isDirty, pathname, onMobileClose],
   );
 
   const handleDiscardConfirm = useCallback(async () => {
     setIsDirty(false);
     setShowDiscardModal(false);
+    onMobileClose?.();
     const dest = pendingHref;
     setPendingHref(null);
     if (!dest) return;
@@ -623,7 +626,7 @@ function Sidebar() {
     } else {
       router.push(dest);
     }
-  }, [pendingHref, router, setIsDirty]);
+  }, [pendingHref, router, setIsDirty, onMobileClose]);
 
   const handleDiscardCancel = useCallback(() => {
     setShowDiscardModal(false);
@@ -637,6 +640,7 @@ function Sidebar() {
       setShowDiscardModal(true);
       return;
     }
+    onMobileClose?.();
     await supabase.auth.signOut();
     router.replace(loginDest);
   };
