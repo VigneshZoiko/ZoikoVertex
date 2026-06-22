@@ -455,7 +455,7 @@ export default function ReturnedItemsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] w-fit">
+      <div className="flex flex-wrap gap-1 mb-6 p-1 bg-[var(--surface)] rounded-xl border border-[var(--border)] w-fit max-w-full overflow-x-auto">
         {tabs.map(t => (
           <button
             key={t.id}

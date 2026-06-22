@@ -1688,7 +1688,7 @@ function PublishPageInner() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto pb-20 px-6">
+      <div className="max-w-6xl mx-auto pb-20 px-4 sm:px-6">
       {/* Decent Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div className="flex items-center gap-4">

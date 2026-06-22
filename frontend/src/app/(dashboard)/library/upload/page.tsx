@@ -258,14 +258,14 @@ export default function CreatorUploadPage() {
 
   if (loadingReviewItem) {
     return (
-      <div className="max-w-4xl mx-auto p-8 flex items-center justify-center py-32">
+      <div className="max-w-4xl mx-auto p-4 sm:p-8 flex items-center justify-center py-32">
         <Loader2 className="w-6 h-6 animate-spin text-[var(--foreground-muted)]" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
+    <div className="max-w-4xl mx-auto p-4 sm:p-8">
       {/* Header */}
       <div className="mb-8">
         {isEditMode && (
@@ -311,7 +311,7 @@ export default function CreatorUploadPage() {
         </div>
       )}
 
-      <div className="bg-[var(--card)]/50 border border-[var(--border)] rounded-3xl p-8 backdrop-blur-xl">
+      <div className="bg-[var(--card)]/50 border border-[var(--border)] rounded-3xl p-4 sm:p-8 backdrop-blur-xl">
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Title */}
