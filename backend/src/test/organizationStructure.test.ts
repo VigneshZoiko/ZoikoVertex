@@ -130,17 +130,6 @@ describe('Business Unit ID — cross-domain wiring', () => {
     });
   };
 
-  const DOMAINS = [
-    { path: '../domains/campaigns',    file: 'campaignsController.ts',   label: 'Campaigns controller' },
-    { path: '../domains/agents',       file: 'agentController.ts',       label: 'Agents controller' },
-    { path: '../domains/agents',       file: 'workflowController.ts',    label: 'Workflow controller' },
-    { path: '../domains/governance',   file: 'governanceController.ts',  label: 'Governance controller' },
-    { path: '../domains/decisions',    file: 'approvalV2Controller.ts',  label: 'Approval V2 controller' },
-    { path: '../services',             file: 'approval.service.ts',      label: 'Approval service' },
-    { path: '../services',             file: 'approvalRules.service.ts', label: 'Approval rules service' },
-    { path: '../services',             file: 'workflowTemplate.service.ts', label: 'Workflow template service' },
-  ];
-
   checkWiring('../domains/campaigns', 'campaignsController.ts', 'Campaigns controller');
   checkWiring('../domains/agents', 'agentController.ts', 'Agents controller');
   checkWiring('../domains/agents', 'workflowController.ts', 'Workflow controller');
