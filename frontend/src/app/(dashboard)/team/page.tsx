@@ -128,9 +128,9 @@ export default function TeamPage() {
       const init = async () => {
         try {
           const result = await api.get("/api/v1/user/context");
-          if (result.success) {
-            setWorkspaceId(result.data.workspace_id);
-            setCurrentUserId(result.data.id);
+          if (result?.success) {
+            setWorkspaceId(result?.data?.workspace_id);
+            setCurrentUserId(result?.data?.id);
           }
           fetchData();
         } catch {
@@ -166,9 +166,10 @@ export default function TeamPage() {
     setFormLoading(true);
     setMessage(null);
     try {
-      await api.post("/api/v1/users/provision", {
+      const r = await api.post("/api/v1/users/provision", {
         full_name: fullName, email, role, password,
       });
+      if (r.success === false) { setMessage({ type: "error", text: r.error || "Failed" }); setFormLoading(false); return; }
       setMessage({ type: "success", text: "User provisioned successfully!" });
       setFullName(""); setEmail(""); setPassword("");
       fetchData();
@@ -184,12 +185,13 @@ export default function TeamPage() {
       if (req) {
         setFormLoading(true);
         try {
-          await api.post("/api/v1/users/provision", {
+          const r = await api.post("/api/v1/users/provision", {
             full_name: req.full_name,
             email: req.email,
             role: req.role,
             password: req.temporary_password || "TempPass123!",
           });
+          if (r.success === false) { setMessage({ type: "error", text: r.error || "Failed" }); setFormLoading(false); return; }
         } catch {
           setMessage({ type: "error", text: "Backend connection failed." });
           setFormLoading(false);

@@ -442,7 +442,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
     try {
       const r = await api.post("/api/v1/campaigns/meta/pixels", { name: createName.trim() });
       if (!r.success) throw new Error(r.error || "Failed");
-      setPixels(p => [r.data, ...p]);
+      if (r.data) setPixels(p => [r.data, ...p]);
       setShowCreate(false);
       setCreateName("");
     } catch (e: any) { setCreateErr(e?.response?.data?.error || e?.message || "Failed to create pixel"); }

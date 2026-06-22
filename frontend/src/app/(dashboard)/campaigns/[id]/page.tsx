@@ -111,7 +111,7 @@ export default function CampaignDetailPage() {
         setError(cRes.value.error || 'Campaign not found');
       }
       let fetchedBoosts = bRes.status === "fulfilled" ? (bRes.value.data || []) : [];
-      if (cRes.status === "fulfilled" && cRes.value?.success !== false && cRes.value.data.ads_data && Array.isArray(cRes.value.data.ads_data)) {
+      if (cRes.status === "fulfilled" && cRes.value?.success !== false && cRes.value?.data?.ads_data && Array.isArray(cRes.value.data.ads_data)) {
         cRes.value.data.ads_data.forEach((ad: any, i: number) => {
           fetchedBoosts.push({
             id: `virtual-ad-${i}`,
@@ -570,7 +570,7 @@ export default function CampaignDetailPage() {
                     onClick={async () => {
                       setVerifying(true); setVerify(null);
                       const r = await api.get(`/api/v1/campaigns/${id}/meta-verify`);
-                      setVerify(r.success ? r.data : { error: r.error });
+                      setVerify(r.success ? r.data : { error: r.error || "Unknown error" });
                       setVerifying(false);
                     }}
                     disabled={verifying}

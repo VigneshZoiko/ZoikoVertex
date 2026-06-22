@@ -97,7 +97,7 @@ export default function WorkspaceSettingsPage() {
       const res = await api.get("/api/v1/workspace/settings");
       if (res.success) {
         setSettings(res.data);
-        setName(res.data.name ?? "");
+        setName(res?.data?.name ?? "");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load workspace settings");

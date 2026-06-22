@@ -766,7 +766,7 @@ export default function KnowledgeBasePage() {
           </div>
           <div className="divide-y divide-[var(--border)]">
             {transferRequests.map((s) => {
-              const pt = getPendingTransfer(s)!;
+              const pt = getPendingTransfer(s); if (!pt) return null;
               return (
                 <div key={s.id} className="flex items-center gap-3 px-5 py-3">
                   <ArrowLeftRight className="w-4 h-4 text-indigo-400 shrink-0" />
@@ -1007,7 +1007,7 @@ export default function KnowledgeBasePage() {
                 {canEditSource(selectedSource) &&
                   (getPendingTransfer(selectedSource) ? (
                     <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-[11px] text-indigo-300">
-                      <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" /> Transfer pending to {getPendingTransfer(selectedSource)!.to_username}
+                      <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" /> Transfer pending to {(getPendingTransfer(selectedSource)?.to_username ?? 'Unknown')}
                     </span>
                   ) : (
                     <button onClick={() => setTransferModal({ open: true, source: selectedSource })} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition">
