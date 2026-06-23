@@ -120,9 +120,7 @@ export interface IncidentList {
   offset: number;
 }
 
-function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
+import { isUuid } from '../../../shared/validation';
 
 function clampLimit(value: unknown): number {
   return Math.min(Math.max(Number(value) || 50, 1), 200);

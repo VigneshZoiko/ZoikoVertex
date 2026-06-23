@@ -60,7 +60,7 @@ function registerStubAdapters() {
       error: null,
       executedAt: new Date().toISOString(),
     });
-  registerModelAdapter('google', stub('google', 'google-output'));
+  registerModelAdapter('groq_alt', stub('groq_alt', 'groq_alt-output'));
   registerModelAdapter('groq', stub('groq', 'groq-output'));
 }
 
@@ -100,7 +100,7 @@ describe('CrossModelComparisonService — cross-tenant isolation', () => {
       promptVersionId: 'v-a',
       promptId: 'p-a',
       workspaceId: WS_A,
-      providers: ['google', 'groq'],
+      providers: ['groq', 'groq_alt'],
       actorId: 'user-a',
     });
 
@@ -110,12 +110,12 @@ describe('CrossModelComparisonService — cross-tenant isolation', () => {
     expect(res.workspaceId).toBe(WS_A);
     // The candidates array is the real model output surface.
     expect(Array.isArray(res.providers)).toBe(true);
-    // Every recorded candidate must be a ws-a test (the google/groq stubs
+    // Every recorded candidate must be a ws-a test (the groq/groq_alt stubs
     // return their deterministic output, never ws-b's body).
     for (const c of res.providers) {
       // The candidate's system prompt is not echoed on the response object,
       // but the providers array must be exactly the 2 we requested, not 3+.
-      expect(['google', 'groq']).toContain(c.provider);
+      expect(['groq', 'groq_alt']).toContain(c.provider);
     }
   });
 });

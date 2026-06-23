@@ -209,11 +209,12 @@ function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
     setLoading(true);
     try {
       const res = await api.get(`/api/v1/units/${node.id}/children`);
-      if (res.success !== false && Array.isArray(res.data)) {
+      if (res.success !== false && Array.isArray(res.data) && res.data.length > 0) {
         setChildren(res.data.map((c: any) => ({ ...c, children: [] })));
+        setExpanded(true);
       }
     } catch { /* ignore */ }
-    finally { setExpanded(true); setLoading(false); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -225,7 +226,7 @@ function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
       >
         {loading ? (
           <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-[var(--foreground-muted)]" />
-        ) : children.length > 0 || expanded ? (
+        ) : expanded ? (
           <ChevronDown className="w-3.5 h-3.5 shrink-0 text-[var(--foreground-muted)]" />
         ) : (
           <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[var(--foreground-muted)]" />

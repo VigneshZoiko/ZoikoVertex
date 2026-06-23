@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { PromptEvidenceService } from './PromptEvidenceService';
 import { PromptAuditService } from './PromptAuditService';
 import { PromptDependencyService } from './PromptDependencyService';
+import { isUuid } from '../../shared/validation';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PromptRuntimeTraceService — Phase 4 / Batch 4.2 (Runtime Evidence Ingestion)
@@ -77,10 +78,6 @@ interface ResolvedVersionTenant {
   prompt_id: string;
   tenant_id: string;
   risk_tier: string | null;
-}
-
-function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 function clampLimit(value: unknown): number {

@@ -2,6 +2,7 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { preserveEvidence } from '../../services/evidenceVault.service';
 import { logToDatabase } from '../../shared/databaseLogger';
+import { isUuid } from '../../shared/validation';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PromptEvidenceService
@@ -37,10 +38,6 @@ function riskTierToLevel(riskTier?: string | null): string {
   if (t.includes('tier_3') || t.includes('high')) return 'high';
   if (t.includes('tier_1') || t === 'low') return 'low';
   return 'medium';
-}
-
-function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 export interface RecordEvidenceInput {

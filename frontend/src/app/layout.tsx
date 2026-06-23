@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import CacheBuster from "@/components/CacheBuster";
-import NavbarWrapper from "@/components/NavbarWrapper";
+import Navbar from "@/components/Navbar";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -44,7 +44,7 @@ export default function RootLayout({
       <body className="flex flex-col h-screen" suppressHydrationWarning>
         <Providers>
           <CacheBuster />
-          <NavbarWrapper />
+          <Navbar />
           <main className="flex-1">
             {children}
           </main>

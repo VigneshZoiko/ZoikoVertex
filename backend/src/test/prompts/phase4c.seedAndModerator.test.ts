@@ -6,7 +6,7 @@ vi.mock('../../shared/supabase', () => import('../helpers/supabaseMock'));
 vi.mock('../../shared/databaseLogger', () => ({ logToDatabase: vi.fn() }));
 // Force the AI-moderation gate to be reachable (local not high-confidence, no matches).
 vi.mock('../../modules/safety/localEngine', () => ({ runLocalEngine: () => ({ matches: [], highConfidence: false }) }));
-vi.mock('../../modules/safety/geminiModerator', () => ({ runGeminiModeration: (...a: any[]) => h.gemini(...a) }));
+vi.mock('../../modules/safety/geminiModerator', () => ({ runGroqModeration: (...a: any[]) => h.gemini(...a), runGeminiModeration: (...a: any[]) => h.gemini(...a) }));
 vi.mock('openai', () => ({
   default: class {
     chat = { completions: { create: async () => ({ choices: [{ message: { content: JSON.stringify({ risk_level: 'LOW', sentiment: 'NEUTRAL' }) } }] }) } };

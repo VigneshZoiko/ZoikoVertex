@@ -462,6 +462,20 @@ interface RunDetailDrawerProps {
   onEscalateForReview: (runId: string, reason: string) => Promise<void>;
   onRunPolicyCheck: (runId: string) => void;
   policyCheckLoading: boolean;
+  onHoldRun?: (run: AgentRun) => void;
+  onReleaseHold?: (run: AgentRun) => void;
+  onEmergencyPause?: (run: AgentRun) => void;
+}
+
+// ── Action gate: which actions are allowed per run status ──
+function actionGate(run: AgentRun, action: string) {
+  const available: Record<string, string[]> = {
+    hold: ["running", "queued"],
+    release_hold: ["on_hold"],
+    emergency_pause: ["running", "queued", "on_hold"],
+  };
+  const valid = available[action]?.includes(run.status) ?? false;
+  return { allowed: valid, reason: valid ? null : `Action ${action} not available for status ${run.status}` };
 }
 
 function RunDetailDrawer({
@@ -480,6 +494,9 @@ function RunDetailDrawer({
   onEscalateForReview,
   onRunPolicyCheck,
   policyCheckLoading,
+  onHoldRun,
+  onReleaseHold,
+  onEmergencyPause,
 }: RunDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
   const [flagStaleLoading, setFlagStaleLoading] = useState<string | null>(null);
@@ -844,6 +861,21 @@ function RunDetailDrawer({
                       <Download className="w-3.5 h-3.5" />
                       Export Snapshot
                     </button>
+                    {actionGate(run, "hold").allowed && onHoldRun && (
+                      <button onClick={() => onHoldRun(run)} className="px-3 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1.5">
+                        <Pause className="w-3.5 h-3.5" /> Hold Run
+                      </button>
+                    )}
+                    {actionGate(run, "release_hold").allowed && onReleaseHold && (
+                      <button onClick={() => onReleaseHold(run)} className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5">
+                        <Play className="w-3.5 h-3.5" /> Release Hold
+                      </button>
+                    )}
+                    {actionGate(run, "emergency_pause").allowed && onEmergencyPause && run.severity === "critical" && (
+                      <button onClick={() => onEmergencyPause(run)} className="px-3 py-1.5 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-colors flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Emergency Pause
+                      </button>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1024,7 +1056,7 @@ export default function AgentOperationsPage() {
 
   // ── Action modals ──
   const [confirmAction, setConfirmAction] = useState<{
-    type: "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "assign" | "start" | "remove" | "hold" | "release_hold" | "export_evidence" | "export_output_snapshot";
+    type: "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "assign" | "start" | "remove" | "hold" | "release_hold" | "export_evidence" | "export_output_snapshot" | "export_analytics_csv";
     runId: string;
     label: string;
     description: string;
@@ -1268,6 +1300,7 @@ export default function AgentOperationsPage() {
         case "release_hold":  await api.releaseHoldRun(confirmAction.runId, reason); break;
         case "export_evidence": await api.exportEvidence(confirmAction.runId, reason); break;
         case "export_output_snapshot": await api.exportOutputSnapshot(confirmAction.runId, reason); break;
+        case "export_analytics_csv": await api.exportAnalyticsCSV(reason); break;
       }
       const wasRemoved = confirmAction.type === "remove";
       const actionLabel = confirmAction.type.replace(/_/g, " ");
@@ -1430,6 +1463,42 @@ export default function AgentOperationsPage() {
       setError(err?.message || "Failed to request changes.");
     }
   };
+
+  const handleHoldRun = useCallback(
+    (run: AgentRun) => {
+      if (!actionGate(run, "hold").allowed) { setError(`Cannot hold run in "${run.status}" state.`); return; }
+      checkStaleAndAct(run.id, {
+        type: "hold", runId: run.id, label: "Hold Run", description: "Hold this run to prevent further execution?",
+        impactPreview: "Run will be paused and held for review.", requireReason: true, confirmLabel: "Hold Run",
+      } as typeof confirmAction);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const handleReleaseHold = useCallback(
+    (run: AgentRun) => {
+      if (!actionGate(run, "release_hold").allowed) { setError(`Cannot release hold in "${run.status}" state.`); return; }
+      checkStaleAndAct(run.id, {
+        type: "release_hold", runId: run.id, label: "Release Hold", description: "Release this run from hold?",
+        impactPreview: "Run will resume normal execution.", requireReason: true, confirmLabel: "Release Hold",
+      } as typeof confirmAction);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const handleEmergencyPause = useCallback(
+    (run: AgentRun) => {
+      if (!actionGate(run, "emergency_pause").allowed) { setError(`Cannot emergency pause in "${run.status}" state.`); return; }
+      checkStaleAndAct(run.id, {
+        type: "emergency_pause", runId: run.id, label: "Emergency Pause", description: "Emergency pause this run?",
+        impactPreview: "Immediately halts execution. Requires elevated permissions.", requireReason: true, confirmLabel: "Emergency Pause",
+      } as typeof confirmAction);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   const handleExportSnapshot = useCallback(
     (run: AgentRun, _detail?: RunDetail) => {
@@ -1907,6 +1976,9 @@ export default function AgentOperationsPage() {
           onRequestOutputChanges={handleRequestOutputChanges}
           onExportSnapshot={handleExportSnapshot}
           onEscalateForReview={handleEscalateForReview}
+          onHoldRun={handleHoldRun}
+          onReleaseHold={handleReleaseHold}
+          onEmergencyPause={handleEmergencyPause}
           onRunPolicyCheck={handleRunPolicyCheck}
           policyCheckLoading={policyCheckLoading}
         />

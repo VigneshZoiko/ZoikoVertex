@@ -2,6 +2,7 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { internalEventBus } from '../shared/internalEventBus';
+import { isUuid } from '../shared/validation';
 
 export interface AgentRun {
   id: string;
@@ -150,11 +151,7 @@ function isValidTransition(from: string, to: string): boolean {
   return allowed.includes(to);
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function isUuid(value: string | undefined | null): boolean {
-  return typeof value === 'string' && UUID_RE.test(value);
-}
+// ponytail: isUuid extracted to shared/validation.ts
 
 // Sanitize free-text search before it is interpolated into a PostgREST or()
 // filter. Commas/parentheses/asterisks/dots are filter meta-characters that can

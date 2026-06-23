@@ -127,6 +127,7 @@ export async function createInAppNotification(params: {
     link: `/agents/workflows/${params.workflowId}`,
     read: false,
     created_at: new Date().toISOString(),
+    metadata: { event_type: params.eventType, ...(params.metadata || {}) },
   });
 
   if (error) {
@@ -208,6 +209,7 @@ export async function createWorkflowNotification(params: {
 
     if (channel === 'email') {
       const userIds = params.recipientUserIds || [];
+      const emailStartCount = events.length;
       if (userIds.length > 0) {
         const { data: users } = await supabaseAdmin
           .from('users')
@@ -258,6 +260,24 @@ export async function createWorkflowNotification(params: {
             });
           }
         }
+      }
+      if (events.length === emailStartCount) {
+        events.push({
+          id: uuidv4(),
+          event_type: params.eventType,
+          workflow_id: params.workflowId,
+          workflow_name: params.workflowName,
+          version_id: params.versionId,
+          severity,
+          title,
+          message,
+          channel: 'email',
+          recipient_role: params.recipientRoles?.join(', '),
+          metadata: params.metadata || {},
+          created_at: now,
+          delivered: false,
+          delivery_error: 'Email provider not integrated',
+        });
       }
     }
 
