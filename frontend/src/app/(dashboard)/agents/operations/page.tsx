@@ -557,7 +557,7 @@ function RunDetailDrawer({
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { label: "Agent Type",       value: run.agent_type, link: run.agent_id ? `/agents/studio?id=${run.agent_id}` : undefined },
                   { label: "Agent Version",    value: run.agent_version || "—", link: run.agent_id ? `/agents/studio?id=${run.agent_id}` : undefined },
@@ -1502,7 +1502,7 @@ export default function AgentOperationsPage() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-7xl mx-auto pb-20 px-4">
+    <div className="max-w-7xl mx-auto pb-20 px-4 pt-4">
 
       {/* ── Realtime Degraded Banner ── */}
       {realtimeDegraded && (
@@ -1573,7 +1573,7 @@ export default function AgentOperationsPage() {
 
       {/* ── Operational Health Strip ── */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-8 gap-2 mb-6">
           {[
             { label: "Successful Runs", val: stats.successful_runs ?? 0, icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: "text-emerald-400", bg: "bg-emerald-500/10" },
             { label: "Queued",         val: stats.queued_tasks,   icon: <Clock className="w-3.5 h-3.5" />,    color: "text-amber-400",   bg: "bg-amber-500/10"  },
@@ -1594,6 +1594,31 @@ export default function AgentOperationsPage() {
           ))}
         </div>
       )}
+
+      {/* ── Needs Action Chips ── */}
+      {(() => {
+        const blocked = runs.filter(r => ['POLICY_BLOCKED','FAILED','QUARANTINED','ESCALATED'].includes(r.status)).length
+        const waiting = runs.filter(r => r.status === 'WAITING_HUMAN_REVIEW').length
+        const needsAction = blocked + waiting
+        return needsAction > 0 ? (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              {needsAction} need{needsAction === 1 ? 's' : ''} action
+            </span>
+            {blocked > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
+                {blocked} blocked
+              </span>
+            )}
+            {waiting > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium">
+                {waiting} awaiting review
+              </span>
+            )}
+          </div>
+        ) : null
+      })()}
 
       {/* ── Tab Bar ── */}
       <div className="flex items-center gap-0 mb-5 border-b border-border">
@@ -1666,19 +1691,20 @@ export default function AgentOperationsPage() {
           ) : viewMode === "list" ? (
             /* ── List View ── */
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider min-w-[560px]">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
                 <span>Posted By</span>
               </div>
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-border min-w-[560px]">
                 {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   return (
-                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${statusCfg.severity === "critical" || run.severity === "critical" ? "border-l-[3px] border-l-rose-500/70 bg-rose-500/[0.04]" : statusCfg.severity === "warning" || run.severity === "warning" ? "border-l-[3px] border-l-orange-500/50 bg-orange-500/[0.03]" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1727,6 +1753,7 @@ export default function AgentOperationsPage() {
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           ) : (
@@ -1835,19 +1862,20 @@ export default function AgentOperationsPage() {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-2.5 border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              <div className="overflow-x-auto">
+              <div className="grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-2.5 border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider min-w-[560px]">
                 <span>Task</span>
                 <span>Priority</span>
                 <span>Assignee</span>
                 <span>SLA</span>
                 <span>Actions</span>
               </div>
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-border min-w-[560px]">
                 {visibleQueues.map((item) => {
                   const sla = formatTimeRemaining(item.due_at);
                   const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
-                    <div key={item.id} className={`grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
+                    <div key={item.id} className={`grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached || ['POLICY_BLOCKED','FAILED','QUARANTINED','ESCALATED'].includes(String(item.status)) ? "border-l-[3px] border-l-rose-500/70 bg-rose-500/[0.04]" : item.status === 'WAITING_HUMAN_REVIEW' ? "border-l-[3px] border-l-orange-500/50 bg-orange-500/[0.03]" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-foreground">{item.queue_type.replace(/_/g, " ")}</p>
                         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
@@ -1880,6 +1908,7 @@ export default function AgentOperationsPage() {
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           )}
