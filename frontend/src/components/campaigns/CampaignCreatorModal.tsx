@@ -559,7 +559,6 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLength, setAiLength] = useState("");
-  const uploadCounterRef = useRef(0);
 
   const generateAdCopy = async () => {
     if (!aiPrompt) return;

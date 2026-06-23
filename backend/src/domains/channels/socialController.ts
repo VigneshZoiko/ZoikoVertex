@@ -258,7 +258,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
         { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }
       );
       const aclData = await aclRes.json();
-      logger.info({ status: aclRes.status, aclData }, '[Social] organizationAcls response');
+      logger.info({ status: aclRes.status, count: (aclData.elements || []).length }, '[Social] organizationAcls response');
 
       let elements: any[] = aclData.elements || [];
 
@@ -275,7 +275,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
           }
         );
         const restAclData = await restAclRes.json();
-        logger.info({ status: restAclRes.status, restAclData }, '[Social] REST organizationAcls response');
+        logger.info({ status: restAclRes.status, count: (restAclData.elements || []).length }, '[Social] REST organizationAcls response');
         elements = restAclData.elements || [];
       }
 
@@ -296,7 +296,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
           { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }
         );
         const orgsData = await orgsRes.json();
-        logger.info({ orgsData }, '[Social] organizations lookup response');
+        logger.info({ count: Object.keys(orgsData.results || {}).length }, '[Social] organizations lookup response');
         const results = orgsData.results || {};
 
         pages = orgIds.map((id: string) => ({
