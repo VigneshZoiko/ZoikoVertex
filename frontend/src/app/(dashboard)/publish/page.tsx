@@ -867,18 +867,18 @@ function PublishPageInner() {
         await Promise.all([
           supabase
             .from("connected_accounts")
-            .select("*")
+            .select("id, platform, account_name, account_handle")
             .eq("workspace_id", member.workspace_id)
             .eq("status", "active"),
           supabase
             .from("publish_intents")
-            .select("*")
+            .select("id, content, media_url, feedback, target_account_ids")
             .eq("creator_id", user.id)
             .eq("status", "RETURNED"),
           member.role === "ADMIN" || member.role === "MANAGER"
             ? supabase
                 .from("publish_intents")
-                .select("*, users!publish_intents_creator_id_fkey(full_name)")
+                .select("id, content, platform, media_url, feedback, created_at, users!publish_intents_creator_id_fkey(full_name)")
                 .eq("status", queueStatus)
             : Promise.resolve({ data: null }),
         ]);
@@ -937,7 +937,7 @@ function PublishPageInner() {
     const fetchSpecificRevision = async () => {
       const { data, error } = await supabase
         .from("publish_intents")
-        .select("*")
+        .select("id, content, media_url, feedback, target_account_ids")
         .eq("id", revisionId)
         .single();
       if (!error && data && isMounted) {

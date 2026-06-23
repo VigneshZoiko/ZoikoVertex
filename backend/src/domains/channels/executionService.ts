@@ -5,6 +5,17 @@ import { internalEventBus } from '../../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 import { AutoCampaignBoostService } from '../campaigns/autoCampaignBoostService';
 
+// Per-platform carousel limits for organic posts
+const PLATFORM_CAROUSEL_LIMITS: Record<string, number> = {
+  instagram: 10,
+  threads:   10,
+  facebook:  10,
+  linkedin:   9,
+  twitter:    4,
+  pinterest:  5,
+  youtube:    1,
+};
+
 export function registerExecutionListeners(): void {
   internalEventBus.on('execution.requested', (payload: unknown) => {
     const { intentId } = payload as { intentId: string };
@@ -196,13 +207,17 @@ export class ExecutionService {
     logger.info(`[Execution] Sending tweet for ${account.account_handle}...`);
     try {
       const body: any = { text: intent.content };
+      const urls = this.getEffectiveUrls(intent, 'twitter');
 
-      // Upload media if present
-      if (intent.media_url) {
-        const mediaId = await ExecutionService.uploadTwitterMedia(intent.media_url, account.access_token);
-        if (mediaId) {
-          body.media = { media_ids: [mediaId] };
-          logger.info(`[Execution] Attaching media ${mediaId} to tweet`);
+      if (urls.length > 0) {
+        // Upload all images concurrently (Twitter supports up to 4)
+        const mediaIds = (
+          await Promise.all(urls.map(u => ExecutionService.uploadTwitterMedia(u, account.access_token)))
+        ).filter(Boolean) as string[];
+
+        if (mediaIds.length > 0) {
+          body.media = { media_ids: mediaIds };
+          logger.info(`[Execution] Attaching ${mediaIds.length} media item(s) to tweet`);
         }
       }
 
@@ -317,47 +332,93 @@ export class ExecutionService {
   private static async postToThreads(intent: any, account: any): Promise<PublishResult> {
     logger.info(`[Execution] Sending post to Threads for ${account.account_handle}...`);
     try {
-      // 1. Create Media Container
-      const containerUrl = `https://graph.threads.net/v1.0/${account.account_handle}/threads`;
+      const threadsBase = `https://graph.threads.net/v1.0/${account.account_handle}`;
+      const urls = this.getEffectiveUrls(intent, 'threads');
+
+      // ── Carousel (2+ items) ────────────────────────────────────────────────
+      if (urls.length > 1) {
+        logger.info(`[Execution] Threads carousel: uploading ${urls.length} child containers...`);
+
+        // 1. Create child containers
+        const childIds: string[] = [];
+        for (const url of urls) {
+          const isVid = this.isVideoUrl(url);
+          const childBody: any = {
+            is_carousel_item: true,
+            media_type: isVid ? 'VIDEO' : 'IMAGE',
+            access_token: account.access_token,
+          };
+          if (isVid) childBody.video_url = url;
+          else childBody.image_url = url;
+
+          const childRes = await fetch(`${threadsBase}/threads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(childBody),
+          });
+          const childData = await childRes.json();
+          if (childData.error) throw new Error(`Threads child container failed: ${childData.error.message}`);
+          childIds.push(childData.id);
+        }
+
+        // 2. Create parent carousel container
+        const carouselRes = await fetch(`${threadsBase}/threads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            media_type: 'CAROUSEL',
+            text: intent.content,
+            children: childIds,
+            access_token: account.access_token,
+          }),
+        });
+        const carouselData = await carouselRes.json();
+        if (carouselData.error) throw new Error(carouselData.error.message);
+        logger.info(`[Execution] Threads carousel container: ${carouselData.id}`);
+
+        await new Promise(r => setTimeout(r, 5000));
+
+        // 3. Publish
+        const publishRes = await fetch(`${threadsBase}/threads_publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creation_id: carouselData.id, access_token: account.access_token }),
+        });
+        const publishData = await publishRes.json();
+        if (publishData.error) throw new Error(publishData.error.message);
+        return { success: true, platform: 'threads', id: publishData.id };
+      }
+
+      // ── Single item ────────────────────────────────────────────────────────
+      const singleUrl = urls[0];
       const containerBody: any = {
-        media_type: intent.media_url ? 'IMAGE' : 'TEXT',
+        media_type: singleUrl ? (this.isVideoUrl(singleUrl) ? 'VIDEO' : 'IMAGE') : 'TEXT',
         text: intent.content,
         access_token: account.access_token,
       };
-
-      if (intent.media_url) {
-        containerBody.image_url = intent.media_url;
+      if (singleUrl) {
+        if (this.isVideoUrl(singleUrl)) containerBody.video_url = singleUrl;
+        else containerBody.image_url = singleUrl;
       }
 
-      const containerRes = await fetch(containerUrl, {
+      const containerRes = await fetch(`${threadsBase}/threads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(containerBody),
       });
-
       const containerData = await containerRes.json();
       if (containerData.error) throw new Error(containerData.error.message);
 
-      const creationId = containerData.id;
-
-      // 2. Wait for the container to be ready (Threads requirement)
-      logger.info(`[Execution] Waiting 5 seconds for Threads container ${creationId} to process...`);
+      logger.info(`[Execution] Waiting 5s for Threads container ${containerData.id}...`);
       await new Promise(resolve => setTimeout(resolve, 5000));
 
-      // 3. Publish the Container
-      const publishUrl = `https://graph.threads.net/v1.0/${account.account_handle}/threads_publish`;
-      const publishRes = await fetch(publishUrl, {
+      const publishRes = await fetch(`${threadsBase}/threads_publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creation_id: creationId,
-          access_token: account.access_token,
-        }),
+        body: JSON.stringify({ creation_id: containerData.id, access_token: account.access_token }),
       });
-
       const publishData = await publishRes.json();
       if (publishData.error) throw new Error(publishData.error.message);
-
       return { success: true, platform: 'threads', id: publishData.id };
     } catch (err: any) {
       return { success: false, platform: 'threads', error: err.message };
@@ -420,10 +481,43 @@ export class ExecutionService {
         if (!created) throw new Error('Could not create a Pinterest board — all name candidates taken.');
       }
 
-      // 2. Build media_source — image vs video
-      let mediaSource: Record<string, string>;
+      // 2. Build media_source — carousel / video / image
+      const pUrls = this.getEffectiveUrls(intent, 'pinterest');
+      let mediaSource: Record<string, unknown>;
 
-      if (intent.media_url && this.isVideoUrl(intent.media_url)) {
+      // Carousel pin (2–5 images)
+      if (pUrls.length > 1) {
+        logger.info(`[Execution] Pinterest carousel pin: ${pUrls.length} images`);
+        mediaSource = {
+          source_type: 'multiple_image_urls',
+          items: pUrls.map((u, i) => ({
+            url: u,
+            title: `${(intent.title || 'ZoikoVertex').substring(0, 100)} ${i + 1}`,
+            description: (intent.content || '').substring(0, 500),
+          })),
+        };
+
+        const pinBody: Record<string, unknown> = {
+          board_id: boardId,
+          media_source: mediaSource,
+          title: (intent.title || '').substring(0, 100),
+          description: (intent.content || '').substring(0, 500),
+        };
+        const response = await fetch(`${pBase}/v5/pins`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${account.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(pinBody),
+        });
+        const data = await response.json();
+        if (!response.ok || data.code) throw new Error(data.message || JSON.stringify(data));
+        logger.info(`[Execution] Pinterest carousel pin created: ${data.id}`);
+        return { success: true, platform: 'pinterest', id: data.id };
+      }
+
+      const singleUrl = pUrls[0] || intent.media_url;
+      if (!singleUrl) throw new Error('Pinterest requires a media URL (image or video) to create a pin.');
+
+      if (this.isVideoUrl(singleUrl)) {
         // ── Video pin: upload via Pinterest v5 media API ──────────────────────
         logger.info(`[Execution] Pinterest video upload flow starting...`);
 
@@ -445,7 +539,7 @@ export class ExecutionService {
         logger.info(`[Execution] Pinterest media_id: ${mediaId}`);
 
         // 2b. Fetch video bytes
-        const videoRes = await fetch(intent.media_url);
+        const videoRes = await fetch(singleUrl);
         if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.statusText}`);
         const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
 
@@ -478,11 +572,9 @@ export class ExecutionService {
 
         mediaSource = { source_type: 'video_id', media_id: mediaId };
 
-      } else if (intent.media_url) {
-        // ── Image pin ─────────────────────────────────────────────────────────
-        mediaSource = { source_type: 'image_url', url: intent.media_url };
       } else {
-        throw new Error('Pinterest requires a media URL (image or video) to create a pin.');
+        // ── Single image pin ──────────────────────────────────────────────────
+        mediaSource = { source_type: 'image_url', url: singleUrl };
       }
 
       // 3. Create the Pin
@@ -518,93 +610,79 @@ export class ExecutionService {
   private static async postToLinkedIn(intent: any, account: any): Promise<PublishResult> {
     logger.info(`[Execution] LinkedIn Handshake Started for: ${account.account_handle}`);
     try {
-      const authorUrn = account.account_handle.startsWith('urn:li:') 
-        ? account.account_handle 
+      const authorUrn = account.account_handle.startsWith('urn:li:')
+        ? account.account_handle
         : `urn:li:person:${account.account_handle}`;
 
-      let mediaUrn = null;
+      const urls = this.getEffectiveUrls(intent, 'linkedin');
 
-      // 1. If there's an image, we must register and upload it to LinkedIn first
-      if (intent.media_url) {
-        logger.info(`[Execution] Registering image asset on LinkedIn...`);
-        const registerUrl = 'https://api.linkedin.com/v2/assets?action=registerUpload';
-        const registerBody = {
-          registerUploadRequest: {
-            recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
-            owner: authorUrn,
-            serviceRelationships: [
-              {
-                relationshipType: 'OWNER',
-                identifier: 'urn:li:userGeneratedContent'
-              }
-            ]
-          }
-        };
-
-        const regRes = await fetch(registerUrl, {
+      // Helper: register + upload one image, return its asset URN
+      const uploadLinkedInImage = async (imageUrl: string): Promise<string> => {
+        const regRes = await fetch('https://api.linkedin.com/v2/assets?action=registerUpload', {
           method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${account.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(registerBody)
+          headers: { 'Authorization': `Bearer ${account.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            registerUploadRequest: {
+              recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+              owner: authorUrn,
+              serviceRelationships: [{ relationshipType: 'OWNER', identifier: 'urn:li:userGeneratedContent' }],
+            },
+          }),
         });
-
         const regData = await regRes.json();
-        if (regData.error) throw new Error(`LinkedIn Media Registration Failed: ${regData.message}`);
-
-        const uploadUrl = regData.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
-        mediaUrn = regData.value.asset;
-
-        // Fetch image from Supabase/URL
-        logger.info(`[Execution] Fetching image from ${intent.media_url} for upload...`);
-        const imageRes = await fetch(intent.media_url);
-        const imageBuffer = await imageRes.arrayBuffer();
-
-        // Upload to LinkedIn
-        logger.info(`[Execution] Uploading image binary to LinkedIn...`);
+        if (regData.error) throw new Error(`LinkedIn asset registration failed: ${regData.message}`);
+        const uploadUrl: string = regData.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+        const assetUrn: string = regData.value.asset;
+        const imageBuffer = await (await fetch(imageUrl)).arrayBuffer();
         await fetch(uploadUrl, {
-          method: 'POST', // LinkedIn uses POST for the binary upload to the provided URL
+          method: 'POST',
           headers: { 'Authorization': `Bearer ${account.access_token}` },
-          body: imageBuffer
+          body: imageBuffer,
         });
+        return assetUrn;
+      };
+
+      // Upload all images
+      const mediaUrns: string[] = [];
+      for (const url of urls) {
+        if (!this.isVideoUrl(url)) {
+          logger.info(`[Execution] LinkedIn uploading image: ${url}`);
+          mediaUrns.push(await uploadLinkedInImage(url));
+        }
       }
 
-      // 2. Create the Post
-      const url = 'https://api.linkedin.com/v2/ugcPosts';
-      const postBody = {
+      // Build post with one or multiple images (same UGC structure, multiple media items)
+      const postBody: any = {
         author: authorUrn,
         lifecycleState: 'PUBLISHED',
         specificContent: {
           'com.linkedin.ugc.ShareContent': {
             shareCommentary: { text: intent.content },
-            shareMediaCategory: mediaUrn ? 'IMAGE' : 'NONE',
-            media: mediaUrn ? [
-              {
-                status: 'READY',
-                description: { text: 'ZoikoVertex Media' },
-                media: mediaUrn,
-                title: { text: 'ZoikoVertex' }
-              }
-            ] : []
-          }
+            shareMediaCategory: mediaUrns.length > 0 ? 'IMAGE' : 'NONE',
+            media: mediaUrns.map((urn, i) => ({
+              status: 'READY',
+              description: { text: `Image ${i + 1}` },
+              media: urn,
+              title: { text: 'ZoikoVertex' },
+            })),
+          },
         },
-        visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' }
+        visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
       };
 
-      const response = await fetch(url, {
+      const response = await fetch('https://api.linkedin.com/v2/ugcPosts', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${account.access_token}`,
           'Content-Type': 'application/json',
-          'X-Restli-Protocol-Version': '2.0.0'
+          'X-Restli-Protocol-Version': '2.0.0',
         },
         body: JSON.stringify(postBody),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(`LinkedIn API Failed: ${response.status} - ${JSON.stringify(data)}`);
-
+      logger.info(`[Execution] LinkedIn posted ${mediaUrns.length} image(s): ${data.id}`);
       return { success: true, platform: 'linkedin', id: data.id };
     } catch (err: any) {
       logger.error({ err }, `[Execution] LinkedIn Error`);
@@ -616,6 +694,18 @@ export class ExecutionService {
     return /\.(mp4|mov|avi|webm|mkv|m4v|ogv)(\?|$)/i.test(url);
   }
 
+  /** Returns the effective media URL list for a platform, trimmed to its carousel limit. */
+  private static getEffectiveUrls(intent: any, platform: string): string[] {
+    const all: string[] = Array.isArray(intent.media_urls) && intent.media_urls.length > 0
+      ? intent.media_urls
+      : intent.media_url ? [intent.media_url] : [];
+    const limit = PLATFORM_CAROUSEL_LIMITS[platform.toLowerCase()] ?? 1;
+    if (all.length > limit) {
+      logger.warn(`[Execution] ${platform} supports max ${limit} carousel items — trimming from ${all.length}`);
+    }
+    return all.slice(0, limit);
+  }
+
   private static getPostType(intent: any): string | null {
     const factors: any[] = intent.risk_factors || [];
     return factors.find((f: any) => f.type === 'post_type')?.value || null;
@@ -624,20 +714,15 @@ export class ExecutionService {
   private static async postToFacebook(intent: any, account: any): Promise<PublishResult> {
     logger.info(`[Execution] Sending post to Facebook for ${account.account_handle}...`);
     try {
-      const isVideo = intent.media_url && this.isVideoUrl(intent.media_url);
+      const fbBase = `https://graph.facebook.com/v18.0/${account.account_handle}`;
+      const urls = this.getEffectiveUrls(intent, 'facebook');
 
-      if (isVideo) {
-        // Video upload via /videos endpoint
-        const url = `https://graph.facebook.com/v18.0/${account.account_handle}/videos`;
-        const body = {
-          file_url: intent.media_url,
-          description: intent.content,
-          access_token: account.access_token,
-        };
-        const response = await fetch(url, {
+      // ── Video post ─────────────────────────────────────────────────────────
+      if (urls.length === 1 && this.isVideoUrl(urls[0])) {
+        const response = await fetch(`${fbBase}/videos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ file_url: urls[0], description: intent.content, access_token: account.access_token }),
         });
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
@@ -645,13 +730,46 @@ export class ExecutionService {
         return { success: true, platform: 'facebook', id: data.id };
       }
 
-      // Photo or text post
-      const endpoint = intent.media_url ? 'photos' : 'feed';
-      const url = `https://graph.facebook.com/v18.0/${account.account_handle}/${endpoint}`;
-      const params: any = { message: intent.content, access_token: account.access_token };
-      if (intent.media_url) params.url = intent.media_url;
+      // ── Multi-photo album (2+ images) ──────────────────────────────────────
+      if (urls.length > 1) {
+        logger.info(`[Execution] Facebook multi-photo album: uploading ${urls.length} photos...`);
 
-      const response = await fetch(url, {
+        // Upload each photo without publishing (published=false)
+        const photoIds: string[] = [];
+        for (const photoUrl of urls) {
+          const photoRes = await fetch(`${fbBase}/photos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: photoUrl, published: false, access_token: account.access_token }),
+          });
+          const photoData = await photoRes.json();
+          if (photoData.error) throw new Error(`Facebook photo upload failed: ${photoData.error.message}`);
+          photoIds.push(photoData.id);
+          logger.info(`[Execution] Facebook photo staged: ${photoData.id}`);
+        }
+
+        // Post to feed with all photo IDs
+        const feedRes = await fetch(`${fbBase}/feed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: intent.content,
+            attached_media: photoIds.map(id => ({ media_fbid: id })),
+            access_token: account.access_token,
+          }),
+        });
+        const feedData = await feedRes.json();
+        if (feedData.error) throw new Error(feedData.error.message);
+        logger.info(`[Execution] Facebook multi-photo post: ${feedData.id}`);
+        return { success: true, platform: 'facebook', id: feedData.id };
+      }
+
+      // ── Single photo or text post ──────────────────────────────────────────
+      const endpoint = urls.length === 1 ? 'photos' : 'feed';
+      const params: any = { message: intent.content, access_token: account.access_token };
+      if (urls.length === 1) params.url = urls[0];
+
+      const response = await fetch(`${fbBase}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
@@ -665,15 +783,77 @@ export class ExecutionService {
   }
 
   private static async postToInstagram(intent: any, account: any): Promise<PublishResult> {
-    if (!intent.media_url) {
+    const urls = this.getEffectiveUrls(intent, 'instagram');
+    if (urls.length === 0) {
       return { success: false, platform: 'instagram', error: 'Instagram requires a media URL' };
     }
 
     try {
+      const igBase = `https://graph.facebook.com/v18.0/${account.account_handle}`;
       const postType = this.getPostType(intent);
-      const isVideo = this.isVideoUrl(intent.media_url);
 
-      // Build container body based on post type + media type
+      // ── Carousel (2+ items) ────────────────────────────────────────────────
+      if (urls.length > 1) {
+        logger.info(`[Execution] Instagram carousel: uploading ${urls.length} child containers...`);
+
+        // 1. Create a child container for each item
+        const childIds: string[] = [];
+        for (const url of urls) {
+          const isVid = this.isVideoUrl(url);
+          const childBody: Record<string, string> = {
+            is_carousel_item: 'true',
+            access_token: account.access_token,
+          };
+          if (isVid) {
+            childBody.media_type = 'VIDEO';
+            childBody.video_url = url;
+          } else {
+            childBody.image_url = url;
+          }
+          const childRes = await fetch(`${igBase}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(childBody),
+          });
+          const childData = await childRes.json();
+          if (childData.error) throw new Error(`Child container failed: ${childData.error.message}`);
+          childIds.push(childData.id);
+          logger.info(`[Execution] Instagram child container: ${childData.id}`);
+        }
+
+        // 2. Create parent CAROUSEL_ALBUM container
+        const albumRes = await fetch(`${igBase}/media`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            media_type: 'CAROUSEL_ALBUM',
+            caption: intent.content,
+            children: childIds.join(','),
+            access_token: account.access_token,
+          }),
+        });
+        const albumData = await albumRes.json();
+        if (albumData.error) throw new Error(albumData.error.message);
+        logger.info(`[Execution] Instagram carousel album container: ${albumData.id}`);
+
+        // Wait for processing
+        await new Promise(r => setTimeout(r, 5000));
+
+        // 3. Publish
+        const publishRes = await fetch(`${igBase}/media_publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creation_id: albumData.id, access_token: account.access_token }),
+        });
+        const publishData = await publishRes.json();
+        if (publishData.error) throw new Error(publishData.error.message);
+        logger.info(`[Execution] Instagram carousel published: ${publishData.id}`);
+        return { success: true, platform: 'instagram', id: publishData.id };
+      }
+
+      // ── Single image / video / reel / story ───────────────────────────────
+      const mediaUrl = urls[0];
+      const isVideo = this.isVideoUrl(mediaUrl);
       const containerBody: Record<string, string> = {
         caption: intent.content,
         access_token: account.access_token,
@@ -681,21 +861,18 @@ export class ExecutionService {
 
       if (postType === 'reel' || (isVideo && postType !== 'story')) {
         containerBody.media_type = 'REELS';
-        containerBody.video_url = intent.media_url;
+        containerBody.video_url = mediaUrl;
       } else if (postType === 'story' && isVideo) {
         containerBody.media_type = 'STORIES';
-        containerBody.video_url = intent.media_url;
+        containerBody.video_url = mediaUrl;
       } else if (isVideo) {
         containerBody.media_type = 'REELS';
-        containerBody.video_url = intent.media_url;
+        containerBody.video_url = mediaUrl;
       } else {
-        // Image post
-        containerBody.image_url = intent.media_url;
+        containerBody.image_url = mediaUrl;
       }
 
-      // 1. Create Media Container
-      const containerUrl = `https://graph.facebook.com/v18.0/${account.account_handle}/media`;
-      const containerRes = await fetch(containerUrl, {
+      const containerRes = await fetch(`${igBase}/media`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(containerBody),
@@ -704,11 +881,9 @@ export class ExecutionService {
       if (containerData.error) throw new Error(containerData.error.message);
 
       const creationId = containerData.id;
-      logger.info(`[Execution] Instagram container ${creationId} created (type: ${containerBody.media_type || 'IMAGE'})`);
+      logger.info(`[Execution] Instagram container ${creationId} (type: ${containerBody.media_type || 'IMAGE'})`);
 
-      // 2. Poll for container readiness (videos take longer than images)
       if (isVideo) {
-        logger.info(`[Execution] Polling Instagram container status for video...`);
         for (let attempt = 0; attempt < 12; attempt++) {
           await new Promise(r => setTimeout(r, 5000));
           const statusRes = await fetch(
@@ -724,16 +899,13 @@ export class ExecutionService {
         await new Promise(r => setTimeout(r, 3000));
       }
 
-      // 3. Publish the Container
-      const publishUrl = `https://graph.facebook.com/v18.0/${account.account_handle}/media_publish`;
-      const publishRes = await fetch(publishUrl, {
+      const publishRes = await fetch(`${igBase}/media_publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creation_id: creationId, access_token: account.access_token }),
       });
       const publishData = await publishRes.json();
       if (publishData.error) throw new Error(publishData.error.message);
-
       logger.info(`[Execution] Instagram published: ${publishData.id}`);
       return { success: true, platform: 'instagram', id: publishData.id };
     } catch (err: any) {

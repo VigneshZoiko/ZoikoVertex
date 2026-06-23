@@ -415,8 +415,14 @@ export const pauseCampaign = async (req: AuthRequest, res: Response, next: NextF
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
+    // Idempotent: already paused → return current state
+    if (campaign.status === 'PAUSED') {
+      const { data: current } = await supabaseAdmin.from('campaigns').select('*').eq('id', req.params.id).single();
+      return res.json({ success: true, data: current, message: 'Campaign is already paused' });
+    }
+
     if (!['ACTIVE', 'SCHEDULED'].includes(campaign.status)) {
-      return res.status(400).json({ error: `Cannot pause campaign in status: ${campaign.status}` });
+      return res.status(400).json({ error: `Cannot pause a campaign in "${campaign.status}" status` });
     }
 
     // Pause on Meta — await the call so we know whether it succeeded
@@ -731,8 +737,15 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
       .single();
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // Idempotent: already active → return current state
+    if (['ACTIVE', 'SCHEDULED'].includes(campaign.status)) {
+      const { data: current } = await supabaseAdmin.from('campaigns').select('*').eq('id', req.params.id).single();
+      return res.json({ success: true, data: current, message: 'Campaign is already active' });
+    }
+
     if (campaign.status !== 'PAUSED') {
-      return res.status(400).json({ error: `Cannot resume campaign in status: ${campaign.status}` });
+      return res.status(400).json({ error: `Cannot resume a campaign in "${campaign.status}" status` });
     }
 
     // Block resume if budget is already exhausted

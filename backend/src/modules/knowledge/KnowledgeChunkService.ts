@@ -6,7 +6,8 @@ export class KnowledgeChunkService {
       .from('knowledge_chunks')
       .select('*')
       .eq('source_id', sourceId)
-      .order('chunk_index', { ascending: true });
+      .order('chunk_index', { ascending: true })
+      .limit(200);
     if (error) throw error;
     return data || [];
   }

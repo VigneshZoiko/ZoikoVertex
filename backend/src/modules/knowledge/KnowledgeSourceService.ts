@@ -43,7 +43,7 @@ export class KnowledgeSourceService {
       query = query.eq('risk_tier', filters.risk_tier);
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(100);
     if (error) throw error;
     return data || [];
   }
@@ -53,7 +53,8 @@ export class KnowledgeSourceService {
       .from('knowledge_sources')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
     if (error) throw error;
     return data || [];
   }

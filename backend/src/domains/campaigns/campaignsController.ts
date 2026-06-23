@@ -1,8 +1,65 @@
+import { createHmac } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { deleteMetaCampaign } from './metaCampaignPublisher';
+import { env } from '../../config/env';
+
+const META_GRAPH = 'https://graph.facebook.com/v21.0';
+
+function _appSecretProof(token: string): string {
+  const secret = env.META_APP_SECRET;
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(token).digest('hex');
+}
+
+async function _metaInsights(metaCampaignId: string, token: string): Promise<{
+  impressions: number; reach: number; clicks: number; spend: number;
+  cpm: number; cpc: number; ctr: number; roas: number | null; cpp: number | null;
+  frequency: number | null; unique_clicks: number | null; cost_per_unique_click: number | null;
+  quality_ranking: string | null; engagement_rate_ranking: string | null; conversion_rate_ranking: string | null;
+} | null> {
+  try {
+    const proof = _appSecretProof(token);
+    const fields = 'impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,unique_clicks,cost_per_unique_click,purchase_roas,cost_per_action_type,quality_ranking,engagement_rate_ranking,conversion_rate_ranking';
+    const url = `${META_GRAPH}/${metaCampaignId}/insights?fields=${fields}&date_preset=maximum&level=campaign&access_token=${token}${proof ? `&appsecret_proof=${proof}` : ''}`;
+    const r = await fetch(url);
+    const j = await r.json() as any;
+    if (j.error || !j.data?.[0]) return null;
+    const m = j.data[0];
+
+    let roas: number | null = null;
+    if (Array.isArray(m.purchase_roas) && m.purchase_roas.length > 0) {
+      const rv = m.purchase_roas.find((x: any) => x.action_type === 'omni_purchase') || m.purchase_roas[0];
+      roas = rv ? parseFloat(rv.value) : null;
+    }
+
+    let cpp: number | null = null;
+    if (Array.isArray(m.cost_per_action_type) && m.cost_per_action_type.length > 0) {
+      const c = m.cost_per_action_type.find((x: any) => x.action_type === 'omni_purchase' || x.action_type === 'purchase');
+      cpp = c ? parseFloat(c.value) : null;
+    }
+
+    return {
+      impressions:           parseInt(m.impressions           || '0'),
+      reach:                 parseInt(m.reach                 || '0'),
+      clicks:                parseInt(m.clicks                || '0'),
+      spend:                 parseFloat(m.spend               || '0'),
+      cpm:                   parseFloat(m.cpm                 || '0'),
+      cpc:                   parseFloat(m.cpc                 || '0'),
+      ctr:                   parseFloat(m.ctr                 || '0'),
+      frequency:             m.frequency             ? parseFloat(m.frequency)             : null,
+      unique_clicks:         m.unique_clicks         ? parseInt(m.unique_clicks)            : null,
+      cost_per_unique_click: m.cost_per_unique_click ? parseFloat(m.cost_per_unique_click)  : null,
+      quality_ranking:             m.quality_ranking             || null,
+      engagement_rate_ranking:     m.engagement_rate_ranking     || null,
+      conversion_rate_ranking:     m.conversion_rate_ranking     || null,
+      roas,
+      cpp,
+    };
+  } catch { return null; }
+}
 
 // ── Status & Type constants ──────────────────────────────────
 
@@ -174,7 +231,7 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
 
     let query = supabaseAdmin
       .from('campaigns')
-      .select('*, campaign_boosts(meta_campaign_id, ad_account_id)')
+      .select('*, campaign_boosts(meta_campaign_id, ad_account_id, impressions, reach, clicks, spend_recorded)')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
@@ -193,7 +250,8 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
     const { data, error } = await query;
     if (error) throw error;
 
-    const ids = (data || []).map(c => c.id);
+    const rows = data || [];
+    const ids  = rows.map(c => c.id);
     const counts: Record<string, number> = {};
 
     if (ids.length > 0) {
@@ -206,9 +264,59 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
       });
     }
 
+    // ── Fetch live Meta metrics for campaigns that have a meta_campaign_id ──
+    const metaCampaigns = rows.filter((c: any) => c.meta_campaign_id && c.selected_meta_account_id);
+    const metaMetrics: Record<string, ReturnType<typeof _metaInsights> extends Promise<infer T> ? T : never> = {};
+
+    if (metaCampaigns.length > 0) {
+      // Fetch all required tokens in one query
+      const accountIds = [...new Set(metaCampaigns.map((c: any) => c.selected_meta_account_id as string))];
+      const { data: accounts } = await supabaseAdmin
+        .from('connected_accounts')
+        .select('id, access_token')
+        .in('id', accountIds);
+      const tokenMap: Record<string, string> = {};
+      (accounts || []).forEach((a: any) => { if (a.access_token) tokenMap[a.id] = a.access_token; });
+
+      // Parallel Meta calls — one per campaign
+      const results = await Promise.allSettled(
+        metaCampaigns.map(async (c: any) => {
+          const token = tokenMap[c.selected_meta_account_id];
+          if (!token) return null;
+          const metrics = await _metaInsights(c.meta_campaign_id, token);
+          return metrics ? { id: c.id, ...metrics } : null;
+        })
+      );
+      results.forEach(r => {
+        if (r.status === 'fulfilled' && r.value) {
+          metaMetrics[r.value.id] = r.value;
+        }
+      });
+    }
+
     res.json({
       success: true,
-      data: (data || []).map(c => ({ ...c, project_count: counts[c.id] || 0 })),
+      data: rows.map((c: any) => {
+        const m = metaMetrics[c.id];
+        return {
+          ...c,
+          impressions: m?.impressions ?? null,
+          reach:       m?.reach       ?? null,
+          clicks:      m?.clicks      ?? null,
+          ctr:         m?.ctr         ?? null,
+          cpm:         m?.cpm         ?? null,
+          cpc:         m?.cpc         ?? null,
+          roas:                    m?.roas                    ?? null,
+          cpp:                     m?.cpp                     ?? null,
+          frequency:               m?.frequency               ?? null,
+          unique_clicks:           m?.unique_clicks           ?? null,
+          cost_per_unique_click:   m?.cost_per_unique_click   ?? null,
+          quality_ranking:         m?.quality_ranking         ?? null,
+          engagement_rate_ranking: m?.engagement_rate_ranking ?? null,
+          conversion_rate_ranking: m?.conversion_rate_ranking ?? null,
+          project_count: counts[c.id] || 0,
+        };
+      }),
     });
   } catch (err) { next(err); }
 };
@@ -250,7 +358,7 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 2000);
         const metaRes = await fetch(
-          `https://graph.facebook.com/v19.0/${data.meta_campaign_id}?fields=id,status&access_token=${meta_access_token}`,
+          `https://graph.facebook.com/v21.0/${data.meta_campaign_id}?fields=id,status&access_token=${meta_access_token}`,
           { signal: ctrl.signal }
         );
         clearTimeout(timer);

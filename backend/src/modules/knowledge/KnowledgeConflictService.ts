@@ -14,18 +14,18 @@ export class KnowledgeConflictService {
 
     const sources = data || [];
 
-    const enriched = await Promise.all(sources.map(async (conflict: any) => {
-      if (conflict.source_ids && conflict.source_ids.length > 0) {
-        const { data: srcData } = await supabaseAdmin
-          .from('knowledge_sources')
-          .select('title')
-          .in('id', conflict.source_ids);
-        return {
-          ...conflict,
-          source_titles: (srcData || []).map((s: any) => s.title),
-        };
-      }
-      return { ...conflict, source_titles: [] };
+    const allSourceIds = [...new Set(sources.flatMap(c => c.source_ids || []))] as string[];
+    const titleMap = new Map<string, string>();
+    if (allSourceIds.length > 0) {
+      const { data: srcData } = await supabaseAdmin
+        .from('knowledge_sources')
+        .select('id, title')
+        .in('id', allSourceIds);
+      for (const s of srcData || []) titleMap.set(s.id, s.title);
+    }
+    const enriched = sources.map((conflict: any) => ({
+      ...conflict,
+      source_titles: (conflict.source_ids || []).map((id: string) => titleMap.get(id) || ''),
     }));
 
     return enriched;

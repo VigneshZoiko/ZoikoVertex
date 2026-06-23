@@ -272,11 +272,33 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
         { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }
       );
       const aclData = await aclRes.json();
-      const elements: any[] = aclData.elements || [];
+      logger.info({ status: aclRes.status, aclData }, '[Social] organizationAcls response');
+
+      let elements: any[] = aclData.elements || [];
+
+      // Fallback: try REST API if v2 returned empty or error
+      if (elements.length === 0) {
+        const restAclRes = await fetch(
+          'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&count=50',
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'LinkedIn-Version': '202406',
+              'X-Restli-Protocol-Version': '2.0.0',
+            },
+          }
+        );
+        const restAclData = await restAclRes.json();
+        logger.info({ status: restAclRes.status, restAclData }, '[Social] REST organizationAcls response');
+        elements = restAclData.elements || [];
+      }
 
       // Extract org IDs from URNs like "urn:li:organization:12345"
       const orgIds = elements
-        .map((el: any) => el.organization?.match(/\d+$/)?.[0])
+        .map((el: any) => {
+          const org = el.organization || el.organizationalTarget || '';
+          return org.match(/\d+$/)?.[0];
+        })
         .filter(Boolean);
 
       let pages: { id: string; name: string; urn: string }[] = [];
@@ -288,6 +310,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
           { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }
         );
         const orgsData = await orgsRes.json();
+        logger.info({ orgsData }, '[Social] organizations lookup response');
         const results = orgsData.results || {};
 
         pages = orgIds.map((id: string) => ({

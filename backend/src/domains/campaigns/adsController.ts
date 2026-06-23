@@ -98,6 +98,15 @@ export async function pushCampaignToMeta(
     const budgetTotal = campaign.budget_total ? Math.round(Number(campaign.budget_total) * 100) : null;
     const budgetDaily = campaign.budget_daily ? Math.round(Number(campaign.budget_daily) * 100) : null;
 
+    // Pre-validate before any Meta API calls to avoid orphaned campaigns
+    const geography = (campaign.targeting?.geography as string[] | undefined) || [];
+    if (geography.length === 0) {
+      return { success: false, error: 'Campaign has no target locations set. Please configure target locations (countries/regions) in campaign targeting before publishing.' };
+    }
+    if (!budgetTotal && !budgetDaily) {
+      return { success: false, error: 'Campaign has no budget set. Please set a daily or lifetime budget before publishing.' };
+    }
+
     // 1. Create Meta Campaign
     const metaCampaign = await metaPost(`/${adAccountId}/campaigns`, token, {
       name:                  label,
@@ -113,11 +122,12 @@ export async function pushCampaignToMeta(
     const metaCampaignId = metaCampaign.id as string;
 
     // 2. Targeting
-    const geography = (campaign.targeting?.geography as string[] | undefined) || [];
+    const ageMin = (campaign.targeting as any)?.age_min ?? 18;
+    const ageMax = (campaign.targeting as any)?.age_max ?? 65;
     const targetingSpec: Record<string, unknown> = {
-      age_min:       18,
-      age_max:       65,
-      geo_locations: { countries: geography.length > 0 ? geography : ['US', 'GB', 'AE'] },
+      age_min:       ageMin,
+      age_max:       ageMax,
+      geo_locations: { countries: geography },
     };
 
     // 3. Create Ad Set
@@ -137,9 +147,8 @@ export async function pushCampaignToMeta(
       status:            'ACTIVE',
     };
 
-    if (budgetTotal)    adSetBody.lifetime_budget = budgetTotal;
-    else if (budgetDaily) adSetBody.daily_budget  = budgetDaily;
-    else                adSetBody.daily_budget    = 1000; // $10 fallback
+    if (budgetTotal)      adSetBody.lifetime_budget = budgetTotal;
+    else if (budgetDaily) adSetBody.daily_budget    = budgetDaily;
 
     const metaAdSet = await metaPost(`/${adAccountId}/adsets`, token, adSetBody) as any;
 
@@ -160,7 +169,11 @@ export async function pushCampaignToMeta(
 
     if (pageId && creative.ad_image_url) {
       // IMAGE_AD: campaign has an image set — create a deliverable ad
-      const landingUrl = creative.landing_page_url || 'https://zoikogroup.com';
+      if (!creative.landing_page_url) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return { success: false, error: 'Campaign has no landing page URL set. Please set a landing page URL in the campaign creative before publishing.' };
+      }
+      const landingUrl = creative.landing_page_url as string;
       const adCreative = await metaPost(`/${adAccountId}/adcreatives`, token, {
         name: `${label} · Creative`,
         object_story_spec: {
@@ -211,7 +224,7 @@ export async function pushCampaignToMeta(
         start_at:             campaign.start_at || startTime,
         end_at:               campaign.end_at   || endTime,
         objective,
-        targeting:            { countries: geography.length > 0 ? geography : ['US', 'GB', 'AE'], age_min: 18, age_max: 65 },
+        targeting:            { countries: geography, age_min: ageMin, age_max: ageMax },
         ad_account_id:        adAccountId,
         meta_campaign_id:     metaCampaignId,
         meta_adset_id:        metaAdSetId,
@@ -442,6 +455,14 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
     };
     const label = `ZoikoVertex ${boostTypeLabel[d.boost_type] ?? d.boost_type} · ${new Date().toISOString().slice(0, 10)}`;
 
+    // Pre-validate before any Meta API calls to avoid orphaned campaigns
+    if (!d.targeting.countries || d.targeting.countries.length === 0) {
+      return res.status(400).json({ error: 'Boost has no target locations. Please set target countries/regions before creating a boost.' });
+    }
+    if (!dailyBudget && !lifetimeBudget) {
+      return res.status(400).json({ error: 'Boost has no budget set. Please set a daily or total budget before creating a boost.' });
+    }
+
     // Resolve objective for Meta API — LEAD_AD always uses OUTCOME_LEADS
     const resolvedObjective = d.boost_type === 'LEAD_AD'
       ? 'OUTCOME_LEADS'
@@ -466,11 +487,9 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
 
     // 2. Build targeting
     const targetingSpec: Record<string, unknown> = {
-      age_min: d.targeting.age_min,
-      age_max: d.targeting.age_max,
-      geo_locations: {
-        countries: d.targeting.countries.length > 0 ? d.targeting.countries : ['US', 'GB', 'AE'],
-      },
+      age_min:       d.targeting.age_min,
+      age_max:       d.targeting.age_max,
+      geo_locations: { countries: d.targeting.countries },
     };
 
     // 3. Create Ad Set with optimization_goal
@@ -522,8 +541,12 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
         await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
         return res.status(400).json({ error: 'facebook_page_id is required for IMAGE_AD boost' });
       }
-      const ctaType = d.ad_cta || 'LEARN_MORE';
-      const landingUrl = d.ad_landing_url || 'https://zoikogroup.com';
+      const ctaType    = d.ad_cta || 'LEARN_MORE';
+      if (!d.ad_landing_url) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'ad_landing_url is required for IMAGE_AD boost. Please set a landing page URL.' });
+      }
+      const landingUrl = d.ad_landing_url;
       const creative = await metaPost(`/${adAccountId}/adcreatives`, token, {
         name: `${label} · Creative`,
         object_story_spec: {
@@ -553,8 +576,12 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
         await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
         return res.status(400).json({ error: 'facebook_page_id is required for VIDEO_AD boost' });
       }
-      const ctaType    = d.ad_cta        || 'WATCH_MORE';
-      const landingUrl = d.ad_landing_url || 'https://zoikogroup.com';
+      const ctaType = d.ad_cta || 'WATCH_MORE';
+      if (!d.ad_landing_url) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'ad_landing_url is required for VIDEO_AD boost. Please set a landing page URL.' });
+      }
+      const landingUrl = d.ad_landing_url;
       const creative   = await metaPost(`/${adAccountId}/adcreatives`, token, {
         name: `${label} · Creative`,
         object_story_spec: {
@@ -697,7 +724,7 @@ export const syncBoostMetrics = async (req: AuthRequest, res: Response, next: Ne
     const token = (boost.connected_accounts as any)?.access_token;
     if (token && boost.meta_campaign_id) {
       const insights = await metaGet(
-        `/${boost.meta_campaign_id}/insights?fields=impressions,reach,clicks,spend&date_preset=lifetime`,
+        `/${boost.meta_campaign_id}/insights?fields=impressions,reach,clicks,spend,cpm,cpc,ctr,frequency&date_preset=maximum`,
         token
       ) as any;
 
@@ -706,10 +733,10 @@ export const syncBoostMetrics = async (req: AuthRequest, res: Response, next: Ne
         await supabaseAdmin
           .from('campaign_boosts')
           .update({
-            impressions:     parseInt(m.impressions || '0'),
-            reach:           parseInt(m.reach       || '0'),
-            clicks:          parseInt(m.clicks      || '0'),
-            spend_recorded:  parseFloat(m.spend     || '0'),
+            impressions:     parseInt(m.impressions    || '0'),
+            reach:           parseInt(m.reach          || '0'),
+            clicks:          parseInt(m.clicks         || '0'),
+            spend_recorded:  parseFloat(m.spend        || '0'),
             updated_at:      new Date().toISOString(),
           })
           .eq('id', req.params.id);
@@ -796,12 +823,120 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
 
     const { data: campaign } = await supabaseAdmin
       .from('campaigns')
-      .select('id, budget_total, budget_daily, budget_currency, spend_recorded, kpi_reach, kpi_engagement, kpi_conversions')
+      .select('id, budget_total, budget_daily, budget_currency, spend_recorded, kpi_reach, kpi_engagement, kpi_conversions, meta_campaign_id, selected_meta_account_id')
       .eq('id', campaignId)
       .eq('workspace_id', workspaceId)
       .single();
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // ── Try to pull live numbers from Meta ────────────────────────
+    let metaLive: { impressions: number; reach: number; clicks: number; spend: number } | null = null;
+    const { meta_campaign_id, selected_meta_account_id } = campaign as any;
+
+    if (meta_campaign_id && selected_meta_account_id) {
+      try {
+        const { data: account } = await supabaseAdmin
+          .from('connected_accounts')
+          .select('access_token')
+          .eq('id', selected_meta_account_id)
+          .single();
+
+        const token = (account as any)?.access_token as string | undefined;
+        if (token) {
+          const raw = await metaGet(
+            `/${meta_campaign_id}/insights?fields=impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,unique_clicks,cost_per_unique_click,purchase_roas,cost_per_action_type,actions,outbound_clicks,website_ctr,quality_ranking,engagement_rate_ranking,conversion_rate_ranking&date_preset=maximum&level=campaign`,
+            token,
+          ) as any;
+
+          if (!raw.error && raw.data?.[0]) {
+            const m = raw.data[0];
+
+            let roas: number | null = null;
+            if (Array.isArray(m.purchase_roas) && m.purchase_roas.length > 0) {
+              const rv = m.purchase_roas.find((x: any) => x.action_type === 'omni_purchase') || m.purchase_roas[0];
+              roas = rv ? parseFloat(rv.value) : null;
+            }
+
+            // Parse cost_per_action_type into a lookup map
+            const costActArr = (Array.isArray(m.cost_per_action_type) ? m.cost_per_action_type : []) as { action_type: string; value: string }[];
+            const costActMap: Record<string, number> = {};
+            for (const a of costActArr) costActMap[a.action_type] = parseFloat(a.value) || 0;
+
+            const cpp: number | null = costActMap['omni_purchase'] || costActMap['purchase'] || null;
+
+            // Parse actions array into a lookup map
+            const actionsArr = (Array.isArray(m.actions) ? m.actions : []) as { action_type: string; value: string }[];
+            const actionMap: Record<string, number> = {};
+            for (const a of actionsArr) actionMap[a.action_type] = parseFloat(a.value) || 0;
+
+            const conversions = {
+              purchases:     actionMap['offsite_conversion.fb_pixel_purchase']              || 0,
+              leads:         actionMap['offsite_conversion.fb_pixel_lead']                  || 0,
+              add_to_cart:   actionMap['offsite_conversion.fb_pixel_add_to_cart']           || 0,
+              checkout:      actionMap['offsite_conversion.fb_pixel_initiate_checkout']     || 0,
+              registrations: actionMap['offsite_conversion.fb_pixel_complete_registration'] || 0,
+              video_views:   actionMap['video_view']                                        || 0,
+              post_engagements: actionMap['post_engagement']                                || 0,
+              cost_per_purchase:    (costActMap['offsite_conversion.fb_pixel_purchase']  || null) as number | null,
+              cost_per_lead:        (costActMap['offsite_conversion.fb_pixel_lead']       || null) as number | null,
+              cost_per_add_to_cart: (costActMap['offsite_conversion.fb_pixel_add_to_cart']|| null) as number | null,
+            };
+
+            // outbound_clicks is an array like [{action_type:"outbound_click",value:"5"}]
+            const outClArr = (Array.isArray(m.outbound_clicks) ? m.outbound_clicks : []) as { action_type: string; value: string }[];
+            const outbound_clicks = outClArr.length > 0 ? parseInt(outClArr[0].value || '0') : null;
+
+            // website_ctr is also an array
+            const webCtrArr = (Array.isArray(m.website_ctr) ? m.website_ctr : []) as { action_type: string; value: string }[];
+            const website_ctr = webCtrArr.length > 0 ? parseFloat(webCtrArr[0].value || '0') : null;
+
+            metaLive = {
+              impressions:           parseInt(m.impressions           || '0'),
+              reach:                 parseInt(m.reach                 || '0'),
+              clicks:                parseInt(m.clicks                || '0'),
+              spend:                 parseFloat(m.spend               || '0'),
+              cpm_live:              parseFloat(m.cpm                 || '0'),
+              cpc_live:              parseFloat(m.cpc                 || '0'),
+              ctr_live:              parseFloat(m.ctr                 || '0'),
+              frequency:             parseFloat(m.frequency           || '0'),
+              unique_clicks:         parseInt(m.unique_clicks         || '0'),
+              cost_per_unique_click: parseFloat(m.cost_per_unique_click || '0'),
+              quality_ranking:         (m.quality_ranking         && m.quality_ranking         !== 'UNKNOWN') ? m.quality_ranking         : null,
+              engagement_rate_ranking: (m.engagement_rate_ranking && m.engagement_rate_ranking !== 'UNKNOWN') ? m.engagement_rate_ranking : null,
+              conversion_rate_ranking: (m.conversion_rate_ranking && m.conversion_rate_ranking !== 'UNKNOWN') ? m.conversion_rate_ranking : null,
+              roas,
+              cpp,
+              conversions,
+              outbound_clicks,
+              website_ctr,
+            } as any;
+            // Write-back so local DB stays fresh for list page
+            const liveSnap = metaLive!;
+            await Promise.allSettled([
+              supabaseAdmin
+                .from('campaigns')
+                .update({ spend_recorded: liveSnap.spend, updated_at: new Date().toISOString() })
+                .eq('id', campaignId),
+              // Also sync into campaign_boosts so listCampaigns can aggregate
+              supabaseAdmin
+                .from('campaign_boosts')
+                .update({
+                  impressions:    liveSnap.impressions,
+                  reach:          liveSnap.reach,
+                  clicks:         liveSnap.clicks,
+                  spend_recorded: liveSnap.spend,
+                  updated_at:     new Date().toISOString(),
+                })
+                .eq('campaign_id', campaignId)
+                .eq('workspace_id', workspaceId),
+            ]);
+          }
+        }
+      } catch {
+        logger.warn('[Insights] Meta live fetch failed, falling back to DB');
+      }
+    }
 
     const { data: boostRows } = await supabaseAdmin
       .from('campaign_boosts')
@@ -811,7 +946,8 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
 
     const blist = boostRows || [];
 
-    const totals = blist.reduce(
+    // Prefer Meta live data when available; otherwise sum from local boost rows
+    const dbTotals = blist.reduce(
       (acc, b) => ({
         impressions: acc.impressions + (b.impressions || 0),
         reach:       acc.reach       + (b.reach       || 0),
@@ -821,9 +957,24 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
       { impressions: 0, reach: 0, clicks: 0, spend: 0 }
     );
 
-    const ctr = totals.impressions > 0 ? Math.round((totals.clicks / totals.impressions) * 10000) / 100 : 0;
-    const cpm = totals.impressions > 0 ? Math.round((totals.spend / totals.impressions) * 100000) / 100 : 0;
-    const cpc = totals.clicks      > 0 ? Math.round((totals.spend / totals.clicks) * 100) / 100 : 0;
+    const totals = metaLive ?? dbTotals;
+
+    // Prefer Meta-computed KPIs when available (more accurate), otherwise derive
+    const ctr  = (metaLive as any)?.ctr_live  ?? (totals.impressions > 0 ? Math.round((totals.clicks / totals.impressions) * 10000) / 100 : 0);
+    const cpm  = (metaLive as any)?.cpm_live  ?? (totals.impressions > 0 ? Math.round((totals.spend / totals.impressions) * 100000) / 100 : 0);
+    const cpc  = (metaLive as any)?.cpc_live  ?? (totals.clicks > 0 ? Math.round((totals.spend / totals.clicks) * 100) / 100 : 0);
+    const roas = (metaLive as any)?.roas ?? null;
+    const cpp  = (metaLive as any)?.cpp  ?? null;
+    const frequency             = (metaLive as any)?.frequency             ?? null;
+    const unique_clicks         = (metaLive as any)?.unique_clicks         ?? null;
+    const cost_per_unique_click = (metaLive as any)?.cost_per_unique_click ?? null;
+    const toRanking = (v: unknown) => (v && v !== 'UNKNOWN' ? String(v) : null);
+    const quality_ranking             = toRanking((metaLive as any)?.quality_ranking);
+    const engagement_rate_ranking     = toRanking((metaLive as any)?.engagement_rate_ranking);
+    const conversion_rate_ranking     = toRanking((metaLive as any)?.conversion_rate_ranking);
+    const conversions                 = (metaLive as any)?.conversions     ?? null;
+    const outbound_clicks             = (metaLive as any)?.outbound_clicks ?? null;
+    const website_ctr                 = (metaLive as any)?.website_ctr     ?? null;
 
     const platformMap: Record<string, { impressions: number; reach: number; clicks: number; spend: number }> = {};
     const statusMap:   Record<string, number> = {};
@@ -840,7 +991,8 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
       objectiveMap[b.objective] = (objectiveMap[b.objective] || 0) + 1;
     }
 
-    const spendTotal   = totals.spend + parseFloat(String(campaign.spend_recorded || 0));
+    // When live Meta data is available, use it directly — don't add spend_recorded (it was written from the same Meta data)
+    const spendTotal   = metaLive ? (metaLive as any).spend : (totals.spend + parseFloat(String(campaign.spend_recorded || 0)));
     const budgetTotal  = parseFloat(String(campaign.budget_total || 0));
     const utilization  = budgetTotal > 0 ? Math.round((spendTotal / budgetTotal) * 100) : null;
 
@@ -848,7 +1000,7 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
       success: true,
       data: {
         totals,
-        kpis:        { ctr, cpm, cpc },
+        kpis:        { ctr, cpm, cpc, roas, cpp, frequency, unique_clicks, cost_per_unique_click, outbound_clicks, website_ctr, conversions, quality_ranking, engagement_rate_ranking, conversion_rate_ranking },
         kpi_targets: {
           reach:       campaign.kpi_reach       || null,
           engagement:  campaign.kpi_engagement  || null,
@@ -866,6 +1018,288 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
         boosts_count: blist.length,
       },
     });
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/v1/campaigns/:id/insights/breakdown ─────────────
+// Fetches age/gender and placement breakdowns live from Meta Insights API.
+// Falls back to empty arrays if the campaign has no meta_adset_id yet.
+
+export const getCampaignBreakdownInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('meta_adset_id, selected_meta_account_id')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    const { meta_adset_id, selected_meta_account_id } = campaign as any;
+
+    if (!meta_adset_id || !selected_meta_account_id) {
+      return res.json({ success: true, data: { by_age_gender: [], by_placement: [] } });
+    }
+
+    // Resolve access token for this ad account
+    const { data: account } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('access_token')
+      .eq('id', selected_meta_account_id)
+      .single();
+
+    if (!account?.access_token) {
+      return res.json({ success: true, data: { by_age_gender: [], by_placement: [] } });
+    }
+
+    const token = (account as any).access_token as string;
+    const ageFields       = 'impressions,reach,clicks,spend,ctr,cpc,frequency';
+    const placementFields = 'impressions,reach,clicks,spend,ctr,cpc';
+    const positionFields  = 'impressions,reach,clicks,spend,ctr,cpc';
+
+    // Fetch all three breakdowns concurrently
+    const [ageRes, placementRes, positionRes] = await Promise.allSettled([
+      metaGet(
+        `/${meta_adset_id}/insights?fields=${ageFields}&breakdowns=age,gender&date_preset=maximum&level=adset`,
+        token,
+      ),
+      metaGet(
+        `/${meta_adset_id}/insights?fields=${placementFields}&breakdowns=publisher_platform,impression_device&date_preset=maximum&level=adset`,
+        token,
+      ),
+      metaGet(
+        `/${meta_adset_id}/insights?fields=${positionFields}&breakdowns=publisher_platform,platform_position&date_preset=maximum&level=adset`,
+        token,
+      ),
+    ]);
+
+    const ageData      = ageRes.status      === 'fulfilled' ? ((ageRes.value      as any).data || []) : [];
+    const placementData = placementRes.status === 'fulfilled' ? ((placementRes.value as any).data || []) : [];
+    const positionData  = positionRes.status  === 'fulfilled' ? ((positionRes.value  as any).data || []) : [];
+
+    const parse = (rows: any[]) => rows.map((r: any) => ({
+      ...r,
+      impressions: Number(r.impressions   || 0),
+      reach:       Number(r.reach         || 0),
+      clicks:      Number(r.clicks        || 0),
+      spend:       parseFloat(r.spend     || '0'),
+      ctr:         parseFloat(r.ctr       || '0'),
+      cpc:         parseFloat(r.cpc       || '0'),
+      frequency:   parseFloat(r.frequency || '0'),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        by_age_gender: parse(ageData),
+        by_placement:  parse(placementData),
+        by_position:   parse(positionData),
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/v1/campaigns/:id/insights/trend ──────────────────
+// Returns daily spend/impressions/clicks for last 30 days from Meta.
+// Used for the spend trend chart in the Overview tab.
+
+export const getCampaignTrend = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('meta_campaign_id, selected_meta_account_id')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    const { meta_campaign_id, selected_meta_account_id } = campaign as any;
+    if (!meta_campaign_id || !selected_meta_account_id) {
+      return res.json({ success: true, data: { by_day: [] } });
+    }
+
+    const { data: account } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('access_token')
+      .eq('id', selected_meta_account_id)
+      .single();
+
+    const token = (account as any)?.access_token as string | undefined;
+    if (!token) return res.json({ success: true, data: { by_day: [] } });
+
+    const raw = await metaGet(
+      `/${meta_campaign_id}/insights?fields=spend,impressions,clicks,reach,ctr,cpm,cpc&time_increment=1&date_preset=maximum&level=campaign`,
+      token,
+    ) as any;
+
+    if (raw.error) {
+      logger.warn({ err: raw.error.message }, '[CampaignTrend] Meta error');
+      return res.json({ success: true, data: { by_day: [], meta_error: raw.error.message } });
+    }
+
+    const by_day = ((raw.data || []) as any[]).map((d: any) => ({
+      date:        d.date_start || null,
+      spend:       parseFloat(d.spend       || '0'),
+      impressions: parseInt(d.impressions   || '0'),
+      clicks:      parseInt(d.clicks        || '0'),
+      reach:       parseInt(d.reach         || '0'),
+      ctr:         parseFloat(d.ctr         || '0'),
+      cpm:         parseFloat(d.cpm         || '0'),
+      cpc:         parseFloat(d.cpc         || '0'),
+    }));
+
+    return res.json({ success: true, data: { by_day } });
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/v1/campaigns/:id/insights/ads ────────────────────
+// Returns per-ad metrics directly from Meta at the ad level.
+// Used for the Ads tab CPM/CPC/CTR columns.
+
+export const getCampaignAdInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('meta_campaign_id, meta_adset_id, meta_ad_id, selected_meta_account_id')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    const { meta_campaign_id, selected_meta_account_id } = campaign as any;
+    if (!meta_campaign_id || !selected_meta_account_id) {
+      return res.json({ success: true, data: { ads: [] } });
+    }
+
+    const { data: account } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('access_token')
+      .eq('id', selected_meta_account_id)
+      .single();
+
+    const token = (account as any)?.access_token as string | undefined;
+    if (!token) return res.json({ success: true, data: { ads: [] } });
+
+    // Fetch ad-level insights from Meta under the campaign
+    const raw = await metaGet(
+      `/${meta_campaign_id}/insights?fields=ad_id,ad_name,impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,unique_clicks,cost_per_unique_click,outbound_clicks,actions,cost_per_action_type&date_preset=maximum&level=ad`,
+      token,
+    ) as any;
+
+    if (raw.error) {
+      logger.warn({ err: raw.error.message }, '[AdInsights] Meta error');
+      return res.json({ success: true, data: { ads: [], meta_error: raw.error.message } });
+    }
+
+    const ads = ((raw.data || []) as any[]).map((d: any) => {
+      const aArr = (Array.isArray(d.actions) ? d.actions : []) as { action_type: string; value: string }[];
+      const aMap: Record<string, number> = {};
+      for (const a of aArr) aMap[a.action_type] = parseFloat(a.value) || 0;
+
+      const cpArr = (Array.isArray(d.cost_per_action_type) ? d.cost_per_action_type : []) as { action_type: string; value: string }[];
+      const cpMap: Record<string, number> = {};
+      for (const a of cpArr) cpMap[a.action_type] = parseFloat(a.value) || 0;
+
+      return {
+        meta_ad_id:            d.ad_id   || null,
+        ad_name:               d.ad_name || null,
+        impressions:           parseInt(d.impressions           || '0'),
+        reach:                 parseInt(d.reach                 || '0'),
+        clicks:                parseInt(d.clicks                || '0'),
+        spend:                 parseFloat(d.spend               || '0'),
+        cpm:                   parseFloat(d.cpm                 || '0'),
+        cpc:                   parseFloat(d.cpc                 || '0'),
+        ctr:                   parseFloat(d.ctr                 || '0'),
+        frequency:             parseFloat(d.frequency           || '0'),
+        unique_clicks:         parseInt(d.unique_clicks         || '0'),
+        cost_per_unique_click: parseFloat(d.cost_per_unique_click || '0'),
+        outbound_clicks:       Array.isArray(d.outbound_clicks) && d.outbound_clicks.length > 0 ? parseInt(d.outbound_clicks[0].value || '0') : 0,
+        purchases:             aMap['offsite_conversion.fb_pixel_purchase'] || 0,
+        leads:                 aMap['offsite_conversion.fb_pixel_lead']     || 0,
+        add_to_cart:           aMap['offsite_conversion.fb_pixel_add_to_cart'] || 0,
+        video_views:           aMap['video_view'] || 0,
+        cost_per_purchase:     cpMap['offsite_conversion.fb_pixel_purchase']  || null,
+        cost_per_lead:         cpMap['offsite_conversion.fb_pixel_lead']       || null,
+      };
+    });
+
+    return res.json({ success: true, data: { ads } });
+  } catch (err) { next(err); }
+};
+
+// ── PATCH /api/v1/campaigns/:id/budget-meta ───────────────────
+// Pushes a budget change directly to the live Meta ad set without republishing.
+
+export const syncBudgetToMeta = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    const { budget_type, amount } = req.body as { budget_type: 'daily' | 'lifetime'; amount: number };
+    if (!budget_type || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'budget_type (daily|lifetime) and amount (> 0) are required' });
+    }
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('meta_adset_id, selected_meta_account_id, budget_currency')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    const { meta_adset_id, selected_meta_account_id, budget_currency } = campaign as any;
+
+    if (!meta_adset_id) {
+      return res.status(400).json({ error: 'Campaign is not published to Meta yet — publish first, then sync budget' });
+    }
+
+    const { data: account } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('access_token')
+      .eq('id', selected_meta_account_id)
+      .single();
+
+    if (!account?.access_token) {
+      return res.status(400).json({ error: 'Meta account token not found — please reconnect' });
+    }
+
+    const token = (account as any).access_token as string;
+
+    // Meta budget is in minor currency units (cents for USD)
+    const majorToMinor: Record<string, number> = { USD: 100, EUR: 100, GBP: 100, INR: 100, AED: 100 };
+    const multiplier = majorToMinor[budget_currency] ?? 100;
+    const minorAmount = Math.round(amount * multiplier);
+
+    const budgetField = budget_type === 'daily' ? 'daily_budget' : 'lifetime_budget';
+
+    const metaRes = await metaPost(`/${meta_adset_id}`, token, { [budgetField]: minorAmount });
+    if ((metaRes as any).error) {
+      return res.status(400).json({ error: `Meta API error: ${(metaRes as any).error.message}` });
+    }
+
+    // Mirror to local DB
+    const dbField = budget_type === 'daily' ? 'budget_daily' : 'budget_total';
+    await supabaseAdmin
+      .from('campaigns')
+      .update({ [dbField]: amount, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id);
+
+    logger.info(`[Campaigns] Budget synced to Meta — adset ${meta_adset_id}: ${budgetField}=${minorAmount}`);
+    res.json({ success: true, message: `Budget updated to ${budget_currency} ${amount} on Meta` });
   } catch (err) { next(err); }
 };
 
