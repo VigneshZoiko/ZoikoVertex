@@ -348,7 +348,7 @@ export default function ValidationDeskPage() {
 
       {/* —— Stats Row ————————————————————————————————————————————————————————— */}
       {stats && (
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: "Pending Scan",  value: stats.pending ?? stats.pending_validation ?? 0, icon: <Clock className="w-4 h-4" />,        color: "text-blue-400",    bg: "bg-blue-500/10" },
             { label: "Auto-Passed",   value: stats.passed,                                   icon: <CheckCircle2 className="w-4 h-4" />,  color: "text-success-text", bg: "bg-success-text/10" },
@@ -386,10 +386,10 @@ export default function ValidationDeskPage() {
       </div>
 
       {/* —— Main 2-Panel Layout ———————————————————————————————————————————————— */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 md:items-start">
 
         {/* â•â•â• Left Panel: Item List â•â•â• */}
-        <div className="w-[290px] shrink-0 flex flex-col gap-3">
+        <div className="w-full md:w-[290px] md:shrink-0 flex flex-col gap-3">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
@@ -424,7 +424,7 @@ export default function ValidationDeskPage() {
             ))}
           </div>
 
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
+          <div className="space-y-2 md:max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
             {loading ? (
               <div className="flex flex-col items-center py-12 text-foreground-muted gap-3">
                 <div className="w-6 h-6 border-2 border-info-border/50 border-t-indigo-500 rounded-full animate-spin" />
@@ -445,11 +445,11 @@ export default function ValidationDeskPage() {
                   <button
                     key={item.id}
                     onClick={() => handleSelectItem(item)}
-                    className={`w-full text-left rounded-lg p-3 transition-all border ${
+                    className={`w-full text-left rounded-lg p-3.5 sm:p-3 transition-all border ${
                       isSelected
                         ? "bg-info-text/[0.04] border-info-border/30"
                         : "bg-surface border-border hover:border-border"
-                    } ${isItemRejected ? "border-l-2 border-l-red-500/40" : isItemPassed ? "border-l-2 border-l-emerald-500/40" : "border-l-2 border-l-blue-500/30"}`}
+                    } ${item.risk_level === "CRITICAL" ? "border-l-[3px] border-l-rose-500/80" : item.risk_level === "HIGH" ? "border-l-[3px] border-l-orange-500/70" : item.risk_level === "MEDIUM" ? "border-l-[3px] border-l-amber-500/60" : "border-l-[3px] border-l-emerald-500/40"}`}
                   >
                     <div className="flex items-start gap-2 mb-2">
                       <span className="text-foreground-muted mt-0.5 shrink-0">{ITEM_TYPE_ICONS[item.item_type] || <Layers className="w-3 h-3" />}</span>
@@ -487,14 +487,14 @@ export default function ValidationDeskPage() {
 
               {/* —— Instagram PC card: left info | right media —————————————————— */}
               <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                <div className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}>
+                <div className={`flex flex-col sm:flex-row items-stretch ${hasMedia ? "" : "flex-col"}`}>
 
                   {/* Left: info pane */}
-                  <div className={`p-4 flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-border" : "w-full"}`}>
+                  <div className={`p-4 flex flex-col gap-3 ${hasMedia ? "w-full sm:w-[230px] sm:shrink-0 sm:border-r border-b sm:border-b-0 border-border" : "w-full"}`}>
 
                     {/* Title + badges */}
                     <div>
-                      <h3 className="text-sm font-bold text-foreground mb-2 leading-snug">{selectedItem.title}</h3>
+                      <h3 className="text-sm font-semibold leading-snug text-foreground mb-2">{selectedItem.title}</h3>
                       <div className="flex items-center gap-1.5 flex-wrap mb-2">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.validation_status]?.color || "bg-white/5 text-foreground-muted border-white/10"}`}>
                           {STATUS_CONFIG[selectedItem.validation_status]?.icon}
@@ -557,7 +557,7 @@ export default function ValidationDeskPage() {
                       <button
                         onClick={handleRunChecks}
                         disabled={actionLoading !== null}
-                        className="mt-auto w-full px-3 py-2 bg-white hover:bg-zinc-100 text-black text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        className="mt-auto w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                       >
                         {actionLoading === "run_validation"
                           ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
