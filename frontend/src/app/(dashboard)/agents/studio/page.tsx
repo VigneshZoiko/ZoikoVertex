@@ -62,6 +62,7 @@ interface Agent {
   primary_dri?: Person | null;
   backup_dri?: Person | null;
   last_activity?: string | null;
+  lifecycle_stage?: string | null;
   created_at: string;
   runtime_controls?: {
     environment?: string;
@@ -880,7 +881,7 @@ export default function StudioPage() {
               </button>
               <button
                 onClick={() => setIsKillSwitchOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/15 ring-1 ring-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
               >
                 <ShieldAlert className="h-4 w-4" />
                 Kill Switch
@@ -967,6 +968,47 @@ export default function StudioPage() {
         ))}
       </div>
 
+      {/* ── Lifecycle Pipeline Header ── */}
+      {agents.length > 0 && (() => {
+        const stageCounts: Record<string, number> = {}
+        for (const a of agents) {
+          const key = a.lifecycle_stage || a.status || 'UNKNOWN'
+          stageCounts[key] = (stageCounts[key] || 0) + 1
+        }
+        const stages = [
+          { key: 'DRAFT',    label: 'Draft',    color: 'text-[var(--foreground-muted)]', bg: 'bg-[var(--background)]', border: 'border-[var(--border)]' },
+          { key: 'PENDING',  label: 'Certify',  color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+          { key: 'REVIEW',   label: 'Review',   color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+          { key: 'APPROVED', label: 'Approved', color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+          { key: 'ACTIVE',   label: 'Active',   color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+        ]
+        const total = agents.length
+        return (
+          <div className="flex items-center overflow-x-auto rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] px-4 py-3">
+            {stages.map((stage, idx) => {
+              const count = Object.entries(stageCounts).reduce((acc, [k, v]) => {
+                return k.toUpperCase().includes(stage.key) ? acc + v : acc
+              }, 0)
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0
+              return (
+                <div key={stage.key} className="flex items-center shrink-0">
+                  <div className="flex flex-col items-center gap-1 px-4">
+                    <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${stage.color}`}>{stage.label}</span>
+                    <div className={`w-8 h-8 rounded-full border ${stage.border} ${stage.bg} flex items-center justify-center`}>
+                      <span className={`text-sm font-bold ${stage.color}`}>{count}</span>
+                    </div>
+                    <span className="text-[9px] text-[var(--foreground-muted)]">{pct}%</span>
+                  </div>
+                  {idx < stages.length - 1 && (
+                    <span className="text-[var(--foreground-muted)] text-xs px-1 shrink-0">→</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {/* ── Agent Catalog ── */}
       {loading ? (
         <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-8">
@@ -1025,7 +1067,7 @@ export default function StudioPage() {
         /* ── Table View ── */
         <div className="overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--surface)]">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed divide-y divide-[var(--card-border)]">
+            <table className="w-full table-fixed divide-y divide-[var(--card-border)] min-w-[800px]">
               <colgroup>
                 <col className="w-[15%]" />
                 <col className="w-[24%]" />
@@ -1463,11 +1505,16 @@ export default function StudioPage() {
                     {(agent.linked_channels || []).join(", ") || "None"}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span>Trust: {formatPercent(agent.trust_score)}</span>
-                    <span>·</span>
-                    <span>
-                      Faithfulness: {formatPercent(agent.faithfulness_score)}
-                    </span>
+                    <span className="text-[10px] text-[var(--foreground-muted)]">Trust</span>
+                    <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--background)]">
+                      <div
+                        className={`h-full rounded-full ${(agent.trust_score || 0) >= 0.8 ? 'bg-emerald-500' : (agent.trust_score || 0) >= 0.6 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${(agent.trust_score || 0) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold">{formatPercent(agent.trust_score)}</span>
+                    <span className="text-[var(--foreground-muted)]">·</span>
+                    <span className="text-[10px] text-[var(--foreground-muted)]">Faith {formatPercent(agent.faithfulness_score)}</span>
                   </div>
                   <div>
                     Last activity: {agent.last_activity || "Not yet active"}
