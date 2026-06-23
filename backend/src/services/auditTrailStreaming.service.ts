@@ -3,6 +3,26 @@ import { logger } from '../shared/logger';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
+function isPrivateUrl(rawUrl: string): boolean {
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return false; }
+  const host = parsed.hostname.toLowerCase();
+  if (!['http:', 'https:'].includes(parsed.protocol)) return true;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;
+  if (host === '::1' || host.startsWith('fe80:') || host.startsWith('fd')) return true;
+  const ip = host.startsWith('[') ? host.slice(1, -1) : host;
+  const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [, a, b] = v4.map(Number);
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+  }
+  return false;
+}
+
 export type SubscriptionType = 'sse' | 'webhook' | 'siem';
 export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'DISABLED';
 
@@ -107,6 +127,11 @@ export async function deliverToSubscription(
     delivered_at: deliveredAt,
     signature,
   };
+
+  if (isPrivateUrl(subscription.endpoint_url || '')) {
+    logger.warn({ subId: subscription.id }, '[AuditStream] SSRF blocked — private endpoint URL');
+    return { success: false, statusCode: 400 };
+  }
 
   try {
     const response = await fetch(subscription.endpoint_url, {

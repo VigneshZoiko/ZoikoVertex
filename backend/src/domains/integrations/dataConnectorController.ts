@@ -1,9 +1,28 @@
- 
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logger } from '../../shared/logger';
 import { v4 as uuidv4 } from 'uuid';
+
+function isPrivateUrl(rawUrl: string): boolean {
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return false; }
+  const host = parsed.hostname.toLowerCase();
+  if (!['http:', 'https:'].includes(parsed.protocol)) return true;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;
+  if (host === '::1' || host.startsWith('fe80:') || host.startsWith('fd')) return true;
+  const ip = host.startsWith('[') ? host.slice(1, -1) : host;
+  const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [, a, b] = v4.map(Number);
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+  }
+  return false;
+}
 
 function makeError(message: string, statusCode: number): Error & { statusCode: number } {
   const err = new Error(message) as Error & { statusCode: number };
@@ -299,6 +318,9 @@ export const triggerSync = async (req: AuthRequest, res: Response, next: NextFun
     // --- PIPELINE 2: REST API JSON SYNC ---
     else if (connector.type === 'REST_API') {
       const url = connector.connection_config.url;
+      if (isPrivateUrl(url)) {
+        throw new Error('SSRF blocked: URL points to a private or loopback address');
+      }
       logMessage(`Fetching JSON payload from external URL: ${url}`);
 
       const response = await fetch(url);

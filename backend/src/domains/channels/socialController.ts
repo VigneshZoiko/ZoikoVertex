@@ -82,9 +82,16 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
     logger.info(`[Social] Handling Facebook callback for workspace: ${workspaceId}`);
 
     // 1. Exchange code for short-lived access token
-    const tokenResponse = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${env.META_APP_ID}&redirect_uri=${env.META_REDIRECT_URI}&client_secret=${env.META_APP_SECRET}&code=${code}`
-    );
+    const tokenResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: env.META_APP_ID || '',
+        redirect_uri: env.META_REDIRECT_URI || '',
+        client_secret: env.META_APP_SECRET || '',
+        code: code as string,
+      }),
+    });
     
     const tokenData = await tokenResponse.json();
 
@@ -96,9 +103,16 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
     const shortLivedToken = tokenData.access_token;
 
     // 2. Exchange for long-lived token (60 days)
-    const longLivedResponse = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.META_APP_ID}&client_secret=${env.META_APP_SECRET}&fb_exchange_token=${shortLivedToken}`
-    );
+    const longLivedResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'fb_exchange_token',
+        client_id: env.META_APP_ID || '',
+        client_secret: env.META_APP_SECRET || '',
+        fb_exchange_token: shortLivedToken,
+      }),
+    });
     
     const longLivedData = await longLivedResponse.json();
     const accessToken = longLivedData.access_token;
@@ -214,7 +228,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
       workspaceId = stateParam as string;
     }
 
-    if (nonce && !consumeNonce(nonce, workspaceId)) {
+    if (!nonce || !consumeNonce(nonce, workspaceId)) {
       logger.warn(`[Social] LinkedIn callback with invalid/expired nonce — possible CSRF attack`);
       return res.status(403).json({ error: 'Invalid state parameter. Please reconnect your account.' });
     }
@@ -396,11 +410,11 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (stateObj.nonce && !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=pinterest&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
-      workspaceId = stateParam as string;
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=pinterest&reason=${encodeURIComponent('Invalid session. Please try again.')}`);
     }
 
     const credentials = Buffer.from(`${env.PINTEREST_CLIENT_ID}:${env.PINTEREST_CLIENT_SECRET}`).toString('base64');
@@ -477,11 +491,11 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (stateObj.nonce && !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=threads&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
-      workspaceId = stateParam as string;
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=threads&reason=${encodeURIComponent('Invalid session. Please try again.')}`);
     }
 
     const redirectUri = env.THREADS_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/threads/callback`;
@@ -673,23 +687,35 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
  * Threads deauthorize callback — called when a user removes the app from their Threads account
  */
 export const handleThreadsDeauthorize = async (req: Request, res: Response) => {
-  const signedRequest = req.body?.signed_request;
+  const signedRequest = req.body?.signed_request as string | undefined;
   logger.info({ signedRequest }, '[Social] Threads deauthorize callback received');
 
   try {
-    if (signedRequest) {
-      const payload = signedRequest.split('.')[1];
-      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
-      const userId = decoded?.user_id;
+    if (!signedRequest || !signedRequest.includes('.')) {
+      logger.warn('[Social] Missing or malformed Threads signed_request');
+      return res.status(200).json({ success: true });
+    }
+    const appSecret = env.THREADS_APP_SECRET;
+    if (!appSecret) {
+      logger.warn('[Social] THREADS_APP_SECRET not configured — cannot verify signed_request');
+      return res.status(200).json({ success: true });
+    }
+    const [sig, payload] = signedRequest.split('.');
+    const expectedSig = crypto.createHmac('sha256', appSecret).update(payload).digest('hex');
+    if (sig !== expectedSig) {
+      logger.warn('[Social] Threads signed_request HMAC mismatch — ignoring');
+      return res.status(200).json({ success: true });
+    }
+    const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+    const userId = decoded?.user_id;
 
-      if (userId) {
-        await supabaseAdmin
-          .from('connected_accounts')
-          .delete()
-          .eq('platform', 'threads')
-          .eq('account_handle', userId);
-        logger.info(`[Social] Threads account deauthorized for user ${userId}`);
-      }
+    if (userId) {
+      await supabaseAdmin
+        .from('connected_accounts')
+        .delete()
+        .eq('platform', 'threads')
+        .eq('account_handle', userId);
+      logger.info(`[Social] Threads account deauthorized for user ${userId}`);
     }
   } catch (err) {
     logger.warn({ err }, '[Social] Could not parse Threads deauthorize signed_request');
@@ -702,15 +728,23 @@ export const handleThreadsDeauthorize = async (req: Request, res: Response) => {
  * Threads data deletion callback — called when a user requests their data be deleted
  */
 export const handleThreadsDataDeletion = async (req: Request, res: Response) => {
-  const signedRequest = req.body?.signed_request;
+  const signedRequest = req.body?.signed_request as string | undefined;
   logger.info({ signedRequest }, '[Social] Threads data deletion request received');
 
   let confirmationCode = `threads_del_${Date.now()}`;
 
   try {
-    if (signedRequest) {
-      const payload = signedRequest.split('.')[1];
-      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+    if (signedRequest && signedRequest.includes('.')) {
+      const appSecret = env.THREADS_APP_SECRET;
+      if (appSecret) {
+        const [sig, payload] = signedRequest.split('.');
+        const expectedSig = crypto.createHmac('sha256', appSecret).update(payload).digest('hex');
+        if (sig !== expectedSig) {
+          logger.warn('[Social] Threads data deletion signed_request HMAC mismatch — ignoring');
+          return res.status(200).json({ url: '', confirmation_code: confirmationCode });
+        }
+      }
+      const decoded = JSON.parse(Buffer.from(signedRequest.split('.')[1], 'base64').toString('utf-8'));
       const userId = decoded?.user_id;
 
       if (userId) {
@@ -753,11 +787,11 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (stateObj.nonce && !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
-      workspaceId = stateParam as string;
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('Invalid session. Please try again.')}`);
     }
 
     const redirectUri = env.YOUTUBE_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/youtube/callback`;
@@ -845,8 +879,16 @@ export const handleGoogleAdsCallback = async (req: Request, res: Response, next:
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent('No authorization code returned')}`);
     }
 
-    const workspaceId = stateParam as string;
-    logger.info(`[Social] Handling Google Ads callback for workspace: ${workspaceId}`);
+    let workspaceId: string;
+    try {
+      const stateObj = JSON.parse(stateParam as string);
+      workspaceId = stateObj.workspaceId;
+      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
+        return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent('Session expired. Please try again.')}`);
+      }
+    } catch {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent('Invalid session. Please try again.')}`);
+    }
 
     const clientId     = env.GOOGLE_ADS_CLIENT_ID     || env.YOUTUBE_CLIENT_ID     || '';
     const clientSecret = env.GOOGLE_ADS_CLIENT_SECRET || env.YOUTUBE_CLIENT_SECRET || '';

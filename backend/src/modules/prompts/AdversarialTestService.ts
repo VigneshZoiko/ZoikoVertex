@@ -514,7 +514,7 @@ export class AdversarialTestService {
     const category = ADVERSARIAL_CATEGORIES[attack.categoryId];
     const severity = attack.severity || category.severity;
     const passCondition = attack.passCondition || category.defaultPassCondition;
-    const attackId = `ATK-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const attackId = `ATK-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     const inputHash = crypto.createHash('sha256').update(attack.attackProbe).digest('hex');
 
     // Execute the model

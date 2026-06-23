@@ -1,10 +1,24 @@
 import { Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import type { AuthRequest } from '../../shared/authMiddleware';
 import { isOtpVerified } from '../../services/otp.service';
 import { sendOrgWelcomeEmail } from '../../services/email.service';
+
+const SetupSchema = z.object({
+  company_name: z.string().min(1).max(200),
+  workspace_name: z.string().min(1).max(200),
+});
+
+const CompleteOnboardingSchema = z.object({
+  email: z.string().email(),
+  fullName: z.string().max(200).optional(),
+  company_name: z.string().min(1).max(200),
+  workspace_name: z.string().min(1).max(200),
+  password: z.string().min(8).max(128).optional(),
+});
 
 export const setupWorkspace = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -12,9 +26,9 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
     const email  = req.user?.email;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { company_name, workspace_name } = req.body;
-    if (!company_name?.trim()) return res.status(400).json({ error: 'Company name is required' });
-    if (!workspace_name?.trim()) return res.status(400).json({ error: 'Workspace name is required' });
+    const parsed = SetupSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const { company_name, workspace_name } = parsed.data;
 
     // Prevent duplicate onboarding — user already has a non-deleted workspace
     const { data: existing } = await supabaseAdmin
@@ -94,10 +108,9 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
  *  Creates auth user + org + workspace in one step. */
 export const completeOnboarding = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { email, fullName, company_name, workspace_name, password } = req.body;
-    if (!email?.trim()) return res.status(400).json({ error: 'Email is required' });
-    if (!company_name?.trim()) return res.status(400).json({ error: 'Company name is required' });
-    if (!workspace_name?.trim()) return res.status(400).json({ error: 'Workspace name is required' });
+    const parsed = CompleteOnboardingSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const { email, fullName, company_name, workspace_name, password } = parsed.data;
 
     // Verify the email was OTP-verified within the last 30 minutes
     if (!isOtpVerified(email)) {
@@ -167,7 +180,7 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
         sendOrgWelcomeEmail(company_name.trim(), email, name);
 
         const respData: Record<string, unknown> = { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', is_own_password: !!password };
-        if (!password) respData.temp_password = userPassword;
+        if (!password) { respData.send_temp_password = true; /* temp password emailed to user */ }
         res.set('Cache-Control', 'no-store');
         return res.status(201).json({ success: true, data: respData });
       }
@@ -212,7 +225,7 @@ export const completeOnboarding = async (req: AuthRequest, res: Response, next: 
     logger.info(`[Onboarding] Complete for ${email}: user=${userId}, org=${org.id}, ws=${ws.id}`);
 
     const respData: Record<string, unknown> = { user_id: userId, org_id: org.id, workspace_id: ws.id, role: 'WORKSPACE_OWNER', is_own_password: !!password };
-    if (!password) respData.temp_password = userPassword;
+    if (!password) { respData.send_temp_password = true; /* temp password emailed to user */ }
     res.set('Cache-Control', 'no-store');
     res.status(201).json({ success: true, data: respData });
   } catch (err) {
