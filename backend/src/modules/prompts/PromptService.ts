@@ -78,63 +78,81 @@ export function normalizePromptRiskTier(raw: string | undefined): string {
 
 export class PromptService {
   static async list(workspaceId: string, filters?: { status?: string; risk_tier?: string; prompt_type?: string }) {
-    let query = supabaseAdmin.from('prompts').select('*').eq('workspace_id', workspaceId);
+    let query = supabaseAdmin.from('prompts').select('id, name, prompt_type, status, risk_tier, owner_name, description, linked_agent, linked_workflow, workflow_node, autonomy_level, review_requirement, knowledge_sources, linked_knowledge_sources, tools_permitted, metadata, current_version_id, created_by, created_at, updated_at').eq('workspace_id', workspaceId);
     if (filters?.status) query = query.eq('status', normalizePromptStatus(filters.status));
     if (filters?.risk_tier) query = query.eq('risk_tier', normalizePromptRiskTier(filters.risk_tier));
     if (filters?.prompt_type) query = query.eq('prompt_type', normalizePromptType(filters.prompt_type));
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(100);
     if (error) throw error;
 
-    const enriched = await Promise.all((data || []).map(async (p: any) => {
-      const { data: versions } = await supabaseAdmin
-        .from('prompt_versions')
-        .select('version_number')
-        .eq('prompt_id', p.id)
-        .order('version_number', { ascending: false })
-        .limit(1);
-      const activeVersion = versions?.[0]?.version_number ? `v${versions[0].version_number}` : '—';
+    const prompts = data || [];
+    const promptIds = prompts.map(p => p.id);
+    const versionIds = prompts.map(p => p.current_version_id || '').filter(Boolean);
 
-      const { data: lastTest } = await supabaseAdmin
-        .from('prompt_test_runs')
-        .select('suite_id, pass_fail, score_summary, created_at, environment')
-        .eq('prompt_version_id', p.current_version_id || '')
-        .order('created_at', { ascending: false })
-        .limit(1);
+    const [{ data: versions }, { data: testRuns }, { data: approvals }, { data: deployments }] = await Promise.all([
+      promptIds.length > 0
+        ? supabaseAdmin.from('prompt_versions').select('prompt_id, version_number').in('prompt_id', promptIds).order('version_number', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      versionIds.length > 0
+        ? supabaseAdmin.from('prompt_test_runs').select('suite_id, pass_fail, score_summary, created_at, environment, prompt_version_id').in('prompt_version_id', versionIds).order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      versionIds.length > 0
+        ? supabaseAdmin.from('prompt_approvals').select('reviewer_role, decision, created_at, decision_reason, prompt_version_id').in('prompt_version_id', versionIds).order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      versionIds.length > 0
+        ? supabaseAdmin.from('prompt_deployments').select('created_at, prompt_version_id').eq('environment', 'production').in('prompt_version_id', versionIds).order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+    ]);
 
-      const { data: approvals } = await supabaseAdmin
-        .from('prompt_approvals')
-        .select('reviewer_role, decision, created_at, decision_reason')
-        .eq('prompt_version_id', p.current_version_id || '')
-        .order('created_at', { ascending: false });
+    const versionByPrompt = new Map<string, number>();
+    for (const v of versions || []) {
+      if (!versionByPrompt.has(v.prompt_id)) versionByPrompt.set(v.prompt_id, v.version_number);
+    }
 
-      const { data: deployments } = await supabaseAdmin
-        .from('prompt_deployments')
-        .select('created_at')
-        .eq('prompt_version_id', p.current_version_id || '')
-        .eq('environment', 'production')
-        .order('created_at', { ascending: false })
-        .limit(1);
+    const testByVersionId = new Map<string, any>();
+    for (const t of testRuns || []) {
+      if (!testByVersionId.has(t.prompt_version_id)) testByVersionId.set(t.prompt_version_id, t);
+    }
+
+    const approvalsByVersionId = new Map<string, any[]>();
+    for (const a of approvals || []) {
+      const arr = approvalsByVersionId.get(a.prompt_version_id) || [];
+      arr.push(a);
+      approvalsByVersionId.set(a.prompt_version_id, arr);
+    }
+
+    const deployByVersionId = new Map<string, any>();
+    for (const d of deployments || []) {
+      if (!deployByVersionId.has(d.prompt_version_id)) deployByVersionId.set(d.prompt_version_id, d);
+    }
+
+    const enriched = prompts.map((p: any) => {
+      const vNum = versionByPrompt.get(p.id);
+      const activeVersion = vNum ? `v${vNum}` : '—';
+      const lastTest = testByVersionId.get(p.current_version_id || '');
+      const promptApprovals = approvalsByVersionId.get(p.current_version_id || '') || [];
+      const lastDeploy = deployByVersionId.get(p.current_version_id || '');
 
       return {
         ...p,
         active_version: activeVersion,
         active_version_id: p.current_version_id || null,
-        last_test: lastTest?.[0] ? {
-          suite_name: lastTest[0].suite_id,
-          pass_fail: lastTest[0].pass_fail,
-          score: lastTest[0].score_summary?.score || 0,
-          run_at: lastTest[0].created_at,
-          environment: lastTest[0].environment,
+        last_test: lastTest ? {
+          suite_name: lastTest.suite_id,
+          pass_fail: lastTest.pass_fail,
+          score: lastTest.score_summary?.score || 0,
+          run_at: lastTest.created_at,
+          environment: lastTest.environment,
         } : null,
-        approvals: (approvals || []).map((a: any) => ({
+        approvals: promptApprovals.map((a: any) => ({
           reviewer_role: a.reviewer_role,
           decision: a.decision,
           timestamp: a.created_at,
           notes: a.decision_reason || '',
         })),
-        last_deployed: deployments?.[0]?.created_at || '',
+        last_deployed: lastDeploy?.created_at || '',
       };
-    }));
+    });
 
     return enriched;
   }

@@ -50,6 +50,11 @@ export const submitIntent = async (
 
     const urlsToSave = mediaUrls || (mediaUrl ? [mediaUrl] : []);
 
+    const CAROUSEL_LIMITS: Record<string, number> = {
+      instagram: 10, threads: 10, facebook: 10,
+      linkedin: 9, twitter: 4, pinterest: 5, youtube: 1,
+    };
+
     const workspaceId = req.user?.workspace_id;
     const isSuperAdmin = req.user?.is_superadmin;
 
@@ -249,6 +254,13 @@ export const submitIntent = async (
       } else {
         row.status = 'PENDING_REVIEW';
         if (gov.decision === 'REVIEW') row.feedback = gov.reason;
+      }
+
+      // Smart carousel validation: warn if submitted count exceeds platform limit
+      const carouselLimit = CAROUSEL_LIMITS[row.platform];
+      if (carouselLimit !== undefined && urlsToSave.length > carouselLimit) {
+        const warning = `Carousel limit: ${row.platform} supports max ${carouselLimit} item${carouselLimit === 1 ? '' : 's'} — you submitted ${urlsToSave.length}, only the first ${carouselLimit} will be posted.`;
+        row.feedback = row.feedback ? `${row.feedback}\n\n${warning}` : warning;
       }
     }
 

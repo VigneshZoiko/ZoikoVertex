@@ -177,7 +177,7 @@ import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPos
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
-import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
+import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, getCampaignBreakdownInsights, getCampaignTrend, getCampaignAdInsights, syncBudgetToMeta, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary, listStorageItems, bulkDeleteFromLibrary } from './domains/content/libraryController';
 import { readRecentScans } from './modules/safety/scanLogger';
@@ -208,6 +208,7 @@ import { getUserContext } from './domains/identity/userController';
 import { changePlan } from './domains/identity/planController';
 import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
+import { getLinkedInPageFeed, getLinkedInPageAnalytics, getLinkedInPostComments, replyToLinkedInPost, deleteLinkedInComment } from './domains/channels/linkedinCommunityController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember, updateMemberRole } from './domains/identity/teamController';
 import {
   listUnits, getUnit, getUnitStats, getUnitChildren, createUnit, updateUnit, archiveUnit, deleteUnit, restoreUnit,
@@ -786,6 +787,13 @@ app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
 app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
 app.post('/api/v1/accounts/linkedin/pages', authenticate, saveLinkedInPages);
 
+// LinkedIn Community Management Routes
+app.get('/api/v1/linkedin/:accountId/feed',        authenticate, getLinkedInPageFeed);
+app.get('/api/v1/linkedin/:accountId/analytics',   authenticate, getLinkedInPageAnalytics);
+app.get('/api/v1/linkedin/:accountId/comments',    authenticate, getLinkedInPostComments);
+app.post('/api/v1/linkedin/:accountId/reply',      authenticate, replyToLinkedInPost);
+app.delete('/api/v1/linkedin/:accountId/comment',  authenticate, deleteLinkedInComment);
+
 // Campaigns & Projects Routes
 const campaignGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'ANALYST', 'VIEWER', 'PUBLISHER', 'SUPERADMIN');
 const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
@@ -816,9 +824,22 @@ app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGua
 app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Client Meta Account routes (bring-your-own-account model)
-import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages } from './domains/campaigns/metaAccountController';
+import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages, fetchMetaPixels, getPixelStats, createPixel, updatePixelName, deleteMetaPixel } from './domains/campaigns/metaAccountController';
 import { publishToMeta, toggleMetaStatus, deleteFromMeta, syncFromMeta, getAdAccountDetails, verifyMetaCampaign } from './domains/campaigns/metaPublishController';
 import { searchLocations, searchInterests, getReachEstimate } from './domains/campaigns/metaTargetingSearch';
+import { getCapiIntegrationKey, testCapiEvent, sendCapiEvents } from './domains/campaigns/capiController';
+
+// Meta Pixel Connector
+app.get('/api/v1/campaigns/meta/pixels',                               authenticate, campaignGuard,      fetchMetaPixels);
+app.post('/api/v1/campaigns/meta/pixels',                              authenticate, campaignWriteGuard, createPixel);
+app.get('/api/v1/campaigns/meta/pixels/:pixelId/stats',                authenticate, campaignGuard,      getPixelStats);
+app.patch('/api/v1/campaigns/meta/pixels/:pixelId',                    authenticate, campaignWriteGuard, updatePixelName);
+app.delete('/api/v1/campaigns/meta/pixels/:pixelId',                   authenticate, campaignWriteGuard, deleteMetaPixel);
+
+// Meta Conversions API (CAPI) — server-side event tracking
+app.get('/api/v1/campaigns/meta/pixels/:pixelId/capi/key',             authenticate, campaignWriteGuard, getCapiIntegrationKey);
+app.post('/api/v1/campaigns/meta/pixels/:pixelId/capi/test',           authenticate, campaignWriteGuard, testCapiEvent);
+app.post('/api/v1/campaigns/meta/pixels/:pixelId/capi/events',         sendCapiEvents);  // public — auth via integration key
 
 // Client Meta account management
 app.get('/api/v1/campaigns/meta/accounts',                        authenticate, campaignGuard, listClientCampaignAccounts);
@@ -856,7 +877,11 @@ app.post('/api/v1/ads/boosts/:id/sync', authenticate, adsGuard, syncBoostMetrics
 app.post('/api/v1/ads/boosts/:id/pause',   authenticate, adsGuard, pauseBoost);
 app.post('/api/v1/ads/boosts/:id/resume',  authenticate, adsGuard, resumeBoost);
 app.delete('/api/v1/ads/boosts/:id',       authenticate, adsGuard, cancelBoost);
-app.get('/api/v1/campaigns/:id/insights',  authenticate, adsGuard, getCampaignInsights);
+app.get('/api/v1/campaigns/:id/insights',             authenticate, adsGuard, getCampaignInsights);
+app.get('/api/v1/campaigns/:id/insights/breakdown',   authenticate, adsGuard, getCampaignBreakdownInsights);
+app.get('/api/v1/campaigns/:id/insights/trend',       authenticate, adsGuard, getCampaignTrend);
+app.get('/api/v1/campaigns/:id/insights/ads',         authenticate, adsGuard, getCampaignAdInsights);
+app.patch('/api/v1/campaigns/:id/budget-meta',         authenticate, adsGuard, syncBudgetToMeta);
 
 // Google Ads / Boost routes (Phase 2b)
 app.get('/api/v1/ads/google/accounts/:connectedAccountId/customers',      authenticate, adsGuard, getGoogleAdsCustomers);

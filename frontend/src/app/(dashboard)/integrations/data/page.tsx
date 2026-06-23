@@ -249,7 +249,7 @@ export default function DataPage() {
             syncIntervalRef.current = null;
             setSyncingId(null);
           }
-        }, 5000);
+        }, 15000);
       }
     } catch (err) {
       console.error(err);

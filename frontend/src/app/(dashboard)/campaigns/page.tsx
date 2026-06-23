@@ -33,13 +33,21 @@ interface Campaign {
   wizard_step?: number;
   campaign_boosts?: Array<{ meta_campaign_id?: string | null; ad_account_id?: string | null }>;
   business_unit_id?: string | null;
-  // metrics from boost sync
-  impressions?: number;
-  reach?: number;
-  clicks?: number;
-  cpc?: number;
-  cpm?: number;
-  ctr?: number;
+  // metrics from Meta live fetch
+  impressions?: number | null;
+  reach?: number | null;
+  clicks?: number | null;
+  cpc?: number | null;
+  cpm?: number | null;
+  ctr?: number | null;
+  roas?: number | null;
+  cpp?: number | null;
+  frequency?: number | null;
+  unique_clicks?: number | null;
+  cost_per_unique_click?: number | null;
+  quality_ranking?: string | null;
+  engagement_rate_ranking?: string | null;
+  conversion_rate_ranking?: string | null;
 }
 
 interface MetaAccount {
@@ -340,12 +348,21 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
 interface MetaPixelItem {
   id: string; name: string;
   creation_time: string | null; last_fired_time: string | null;
+  code?: string | null;
+  is_unavailable?: boolean;
+  automatic_matching_fields?: string[];
+  connected_datasets?: { id: string; name: string }[];
+  capi_enabled?: boolean;
 }
 
 interface PixelStats {
-  events_24h: number;
-  by_event:   { event: string; count: number }[];
-  by_day:     { date: string | number | null; count: number }[];
+  events_24h:    number;
+  by_event:      { event: string; count: number }[];
+  by_day:        { date: string | number | null; count: number }[];
+  by_device:     { device: string; count: number }[];
+  by_url:        { url: string; count: number }[];
+  by_country:    { country: string; count: number }[];
+  event_quality: { event: string; score: number; match_keys: string[] }[];
   meta_error?: string;
 }
 
@@ -363,6 +380,12 @@ function formatDate(v: string | number | null): string {
   if (!v) return "";
   const ms = typeof v === "number" ? v * 1000 : /^\d+$/.test(String(v)) ? parseInt(String(v)) * 1000 : new Date(v).getTime();
   return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function metaEventLabel(event: string): string {
+  if (!event || event === 'Unknown') return 'Other';
+  // Split camelCase → "Page View", "Add To Cart", etc.
+  return event.replace(/([A-Z])/g, ' $1').trim();
 }
 
 function pixelStatus(lf: string | null, events24h: number | undefined) {
@@ -386,7 +409,14 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
   const [expanded,     setExpanded]     = useState<string | null>(null);
   const [statsMap,     setStatsMap]     = useState<Record<string, PixelStats>>({});
   const [statsLoading, setStatsLoading] = useState<Record<string, boolean>>({});
-  const [showSetup,    setShowSetup]    = useState<{ id: string; name: string; view?: "OPTIONS" | "CODE" } | null>(null);
+  const [showSetup,    setShowSetup]    = useState<{ id: string; name: string; code?: string | null; view?: "OPTIONS" | "CODE" | "CAPI"; capiKey?: string | null } | null>(null);
+  const [codeCopied,   setCodeCopied]   = useState(false);
+  const [capiKeyVisible, setCapiKeyVisible] = useState(false);
+  const [capiSnipTab,    setCapiSnipTab]    = useState<"js" | "node" | "curl">("js");
+  const [capiSnipCopied, setCapiSnipCopied] = useState(false);
+  const [testingCapi,      setTestingCapi]      = useState(false);
+  const [capiTestCode,     setCapiTestCode]     = useState("");
+  const [capiTestResult,   setCapiTestResult]   = useState<{ success: boolean; events_received?: number; error?: string } | null>(null);
   // Create pixel modal
   const [showCreate,   setShowCreate]   = useState(false);
   const [createName,   setCreateName]   = useState("");
@@ -590,7 +620,12 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                         </div>
                       ) : (
                         <>
-                          <p className="font-medium text-foreground text-sm">{px.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground text-sm">{px.name}</p>
+                            {px.is_unavailable && (
+                              <span className="px-1.5 py-0.5 bg-error-text/15 text-error-text text-[10px] font-bold rounded uppercase tracking-wide">Unavailable</span>
+                            )}
+                          </div>
                           <p className="text-xs text-foreground-muted mt-0.5">ID {px.id}</p>
                         </>
                       )}
@@ -625,7 +660,14 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                     </div>
 
                     {/* Actions */}
-                    <div className="relative" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 relative" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setShowSetup({ id: px.id, name: px.name, code: px.code, view: "OPTIONS" }); }}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-foreground-muted hover:text-foreground hover:bg-white/5 border border-border/50 transition-colors"
+                        title="Install options"
+                      >
+                        <Code className="w-3.5 h-3.5" />Install
+                      </button>
                       <button onClick={() => setOpenMenu(openMenu === px.id ? null : px.id)}
                         className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-white/5">
                         <MoreHorizontal className="w-4 h-4" />
@@ -639,9 +681,25 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                               className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5">
                               <ExternalLink className="w-4 h-4 text-foreground-muted" />Go to Events Manager
                             </a>
-                            <button onClick={() => { setShowSetup({ id: px.id, name: px.name }); setOpenMenu(null); }}
+                            <button onClick={() => { setShowSetup({ id: px.id, name: px.name, code: px.code }); setOpenMenu(null); }}
                               className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
                               <Code className="w-4 h-4 text-foreground-muted" />View Setup Code
+                            </button>
+                            <button
+                              onClick={async () => {
+                                setOpenMenu(null);
+                                setShowSetup({ id: px.id, name: px.name, code: px.code, view: "CAPI", capiKey: null });
+                                setCapiKeyVisible(false);
+                                setCapiTestResult(null);
+                                try {
+                                  const r = await api.get(`/api/v1/campaigns/meta/pixels/${px.id}/capi/key`);
+                                  if (r?.data?.integration_key) {
+                                    setShowSetup(s => s ? { ...s, capiKey: r.data.integration_key } : s);
+                                  }
+                                } catch { /* key stays null */ }
+                              }}
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
+                              <Zap className="w-4 h-4 text-foreground-muted" />Set Up Conversions API
                             </button>
                             {st.label === "Active" ? (
                               <button
@@ -683,57 +741,213 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                           {" "}<a href={`https://business.facebook.com/events_manager2/list/pixel/${px.id}/overview`}
                             target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View in Events Manager →</a>
                         </p>
-                      ) : (
-                        <div className="grid grid-cols-1 gap-5 pt-3 sm:grid-cols-2">
+                      ) : (() => {
+                        const total7d  = stats.by_event.reduce((s, e) => s + e.count, 0);
+                        const dayMax   = Math.max(...stats.by_day.map(d => d.count), 1);
+                        const devTotal = (stats.by_device || []).reduce((s, d) => s + d.count, 0) || 1;
+                        const urlTotal = (stats.by_url    || []).reduce((s, u) => s + u.count, 0) || 1;
+                        const cntTotal = (stats.by_country|| []).reduce((s, c) => s + c.count, 0) || 1;
 
-                          {/* 7-day bar chart */}
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-3">Last 7 Days</p>
-                            {stats.by_day.length === 0 ? (
-                              <p className="text-xs text-foreground-muted">No events in the past 7 days.</p>
-                            ) : (() => {
-                              const max = Math.max(...stats.by_day.map(d => d.count), 1);
-                              return (
-                                <div className="flex items-end gap-1 h-16">
-                                  {stats.by_day.map((d, i) => (
-                                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group" title={`${formatDate(d.date)}: ${d.count} events`}>
-                                      <div className="w-full bg-blue-500/70 rounded-sm transition-all group-hover:bg-blue-400"
-                                        style={{ height: `${Math.max(Math.round((d.count / max) * 100), d.count > 0 ? 4 : 0)}%` }} />
-                                      <span className="text-[9px] text-foreground-muted">{formatDate(d.date).split(" ")[1]}</span>
-                                    </div>
-                                  ))}
+                        const BarRow = ({ label, count, total, color }: { label: string; count: number; total: number; color: string }) => {
+                          const pct = Math.round((count / total) * 100);
+                          return (
+                            <div>
+                              <div className="flex items-center justify-between text-xs mb-0.5">
+                                <span className="text-foreground-muted truncate max-w-[60%]" title={label}>{label}</span>
+                                <span className="text-foreground font-medium shrink-0 ml-2">{count.toLocaleString()} <span className="text-foreground-muted font-normal">({pct}%)</span></span>
+                              </div>
+                              <div className="h-1 bg-border rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        };
+
+                        const hasMetaDataset = (px.connected_datasets?.length ?? 0) > 0;
+                        const hasCapi        = px.capi_enabled || hasMetaDataset;
+                        const autoMatch = px.automatic_matching_fields ?? [];
+
+                        return (
+                          <div className="pt-3 space-y-5">
+
+                            {/* KPI row */}
+                            <div className="grid grid-cols-3 gap-3">
+                              {[
+                                { label: "Events (7 days)", value: total7d.toLocaleString() },
+                                { label: "Events (24h)",    value: stats.events_24h.toLocaleString() },
+                                { label: "Top Event",       value: stats.by_event[0] ? metaEventLabel(stats.by_event[0].event) : "—" },
+                              ].map(k => (
+                                <div key={k.label} className="bg-surface-raised/60 rounded-xl p-3 text-center">
+                                  <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted mb-1">{k.label}</p>
+                                  <p className="text-base font-bold text-foreground">{k.value}</p>
                                 </div>
-                              );
-                            })()}
-                          </div>
+                              ))}
+                            </div>
 
-                          {/* Event breakdown */}
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-3">Events (7 Days)</p>
-                            {stats.by_event.length === 0 ? (
-                              <p className="text-xs text-foreground-muted">No events in the past 7 days.</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {stats.by_event.slice(0, 6).map(ev => {
-                                  const total = stats.by_event.reduce((s, e) => s + e.count, 0) || 1;
-                                  const pct   = Math.round((ev.count / total) * 100);
-                                  return (
-                                    <div key={ev.event}>
-                                      <div className="flex items-center justify-between text-xs mb-0.5">
-                                        <span className="text-foreground-muted">{ev.event}</span>
-                                        <span className="text-foreground font-medium">{ev.count.toLocaleString()}</span>
+                            {/* CAPI + Auto-matching status */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                                hasCapi
+                                  ? "text-success-text border-success-text/30 bg-success-text/10"
+                                  : "text-foreground-muted border-border bg-surface-hover"
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full inline-block ${hasCapi ? "bg-success-text" : "bg-zinc-500"}`} />
+                                {px.capi_enabled && !hasMetaDataset
+                                  ? "ZoikoVertex CAPI Active"
+                                  : hasMetaDataset
+                                  ? `CAPI Connected · ${(px.connected_datasets || []).map(d => d.name).join(", ")}`
+                                  : "No Conversions API"}
+                              </span>
+                              <button
+                                onClick={async () => {
+                                  setShowSetup({ id: px.id, name: px.name, code: px.code, view: "CAPI", capiKey: null });
+                                  setCapiKeyVisible(false);
+                                  setCapiTestResult(null);
+                                  try {
+                                    const r = await api.get(`/api/v1/campaigns/meta/pixels/${px.id}/capi/key`);
+                                    if (r?.data?.integration_key) {
+                                      setShowSetup(s => s ? { ...s, capiKey: r.data.integration_key } : s);
+                                    }
+                                  } catch { /* key stays null */ }
+                                }}
+                                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-[#1877F2]/40 bg-[#1877F2]/10 text-[#1877F2] hover:bg-[#1877F2]/20 transition-colors"
+                              >
+                                <Zap className="w-3 h-3" />
+                                {hasCapi ? "View CAPI" : "Set Up CAPI"}
+                              </button>
+                              {autoMatch.length > 0 && (
+                                <span className="flex items-center gap-1 text-[11px] text-foreground-muted px-2.5 py-1 rounded-full border border-border bg-surface-hover">
+                                  <span className="font-semibold text-foreground-muted">Auto-match:</span>
+                                  {autoMatch.slice(0, 4).map((f: string) => (
+                                    <span key={f} className="px-1.5 py-0.5 bg-surface rounded text-[10px]">{f.replace(/_/g, " ")}</span>
+                                  ))}
+                                  {autoMatch.length > 4 && <span className="text-[10px]">+{autoMatch.length - 4}</span>}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Daily trend bar chart — use px heights (% fails on auto-height flex parents) */}
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Daily Trend (7 Days)</p>
+                              {stats.by_day.length === 0 ? (
+                                <p className="text-xs text-foreground-muted">No data.</p>
+                              ) : (
+                                <div className="flex items-end gap-1">
+                                  {stats.by_day.map((d, i) => {
+                                    const label  = typeof d.date === "string" ? d.date.substring(5) : String(d.date || "");
+                                    const barPx  = d.count > 0 ? Math.max(Math.round((d.count / dayMax) * 52), 5) : 2;
+                                    return (
+                                      <div key={i} className="flex-1 flex flex-col items-center gap-0.5 group" title={`${d.date}: ${d.count.toLocaleString()} events`}>
+                                        <div className="w-full bg-[#1877F2]/60 rounded-sm hover:bg-[#1877F2]/80 transition-colors"
+                                          style={{ height: `${barPx}px` }} />
+                                        <span className="text-[8px] text-foreground-muted leading-none">{label}</span>
                                       </div>
-                                      <div className="h-1 bg-border rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-500/70 rounded-full" style={{ width: `${pct}%` }} />
-                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Event Types + Device Types */}
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Event Types</p>
+                                {stats.by_event.length === 0 ? (
+                                  <p className="text-xs text-foreground-muted">No events.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {stats.by_event.slice(0, 8).map((ev, evIdx) => (
+                                      <BarRow key={`${ev.event}-${evIdx}`} label={metaEventLabel(ev.event)} count={ev.count} total={total7d || 1} color="bg-blue-500/70" />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Device Types</p>
+                                {(!stats.by_device || stats.by_device.length === 0) ? (
+                                  <p className="text-xs text-foreground-muted">No device data.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {stats.by_device.slice(0, 6).map((dv, dvIdx) => (
+                                      <BarRow key={`${dv.device}-${dvIdx}`} label={dv.device.replace(/_/g, " ")} count={dv.count} total={devTotal} color="bg-purple-500/70" />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Top Pages + Geography */}
+                            {((stats.by_url?.length ?? 0) > 0 || (stats.by_country?.length ?? 0) > 0) && (
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1 border-t border-border/50">
+
+                                {(stats.by_url?.length ?? 0) > 0 && (
+                                  <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Top Pages</p>
+                                    <div className="space-y-2">
+                                      {(stats.by_url || []).slice(0, 6).map((u, ui) => {
+                                        let display = u.url;
+                                        try {
+                                          const p = new URL(u.url);
+                                          // Show host + path so duplicate "/" roots are distinguishable by domain
+                                          display = p.hostname + (p.pathname !== "/" ? p.pathname : "");
+                                        } catch { /* keep raw */ }
+                                        if (display.length > 45) display = display.substring(0, 43) + "…";
+                                        return (
+                                          <BarRow key={`url-${ui}`} label={display || u.url} count={u.count} total={urlTotal} color="bg-teal-500/70" />
+                                        );
+                                      })}
                                     </div>
-                                  );
-                                })}
+                                  </div>
+                                )}
+
+                                {(stats.by_country?.length ?? 0) > 0 && (
+                                  <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Geography</p>
+                                    <div className="space-y-2">
+                                      {(stats.by_country || []).slice(0, 6).map((c, ci) => (
+                                        <BarRow key={`cntry-${ci}`} label={c.country} count={c.count} total={cntTotal} color="bg-amber-500/70" />
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
+
+                            {/* Event Match Quality */}
+                            {(stats.event_quality?.length ?? 0) > 0 && (
+                              <div className="pt-1 border-t border-border/50">
+                                <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Event Match Quality</p>
+                                <div className="space-y-2">
+                                  {(stats.event_quality || []).slice(0, 5).map((eq, eqIdx) => {
+                                    const score = Number(eq.score);
+                                    const color  = score >= 7 ? "bg-success-text/70" : score >= 4 ? "bg-warning-text/70" : "bg-error-text/70";
+                                    const label  = score >= 7 ? "Excellent" : score >= 4 ? "Fair" : "Poor";
+                                    return (
+                                      <div key={`emq-${eqIdx}`} className="flex items-center justify-between text-xs">
+                                        <span className="text-foreground-muted">{metaEventLabel(eq.event)}</span>
+                                        <div className="flex items-center gap-2">
+                                          {eq.match_keys?.length > 0 && (
+                                            <span className="text-[9px] text-foreground-muted">{eq.match_keys.slice(0, 3).join(", ")}</span>
+                                          )}
+                                          <div className="flex items-center gap-1">
+                                            <div className={`w-2 h-2 rounded-full ${color}`} />
+                                            <span className={`font-semibold ${score >= 7 ? "text-success-text" : score >= 4 ? "text-warning-text" : "text-error-text"}`}>
+                                              {score.toFixed(1)} <span className="font-normal text-foreground-muted">({label})</span>
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                <p className="text-[9px] text-foreground-muted mt-2">Score 0–10 · Measures how well Meta can match pixel events to users</p>
+                              </div>
+                            )}
+
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -825,8 +1039,235 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
       {/* Setup Code modal */}
       {showSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowSetup(null)}>
-          <div className={`bg-surface border border-border rounded-2xl p-6 w-full shadow-2xl transition-all max-h-[90vh] overflow-y-auto ${showSetup.view !== "CODE" ? "max-w-2xl" : "max-w-lg"}`} onClick={e => e.stopPropagation()}>
-            {showSetup.view !== "CODE" ? (
+          <div className={`bg-surface border border-border rounded-2xl p-6 w-full shadow-2xl transition-all max-h-[90vh] overflow-y-auto ${showSetup.view === "CAPI" ? "max-w-2xl" : showSetup.view === "CODE" ? "max-w-lg" : "max-w-3xl"}`} onClick={e => e.stopPropagation()}>
+            {showSetup.view === "CAPI" ? (
+              <>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <button onClick={() => setShowSetup({ ...showSetup, view: "OPTIONS" })} className="text-xs text-blue-400 hover:underline mb-1 inline-block">&larr; Back to options</button>
+                    <h3 className="text-base font-bold text-foreground">Server-Side Conversions API (CAPI)</h3>
+                    <p className="text-xs text-foreground-muted mt-1">
+                      Pixel: <span className="font-mono">{showSetup.name}</span>
+                      <span className="ml-2 px-1.5 py-0.5 bg-surface-hover rounded text-[10px] font-mono">{showSetup.id}</span>
+                    </p>
+                  </div>
+                  <button onClick={() => setShowSetup(null)} className="p-1 hover:bg-white/10 rounded-lg"><X className="w-4 h-4 text-foreground-muted" /></button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Step 1: Integration Key */}
+                  <div className="bg-background/50 border border-border rounded-xl p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted mb-3">Step 1 — Your Integration Key</p>
+                    {!showSetup.capiKey ? (
+                      <div className="flex items-center gap-2 text-xs text-foreground-muted"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating key…</div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 font-mono text-[11px] bg-surface-hover rounded-lg px-3 py-2 border border-border overflow-x-auto whitespace-nowrap">
+                            {capiKeyVisible ? showSetup.capiKey : "•".repeat(Math.min(showSetup.capiKey.length, 52))}
+                          </div>
+                          <button onClick={() => setCapiKeyVisible(v => !v)} title={capiKeyVisible ? "Hide" : "Show"} className="p-2 rounded-lg hover:bg-surface-hover border border-border transition-colors">
+                            <Eye className="w-3.5 h-3.5 text-foreground-muted" />
+                          </button>
+                          <button onClick={() => { if (showSetup.capiKey) navigator.clipboard.writeText(showSetup.capiKey); }} className="px-3 py-2 text-xs font-semibold bg-[#1877F2] hover:bg-blue-500 text-white rounded-lg transition-colors">
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-foreground-muted mt-2">Keep this secret. Use it as the <code className="bg-surface-hover px-1 rounded">Authorization: Bearer</code> token when sending events.</p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Step 2: Code Snippet */}
+                  <div className="bg-background/50 border border-border rounded-xl p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted mb-3">Step 2 — Track Events from Your Server</p>
+                    <div className="flex gap-1 mb-3">
+                      {(["js", "node", "curl"] as const).map(tab => (
+                        <button key={tab} onClick={() => setCapiSnipTab(tab)} className={`px-3 py-1 text-[11px] font-semibold rounded-lg transition-colors ${capiSnipTab === tab ? "bg-[#1877F2] text-white" : "bg-surface-hover text-foreground-muted hover:text-foreground"}`}>
+                          {tab === "js" ? "JavaScript" : tab === "node" ? "Node.js" : "cURL"}
+                        </button>
+                      ))}
+                    </div>
+                    <pre className="bg-background border border-border rounded-xl text-[10px] font-mono text-success-text overflow-x-auto p-3 leading-relaxed whitespace-pre">
+{capiSnipTab === "js" ? `const ORDER_ID = 'order_' + Date.now(); // use your real order/event ID
+
+// 1. Fire browser pixel with deduplication ID
+fbq('track', 'Purchase', { value: 99.99, currency: 'USD' }, { eventID: ORDER_ID });
+
+// 2. Send to ZoikoVertex CAPI from your backend (not the browser!)
+await fetch('https://api.zoikovertex.com/api/v1/campaigns/meta/pixels/${showSetup.id}/capi/events', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${showSetup.capiKey || "YOUR_INTEGRATION_KEY"}'
+  },
+  body: JSON.stringify({ events: [{
+    event_name: 'Purchase',
+    event_id: ORDER_ID,
+    event_source_url: 'https://yoursite.com/checkout',
+    user_data: {
+      email: 'customer@example.com',  // ZoikoVertex hashes PII automatically
+      phone: '+1234567890',
+      ip: '0.0.0.0',          // req.ip from your server
+      user_agent: navigator.userAgent,
+      fbp: document.cookie.match(/_fbp=([^;]+)/)?.[1],
+      fbc: document.cookie.match(/_fbc=([^;]+)/)?.[1]
+    },
+    custom_data: { value: 99.99, currency: 'USD' }
+  }]})
+});`
+: capiSnipTab === "node" ? `const PIXEL_ID   = '${showSetup.id}';
+const CAPI_KEY   = '${showSetup.capiKey || "YOUR_INTEGRATION_KEY"}';
+const API_BASE   = 'https://api.zoikovertex.com';
+
+async function trackServerEvent(req, event) {
+  const res = await fetch(
+    \`\${API_BASE}/api/v1/campaigns/meta/pixels/\${PIXEL_ID}/capi/events\`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': \`Bearer \${CAPI_KEY}\`
+      },
+      body: JSON.stringify({ events: [{
+        event_name:       event.name,
+        event_id:         event.orderId,
+        event_source_url: req.headers.referer,
+        action_source:    'website',
+        user_data: {
+          email:      event.email,
+          phone:      event.phone,
+          ip:         req.ip,
+          user_agent: req.headers['user-agent'],
+          fbp:        req.cookies?._fbp,
+          fbc:        req.cookies?._fbc
+        },
+        custom_data: event.customData
+      }]})
+    }
+  );
+  return res.json();
+}
+
+// Usage — in your order completion handler:
+app.post('/checkout/complete', async (req, res) => {
+  await trackServerEvent(req, {
+    name: 'Purchase', orderId: req.body.order_id,
+    email: req.body.email, phone: req.body.phone,
+    customData: { value: req.body.total, currency: 'USD' }
+  });
+  res.json({ ok: true });
+});`
+: `curl -X POST \\
+  'https://api.zoikovertex.com/api/v1/campaigns/meta/pixels/${showSetup.id}/capi/events' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer ${showSetup.capiKey || "YOUR_INTEGRATION_KEY"}' \\
+  -d '{
+    "events": [{
+      "event_name": "Purchase",
+      "event_id": "order_12345",
+      "event_source_url": "https://yoursite.com/checkout",
+      "action_source": "website",
+      "user_data": {
+        "email": "customer@example.com",
+        "phone": "+1234567890",
+        "ip": "192.168.1.1",
+        "user_agent": "Mozilla/5.0"
+      },
+      "custom_data": {
+        "value": 99.99,
+        "currency": "USD"
+      }
+    }]
+  }'`}
+                    </pre>
+                    <div className="flex justify-end mt-2">
+                      <button onClick={() => {
+                        const snip = capiSnipTab === "js"
+                          ? `const ORDER_ID = 'order_' + Date.now();\nfbq('track', 'Purchase', { value: 99.99, currency: 'USD' }, { eventID: ORDER_ID });`
+                          : capiSnipTab === "node"
+                          ? `const PIXEL_ID = '${showSetup.id}';\nconst CAPI_KEY = '${showSetup.capiKey || "YOUR_INTEGRATION_KEY"}';`
+                          : `curl -X POST 'https://api.zoikovertex.com/api/v1/campaigns/meta/pixels/${showSetup.id}/capi/events'`;
+                        navigator.clipboard.writeText(snip).then(() => {
+                          setCapiSnipCopied(true);
+                          setTimeout(() => setCapiSnipCopied(false), 2000);
+                        });
+                      }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-zinc-100 text-zinc-900 rounded-lg transition-colors">
+                        {capiSnipCopied ? <><CheckCircle2 className="w-3 h-3 text-green-600" />Copied!</> : "Copy Snippet"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Deduplication */}
+                  <div className="bg-background/50 border border-border rounded-xl p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted mb-2">Step 3 — Deduplicate with Browser Pixel</p>
+                    <p className="text-xs text-foreground-muted mb-2">Pass the same <code className="bg-surface-hover px-1 rounded">event_id</code> to <em>both</em> the browser pixel and CAPI. Meta automatically deduplicates the pair so you don&apos;t count the same event twice.</p>
+                    <pre className="bg-background border border-border rounded-xl text-[10px] font-mono text-amber-400 overflow-x-auto p-3 whitespace-pre">{`// In the browser, pass the same event_id you sent to CAPI:
+fbq('track', 'Purchase', { value: 99.99, currency: 'USD' }, { eventID: ORDER_ID });`}</pre>
+                  </div>
+
+                  {/* Step 4: Test */}
+                  <div className="bg-background/50 border border-border rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted">Step 4 — Verify Connection</p>
+                      <a
+                        href={`https://business.facebook.com/events_manager2/list/pixel/${showSetup.id}/test_events`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[11px] text-[#1877F2] hover:underline">
+                        Open Events Manager Test Events <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <p className="text-xs text-foreground-muted mb-3">
+                      Get your <span className="font-semibold text-foreground">Test Event Code</span> from Events Manager → TestPixel → Test Events tab, paste it below, then click Send.
+                    </p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={capiTestCode}
+                        onChange={e => setCapiTestCode(e.target.value)}
+                        placeholder="TEST12345 (from Events Manager)"
+                        className="flex-1 bg-surface-hover border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-[#1877F2]/60"
+                      />
+                      <button
+                        disabled={testingCapi}
+                        onClick={async () => {
+                          setTestingCapi(true);
+                          setCapiTestResult(null);
+                          try {
+                            const r = await api.post(`/api/v1/campaigns/meta/pixels/${showSetup.id}/capi/test`, {
+                              test_event_code: capiTestCode.trim() || undefined,
+                            });
+                            if (r?.success !== false) {
+                              setCapiTestResult({ success: true, events_received: r?.data?.events_received ?? 1 });
+                            } else {
+                              setCapiTestResult({ success: false, error: r?.error || "Meta rejected the event" });
+                            }
+                          } catch {
+                            setCapiTestResult({ success: false, error: "Request failed — check backend connection" });
+                          } finally {
+                            setTestingCapi(false);
+                          }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#1877F2] hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap">
+                        {testingCapi && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        Send Test Event
+                      </button>
+                    </div>
+                    {capiTestResult && (
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${capiTestResult.success ? "bg-success-text/10 text-success-text" : "bg-error-text/10 text-error-text"}`}>
+                        {capiTestResult.success
+                          ? <><CheckCircle2 className="w-3.5 h-3.5 shrink-0" />{capiTestResult.events_received} event received by Meta — check your Test Events tab to confirm</>
+                          : <><AlertCircle className="w-3.5 h-3.5 shrink-0" />{capiTestResult.error}</>
+                        }
+                      </div>
+                    )}
+                    {!capiTestCode && (
+                      <p className="text-[10px] text-foreground-muted mt-2">Leave the code blank to send directly to production data (no real-time preview in Events Manager).</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : showSetup.view !== "CODE" ? (
               <>
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-xl font-bold text-foreground">Connect website activity using pixel</h3>
@@ -836,15 +1277,15 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                   Select the best method for adding the pixel code to your site based on how the website was built, what kind of access you have to the code and your technical support.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Option 1 */}
                   <div className="border border-border rounded-xl p-5 bg-background/50 hover:bg-white/[0.02] transition-colors flex flex-col">
                     <div className="w-10 h-10 rounded-lg bg-surface-hover border border-border flex items-center justify-center mb-4">
                       <Code className="w-5 h-5 text-foreground-muted" />
                     </div>
-                    <h4 className="font-bold text-foreground mb-2">Manually add pixel code to website</h4>
+                    <h4 className="font-bold text-foreground mb-2">Manually add pixel code</h4>
                     <p className="text-sm text-foreground-muted mb-6 flex-1">
-                      Follow guided installation instructions with detailed developer documentation or email instructions to your developer.
+                      Follow guided installation instructions or email the code to your developer to paste into the website.
                     </p>
                     <div>
                       <button onClick={() => setShowSetup({ ...showSetup, view: "CODE" })}
@@ -861,13 +1302,41 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                     </div>
                     <h4 className="font-bold text-foreground mb-2">Use partner integration</h4>
                     <p className="text-sm text-foreground-muted mb-6 flex-1">
-                      Check if your website is eligible for integration with one of our supported partners, such as Shopify, WordPress and more.
+                      Check if your website is eligible for integration with a supported partner such as Shopify, WordPress, and more.
                     </p>
                     <div>
                       <a href={`https://business.facebook.com/events_manager2/list/pixel/${showSetup.id}/settings`} target="_blank" rel="noopener noreferrer"
                         className="inline-block px-5 py-2 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors">
                         Check for Partner
                       </a>
+                    </div>
+                  </div>
+
+                  {/* Option 3 — CAPI */}
+                  <div className="border border-[#1877F2]/30 rounded-xl p-5 bg-[#1877F2]/5 hover:bg-[#1877F2]/10 transition-colors flex flex-col">
+                    <div className="w-10 h-10 rounded-lg bg-[#1877F2]/20 border border-[#1877F2]/30 flex items-center justify-center mb-4">
+                      <Zap className="w-5 h-5 text-[#1877F2]" />
+                    </div>
+                    <h4 className="font-bold text-foreground mb-2">Server-Side Events (CAPI)</h4>
+                    <p className="text-sm text-foreground-muted mb-6 flex-1">
+                      Track events from your server — bypasses ad blockers and iOS privacy restrictions. Better attribution and match quality.
+                    </p>
+                    <div>
+                      <button
+                        onClick={async () => {
+                          setShowSetup(s => s ? { ...s, view: "CAPI", capiKey: null } : s);
+                          setCapiKeyVisible(false);
+                          setCapiTestResult(null);
+                          try {
+                            const r = await api.get(`/api/v1/campaigns/meta/pixels/${showSetup.id}/capi/key`);
+                            if (r?.data?.integration_key) {
+                              setShowSetup(s => s ? { ...s, capiKey: r.data.integration_key } : s);
+                            }
+                          } catch { /* key stays null */ }
+                        }}
+                        className="px-5 py-2 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors">
+                        Set Up CAPI
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -908,17 +1377,24 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
               </>
             ) : (
               <>
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start mb-4">
                   <div>
                     <button onClick={() => setShowSetup({ ...showSetup, view: "OPTIONS" })} className="text-xs text-blue-400 hover:underline mb-1 inline-block">&larr; Back to options</button>
                     <h3 className="text-base font-bold text-foreground">Pixel Base Code</h3>
-                    <p className="text-sm text-foreground-muted mt-1">Paste this code just above the <code className="bg-white/10 px-1 py-0.5 rounded">&lt;/head&gt;</code> tag on your website.</p>
+                    <p className="text-xs text-foreground-muted mt-1">
+                      Pixel: <span className="font-mono text-foreground-muted">{showSetup.name}</span>
+                      <span className="ml-2 px-1.5 py-0.5 bg-surface-hover rounded text-[10px] font-mono">{showSetup.id}</span>
+                    </p>
+                    <p className="text-sm text-foreground-muted mt-2">Paste this code just above the <code className="bg-white/10 px-1 py-0.5 rounded">&lt;/head&gt;</code> tag on your website.</p>
                   </div>
                   <button onClick={() => setShowSetup(null)} className="p-1 hover:bg-white/10 rounded-lg"><X className="w-4 h-4 text-foreground-muted" /></button>
                 </div>
+                {/* Code block — use real code from Meta if available */}
                 <div className="relative">
-                  <pre className="bg-background border border-border p-4 rounded-xl text-[10px] text-success-text overflow-x-auto whitespace-pre-wrap">
-{`<!-- Meta Pixel Code -->
+                  <pre className="bg-background border border-border p-4 rounded-xl text-[10px] font-mono text-success-text overflow-x-auto whitespace-pre leading-relaxed">
+{showSetup.code
+  ? showSetup.code
+  : `<!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -936,10 +1412,17 @@ src="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel Code -->`}
               </pre>
+              {showSetup.code && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <CheckCircle2 className="w-3 h-3 text-success-text" />
+                  <p className="text-[10px] text-success-text">Code retrieved live from Meta</p>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-between items-center pt-3">
+              <p className="text-[10px] text-foreground-muted">Add this to every page you want to track.</p>
               <button onClick={() => {
-                const code = `<!-- Meta Pixel Code -->
+                const code = showSetup.code || (`<!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -955,10 +1438,14 @@ fbq('track', 'PageView');
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"
 /></noscript>
-<!-- End Meta Pixel Code -->`;
-                navigator.clipboard.writeText(code);
-                alert("Code copied to clipboard!");
-              }} className="px-4 py-2 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-xl">Copy Code</button>
+<!-- End Meta Pixel Code -->`);
+                navigator.clipboard.writeText(code).then(() => {
+                  setCodeCopied(true);
+                  setTimeout(() => setCodeCopied(false), 2500);
+                });
+              }} className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-xl transition-colors">
+                {codeCopied ? <><CheckCircle2 className="w-3.5 h-3.5 text-green-600" />Copied!</> : "Copy Code"}
+              </button>
             </div>
           </>
         )}
@@ -1030,6 +1517,16 @@ export default function CampaignsPage() {
   const rows   = tab === "drafts" ? campaigns.filter(c => c.status === "DRAFT") : campaigns;
   const drafts = campaigns.filter(c => c.status === "DRAFT");
   const [selectedDraft, setSelectedDraft] = React.useState<Campaign | null>(null);
+  const [compareMode,   setCompareMode]   = useState(false);
+  const [compareIds,    setCompareIds]    = useState<Set<string>>(new Set());
+
+  const toggleCompare = (id: string) => {
+    setCompareIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else if (next.size < 4) next.add(id);
+      return next;
+    });
+  };
 
   const toggleStatus = async (c: Campaign) => {
     if (c.status === "PAUSING" || c.status === "RESUMING") return;
@@ -1045,10 +1542,16 @@ export default function CampaignsPage() {
       pausing ? { reason: "Paused from campaigns list" } : { reason: "Resumed from campaigns list" },
     );
 
-    if (!r.success) {
+    if (r.success) {
+      // Sync to server-returned status so UI never gets out of sync
+      if (r.data?.status) {
+        setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: r.data.status } : x));
+      }
+    } else {
       setError(r.error || `Failed to ${pausing ? "pause" : "resume"} campaign`);
-      // Revert if API call fails
+      // Revert and reload to get real status from server
       setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: originalStatus } : x));
+      load();
     }
   };
 
@@ -1148,6 +1651,19 @@ export default function CampaignsPage() {
             <button onClick={load} className="p-1.5 text-foreground-muted hover:text-foreground-muted transition-colors rounded-lg hover:bg-surface-hover">
               <RefreshCw className="w-4 h-4" />
             </button>
+            {tab === "ad-campaigns" && (
+              <button
+                onClick={() => { setCompareMode(m => !m); setCompareIds(new Set()); }}
+                className={`flex items-center gap-1.5 px-3 py-2 border text-xs font-semibold rounded-lg transition-colors ${
+                  compareMode
+                    ? "bg-[#1877F2] border-[#1877F2] text-white"
+                    : "bg-surface border-border text-foreground-muted hover:text-foreground"
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                {compareMode ? "Exit compare" : "Compare"}
+              </button>
+            )}
             {canCreate && tab !== "pixels" && (
               <button onClick={() => setShowCreator(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-lg transition-colors shadow-sm">
@@ -1169,11 +1685,13 @@ export default function CampaignsPage() {
 
         {/* Pixel Connector */}
         {tab === "pixels" && (
-          <PixelsPanel onUseInCampaign={(id, name) => {
-            setCreatorPrefill({ pixel_id: id, pixel_name: name, objective: "CONVERSIONS" });
-            setShowCreator(true);
-            setTab("ad-campaigns");
-          }} />
+          <div className="flex-1 overflow-y-auto pb-6">
+            <PixelsPanel onUseInCampaign={(id, name) => {
+              setCreatorPrefill({ pixel_id: id, pixel_name: name, objective: "CONVERSIONS" });
+              setShowCreator(true);
+              setTab("ad-campaigns");
+            }} />
+          </div>
         )}
 
         {/* No Facebook account connected */}
@@ -1374,9 +1892,14 @@ export default function CampaignsPage() {
             </div>
           ) : (
             <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
-              <table className="w-full text-sm" style={{ minWidth: 1600 }}>
+              <table className="w-full text-sm" style={{ minWidth: compareMode ? 1640 : 1600 }}>
                 <thead className="sticky top-0 z-10 bg-card">
                   <tr className="border-b border-border">
+                    {compareMode && (
+                      <th className="px-4 py-3 w-[44px] text-[10px] font-bold text-foreground-muted uppercase tracking-widest">
+                        <span title="Select up to 4 campaigns to compare"><TrendingUp className="w-3 h-3" /></span>
+                      </th>
+                    )}
                     {[
                       ["CAMPAIGN NAME", "min-w-[220px] text-left"],
                       ["STATUS",        "w-[140px] text-left"],
@@ -1389,7 +1912,9 @@ export default function CampaignsPage() {
                       ["CPM",           "w-[80px]  text-right"],
                       ["CPC",           "w-[80px]  text-right"],
                       ["CTR",           "w-[70px]  text-right"],
-                      ["ROAS",          "w-[70px]  text-right"],
+                      ["FREQ",          "w-[70px]  text-right"],
+                      ["ROAS",          "w-[80px]  text-right"],
+                      ["CPP",           "w-[80px]  text-right"],
                       ["REACH",         "w-[90px]  text-right"],
                       ["IMPRESSIONS",   "w-[110px] text-right"],
                       ["CLICKS",        "w-[80px]  text-right"],
@@ -1410,7 +1935,20 @@ export default function CampaignsPage() {
 
                     return (
                       <tr key={c.id}
-                        className={`hover:bg-surface/40 transition-colors group ${i < rows.length - 1 ? "border-b border-border/40" : ""}`}>
+                        className={`hover:bg-surface/40 transition-colors group ${i < rows.length - 1 ? "border-b border-border/40" : ""} ${compareIds.has(c.id) ? "bg-[#1877F2]/5" : ""}`}>
+
+                        {/* Compare checkbox */}
+                        {compareMode && (
+                          <td className="px-4 py-4 w-[44px]">
+                            <input
+                              type="checkbox"
+                              checked={compareIds.has(c.id)}
+                              onChange={() => toggleCompare(c.id)}
+                              disabled={!compareIds.has(c.id) && compareIds.size >= 4}
+                              className="w-4 h-4 accent-[#1877F2] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            />
+                          </td>
+                        )}
 
                         {/* Campaign Name */}
                         <td className="px-4 py-4 min-w-[220px]">
@@ -1534,9 +2072,25 @@ export default function CampaignsPage() {
                           <p className="text-xs text-foreground-muted">{c.ctr ? `${c.ctr.toFixed(2)}%` : "--"}</p>
                         </td>
 
-                        {/* ROAS */}
+                        {/* FREQ */}
                         <td className="px-4 py-4 w-[70px] text-right">
-                          <p className="text-xs text-foreground-muted" title="Requires Meta Insights API sync">--</p>
+                          <p className="text-xs text-foreground-muted" title="Avg times one person saw this ad">
+                            {c.frequency != null ? c.frequency.toFixed(2) : "--"}
+                          </p>
+                        </td>
+
+                        {/* ROAS */}
+                        <td className="px-4 py-4 w-[80px] text-right">
+                          {c.roas != null
+                            ? <p className="text-xs text-foreground font-medium">{c.roas.toFixed(2)}x</p>
+                            : <p className="text-xs text-foreground-muted" title="Requires purchase conversion tracking">N/A</p>}
+                        </td>
+
+                        {/* CPP */}
+                        <td className="px-4 py-4 w-[80px] text-right">
+                          {c.cpp != null
+                            ? <><p className="text-xs text-foreground font-medium">${c.cpp.toFixed(2)}</p><p className="text-[10px] text-foreground-muted">per purchase</p></>
+                            : <p className="text-xs text-foreground-muted" title="Requires purchase conversion tracking">N/A</p>}
                         </td>
 
                         {/* Reach */}
@@ -1587,6 +2141,76 @@ export default function CampaignsPage() {
             </div>
           )
           }
+
+          {/* ── Comparison Panel ── */}
+          {compareMode && compareIds.size >= 2 && (() => {
+            const compared = campaigns.filter(c => compareIds.has(c.id));
+            const metrics: Array<{ key: keyof Campaign; label: string; fmt: (v: unknown) => string }> = [
+              { key: "impressions",    label: "Impressions",    fmt: v => v ? Number(v).toLocaleString() : "--" },
+              { key: "reach",          label: "Reach",          fmt: v => v ? Number(v).toLocaleString() : "--" },
+              { key: "clicks",         label: "Clicks",         fmt: v => v ? Number(v).toLocaleString() : "--" },
+              { key: "ctr",            label: "CTR",            fmt: v => v ? `${Number(v).toFixed(2)}%` : "--" },
+              { key: "cpc",            label: "CPC",            fmt: v => v ? `$${Number(v).toFixed(2)}` : "--" },
+              { key: "cpm",            label: "CPM",            fmt: v => v ? `$${Number(v).toFixed(2)}` : "--" },
+              { key: "spend_recorded", label: "Amount Spent",   fmt: v => v != null ? `$${Number(v).toFixed(2)}` : "--" },
+              { key: "budget_total",   label: "Total Budget",   fmt: v => v ? `$${Number(v).toLocaleString()}` : "--" },
+            ];
+            return (
+              <div className="shrink-0 border-t border-border bg-card pt-4 pb-2 mt-2">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Comparing {compared.length} campaigns
+                  </p>
+                  <button
+                    onClick={() => setCompareIds(new Set())}
+                    className="text-[11px] text-foreground-muted hover:text-foreground underline"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs" style={{ minWidth: compared.length * 220 + 160 }}>
+                    <thead>
+                      <tr className="border-b border-border/60">
+                        <th className="px-4 py-2 text-left text-[10px] font-bold text-foreground-muted uppercase tracking-widest w-40">Metric</th>
+                        {compared.map(c => (
+                          <th key={c.id} className="px-4 py-2 text-right text-[10px] font-bold text-foreground-muted uppercase tracking-widest min-w-[160px]">
+                            <span className="truncate block max-w-[200px] ml-auto" title={c.name}>{c.name}</span>
+                            <span className="font-normal normal-case text-[10px]">{c.status.charAt(0) + c.status.slice(1).toLowerCase()}</span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {metrics.map(m => {
+                        const vals = compared.map(c => c[m.key] as number | null | undefined);
+                        const max = Math.max(...vals.map(v => (v != null ? Number(v) : 0)));
+                        return (
+                          <tr key={m.key} className="hover:bg-surface/30 transition-colors">
+                            <td className="px-4 py-2 text-foreground-muted font-medium">{m.label}</td>
+                            {compared.map((c) => {
+                              const raw = c[m.key];
+                              const num = raw != null ? Number(raw) : 0;
+                              const isTop = max > 0 && num === max;
+                              return (
+                                <td key={c.id} className={`px-4 py-2 text-right font-semibold ${isTop ? "text-success-text" : "text-foreground-muted"}`}>
+                                  {m.fmt(raw)}
+                                  {isTop && vals.filter(v => (v != null ? Number(v) : 0) === max).length === 1 && (
+                                    <span className="ml-1 text-[10px] font-bold text-success-text">↑</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
           </div>
         )}
       </div>

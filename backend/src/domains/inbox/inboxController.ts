@@ -8,6 +8,7 @@ import { logAuditEvent } from '../governance/evidenceController';
 import { env } from '../../config/env';
 import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 import { classifyMessage } from './inboxClassifier';
+import { syncLinkedInComments } from '../channels/linkedinCommunityController';
 
 export interface AutoReplyRule {
   id: string;
@@ -294,11 +295,11 @@ export const getInboxMessage = async (req: AuthRequest, res: Response, next: Nex
     if (error || !msg) return res.status(404).json({ error: 'Message not found' });
 
     const [repliesResult, notesResult, auditResult, escalationResult] = await Promise.all([
-      supabaseAdmin.from('inbox_replies').select('*').eq('message_id', msg.id).order('created_at'),
-      supabaseAdmin.from('inbox_notes').select('*').eq('message_id', msg.id).order('created_at'),
-      supabaseAdmin.from('inbox_audit_log').select('*').eq('message_id', msg.id).order('performed_at'),
+      supabaseAdmin.from('inbox_replies').select('id, reply_body, reply_type, status, created_at').eq('message_id', msg.id).order('created_at'),
+      supabaseAdmin.from('inbox_notes').select('id, note_body, created_at').eq('message_id', msg.id).order('created_at'),
+      supabaseAdmin.from('inbox_audit_log').select('id, action, previous_value, new_value, performed_at').eq('message_id', msg.id).order('performed_at'),
       // Fetch most recent escalation (including resolved) so we can show "Resolved by X"
-      supabaseAdmin.from('inbox_escalations').select('*').eq('message_id', msg.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from('inbox_escalations').select('review_status, is_auto_escalated, decision, escalation_reason, resolved_by_name, decision_note, risk_category, risk_level, assigned_reviewer_name, escalated_by_name, resolved_by, assigned_reviewer, escalated_by').eq('message_id', msg.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     // Mark UNREAD as OPEN on first view
@@ -1332,7 +1333,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
       .from('connected_accounts')
       .select('id, platform, account_handle, page_id, access_token, refresh_token, account_name')
       .eq('workspace_id', workspaceId)
-      .in('platform', ['instagram', 'facebook', 'threads', 'youtube', 'twitter'])
+      .in('platform', ['instagram', 'facebook', 'threads', 'youtube', 'twitter', 'linkedin'])
       .eq('status', 'active');
 
     if (!accounts || accounts.length === 0) {
@@ -1828,6 +1829,27 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
           syncErrors.push(...twDiag.map(d => `[twitter debug] ${d}`));
         }
 
+        // ── LinkedIn Page Comments ─────────────────────────────────────────
+        if (platform === 'linkedin') {
+          // Only page accounts (URN handles) support community management
+          if (!account.account_handle.startsWith('urn:li:organization:')) {
+            syncErrors.push(`[linkedin debug] Skipping personal LinkedIn profile ${account.account_name} (only page accounts support comment sync)`);
+          } else {
+            const liResult = await syncLinkedInComments(
+              workspaceId,
+              account as any,
+              insertMessageIfNew as any,
+              buildSyncOptions(account) as any,
+            );
+            if (liResult.error) {
+              syncErrors.push(`LinkedIn (${account.account_name}): ${liResult.error}`);
+            } else {
+              totalSynced += liResult.synced;
+              syncErrors.push(`[linkedin debug] ${account.account_name}: synced ${liResult.synced} comment(s)`);
+            }
+          }
+        }
+
       } catch (err) {
         syncErrors.push(`${platform} (${account.account_name}): ${err instanceof Error ? err.message : 'Fetch failed'}`);
       }
@@ -1835,7 +1857,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
 
     await logInboxAudit('system', workspaceId, userId, `Platform sync: ${totalSynced} new messages from ${accounts.length} account(s)`);
 
-    const isDebugLine = (e: string) => e.startsWith('[Threads debug]') || e.startsWith('[YouTube debug]') || e.startsWith('[fb-debug]') || e.startsWith('[twitter debug]');
+    const isDebugLine = (e: string) => e.startsWith('[Threads debug]') || e.startsWith('[YouTube debug]') || e.startsWith('[fb-debug]') || e.startsWith('[twitter debug]') || e.startsWith('[linkedin debug]');
     res.json({
       success: true,
       synced: totalSynced,

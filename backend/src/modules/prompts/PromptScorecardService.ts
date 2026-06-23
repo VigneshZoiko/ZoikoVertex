@@ -185,7 +185,7 @@ export class PromptScorecardService {
     // Batch 1: prompts
     const { data: prompts, error: promptsErr } = await supabaseAdmin
       .from('prompts')
-      .select('*')
+      .select('id, current_version_id, risk_tier, status, created_at')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
     if (promptsErr) throw promptsErr;
@@ -198,14 +198,14 @@ export class PromptScorecardService {
     const versionIds = pagePrompts.map((p: any) => p.current_version_id).filter(Boolean);
     const { data: versions } = await supabaseAdmin
       .from('prompt_versions')
-      .select('*')
+      .select('id, version_number, immutable')
       .in('id', versionIds);
     const versionMap = new Map<string, any>((versions || []).map((v: any) => [v.id, v]));
 
     // Batch 3: prompt_approvals
     const { data: approvals } = await supabaseAdmin
       .from('prompt_approvals')
-      .select('*')
+      .select('id, prompt_version_id, decision, reviewer_role, created_at')
       .eq('workspace_id', workspaceId)
       .in('prompt_version_id', versionIds);
     const approvalsByVersion = new Map<string, any[]>();
@@ -218,7 +218,7 @@ export class PromptScorecardService {
     // Batch 4: prompt_test_runs
     const { data: testRuns } = await supabaseAdmin
       .from('prompt_test_runs')
-      .select('*')
+      .select('id, prompt_version_id, pass_fail, run_metadata, score_summary, created_at')
       .eq('workspace_id', workspaceId)
       .in('prompt_version_id', versionIds);
     const runsByVersion = new Map<string, any[]>();
@@ -231,7 +231,7 @@ export class PromptScorecardService {
     // Batch 5: prompt_bindings
     const { data: bindings } = await supabaseAdmin
       .from('prompt_bindings')
-      .select('*')
+      .select('id, prompt_version_id, environment')
       .eq('workspace_id', workspaceId)
       .in('prompt_version_id', versionIds);
     const bindingsByVersion = new Map<string, any[]>();
@@ -244,7 +244,7 @@ export class PromptScorecardService {
     // Batch 6: prompt_deployments
     const { data: deployments } = await supabaseAdmin
       .from('prompt_deployments')
-      .select('*')
+      .select('id, prompt_version_id, environment, created_at')
       .eq('workspace_id', workspaceId)
       .in('prompt_version_id', versionIds);
     const deploysByVersion = new Map<string, any[]>();
@@ -258,7 +258,7 @@ export class PromptScorecardService {
     const promptIds = pagePrompts.map((p: any) => p.id);
     const { data: auditRecords } = await supabaseAdmin
       .from('prompt_audit_ledger')
-      .select('*')
+      .select('prompt_id')
       .eq('workspace_id', workspaceId)
       .in('prompt_id', promptIds);
     const auditByPrompt = new Map<string, any[]>();
@@ -271,7 +271,7 @@ export class PromptScorecardService {
     // Batch 8: prompt_evidence_links
     const { data: evidenceLinks } = await supabaseAdmin
       .from('prompt_evidence_links')
-      .select('*')
+      .select('prompt_id')
       .eq('workspace_id', workspaceId)
       .in('prompt_id', promptIds);
     const evidenceByPrompt = new Map<string, any[]>();

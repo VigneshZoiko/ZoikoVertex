@@ -387,7 +387,7 @@ export default function AccountsPage() {
         const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin", flowType: "page", nonce }));
-        const scope = encodeURIComponent("openid profile email w_member_social r_organization_social w_organization_social");
+        const scope = encodeURIComponent("r_organization_social w_organization_social rw_organization_admin");
         window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
       } else if (platformId === "pinterest") {
         const clientId = process.env.NEXT_PUBLIC_PINTEREST_APP_ID || "";

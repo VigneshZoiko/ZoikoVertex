@@ -686,7 +686,7 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
     // FK-metadata cache state. DRI user details are fetched separately below.
     let query = supabaseAdmin
       .from('agents')
-      .select('*')
+      .select('id, name, type, status, autonomy_level, trust_score, faithfulness_score, risk_level, purpose, assigned_brand, linked_channels, linked_prompts, linked_workflows, linked_policies, linked_knowledge_sources, primary_dri_id, backup_dri_id, last_activity, created_at, runtime_controls, permitted_actions, prohibited_actions, markets')
       .order('created_at', { ascending: false });
 
     if (!isSuper) {
@@ -700,7 +700,7 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
     const unitFilter = getQueryValue(req, 'business_unit_id');
     if (unitFilter) query = query.eq('business_unit_id', unitFilter);
 
-    const { data: agents, error } = await query;
+    const { data: agents, error } = await query.limit(200);
     if (error) throw error;
 
     // Hydrate DRI display info from public.users in a single follow-up query.
