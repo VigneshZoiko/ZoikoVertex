@@ -163,7 +163,7 @@ export default function FullEventPage() {
   const rc = riskCfg[event.risk_level] || riskCfg.low;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-24">
       {/* Back link */}
       <button onClick={() => router.back()} className="text-[#888] hover:text-white text-sm flex items-center gap-1 mb-4">
         <ArrowLeft className="w-4 h-4" /> Back to Audit Trail
@@ -171,12 +171,12 @@ export default function FullEventPage() {
 
       {/* Header */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-4">
-        <div className="flex items-start justify-between mb-3">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-foreground">{event.event_title || event.event_type}</h1>
             <p className="text-sm text-[#888] mt-1">{event.event_summary}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className={`px-2.5 py-1 rounded text-xs font-medium border ${rc}`}>
               {event.risk_level.toUpperCase()}
             </span>

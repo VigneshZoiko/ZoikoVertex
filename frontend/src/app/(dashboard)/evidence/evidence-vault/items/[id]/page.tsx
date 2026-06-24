@@ -113,7 +113,7 @@ function Section({ title, children, className, icon: Icon }: { title: string; ch
 function Row({ label, value, mono, highlight }: { label: string; value: string; mono?: boolean; highlight?: boolean }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="text-[11px] text-[#555] w-44 shrink-0 pt-0.5">{label}</span>
+      <span className="text-[11px] text-[#555] w-28 sm:w-44 shrink-0 pt-0.5">{label}</span>
       <span className={`text-[11px] break-all leading-relaxed ${
         mono ? 'font-mono text-[10px] text-[#888]' :
         highlight ? 'text-warning-text font-medium' : 'text-[#ccc]'
@@ -129,7 +129,7 @@ function MetaRow({ label, value }: { label: string; value: unknown }) {
     : String(value);
   return (
     <div className="flex items-start gap-3 py-1.5 border-b border-[#1a1a1a] last:border-0">
-      <span className="text-[11px] text-[#555] w-44 shrink-0">{label.replace(/_/g, ' ')}</span>
+      <span className="text-[11px] text-[#555] w-28 sm:w-44 shrink-0">{label.replace(/_/g, ' ')}</span>
       <span className="text-[11px] text-[#ccc] break-all">{display}</span>
     </div>
   );
@@ -187,7 +187,7 @@ export default function EvidenceItemDetailPage() {
   const TABS = buildTabs(isRevisionCase);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:p-6 max-w-7xl mx-auto pb-24">
       {/* Back */}
       <button onClick={() => router.push('/evidence/evidence-vault')}
         className="flex items-center gap-1 text-xs text-[#555] hover:text-[#aaa] mb-5 transition-colors">

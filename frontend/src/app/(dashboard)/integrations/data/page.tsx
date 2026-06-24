@@ -260,7 +260,7 @@ export default function DataPage() {
   const activeBasesText = (kbId: string) => bases.find(b => b.id === kbId)?.name || 'Unknown Base';
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4">
+    <div className="max-w-7xl mx-auto space-y-8 pb-24 px-4">
       
       {/* ─── CASE A: FULL SCREEN CREATE PIPELINE WORKSPACE (No modal - uses full container space) ─── */}
       {showCreateWizard ? (
@@ -280,6 +280,9 @@ export default function DataPage() {
                 <p className="text-foreground-muted text-sm mt-0.5">Connect a data source and choose where to save it — we&apos;ll handle the rest automatically.</p>
               </div>
             </div>
+
+            {/* Mobile step indicator */}
+            <p className="md:hidden text-xs text-foreground-muted font-semibold">Step {wizardStep} of 3</p>
 
             {/* Stepper Progress */}
             <div className="hidden md:flex items-center gap-6 text-xs font-semibold">

@@ -146,7 +146,7 @@ export default function ForensicCaseDetailPage() {
   if (!kase) return <div className="p-8 text-center text-red-400 text-sm">Case not found</div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 pb-24">
       {error && (
         <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
@@ -208,7 +208,7 @@ export default function ForensicCaseDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border mb-6">
+      <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-colors ${
