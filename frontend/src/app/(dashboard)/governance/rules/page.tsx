@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Plus, Search, RefreshCcw, Trash2, CheckCircle2, AlertCircle,
   Tag, X, SlidersHorizontal, Sparkles, Zap, ChevronDown, ChevronUp,
@@ -58,6 +58,267 @@ const AI_EXAMPLES = [
   "adult content",
   "political controversy",
 ];
+
+interface ActionPickerProps {
+  size?: "sm" | "md";
+  editAction: KeywordAction;
+  canManage: boolean;
+  setEditAction: Dispatch<SetStateAction<KeywordAction>>;
+}
+
+const ActionPicker = ({ size = "md", editAction, canManage, setEditAction }: ActionPickerProps) => (
+  <div className={`grid grid-cols-2 ${size === "sm" ? "gap-2" : "gap-3"}`}>
+    {(["BLOCK", "REQUEST_REVIEW"] as KeywordAction[]).map(a => {
+      const active = editAction === a;
+      const isBlock = a === "BLOCK";
+      return (
+        <button
+          key={a}
+          disabled={!canManage}
+          onClick={() => setEditAction(a)}
+          className={`flex items-center gap-3 ${size === "sm" ? "p-3" : "p-3.5"} rounded-xl border-[1.5px] text-left transition-all
+            ${active
+              ? isBlock
+                ? "bg-error-bg border-error-border"
+                : "bg-info-bg border-info-border"
+              : "bg-surface-hover border-border hover:border-border disabled:cursor-not-allowed"
+            }`}
+        >
+          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+            ${active ? (isBlock ? "bg-error-text/15" : "bg-info-text/15") : "bg-surface"}`}>
+            {isBlock
+              ? <Ban className={`w-4 h-4 ${active ? "text-error-text" : "text-foreground-muted"}`} />
+              : <Eye className={`w-4 h-4 ${active ? "text-info-text" : "text-foreground-muted"}`} />
+            }
+          </div>
+          <div className="min-w-0">
+            <p className={`text-xs font-bold leading-none mb-1 ${active ? (isBlock ? "text-error-text" : "text-info-text") : "text-foreground-muted"}`}>
+              {ACTION_LABELS[a]}
+            </p>
+            <p className="text-[9px] text-foreground-muted leading-snug">
+              {isBlock ? "Prevents publication" : "Sends to human review"}
+            </p>
+          </div>
+        </button>
+      );
+    })}
+  </div>
+);
+
+interface AiPanelProps {
+  aiTopic: string;
+  setAiTopic: Dispatch<SetStateAction<string>>;
+  aiContext: string;
+  setAiContext: Dispatch<SetStateAction<string>>;
+  aiGenerating: boolean;
+  handleAiGenerate: () => void;
+  aiSuggested: string[];
+  setAiSuggested: Dispatch<SetStateAction<string[]>>;
+  aiSelected: Set<string>;
+  setAiSelected: Dispatch<SetStateAction<Set<string>>>;
+  editKeywords: string[];
+  toggleAiKeyword: (kw: string) => void;
+  addAiKeywords: () => void;
+  showAiContext: boolean;
+  setShowAiContext: Dispatch<SetStateAction<boolean>>;
+  setShowAiPanel: Dispatch<SetStateAction<boolean>>;
+}
+
+const AiPanel = ({
+  aiTopic, setAiTopic, aiContext, setAiContext, aiGenerating, handleAiGenerate,
+  aiSuggested, setAiSuggested, aiSelected, setAiSelected, editKeywords,
+  toggleAiKeyword, addAiKeywords, showAiContext, setShowAiContext, setShowAiPanel,
+}: AiPanelProps) => (
+  <div className="rounded-xl border border-info-border bg-info-bg p-4 space-y-3">
+    <div className="flex items-center gap-2">
+      <div className="w-6 h-6 rounded-lg bg-info-text/15 flex items-center justify-center">
+        <Sparkles className="w-3.5 h-3.5 text-info-text" />
+      </div>
+      <div className="flex-1">
+        <p className="text-[11px] font-bold text-info-text">AI Keyword Generator</p>
+        <p className="text-[9px] text-foreground-muted">Describe a topic — AI generates relevant keywords to review and add</p>
+      </div>
+      <button onClick={() => setShowAiPanel(false)} className="text-foreground-muted hover:text-foreground p-1">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+
+    <div>
+      <label className="text-[9px] text-info-text/60 font-semibold uppercase tracking-wider block mb-1.5">Topic</label>
+      <div className="flex gap-2">
+        <input
+          value={aiTopic}
+          onChange={e => setAiTopic(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !aiGenerating) handleAiGenerate(); }}
+          placeholder="e.g. profanity, competitor brands, violence..."
+          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border transition-colors"
+        />
+        <button
+          onClick={handleAiGenerate}
+          disabled={!aiTopic.trim() || aiGenerating}
+          className="px-4 py-2 bg-info-text hover:brightness-110 disabled:opacity-40 text-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
+        >
+          {aiGenerating ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+          {aiGenerating ? "Generating..." : "Generate"}
+        </button>
+      </div>
+    </div>
+
+    {!aiSuggested.length && !aiGenerating && (
+      <>
+        <div>
+          <p className="text-[9px] text-foreground-muted mb-1.5">Quick examples:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {AI_EXAMPLES.map(ex => (
+              <button
+                key={ex}
+                onClick={() => setAiTopic(ex)}
+                className="px-2 py-0.5 bg-surface-hover border border-border text-foreground-muted hover:text-foreground hover:border-info-border rounded-full text-[9px] transition-colors"
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={() => setShowAiContext(p => !p)}
+          className="flex items-center gap-1.5 text-[9px] text-foreground-muted hover:text-info-text transition-colors"
+        >
+          {showAiContext ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          Add platform/industry context
+        </button>
+        {showAiContext && (
+          <input
+            value={aiContext}
+            onChange={e => setAiContext(e.target.value)}
+            placeholder="e.g. children's education platform, luxury brand, B2B SaaS..."
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border"
+          />
+        )}
+      </>
+    )}
+
+    {aiGenerating && (
+      <div className="flex items-center gap-2 text-[10px] text-info-text py-1">
+        <div className="w-3.5 h-3.5 border border-info-text border-t-transparent rounded-full animate-spin shrink-0" />
+        Analyzing topic and generating keyword variants...
+      </div>
+    )}
+
+    {aiSuggested.length > 0 && (
+      <>
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] text-info-text/60">{aiSuggested.length} keywords — click to toggle selection</p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setAiSelected(new Set(aiSuggested))} className="text-[9px] text-info-text">All</button>
+            <span className="text-foreground-muted">·</span>
+            <button onClick={() => setAiSelected(new Set())} className="text-[9px] text-foreground-muted hover:text-foreground">None</button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+          {aiSuggested.map(kw => {
+            const sel = aiSelected.has(kw);
+            const exists = editKeywords.includes(kw);
+            return (
+              <button
+                key={kw}
+                onClick={() => !exists && toggleAiKeyword(kw)}
+                disabled={exists}
+                className={`font-mono px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
+                  exists
+                    ? "bg-surface-hover text-foreground-muted border-border cursor-default"
+                    : sel
+                      ? "bg-info-bg text-info-text border-info-border hover:brightness-110"
+                      : "bg-surface-hover text-foreground-muted border-border line-through hover:no-underline hover:text-foreground"
+                }`}
+              >
+                {kw}{exists && <span className="ml-1 text-[7px] not-italic">exists</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            onClick={addAiKeywords}
+            disabled={aiSelected.size === 0}
+            className="px-4 py-1.5 bg-info-text hover:brightness-110 disabled:opacity-40 text-foreground text-xs font-bold rounded-lg transition-all"
+          >
+            Add {aiSelected.size} keyword{aiSelected.size !== 1 ? "s" : ""}
+          </button>
+          <button
+            onClick={handleAiGenerate}
+            disabled={aiGenerating}
+            className="px-3 py-1.5 bg-surface-hover border border-border text-foreground-muted hover:text-foreground text-xs rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <RefreshCcw className="w-3 h-3" /> Regenerate
+          </button>
+          <button
+            onClick={() => { setAiSuggested([]); setAiSelected(new Set()); setAiTopic(""); }}
+            className="text-[9px] text-foreground-muted hover:text-foreground ml-auto transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      </>
+    )}
+  </div>
+);
+
+interface KeywordsSectionProps {
+  editKeywords: string[];
+  canManage: boolean;
+  removeKeyword: (kw: string) => void;
+  kwInput: string;
+  setKwInput: Dispatch<SetStateAction<string>>;
+  addKeyword: () => void;
+}
+
+const KeywordsSection = ({ editKeywords, canManage, removeKeyword, kwInput, setKwInput, addKeyword }: KeywordsSectionProps) => (
+  <div className="space-y-3">
+    {/* Keyword cloud */}
+    <div className="p-3 bg-background border border-border rounded-xl min-h-[72px] flex flex-wrap gap-2 content-start">
+      {editKeywords.length === 0 ? (
+        <span className="text-[10px] text-foreground-muted italic self-center">
+          No keywords yet — add manually below or use AI Suggest above.
+        </span>
+      ) : (
+        editKeywords.map(kw => (
+          <span
+            key={kw}
+            className="inline-flex items-center gap-1.5 font-mono px-2.5 py-1 bg-info-bg text-info-text border border-info-border rounded-md text-[10px] font-medium"
+          >
+            {kw}
+            {canManage && (
+              <button onClick={() => removeKeyword(kw)} className="text-info-text/60 hover:text-error-text transition-colors ml-0.5">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </span>
+        ))
+      )}
+    </div>
+
+    {/* Manual input */}
+    {canManage && (
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={kwInput}
+          onChange={e => setKwInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addKeyword(); } }}
+          placeholder="Type a keyword and press Enter, or paste comma-separated list..."
+          className="flex-1 font-mono px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border transition-colors"
+        />
+        <button
+          onClick={addKeyword}
+          className="px-3 py-2 bg-info-bg text-info-text border border-info-border rounded-lg text-xs font-bold hover:brightness-110 transition-all"
+        >
+          Add
+        </button>
+      </div>
+    )}
+  </div>
+);
 
 export default function ApprovalRulesPage() {
   const { role: currentRole, isSuperAdmin } = useRoles();
@@ -295,228 +556,6 @@ export default function ApprovalRulesPage() {
     );
   };
 
-  const ActionPicker = ({ size = "md" }: { size?: "sm" | "md" }) => (
-    <div className={`grid grid-cols-2 ${size === "sm" ? "gap-2" : "gap-3"}`}>
-      {(["BLOCK", "REQUEST_REVIEW"] as KeywordAction[]).map(a => {
-        const active = editAction === a;
-        const isBlock = a === "BLOCK";
-        return (
-          <button
-            key={a}
-            disabled={!canManage}
-            onClick={() => setEditAction(a)}
-            className={`flex items-center gap-3 ${size === "sm" ? "p-3" : "p-3.5"} rounded-xl border-[1.5px] text-left transition-all
-              ${active
-                ? isBlock
-                  ? "bg-error-bg border-error-border"
-                  : "bg-info-bg border-info-border"
-                : "bg-surface-hover border-border hover:border-border disabled:cursor-not-allowed"
-              }`}
-          >
-            <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-              ${active ? (isBlock ? "bg-error-text/15" : "bg-info-text/15") : "bg-surface"}`}>
-              {isBlock
-                ? <Ban className={`w-4 h-4 ${active ? "text-error-text" : "text-foreground-muted"}`} />
-                : <Eye className={`w-4 h-4 ${active ? "text-info-text" : "text-foreground-muted"}`} />
-              }
-            </div>
-            <div className="min-w-0">
-              <p className={`text-xs font-bold leading-none mb-1 ${active ? (isBlock ? "text-error-text" : "text-info-text") : "text-foreground-muted"}`}>
-                {ACTION_LABELS[a]}
-              </p>
-              <p className="text-[9px] text-foreground-muted leading-snug">
-                {isBlock ? "Prevents publication" : "Sends to human review"}
-              </p>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const AiPanel = () => (
-    <div className="rounded-xl border border-info-border bg-info-bg p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-lg bg-info-text/15 flex items-center justify-center">
-          <Sparkles className="w-3.5 h-3.5 text-info-text" />
-        </div>
-        <div className="flex-1">
-          <p className="text-[11px] font-bold text-info-text">AI Keyword Generator</p>
-          <p className="text-[9px] text-foreground-muted">Describe a topic — AI generates relevant keywords to review and add</p>
-        </div>
-        <button onClick={() => setShowAiPanel(false)} className="text-foreground-muted hover:text-foreground p-1">
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      <div>
-        <label className="text-[9px] text-info-text/60 font-semibold uppercase tracking-wider block mb-1.5">Topic</label>
-        <div className="flex gap-2">
-          <input
-            value={aiTopic}
-            onChange={e => setAiTopic(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && !aiGenerating) handleAiGenerate(); }}
-            placeholder="e.g. profanity, competitor brands, violence..."
-            className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border transition-colors"
-          />
-          <button
-            onClick={handleAiGenerate}
-            disabled={!aiTopic.trim() || aiGenerating}
-            className="px-4 py-2 bg-info-text hover:brightness-110 disabled:opacity-40 text-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
-          >
-            {aiGenerating ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            {aiGenerating ? "Generating..." : "Generate"}
-          </button>
-        </div>
-      </div>
-
-      {!aiSuggested.length && !aiGenerating && (
-        <>
-          <div>
-            <p className="text-[9px] text-foreground-muted mb-1.5">Quick examples:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {AI_EXAMPLES.map(ex => (
-                <button
-                  key={ex}
-                  onClick={() => setAiTopic(ex)}
-                  className="px-2 py-0.5 bg-surface-hover border border-border text-foreground-muted hover:text-foreground hover:border-info-border rounded-full text-[9px] transition-colors"
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={() => setShowAiContext(p => !p)}
-            className="flex items-center gap-1.5 text-[9px] text-foreground-muted hover:text-info-text transition-colors"
-          >
-            {showAiContext ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            Add platform/industry context
-          </button>
-          {showAiContext && (
-            <input
-              value={aiContext}
-              onChange={e => setAiContext(e.target.value)}
-              placeholder="e.g. children's education platform, luxury brand, B2B SaaS..."
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border"
-            />
-          )}
-        </>
-      )}
-
-      {aiGenerating && (
-        <div className="flex items-center gap-2 text-[10px] text-info-text py-1">
-          <div className="w-3.5 h-3.5 border border-info-text border-t-transparent rounded-full animate-spin shrink-0" />
-          Analyzing topic and generating keyword variants...
-        </div>
-      )}
-
-      {aiSuggested.length > 0 && (
-        <>
-          <div className="flex items-center justify-between">
-            <p className="text-[9px] text-info-text/60">{aiSuggested.length} keywords — click to toggle selection</p>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setAiSelected(new Set(aiSuggested))} className="text-[9px] text-info-text">All</button>
-              <span className="text-foreground-muted">·</span>
-              <button onClick={() => setAiSelected(new Set())} className="text-[9px] text-foreground-muted hover:text-foreground">None</button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-            {aiSuggested.map(kw => {
-              const sel = aiSelected.has(kw);
-              const exists = editKeywords.includes(kw);
-              return (
-                <button
-                  key={kw}
-                  onClick={() => !exists && toggleAiKeyword(kw)}
-                  disabled={exists}
-                  className={`font-mono px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
-                    exists
-                      ? "bg-surface-hover text-foreground-muted border-border cursor-default"
-                      : sel
-                        ? "bg-info-bg text-info-text border-info-border hover:brightness-110"
-                        : "bg-surface-hover text-foreground-muted border-border line-through hover:no-underline hover:text-foreground"
-                  }`}
-                >
-                  {kw}{exists && <span className="ml-1 text-[7px] not-italic">exists</span>}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              onClick={addAiKeywords}
-              disabled={aiSelected.size === 0}
-              className="px-4 py-1.5 bg-info-text hover:brightness-110 disabled:opacity-40 text-foreground text-xs font-bold rounded-lg transition-all"
-            >
-              Add {aiSelected.size} keyword{aiSelected.size !== 1 ? "s" : ""}
-            </button>
-            <button
-              onClick={handleAiGenerate}
-              disabled={aiGenerating}
-              className="px-3 py-1.5 bg-surface-hover border border-border text-foreground-muted hover:text-foreground text-xs rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              <RefreshCcw className="w-3 h-3" /> Regenerate
-            </button>
-            <button
-              onClick={() => { setAiSuggested([]); setAiSelected(new Set()); setAiTopic(""); }}
-              className="text-[9px] text-foreground-muted hover:text-foreground ml-auto transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  const KeywordsSection = () => (
-    <div className="space-y-3">
-      {/* Keyword cloud */}
-      <div className="p-3 bg-background border border-border rounded-xl min-h-[72px] flex flex-wrap gap-2 content-start">
-        {editKeywords.length === 0 ? (
-          <span className="text-[10px] text-foreground-muted italic self-center">
-            No keywords yet — add manually below or use AI Suggest above.
-          </span>
-        ) : (
-          editKeywords.map(kw => (
-            <span
-              key={kw}
-              className="inline-flex items-center gap-1.5 font-mono px-2.5 py-1 bg-info-bg text-info-text border border-info-border rounded-md text-[10px] font-medium"
-            >
-              {kw}
-              {canManage && (
-                <button onClick={() => removeKeyword(kw)} className="text-info-text/60 hover:text-error-text transition-colors ml-0.5">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              )}
-            </span>
-          ))
-        )}
-      </div>
-
-      {/* Manual input */}
-      {canManage && (
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={kwInput}
-            onChange={e => setKwInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addKeyword(); } }}
-            placeholder="Type a keyword and press Enter, or paste comma-separated list..."
-            className="flex-1 font-mono px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border transition-colors"
-          />
-          <button
-            onClick={addKeyword}
-            className="px-3 py-2 bg-info-bg text-info-text border border-info-border rounded-lg text-xs font-bold hover:brightness-110 transition-all"
-          >
-            Add
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -663,7 +702,7 @@ export default function ApprovalRulesPage() {
           {/* Action */}
           <div className="flex flex-col gap-2">
             <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-foreground-muted">Action When Triggered</label>
-            <ActionPicker size="sm" />
+            <ActionPicker size="sm" editAction={editAction} canManage={canManage} setEditAction={setEditAction} />
             <p className="text-[9px] text-foreground-muted">Applied when any keyword is found in asset title, description, or image text.</p>
           </div>
 
@@ -683,7 +722,7 @@ export default function ApprovalRulesPage() {
               <ChevronDown className="w-4 h-4 text-info-text shrink-0" />
             </button>
           )}
-          {canManage && showAiPanel && <AiPanel />}
+          {canManage && showAiPanel && <AiPanel aiTopic={aiTopic} setAiTopic={setAiTopic} aiContext={aiContext} setAiContext={setAiContext} aiGenerating={aiGenerating} handleAiGenerate={handleAiGenerate} aiSuggested={aiSuggested} setAiSuggested={setAiSuggested} aiSelected={aiSelected} setAiSelected={setAiSelected} editKeywords={editKeywords} toggleAiKeyword={toggleAiKeyword} addAiKeywords={addAiKeywords} showAiContext={showAiContext} setShowAiContext={setShowAiContext} setShowAiPanel={setShowAiPanel} />}
 
           {/* Keywords */}
           <div className="flex flex-col gap-2">
@@ -697,7 +736,7 @@ export default function ApprovalRulesPage() {
                 </span>
               )}
             </div>
-            <KeywordsSection />
+            <KeywordsSection editKeywords={editKeywords} canManage={canManage} removeKeyword={removeKeyword} kwInput={kwInput} setKwInput={setKwInput} addKeyword={addKeyword} />
           </div>
         </div>
 
@@ -845,7 +884,7 @@ export default function ApprovalRulesPage() {
                   <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-foreground-muted block mb-2.5">
                     Action When Triggered
                   </label>
-                  <ActionPicker />
+                  <ActionPicker editAction={editAction} canManage={canManage} setEditAction={setEditAction} />
                   <p className="text-[9px] text-foreground-muted mt-2">
                     Applied when any keyword matches in asset title, description, or image text.
                   </p>
@@ -866,7 +905,7 @@ export default function ApprovalRulesPage() {
                       </button>
                     )}
                   </div>
-                  {canManage && showAiPanel && <AiPanel />}
+                  {canManage && showAiPanel && <AiPanel aiTopic={aiTopic} setAiTopic={setAiTopic} aiContext={aiContext} setAiContext={setAiContext} aiGenerating={aiGenerating} handleAiGenerate={handleAiGenerate} aiSuggested={aiSuggested} setAiSuggested={setAiSuggested} aiSelected={aiSelected} setAiSelected={setAiSelected} editKeywords={editKeywords} toggleAiKeyword={toggleAiKeyword} addAiKeywords={addAiKeywords} showAiContext={showAiContext} setShowAiContext={setShowAiContext} setShowAiPanel={setShowAiPanel} />}
                   {!canManage && (
                     <p className="text-[10px] text-foreground-muted italic">AI suggestions require Governance Admin or above.</p>
                   )}
@@ -884,7 +923,7 @@ export default function ApprovalRulesPage() {
                       </span>
                     )}
                   </div>
-                  <KeywordsSection />
+                  <KeywordsSection editKeywords={editKeywords} canManage={canManage} removeKeyword={removeKeyword} kwInput={kwInput} setKwInput={setKwInput} addKeyword={addKeyword} />
                 </div>
 
                 {/* ── Save row ─────────────────────────────────────────── */}
