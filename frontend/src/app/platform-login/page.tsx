@@ -134,7 +134,7 @@ export default function PlatformLoginPage() {
             <div className="mb-8">
               <h1 className="text-[22px] font-bold text-white tracking-tight">Platform Owner Login</h1>
               <p className="mt-1.5 text-sm text-zinc-500">
-                Authorised personnel only. All sessions are recorded.
+                Authorised person only. All sessions are recorded.
               </p>
             </div>
 
