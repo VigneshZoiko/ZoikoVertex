@@ -1488,7 +1488,7 @@ export default function CampaignsPage() {
         api.get("/api/v1/campaigns/stats"),
         api.get("/api/v1/campaigns/meta/accounts"),
       ]);
-      if (c.status === "fulfilled") setCampaigns(c.value.data || []);
+      if (c.status === "fulfilled") setCampaigns(Array.isArray(c.value.data) ? c.value.data : []);
       if (s.status === "fulfilled") setStats(s.value.data);
       if (a.status === "fulfilled") {
         // Only Facebook accounts can have ad accounts — filter out Instagram

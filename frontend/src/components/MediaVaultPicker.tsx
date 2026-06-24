@@ -15,12 +15,12 @@ interface LibraryAsset {
 }
 
 interface MediaVaultPickerProps {
-  onSelect:       (url: string) => void;
-  onSelectPack?:  (urls: string[], title: string) => void;
-  onClose:        () => void;
-  typeFilter?:    "image" | "video" | "all";
-  title?:         string;
-  hint?:          string;
+  onSelect:      (url: string) => void;
+  onSelectPack?: (urls: string[], title: string) => void;
+  onClose:       () => void;
+  typeFilter?:   "image" | "video" | "all";
+  title?:        string;
+  hint?:         string;
 }
 
 export default function MediaVaultPicker({
@@ -37,15 +37,15 @@ export default function MediaVaultPicker({
   const load = useCallback(async (q: string) => {
     setLoading(true);
     try {
-      // Always fetch all, filter client-side so packs appear with images
+      // Always fetch all, filter client-side so packs appear alongside images
       const r = await api.get(`/api/v1/library?type=all&search=${encodeURIComponent(q)}`);
       const all: LibraryAsset[] = Array.isArray(r) ? r : [];
 
       const filtered = all.filter(a => {
         const ft = (a.file_type || "").toLowerCase();
-        if (typeFilter === "video")  return ft.startsWith("video");
-        if (typeFilter === "image")  return ft.startsWith("image") || ft === "mixed";
-        return true; // "all"
+        if (typeFilter === "video") return ft.startsWith("video");
+        if (typeFilter === "image") return ft.startsWith("image") || ft === "mixed";
+        return true;
       });
 
       setAssets(filtered);
@@ -59,13 +59,10 @@ export default function MediaVaultPicker({
     return () => clearTimeout(t);
   }, [search, load]);
 
-  const selectedAsset = assets.find(a => {
-    const url = a.urls?.[0] || a.url;
-    return url === selected;
-  });
-  const isPack     = selectedAsset ? (selectedAsset.urls?.length ?? 0) > 1 : false;
-  const isVideo    = selectedAsset ? (selectedAsset.file_type || "").toLowerCase().startsWith("video") : false;
-  const packCount  = selectedAsset?.urls?.length ?? 0;
+  const selectedAsset = assets.find(a => (a.urls?.[0] || a.url) === selected);
+  const isPack    = (selectedAsset?.urls?.length ?? 0) > 1;
+  const isVideo   = (selectedAsset?.file_type || "").toLowerCase().startsWith("video");
+  const packCount = selectedAsset?.urls?.length ?? 0;
 
   function handleConfirm() {
     if (!selected || !selectedAsset) return;
@@ -142,13 +139,8 @@ export default function MediaVaultPicker({
 
                     {assetVideo ? (
                       <>
-                        <video
-                          src={url}
-                          preload="metadata"
-                          muted
-                          playsInline
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
+                        <video src={url} preload="metadata" muted playsInline
+                          className="absolute inset-0 w-full h-full object-cover" />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                           <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
                             <Play className="w-4 h-4 text-white ml-0.5" />
@@ -196,9 +188,7 @@ export default function MediaVaultPicker({
             className="flex-1 py-2 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl transition-all">
             Cancel
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selected}
+          <button onClick={handleConfirm} disabled={!selected}
             className="flex-1 py-2 bg-white hover:bg-zinc-100 disabled:opacity-40 text-zinc-900 text-sm font-bold rounded-xl transition-all">
             {confirmLabel}
           </button>
