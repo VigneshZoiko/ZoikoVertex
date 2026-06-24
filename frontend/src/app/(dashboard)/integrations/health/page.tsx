@@ -187,7 +187,7 @@ export default function HealthPage() {
   const platforms = Object.entries(platformMap);
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
+    <div className="space-y-6 px-4 sm:p-6 max-w-6xl mx-auto pb-24">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
@@ -389,19 +389,19 @@ export default function HealthPage() {
           </div>
           <div className="divide-y divide-[var(--border)]">
             {wh.endpoints.map((ep) => (
-              <div key={ep.id} className="flex items-center gap-4 px-5 py-3.5">
+              <div key={ep.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-5 py-3.5">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[var(--foreground)] truncate">{ep.name}</p>
                   <p className="text-[11px] text-[var(--foreground-muted)] truncate mt-0.5">{ep.url}</p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   {ep.failure_count > 0 && (
                     <span className="text-[11px] text-warning-text font-semibold">{ep.failure_count} failures</span>
                   )}
                   {ep.last_triggered_at && (
                     <span className="text-[11px] text-[var(--foreground-muted)]">{timeAgo(ep.last_triggered_at)}</span>
                   )}
-                  <div className="flex gap-1 flex-wrap max-w-[160px] justify-end">
+                  <div className="flex gap-1 flex-wrap">
                     {ep.events.slice(0, 3).map((ev) => (
                       <span key={ev} className="text-[10px] px-1.5 py-0.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] rounded font-mono">
                         {ev}

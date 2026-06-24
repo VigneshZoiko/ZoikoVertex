@@ -111,16 +111,16 @@ export default function AuditTrailPage() {
   const hasFilters = search || category || risk || status;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <FileSearch className="w-5 h-5 text-foreground-muted" /> Audit Trail
           </h1>
           <p className="text-xs text-foreground-muted mt-0.5">Tamper-proof record of every action on the platform</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {chainOk !== null && (
             <span className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${chainOk ? "text-green-400 border-green-500/20 bg-green-500/10" : "text-red-400 border-red-500/20 bg-red-500/10"}`}>
               {chainOk ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
@@ -187,7 +187,8 @@ export default function AuditTrailPage() {
             <p className="text-sm">No events found</p>
           </div>
         ) : (
-          <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[640px]">
             <thead>
               <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                 <th className="text-left p-3 font-medium w-36">Time</th>
@@ -262,6 +263,7 @@ export default function AuditTrailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
       <p className="text-xs text-foreground-muted mt-2">{total} total events</p>

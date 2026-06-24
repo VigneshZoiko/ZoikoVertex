@@ -89,16 +89,16 @@ export default function EvidenceVaultPage() {
   }, [tab, fetchItems, fetchPackages]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <Archive className="w-5 h-5 text-foreground-muted" /> Evidence Vault
           </h1>
           <p className="text-xs text-foreground-muted mt-0.5">Preserved evidence, sealed packages, and legal-grade export</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => tab === "items" ? fetchItems() : fetchPackages()}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-surface border border-border rounded-lg hover:bg-surface-hover text-foreground-muted">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
@@ -127,7 +127,7 @@ export default function EvidenceVaultPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border mb-5">
+      <div className="flex items-center gap-1 border-b border-border mb-5 overflow-x-auto">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-colors ${
@@ -195,7 +195,8 @@ export default function EvidenceVaultPage() {
             {itemsLoading ? (
               <div className="p-10 text-center text-xs text-foreground-muted">Loading…</div>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[700px]">
                 <thead>
                   <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                     <th className="text-left p-3 font-medium">Item ID</th>
@@ -252,6 +253,7 @@ export default function EvidenceVaultPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
           <p className="text-xs text-foreground-muted mt-2">{itemsTotal} total items</p>
@@ -265,7 +267,8 @@ export default function EvidenceVaultPage() {
             {pkgsLoading ? (
               <div className="p-10 text-center text-xs text-foreground-muted">Loading…</div>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[540px]">
                 <thead>
                   <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                     <th className="text-left p-3 font-medium">Package ID</th>
@@ -299,6 +302,7 @@ export default function EvidenceVaultPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
           <p className="text-xs text-foreground-muted mt-2">{pkgsTotal} total packages</p>

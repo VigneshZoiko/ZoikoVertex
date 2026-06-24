@@ -58,7 +58,7 @@ export default function LegalHoldsPage() {
   const pendingReview = holds.filter(h => !h.released && h.review_date && new Date(h.review_date) <= new Date()).length;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:p-6 max-w-7xl mx-auto pb-24">
       {error && (
         <div className="mb-4 p-3 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
           <p className="text-xs text-error-text">{error}</p>
@@ -66,14 +66,14 @@ export default function LegalHoldsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <Gavel className="w-5 h-5 text-foreground-muted" /> Legal Holds
           </h1>
           <p className="text-xs text-foreground-muted mt-1">Apply, manage, and release legal holds on evidence — dual-authorisation required to release</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button onClick={fetchHolds} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface text-xs text-foreground/70 rounded-lg hover:bg-surface-hover border border-border">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
@@ -84,7 +84,7 @@ export default function LegalHoldsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
         <div className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center">
             <Lock className="w-4 h-4 text-red-500" />
@@ -130,7 +130,8 @@ export default function LegalHoldsPage() {
         {loading ? (
           <div className="p-8 text-center text-xs text-foreground-muted">Loading holds...</div>
         ) : (
-          <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[720px]">
             <thead>
               <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                 <th className="text-left p-3 font-medium">Hold ID</th>
@@ -186,6 +187,7 @@ export default function LegalHoldsPage() {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </div>
       <p className="text-xs text-foreground-muted mt-2">{total} total holds</p>
