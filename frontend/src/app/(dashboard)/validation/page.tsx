@@ -348,7 +348,7 @@ export default function ValidationDeskPage() {
 
       {/* —— Stats Row ————————————————————————————————————————————————————————— */}
       {stats && (
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: "Pending Scan",  value: stats.pending ?? stats.pending_validation ?? 0, icon: <Clock className="w-4 h-4" />,        color: "text-blue-400",    bg: "bg-blue-500/10" },
             { label: "Auto-Passed",   value: stats.passed,                                   icon: <CheckCircle2 className="w-4 h-4" />,  color: "text-success-text", bg: "bg-success-text/10" },
@@ -366,30 +366,178 @@ export default function ValidationDeskPage() {
         </div>
       )}
 
-      {/* —— Automated Workflow Banner —————————————————————————————————————————— */}
-      <div className="mb-5 p-3 bg-info-text/5 border border-info-border/15 rounded-lg flex items-center gap-3">
-        <div className="flex items-center gap-1.5 text-info-text shrink-0">
-          <Zap className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Automated Workflow</span>
+      {/* —— AI Governance Pipeline ——————————————————————————————————————————————— */}
+      <div className="mb-5 p-3.5 bg-surface border border-border rounded-xl">
+
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-info-text opacity-50" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-info-text" />
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-foreground">AI Governance Pipeline</span>
+          <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-info-text/10 border border-info-border/30 text-info-text">Live</span>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-foreground-muted flex-1 flex-wrap">
-          <span className="px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">Upload</span>
-          <ArrowRight className="w-3 h-3 text-foreground-muted" />
-          <span className="px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">AI Scan</span>
-          <ArrowRight className="w-3 h-3 text-foreground-muted" />
-          <span className="px-2 py-0.5 bg-success-text/10 border border-success-border/20 rounded text-success-text">Safe → Vault</span>
-          <span className="text-foreground-muted">or</span>
-          <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Violations → Blocked</span>
-          <ArrowRight className="w-3 h-3 text-foreground-muted" />
-          <span className="px-2 py-0.5 bg-warning-text/10 border border-warning-border/20 rounded text-warning-text">Review Queue (human)</span>
+
+        {/* ── Mobile / Tablet: vertical stacked layout (< lg) ── */}
+        <div className="lg:hidden flex flex-col items-center gap-0">
+
+          {/* Upload */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-border border-l-2 border-l-white/15 rounded-xl w-full">
+            <div className="w-6 h-6 bg-surface border border-border rounded-lg flex items-center justify-center shrink-0">
+              <FileText className="w-3 h-3 text-foreground-muted" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-foreground-muted">Upload</p>
+              <p className="text-[9px] text-foreground-muted/60 hidden sm:block">Asset enters validation queue</p>
+            </div>
+          </div>
+
+          {/* Trunk connector: Upload → AI Scan */}
+          <div className="w-px h-4 bg-gradient-to-b from-border to-info-text/30" />
+
+          {/* AI Scan — decision node */}
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-info-text/10 border border-info-border/40 border-l-2 border-l-info-border rounded-xl w-full">
+            <div className="w-6 h-6 bg-info-text/15 border border-info-border/40 rounded-lg flex items-center justify-center shrink-0">
+              <Zap className="w-3 h-3 text-info-text" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] font-bold text-info-text">AI Scan</p>
+                <span className="text-[7px] font-bold uppercase tracking-widest px-1 py-0.5 bg-info-text/15 border border-info-border/30 rounded text-info-text">automated</span>
+              </div>
+              <p className="text-[9px] text-info-text/60 hidden sm:block">Keyword detection + image analysis</p>
+            </div>
+          </div>
+
+          {/* Fork: horizontal gradient bar splits into two outcome columns */}
+          <div className="relative w-full pt-4">
+            {/* Horizontal bar connecting the two branches */}
+            <div className="absolute top-0 left-[20%] right-[20%] h-px bg-gradient-to-r from-success-text/40 via-border to-red-500/40" />
+            <div className="flex gap-2.5">
+
+              {/* IF SAFE column */}
+              <div className="flex-1 flex flex-col items-center gap-0">
+                <div className="w-px h-3 bg-success-text/40" />
+                <span className="text-[8px] font-bold uppercase tracking-wider text-success-text bg-success-text/10 border border-success-border/25 rounded px-2 py-0.5 mb-2.5">If Safe</span>
+                <div className="w-px h-2 bg-success-text/30" />
+                <div className="flex items-center gap-2 px-2.5 py-2 bg-success-text/10 border border-success-border/30 border-l-2 border-l-success-border rounded-xl w-full">
+                  <div className="w-5 h-5 bg-success-text/15 rounded-lg flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-3 h-3 text-success-text" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-success-text">Vault</p>
+                    <p className="text-[8px] text-success-text/60 hidden sm:block">Approved &amp; stored</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* IF VIOLATIONS column */}
+              <div className="flex-1 flex flex-col items-center gap-0">
+                <div className="w-px h-3 bg-red-500/40" />
+                <span className="text-[8px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 border border-red-500/25 rounded px-2 py-0.5 mb-2.5 text-center">If Violations</span>
+                <div className="w-px h-2 bg-red-500/30" />
+                <div className="flex items-center gap-2 px-2.5 py-2 bg-red-500/10 border border-red-500/40 border-l-2 border-l-red-500 rounded-xl w-full">
+                  <div className="w-5 h-5 bg-red-500/20 rounded-lg flex items-center justify-center shrink-0">
+                    <Ban className="w-3 h-3 text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-red-400">Blocked</p>
+                    <p className="text-[8px] text-red-400/60 hidden sm:block">Removed from publish</p>
+                  </div>
+                </div>
+                <div className="w-px h-3 bg-gradient-to-b from-red-500/40 to-warning-text/40" />
+                {/* Review Queue — human node: dashed amber border */}
+                <div className="flex items-center gap-2 px-2.5 py-2 bg-warning-text/10 border border-dashed border-warning-border/50 rounded-xl w-full">
+                  <div className="w-5 h-5 bg-warning-text/15 rounded-lg flex items-center justify-center shrink-0">
+                    <User className="w-3 h-3 text-warning-text" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-warning-text">Review Queue</p>
+                    <span className="text-[7px] font-bold uppercase tracking-widest px-1 py-0.5 bg-warning-text/10 border border-warning-border/30 rounded text-warning-text">human</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
+
+        {/* ── Desktop: horizontal branching pipeline (lg+) ── */}
+        {/* Flex: trunk with right border as fork line, then two outcome rows */}
+        <div className="hidden lg:flex items-stretch gap-0">
+
+          {/* Trunk: Upload + AI Scan — right border acts as the fork line */}
+          <div className="flex flex-col justify-center gap-0 pr-3 mr-3 border-r border-border shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-border border-l-2 border-l-white/15 rounded-xl">
+              <div className="w-5 h-5 bg-surface border border-border rounded-md flex items-center justify-center shrink-0">
+                <FileText className="w-2.5 h-2.5 text-foreground-muted" />
+              </div>
+              <p className="text-[10px] font-bold text-foreground-muted whitespace-nowrap">Upload</p>
+            </div>
+            <div className="w-px h-3 bg-gradient-to-b from-border to-info-text/30 mx-auto" />
+            <div className="flex items-center gap-2 px-3 py-2 bg-info-text/10 border border-info-border/40 border-l-2 border-l-info-border rounded-xl">
+              <div className="w-5 h-5 bg-info-text/15 border border-info-border/40 rounded-md flex items-center justify-center shrink-0">
+                <Zap className="w-2.5 h-2.5 text-info-text" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-bold text-info-text whitespace-nowrap">AI Scan</p>
+                <span className="text-[7px] font-bold uppercase tracking-widest px-1 py-0.5 bg-info-text/15 border border-info-border/30 rounded text-info-text">auto</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Outcomes: two rows — branch labels inline, no separate fork column */}
+          <div className="flex flex-col justify-between flex-1 gap-3 py-1">
+
+            {/* Row 1: Safe path → Vault */}
+            <div className="flex items-center gap-2">
+              <div className="h-px w-4 bg-success-text/40 shrink-0" />
+              <span className="text-[8px] font-bold uppercase tracking-wider text-success-text whitespace-nowrap shrink-0">If Safe</span>
+              <div className="h-px w-3 bg-success-text/40 shrink-0" />
+              <div className="flex items-center gap-2 px-3 py-2 bg-success-text/10 border border-success-border/30 border-l-2 border-l-success-border rounded-xl shrink-0">
+                <div className="w-5 h-5 bg-success-text/15 rounded-md flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-success-text" />
+                </div>
+                <p className="text-[10px] font-bold text-success-text whitespace-nowrap">Vault</p>
+              </div>
+            </div>
+
+            {/* Row 2: Violation path → Blocked → Review Queue */}
+            <div className="flex items-center gap-2">
+              <div className="h-px w-4 bg-red-500/40 shrink-0" />
+              <span className="text-[8px] font-bold uppercase tracking-wider text-red-400 whitespace-nowrap shrink-0">If Violations</span>
+              <div className="h-px w-3 bg-red-500/40 shrink-0" />
+              <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/40 border-l-2 border-l-red-500 rounded-xl shrink-0">
+                <div className="w-5 h-5 bg-red-500/20 rounded-md flex items-center justify-center shrink-0">
+                  <Ban className="w-2.5 h-2.5 text-red-400" />
+                </div>
+                <p className="text-[10px] font-bold text-red-400 whitespace-nowrap">Blocked</p>
+              </div>
+              <div className="h-px w-5 bg-gradient-to-r from-red-500/40 to-warning-text/40 shrink-0" />
+              <div className="flex items-center gap-2 px-3 py-2 bg-warning-text/10 border border-dashed border-warning-border/50 rounded-xl shrink-0">
+                <div className="w-5 h-5 bg-warning-text/15 rounded-md flex items-center justify-center shrink-0">
+                  <User className="w-2.5 h-2.5 text-warning-text" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] font-bold text-warning-text whitespace-nowrap">Review Queue</p>
+                  <span className="text-[7px] font-bold uppercase tracking-widest px-1 py-0.5 bg-warning-text/10 border border-warning-border/30 rounded text-warning-text">human</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
 
       {/* —— Main 2-Panel Layout ———————————————————————————————————————————————— */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 md:items-start">
 
         {/* â•â•â• Left Panel: Item List â•â•â• */}
-        <div className="w-[290px] shrink-0 flex flex-col gap-3">
+        <div className="w-full md:w-[290px] md:shrink-0 flex flex-col gap-3">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
@@ -424,7 +572,7 @@ export default function ValidationDeskPage() {
             ))}
           </div>
 
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
+          <div className="space-y-2 max-h-[60vh] sm:max-h-[70vh] md:max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
             {loading ? (
               <div className="flex flex-col items-center py-12 text-foreground-muted gap-3">
                 <div className="w-6 h-6 border-2 border-info-border/50 border-t-indigo-500 rounded-full animate-spin" />
@@ -445,11 +593,11 @@ export default function ValidationDeskPage() {
                   <button
                     key={item.id}
                     onClick={() => handleSelectItem(item)}
-                    className={`w-full text-left rounded-lg p-3 transition-all border ${
+                    className={`w-full text-left rounded-lg p-3.5 sm:p-3 transition-all border ${
                       isSelected
                         ? "bg-info-text/[0.04] border-info-border/30"
                         : "bg-surface border-border hover:border-border"
-                    } ${isItemRejected ? "border-l-2 border-l-red-500/40" : isItemPassed ? "border-l-2 border-l-emerald-500/40" : "border-l-2 border-l-blue-500/30"}`}
+                    } ${item.risk_level === "CRITICAL" ? "border-l-[3px] border-l-rose-500/80" : item.risk_level === "HIGH" ? "border-l-[3px] border-l-orange-500/70" : item.risk_level === "MEDIUM" ? "border-l-[3px] border-l-amber-500/60" : "border-l-[3px] border-l-emerald-500/40"}`}
                   >
                     <div className="flex items-start gap-2 mb-2">
                       <span className="text-foreground-muted mt-0.5 shrink-0">{ITEM_TYPE_ICONS[item.item_type] || <Layers className="w-3 h-3" />}</span>
@@ -487,14 +635,14 @@ export default function ValidationDeskPage() {
 
               {/* —— Instagram PC card: left info | right media —————————————————— */}
               <div className="bg-surface border border-border rounded-lg overflow-hidden">
-                <div className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}>
+                <div className={`flex flex-col sm:flex-row items-stretch ${hasMedia ? "" : "flex-col"}`}>
 
                   {/* Left: info pane */}
-                  <div className={`p-4 flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-border" : "w-full"}`}>
+                  <div className={`p-4 flex flex-col gap-3 ${hasMedia ? "w-full sm:w-[230px] sm:shrink-0 sm:border-r border-b sm:border-b-0 border-border" : "w-full"}`}>
 
                     {/* Title + badges */}
                     <div>
-                      <h3 className="text-sm font-bold text-foreground mb-2 leading-snug">{selectedItem.title}</h3>
+                      <h3 className="text-sm font-semibold leading-snug text-foreground mb-2">{selectedItem.title}</h3>
                       <div className="flex items-center gap-1.5 flex-wrap mb-2">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.validation_status]?.color || "bg-white/5 text-foreground-muted border-white/10"}`}>
                           {STATUS_CONFIG[selectedItem.validation_status]?.icon}
@@ -557,7 +705,7 @@ export default function ValidationDeskPage() {
                       <button
                         onClick={handleRunChecks}
                         disabled={actionLoading !== null}
-                        className="mt-auto w-full px-3 py-2 bg-white hover:bg-zinc-100 text-black text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        className="mt-auto w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                       >
                         {actionLoading === "run_validation"
                           ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" />

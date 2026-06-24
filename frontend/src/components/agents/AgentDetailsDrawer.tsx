@@ -268,7 +268,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
           )}
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-in fade-in duration-500">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-5 bg-info-text/5 border border-info-border/10 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black text-info-text uppercase tracking-widest">Trust Score</span>
@@ -293,7 +293,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
 
               <div className="space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] border-b border-[var(--card-border)] pb-2">Identity & Scope</h3>
-                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 text-sm">
                   {[
                     { label: 'Primary DRI', value: agent.primary_dri?.full_name || 'Unassigned', icon: User },
                     { label: 'Autonomy Level', value: agent.autonomy_level, icon: Shield },
@@ -545,7 +545,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
               <div className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] border-b border-[var(--card-border)] pb-2">Risk Tier & Approval Path</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <div className="text-[10px] font-black uppercase text-[var(--foreground-muted)]">Risk Tier</div>
                     <div className={`text-sm font-bold capitalize mt-1 ${

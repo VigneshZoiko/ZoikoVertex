@@ -213,7 +213,7 @@ function ControlStrip({
           key={item.label}
           className={`flex flex-col gap-1.5 p-3.5 rounded-xl border transition-all ${
             item.urgent
-              ? "bg-error-text/5 border-error-border/20"
+              ? "bg-error-text/8 border-error-border/30 ring-1 ring-error-border/15"
               : item.success
               ? "bg-success-text/5 border-success-text/20"
               : "bg-[var(--surface)] border-[var(--border)]"
@@ -226,7 +226,7 @@ function ControlStrip({
             </span>
           </div>
           <p
-            className={`text-2xl font-bold ${item.urgent ? "text-error-text" : item.success ? "text-success-text" : "text-[var(--text-primary)]"}`}
+            className={`${item.urgent ? "text-[26px]" : "text-2xl"} font-bold ${item.urgent ? "text-error-text" : item.success ? "text-success-text" : "text-[var(--text-primary)]"}`}
           >
             {safeNum(item.value)}
           </p>
@@ -311,7 +311,7 @@ export default function WorkflowsPage() {
 
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-6 lg:p-8 pb-16 max-w-[1600px] mx-auto space-y-6 lg:space-y-8 animate-in fade-in duration-500">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-start gap-4">
@@ -319,7 +319,7 @@ export default function WorkflowsPage() {
             <GitBranch className="w-7 h-7 text-info-text" />
           </div>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center flex-wrap gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
                 Agent Workflows
               </h1>
@@ -353,15 +353,15 @@ export default function WorkflowsPage() {
       {/* ── Indicators ── */}
       <ControlStrip data={stats} posts={publishedContent} />
 
-      {/* ── Published Content ── */}
-      <PublishedContentPanel data={publishedContent} onDelete={handleDeletePost} />
-
       {/* ── Live Workflow Runs ── */}
       <ActiveOrchestrations
         data={active}
         onActionComplete={fetchAll}
         onRowClick={setSelectedRun}
       />
+
+      {/* ── Published Content ── */}
+      <PublishedContentPanel data={publishedContent} onDelete={handleDeletePost} />
       <WorkflowRunDetailDrawer
         run={selectedRun}
         onClose={() => setSelectedRun(null)}

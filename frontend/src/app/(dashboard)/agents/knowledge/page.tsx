@@ -724,19 +724,19 @@ export default function KnowledgeBasePage() {
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-500/10 rounded-2xl">
+          <div className="p-3 bg-indigo-500/10 rounded-2xl shrink-0">
             <Database className="w-6 h-6 text-indigo-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-[var(--foreground)]">Knowledge Base</h1>
             <p className="text-sm text-[var(--foreground-muted)]">Governed source-of-truth for agents — collections, sources, and approved content.</p>
           </div>
         </div>
         <button
           onClick={refreshAll}
-          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition shrink-0"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>

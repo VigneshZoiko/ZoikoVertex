@@ -15,7 +15,7 @@ const TRUST_BULLETS = [
 export default function AuthLayout({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <div className="h-screen bg-[#0C1523] flex flex-col overflow-y-auto">
-      <Navbar />
+      <Navbar forceShow />
       <div className="flex flex-1">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1523] w-[48%] shrink-0">
