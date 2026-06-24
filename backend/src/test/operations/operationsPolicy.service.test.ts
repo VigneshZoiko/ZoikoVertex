@@ -18,9 +18,9 @@ describe('getPolicyEngineHealth', () => {
   });
 });
 
-describe('State transition validation (operationsRun.service)', () => {
+describe('State transition validation (shared/validation)', () => {
   it('validates UUID format', async () => {
-    const mod = await import('../../services/operationsRun.service');
+    const mod = await import('../../shared/validation');
     expect(mod.isUuid('not-a-uuid')).toBe(false);
     expect(mod.isUuid('')).toBe(false);
     expect(mod.isUuid(undefined)).toBe(false);

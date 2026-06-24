@@ -25,6 +25,13 @@ const QUICK_REPLIES = [
 
 export default function ChatbotWidget() {
   const [open, setOpen] = useState(false);
+
+  // Allow external triggers (e.g. Live Chat button on Support page)
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("toggle-chatbot", handler);
+    return () => window.removeEventListener("toggle-chatbot", handler);
+  }, []);
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);

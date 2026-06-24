@@ -415,11 +415,11 @@ describe('P6.2 — AdversarialTestService.runRealAdversarialSuite', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('P6.3 — Provider Configurations', () => {
-  it('PROVIDER_LIST has exactly 2 providers (google, groq) — OpenAI and Anthropic are NOT supported in Prompt Governance', () => {
+  it('PROVIDER_LIST has exactly 2 providers (groq, groq_alt) — OpenAI and Anthropic are NOT supported in Prompt Governance', () => {
     expect(PROVIDER_LIST.length).toBe(2);
     const ids = PROVIDER_LIST.map((p) => p.id);
-    expect(ids).toContain('google');
     expect(ids).toContain('groq');
+    expect(ids).toContain('groq_alt');
     // Invariant: no Prompt Governance provider id may be 'openai' or 'anthropic'.
     expect(ids).not.toContain('openai');
     expect(ids).not.toContain('anthropic');
@@ -442,15 +442,15 @@ describe('P6.3 — Provider Configurations', () => {
     }
   });
 
-  it('estimateCostUsd computes a positive cost for Google', () => {
-    const c = estimateCostUsd('google', 1000, 500);
+  it('estimateCostUsd computes a positive cost for Groq', () => {
+    const c = estimateCostUsd('groq', 1000, 500);
     expect(c).toBeGreaterThan(0);
   });
 
-  it('Groq is cheaper than Google for the same token volume', () => {
-    const groq = estimateCostUsd('groq', 1000, 500);
-    const google = estimateCostUsd('google', 1000, 500);
-    expect(groq).toBeLessThan(google);
+  it('groq_alt is cheaper than groq for the same token volume', () => {
+    const primary = estimateCostUsd('groq', 1000, 500);
+    const alt = estimateCostUsd('groq_alt', 1000, 500);
+    expect(alt).toBeLessThan(primary);
   });
 });
 
@@ -458,7 +458,7 @@ describe('P6.3 — CrossModelComparisonService.runRealCrossModelComparison', () 
   function registerDeterministicAdapters() {
     // Each provider returns a deterministic response that includes a recognizable marker.
     const responses: Record<string, string> = {
-      google: 'Google sample response. Here is a different but helpful answer. End.',
+      groq_alt: 'Groq alt sample response. Here is a different but helpful answer. End.',
       groq: 'Groq sample response. Quick answer, slightly different tone, but still helpful. End.',
     };
     for (const provider of Object.keys(responses)) {
@@ -476,7 +476,7 @@ describe('P6.3 — CrossModelComparisonService.runRealCrossModelComparison', () 
     }
   }
 
-  it('evaluates the 2 Prompt Governance providers (google, groq) and produces 6 metrics each', async () => {
+  it('evaluates the 2 Prompt Governance providers (groq, groq_alt) and produces 6 metrics each', async () => {
     setFixtures({
       prompts: [{ id: 'p1', workspace_id: 'ws-a', risk_tier: 'tier_2_medium', status: 'commissioned', current_version_id: 'v1' }],
       prompt_versions: [{ id: 'v1', prompt_id: 'p1', version_number: 1, body: 'You are a helpful assistant.' }],
@@ -489,7 +489,7 @@ describe('P6.3 — CrossModelComparisonService.runRealCrossModelComparison', () 
 
     expect(result.providers.length).toBe(2);
     for (const c of result.providers) {
-      expect(['google', 'groq']).toContain(c.provider);
+      expect(['groq', 'groq_alt']).toContain(c.provider);
       expect(c.metrics.quality).toBeGreaterThan(0);
       expect(c.metrics.safety).toBeGreaterThan(0);
       expect(c.metrics.faithfulness).toBeGreaterThan(0);

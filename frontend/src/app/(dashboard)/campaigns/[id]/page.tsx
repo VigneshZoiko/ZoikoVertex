@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   Loader2, AlertCircle, MoreHorizontal, Trash2,
-  ExternalLink, RefreshCw, ChevronRight,
+  ExternalLink, RefreshCw, ChevronRight, TrendingUp, Users, DollarSign, CheckCircle2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
@@ -55,14 +55,61 @@ interface Boost {
   impressions: number; reach: number; clicks: number; spend_recorded: number;
   budget_daily?: number; budget_total?: number; budget_currency?: string;
   ad_image_url?: string; ad_headline?: string; ad_body?: string;
-  created_at: string; meta_campaign_id?: string;
+  created_at: string; meta_campaign_id?: string; meta_ad_id?: string | null;
+}
+
+interface InsightConversions {
+  purchases: number; leads: number; add_to_cart: number;
+  checkout: number; registrations: number; video_views: number; post_engagements: number;
+  cost_per_purchase: number | null; cost_per_lead: number | null; cost_per_add_to_cart: number | null;
 }
 
 interface Insights {
   totals: { impressions: number; reach: number; clicks: number; spend: number };
-  kpis:   { ctr: number; cpm: number; cpc: number };
+  kpis:   {
+    ctr: number; cpm: number; cpc: number; roas: number | null; cpp: number | null;
+    frequency?: number | null;
+    unique_clicks?: number | null;
+    cost_per_unique_click?: number | null;
+    outbound_clicks?: number | null;
+    website_ctr?: number | null;
+    conversions?: InsightConversions | null;
+    quality_ranking?: string | null;
+    engagement_rate_ranking?: string | null;
+    conversion_rate_ranking?: string | null;
+  };
   budget: { total: number | null; currency: string; spend: number; utilization_pct: number | null };
+  kpi_targets?: { reach?: number | null; engagement?: number | null; conversions?: number | null } | null;
   boosts_count: number;
+}
+
+interface BreakdownRow {
+  age?: string; gender?: string;
+  publisher_platform?: string; impression_device?: string; platform_position?: string;
+  impressions: number; reach: number; clicks: number; spend: number;
+  ctr?: number; cpc?: number; frequency?: number;
+}
+
+interface Breakdown {
+  by_age_gender: BreakdownRow[];
+  by_placement:  BreakdownRow[];
+  by_position?:  BreakdownRow[];
+}
+
+interface TrendDay {
+  date: string;
+  spend: number; impressions: number; clicks: number;
+  reach: number; ctr: number; cpm: number; cpc: number;
+}
+
+interface AdInsight {
+  meta_ad_id: string; ad_name: string;
+  impressions: number; reach: number; clicks: number; spend: number;
+  cpm: number; cpc: number; ctr: number;
+  frequency: number; unique_clicks: number; cost_per_unique_click: number;
+  outbound_clicks?: number;
+  purchases?: number; leads?: number; add_to_cart?: number; video_views?: number;
+  cost_per_purchase?: number | null; cost_per_lead?: number | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -87,7 +134,7 @@ export default function CampaignDetailPage() {
   const [campaign,  setCampaign]  = useState<Campaign | null>(null);
   const [boosts,    setBoosts]    = useState<Boost[]>([]);
   const [insights,  setInsights]  = useState<Insights | null>(null);
-  const [tab,       setTab]       = useState<"overview" | "adset" | "ads">("overview");
+  const [tab,       setTab]       = useState<"overview" | "adset" | "ads" | "audience">("overview");
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
   const [menu,      setMenu]      = useState(false);
@@ -96,14 +143,22 @@ export default function CampaignDetailPage() {
   const [verifying,     setVerifying]    = useState(false);
   const [verify,        setVerify]       = useState<MetaVerifyResult | null>(null);
   const [togglingBoost, setTogglingBoost] = useState<string | null>(null);
+  const [breakdown,     setBreakdown]    = useState<Breakdown | null>(null);
+  const [trendData,     setTrendData]    = useState<TrendDay[]>([]);
+  const [adInsights,    setAdInsights]   = useState<AdInsight[]>([]);
+  const [budgetSyncing, setBudgetSyncing] = useState(false);
+  const [budgetMsg,     setBudgetMsg]    = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [cRes, bRes, iRes] = await Promise.allSettled([
+      const [cRes, bRes, iRes, bdRes, trendRes, adsInsRes] = await Promise.allSettled([
         api.get(`/api/v1/campaigns/${id}`),
         api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
         api.get(`/api/v1/campaigns/${id}/insights`),
+        api.get(`/api/v1/campaigns/${id}/insights/breakdown`),
+        api.get(`/api/v1/campaigns/${id}/insights/trend`),
+        api.get(`/api/v1/campaigns/${id}/insights/ads`),
       ]);
       if (cRes.status === "fulfilled" && cRes.value?.success !== false) {
         setCampaign(cRes.value.data);
@@ -130,6 +185,9 @@ export default function CampaignDetailPage() {
       }
       setBoosts(fetchedBoosts);
       if (iRes.status === "fulfilled") setInsights(iRes.value.data);
+      if (bdRes.status === "fulfilled" && bdRes.value?.success !== false) setBreakdown(bdRes.value.data);
+      if (trendRes.status === "fulfilled" && trendRes.value?.success !== false) setTrendData(trendRes.value.data?.by_day || []);
+      if (adsInsRes.status === "fulfilled" && adsInsRes.value?.success !== false) setAdInsights(adsInsRes.value.data?.ads || []);
     } catch { setError("Failed to load campaign"); }
     finally { setLoading(false); }
   }, [id]);
@@ -146,9 +204,17 @@ export default function CampaignDetailPage() {
         pausing ? { reason: "Paused by operator" } : { reason: "Resumed by operator" },
       );
       if (r.success) {
-        setCampaign(prev => prev ? { ...prev, status: pausing ? "PAUSED" : "ACTIVE" } : prev);
+        // Use returned data if available, otherwise optimistic update
+        if (r.data?.status) {
+          setCampaign(prev => prev ? { ...prev, status: r.data.status } : prev);
+        } else {
+          setCampaign(prev => prev ? { ...prev, status: pausing ? "PAUSED" : "ACTIVE" } : prev);
+        }
+      } else {
+        // Status mismatch — reload from server to sync
+        load();
       }
-    } catch { /* silent */ }
+    } catch { load(); }
     finally { setToggling(false); }
   };
 
@@ -204,6 +270,20 @@ export default function CampaignDetailPage() {
   const ctr       = insights?.kpis.ctr           ?? 0;
   const cpm       = insights?.kpis.cpm           ?? 0;
   const cpc       = insights?.kpis.cpc           ?? 0;
+  const roas      = insights?.kpis.roas                    ?? null;
+  const cpp       = insights?.kpis.cpp                     ?? null;
+  const freq      = insights?.kpis.frequency               ?? null;
+  const uniqueClicks = insights?.kpis.unique_clicks        ?? null;
+  const cpuc      = insights?.kpis.cost_per_unique_click   ?? null;
+  const outboundClicks = insights?.kpis.outbound_clicks    ?? null;
+  const websiteCtr     = insights?.kpis.website_ctr        ?? null;
+  const conversions    = insights?.kpis.conversions        ?? null;
+  const hasConversions = conversions != null && (
+    conversions.purchases > 0 || conversions.leads > 0 ||
+    conversions.add_to_cart > 0 || conversions.checkout > 0 ||
+    conversions.registrations > 0 || conversions.video_views > 0 ||
+    conversions.post_engagements > 0
+  );
   const budget    = campaign.budget_total         ?? 0;
   const currency  = campaign.budget_currency      ?? "USD";
   const spendPct  = budget > 0 ? Math.round((spend / budget) * 100) : 0;
@@ -318,12 +398,12 @@ export default function CampaignDetailPage() {
 
       {/* ── Tabs ─────────────────────────────────────────────── */}
       <div className="shrink-0 flex border-b border-border/60 px-6">
-        {(["overview", "adset", "ads"] as const).map(t => (
+        {(["overview", "adset", "ads", "audience"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all capitalize ${
               tab === t ? "border-zinc-300 text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
             }`}>
-            {t === "ads" ? `Ads (${boosts.length})` : t === "adset" ? "Ad Set" : "Overview"}
+            {t === "ads" ? `Ads (${boosts.length})` : t === "adset" ? "Ad Set" : t === "audience" ? "Audience" : "Overview"}
           </button>
         ))}
       </div>
@@ -438,6 +518,44 @@ export default function CampaignDetailPage() {
               </div>
             </section>
 
+            {/* KPI Targets vs Actual */}
+            {insights?.kpi_targets && (() => {
+              const t = insights.kpi_targets!;
+              const targets = [
+                { label: "Reach Target",       target: t.reach,       actual: reach,  unit: "" },
+                { label: "Engagement Target",   target: t.engagement,  actual: clicks, unit: " clicks" },
+                { label: "Conversion Target",   target: t.conversions, actual: (conversions?.purchases ?? 0) + (conversions?.leads ?? 0), unit: "" },
+              ].filter(x => x.target != null && x.target > 0);
+              if (targets.length === 0) return null;
+              return (
+                <>
+                  <div className="border-t border-border/60" />
+                  <section>
+                    <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Campaign Targets</p>
+                    <div className="grid grid-cols-3 gap-6">
+                      {targets.map(({ label, target, actual, unit }) => {
+                        const pct = target! > 0 ? Math.min(100, Math.round((actual / target!) * 100)) : 0;
+                        const color = pct >= 100 ? "bg-success-text" : pct >= 50 ? "bg-blue-500" : "bg-zinc-500";
+                        return (
+                          <div key={label}>
+                            <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-2">{label}</p>
+                            <div className="flex items-baseline gap-2 mb-2">
+                              <span className="text-lg font-bold text-foreground">{actual.toLocaleString()}{unit}</span>
+                              <span className="text-xs text-foreground-muted">/ {target!.toLocaleString()} target</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-surface-hover rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <p className="text-[10px] text-foreground-muted mt-1">{pct}% of target</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </>
+              );
+            })()}
+
             <div className="border-t border-border/60" />
 
             {/* Performance */}
@@ -458,23 +576,257 @@ export default function CampaignDetailPage() {
                   </div>
                 ))}
               </div>
-              {cpm > 0 || cpc > 0 ? (
+              {insights && (
                 <div className="grid grid-cols-5 gap-6 mt-6 pt-4 border-t border-border/40">
                   {[
-                    { label: "CPM",   value: cpm > 0 ? `$${cpm.toFixed(2)}` : "--" },
-                    { label: "CPC",   value: cpc > 0 ? `$${cpc.toFixed(2)}` : "--" },
-                    { label: "ROAS",  value: "--" },
-                    { label: "CPP",   value: "--" },
-                    { label: "TOTAL SPEND", value: `$${spend.toFixed(2)}` },
-                  ].map(({ label, value }) => (
+                    { label: "CPM",         value: cpm > 0 ? `$${cpm.toFixed(2)}` : "--",                          sub: "Cost per 1,000 impressions" },
+                    { label: "CPC",         value: cpc > 0 ? `$${cpc.toFixed(2)}` : "--",                          sub: "Cost per link click" },
+                    { label: "ROAS",        value: roas != null ? `${Number(roas).toFixed(2)}x` : "N/A",           sub: roas != null ? "Purchase return on ad spend" : "Requires pixel purchase data" },
+                    { label: "CPP",         value: cpp  != null ? `$${Number(cpp).toFixed(2)}`  : "N/A",           sub: cpp  != null ? "Cost per purchase" : "Requires pixel purchase data" },
+                    { label: "TOTAL SPEND", value: `$${spend.toFixed(2)}`,                                         sub: "All time" },
+                  ].map(({ label, value, sub }) => (
                     <div key={label}>
                       <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">{label}</p>
-                      <p className="text-lg font-semibold text-foreground-muted">{value}</p>
+                      <p className={`text-lg font-semibold ${value === "--" || value === "N/A" ? "text-foreground-muted" : "text-foreground-muted"}`}>{value}</p>
+                      {sub && <p className="text-[10px] text-foreground-muted/60 mt-0.5">{sub}</p>}
                     </div>
                   ))}
                 </div>
-              ) : null}
+              )}
+              {(freq != null || uniqueClicks != null) && (
+                <div className="grid grid-cols-4 gap-6 mt-4 pt-4 border-t border-border/40">
+                  {[
+                    { label: "FREQUENCY",         value: freq != null ? Number(freq).toFixed(2) : "--",           sub: "Avg times one person saw this ad" },
+                    { label: "UNIQUE CLICKS",      value: uniqueClicks != null ? Number(uniqueClicks).toLocaleString() : "--", sub: "Distinct people who clicked" },
+                    { label: "COST / UNIQUE CLICK",value: cpuc != null ? `$${Number(cpuc).toFixed(2)}` : "--",    sub: "Per unique clicking user" },
+                    { label: "TOTAL SPEND",        value: `$${spend.toFixed(2)}`,                                 sub: "All time" },
+                  ].map(({ label, value, sub }) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">{label}</p>
+                      <p className="text-lg font-semibold text-foreground-muted">{value}</p>
+                      {sub && <p className="text-[10px] text-foreground-muted mt-0.5">{sub}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(outboundClicks != null || websiteCtr != null) && (
+                <div className="grid grid-cols-4 gap-6 mt-4 pt-4 border-t border-border/40">
+                  {[
+                    { label: "OUTBOUND CLICKS",  value: outboundClicks != null ? Number(outboundClicks).toLocaleString() : "--", sub: "Clicks to external websites" },
+                    { label: "LANDING PAGE CTR", value: websiteCtr != null ? `${Number(websiteCtr).toFixed(2)}%` : "--",         sub: "Website click-through rate" },
+                  ].map(({ label, value, sub }) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">{label}</p>
+                      <p className="text-lg font-semibold text-foreground-muted">{value}</p>
+                      {sub && <p className="text-[10px] text-foreground-muted mt-0.5">{sub}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
+
+            {/* Quality Signals */}
+            {(() => {
+              const signals = [
+                { label: "Quality Ranking",         value: insights?.kpis.quality_ranking },
+                { label: "Engagement Rate Ranking", value: insights?.kpis.engagement_rate_ranking },
+                { label: "Conversion Rate Ranking", value: insights?.kpis.conversion_rate_ranking },
+              ].filter(s => s.value && s.value !== "UNKNOWN");
+              if (!insights) return null;
+              return (
+                <>
+                  <div className="border-t border-border/60" />
+                  <section>
+                    <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-3">Quality Signals</p>
+                    {signals.length === 0 ? (
+                      <p className="text-xs text-foreground-muted">
+                        Not enough data yet — Meta calculates quality rankings after ~500 impressions. Rankings will appear once this campaign gets more delivery.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {signals.map(signal => {
+                          const rank = (signal.value ?? "").toUpperCase();
+                          const isAbove = rank.includes("ABOVE");
+                          const isBelow = rank.includes("BELOW");
+                          const color = isAbove
+                            ? "text-success-text border-success-text/30 bg-success-text/10"
+                            : isBelow
+                            ? "text-error-text border-error-text/30 bg-error-text/10"
+                            : "text-warning-text border-warning-text/30 bg-warning-text/10";
+                          const icon  = isAbove ? "↑" : isBelow ? "↓" : "→";
+                          const friendlyValue = rank
+                            .replace("ABOVE_AVERAGE", "Above Average")
+                            .replace("BELOW_AVERAGE", "Below Average")
+                            .replace(/^AVERAGE$/, "Average");
+                          return (
+                            <div key={signal.label} className={`flex items-center gap-2.5 px-3 py-2.5 border rounded-xl text-xs ${color}`}>
+                              <span className="text-base font-bold leading-none">{icon}</span>
+                              <div>
+                                <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-0.5">{signal.label}</p>
+                                <p className="font-semibold">{friendlyValue}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                </>
+              );
+            })()}
+
+            {/* Conversions from Meta Pixel */}
+            {hasConversions && conversions && (
+              <>
+                <div className="border-t border-border/60" />
+                <section>
+                  <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Conversions (Meta Pixel)</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: "Purchases",          count: conversions.purchases,      cost: conversions.cost_per_purchase,    icon: "🛒" },
+                      { label: "Leads",              count: conversions.leads,           cost: conversions.cost_per_lead,        icon: "📋" },
+                      { label: "Add to Cart",        count: conversions.add_to_cart,     cost: conversions.cost_per_add_to_cart, icon: "🛍️" },
+                      { label: "Checkout Initiated", count: conversions.checkout,        cost: null,                             icon: "💳" },
+                      { label: "Registrations",      count: conversions.registrations,   cost: null,                             icon: "📝" },
+                      { label: "Video Views",        count: conversions.video_views,     cost: null,                             icon: "▶️" },
+                      { label: "Post Engagements",   count: conversions.post_engagements, cost: null,                            icon: "❤️" },
+                    ].filter(c => c.count > 0).map(c => (
+                      <div key={c.label} className="p-4 bg-surface border border-border rounded-xl flex items-start gap-3">
+                        <span className="text-xl leading-none mt-0.5">{c.icon}</span>
+                        <div>
+                          <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-0.5">{c.label}</p>
+                          <p className="text-xl font-bold text-foreground">{c.count.toLocaleString()}</p>
+                          {c.cost != null && c.cost > 0 && (
+                            <p className="text-[11px] text-foreground-muted mt-0.5">${c.cost.toFixed(2)} / result</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* Daily Trend Chart */}
+            {trendData.length > 1 && (() => {
+              const W = 600, H = 100, PAD = 8;
+              const xStep = (W - PAD * 2) / (trendData.length - 1);
+              const maxSpend = Math.max(...trendData.map(d => d.spend), 0.001);
+              const maxImpr  = Math.max(...trendData.map(d => d.impressions), 1);
+
+              const toPoints = (vals: number[], max: number) =>
+                vals.map((v, i) => ({
+                  x: PAD + i * xStep,
+                  y: H - PAD - ((v / max) * (H - PAD * 2)),
+                }));
+
+              const toPath = (pts: { x: number; y: number }[]) =>
+                pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+              const toArea = (pts: { x: number; y: number }[]) =>
+                `${toPath(pts)} L${pts[pts.length - 1].x.toFixed(1)},${H - PAD} L${pts[0].x.toFixed(1)},${H - PAD} Z`;
+
+              const maxClicks = Math.max(...trendData.map(d => d.clicks), 1);
+              const maxReach  = Math.max(...trendData.map(d => d.reach), 1);
+
+              const spendPts  = toPoints(trendData.map(d => d.spend),       maxSpend);
+              const imprPts   = toPoints(trendData.map(d => d.impressions),  maxImpr);
+              const clicksPts = toPoints(trendData.map(d => d.clicks),       maxClicks);
+              const reachPts  = toPoints(trendData.map(d => d.reach),        maxReach);
+
+              const n = trendData.length;
+              const firstDate = trendData[0].date.substring(5);
+              const midDate   = trendData[Math.floor(n / 2)].date.substring(5);
+              const lastDate  = trendData[n - 1].date.substring(5);
+
+              const totalSpend  = trendData.reduce((s, d) => s + d.spend, 0);
+              const totalImpr   = trendData.reduce((s, d) => s + d.impressions, 0);
+              const totalClicks = trendData.reduce((s, d) => s + d.clicks, 0);
+              const totalReach  = trendData.reduce((s, d) => s + d.reach, 0);
+
+              const ChartCard = ({
+                title, total, color, gradId, gradColor, pts
+              }: {
+                title: string; total: string; color: string; gradId: string;
+                gradColor: string; pts: { x: number; y: number }[];
+              }) => (
+                <div className="border border-border rounded-xl p-4 bg-surface">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest">{title}</p>
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ background: color }} />
+                  </div>
+                  <p className="text-lg font-bold text-foreground mb-2">{total}</p>
+                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-20" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={gradColor} stopOpacity="0.35" />
+                        <stop offset="100%" stopColor={gradColor} stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {[0.25, 0.5, 0.75].map(f => (
+                      <line key={f}
+                        x1={PAD} y1={PAD + (1 - f) * (H - PAD * 2)}
+                        x2={W - PAD} y2={PAD + (1 - f) * (H - PAD * 2)}
+                        stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                    ))}
+                    <path d={toArea(pts)} fill={`url(#${gradId})`} />
+                    <path d={toPath(pts)} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
+                  <div className="flex justify-between text-[9px] text-foreground-muted mt-1">
+                    <span>{firstDate}</span><span>{midDate}</span><span>{lastDate}</span>
+                  </div>
+                </div>
+              );
+
+              return (
+                <>
+                  <div className="border-t border-border/60" />
+                  <section>
+                    <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">
+                      Performance Trend <span className="font-normal normal-case text-[10px] ml-1">({n} days · all-time)</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <ChartCard
+                        title="Daily Spend"
+                        total={`$${totalSpend.toFixed(2)} total`}
+                        color="rgb(96,165,250)"
+                        gradId="spendGrad"
+                        gradColor="rgb(96,165,250)"
+                        pts={spendPts}
+                      />
+                      <ChartCard
+                        title="Daily Impressions"
+                        total={totalImpr.toLocaleString() + " total"}
+                        color="rgb(52,211,153)"
+                        gradId="imprGrad"
+                        gradColor="rgb(52,211,153)"
+                        pts={imprPts}
+                      />
+                      {totalClicks > 0 && (
+                        <ChartCard
+                          title="Daily Clicks"
+                          total={totalClicks.toLocaleString() + " total"}
+                          color="rgb(251,191,36)"
+                          gradId="clicksGrad"
+                          gradColor="rgb(251,191,36)"
+                          pts={clicksPts}
+                        />
+                      )}
+                      {totalReach > 0 && (
+                        <ChartCard
+                          title="Daily Reach"
+                          total={totalReach.toLocaleString() + " unique"}
+                          color="rgb(167,139,250)"
+                          gradId="reachGrad"
+                          gradColor="rgb(167,139,250)"
+                          pts={reachPts}
+                        />
+                      )}
+                    </div>
+                  </section>
+                </>
+              );
+            })()}
 
             {/* Placements — from creative/targeting */}
             {(campaign.platforms?.length > 0 || !!(targeting?.geography)) && (
@@ -700,8 +1052,16 @@ export default function CampaignDetailPage() {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Bid Strategy</p>
-                    <p className="text-sm text-foreground-muted font-medium">Lowest Cost</p>
-                    <p className="text-[11px] text-foreground-muted mt-0.5">No bid cap</p>
+                    {(campaign as any).bid_strategy ? (
+                      <p className="text-sm text-foreground-muted font-medium">
+                        {String((campaign as any).bid_strategy).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-foreground-muted font-medium">Lowest Cost</p>
+                        <p className="text-[11px] text-foreground-muted mt-0.5">Meta default — no bid cap</p>
+                      </>
+                    )}
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Budget</p>
@@ -710,6 +1070,33 @@ export default function CampaignDetailPage() {
                       : budgetTotal
                       ? <p className="text-sm text-foreground-muted font-medium">{currency} {budgetTotal.toLocaleString()} total</p>
                       : <p className="text-sm text-foreground-muted">Not set</p>}
+                    {metaAdsetId && (budgetDaily || budgetTotal) && (
+                      <div className="mt-2">
+                        <button
+                          onClick={async () => {
+                            setBudgetSyncing(true); setBudgetMsg(null);
+                            try {
+                              const amt = budgetDaily ?? budgetTotal ?? 0;
+                              const bType = budgetDaily ? "daily" : "lifetime";
+                              const r = await api.patch(`/api/v1/campaigns/${id}/budget-meta`, { budget_type: bType, amount: amt });
+                              setBudgetMsg(r.success ? { ok: true, text: "Budget synced to Meta." } : { ok: false, text: r.error || "Sync failed" });
+                            } catch { setBudgetMsg({ ok: false, text: "Sync failed" }); }
+                            finally { setBudgetSyncing(false); }
+                          }}
+                          disabled={budgetSyncing}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-hover hover:bg-surface-hover border border-border text-foreground-muted text-xs font-semibold rounded-lg transition-all disabled:opacity-50"
+                        >
+                          {budgetSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <DollarSign className="w-3 h-3" />}
+                          Sync Budget to Meta
+                        </button>
+                        {budgetMsg && (
+                          <p className={`text-[11px] mt-1.5 flex items-center gap-1 ${budgetMsg.ok ? "text-success-text" : "text-error-text"}`}>
+                            {budgetMsg.ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            {budgetMsg.text}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Start Date</p>
@@ -758,7 +1145,11 @@ export default function CampaignDetailPage() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Advantage Audience</p>
-                      <p className="text-sm text-foreground-muted">Off</p>
+                      <p className="text-sm text-foreground-muted">
+                        {(targeting?.age_min != null || (targeting?.geography as any[])?.length > 0 || (targeting?.interests as any[])?.length > 0)
+                          ? "Manual (custom targeting)"
+                          : "Not configured"}
+                      </p>
                     </div>
                   </div>
 
@@ -818,10 +1209,15 @@ export default function CampaignDetailPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: 1000 }}>
+              {(() => {
+                const hasAdConvData = adInsights.some(ai => (ai.purchases || 0) + (ai.leads || 0) + (ai.add_to_cart || 0) > 0);
+                const adHeaders = ["AD", "STATUS", "AD SET NAME", "MAIN RESULT", "COST PER RESULT", "AMOUNT SPENT", "IMPR", "CTR", "CPM", "CPC", "FREQ",
+                  ...(hasAdConvData ? ["CONV.", "COST/CONV."] : [])];
+              return (
+              <table className="w-full text-sm" style={{ minWidth: hasAdConvData ? 1260 : 1100 }}>
                 <thead>
                   <tr className="border-b border-border">
-                    {["AD", "STATUS", "AD SET NAME", "MAIN RESULT", "COST PER RESULT", "AMOUNT SPENT", "CPP", "CPM", "CPC"].map(h => (
+                    {adHeaders.map(h => (
                       <th key={h} className={`px-4 py-3 text-[10px] font-bold text-foreground-muted uppercase tracking-widest whitespace-nowrap ${h === "AD" ? "text-left min-w-[280px]" : "text-right"}`}>
                         {h}
                       </th>
@@ -829,9 +1225,28 @@ export default function CampaignDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {boosts.map((b, i) => {
-                    const bSpend = b.spend_recorded || 0;
-                    const bClicks = b.clicks || 0;
+                  {(() => {
+                    // Match AdInsight to boost by meta_ad_id (accurate), falling back to positional index
+                    const adMap = new Map<string, AdInsight>();
+                    const realBoosts = boosts.filter(b => !b.id.startsWith("virtual-ad-"));
+                    for (const ai of adInsights) {
+                      const matched = realBoosts.find(b => b.meta_ad_id && b.meta_ad_id === ai.meta_ad_id);
+                      if (matched) adMap.set(matched.id, ai);
+                    }
+                    // Positional fallback for boosts without meta_ad_id
+                    if (adMap.size === 0) {
+                      adInsights.forEach((ai, idx) => { if (realBoosts[idx]) adMap.set(realBoosts[idx].id, ai); });
+                    }
+                    return boosts.map((b, i) => {
+                    const adI = adMap.get(b.id);
+
+                    const bSpend  = adI ? Number(adI.spend)       : (b.spend_recorded || 0);
+                    const bClicks = adI ? Number(adI.clicks)       : (b.clicks || 0);
+                    const bImpr   = adI ? Number(adI.impressions)  : (b.impressions || 0);
+                    const bCpm    = adI ? Number(adI.cpm)          : 0;
+                    const bCpc    = adI ? Number(adI.cpc)          : 0;
+                    const bCtr    = adI ? Number(adI.ctr)          : 0;
+                    const bFreq   = adI ? Number(adI.frequency)    : 0;
                     const cpr = bClicks > 0 && bSpend > 0 ? (bSpend / bClicks).toFixed(2) : null;
                     const isAdActive = ["ACTIVE"].includes(b.status);
                     return (
@@ -904,8 +1319,8 @@ export default function CampaignDetailPage() {
                           {bClicks > 0 ? (
                             <><p className="text-sm text-foreground font-medium">{bClicks.toLocaleString()}</p>
                             <p className="text-[10px] text-foreground-muted">Link clicks</p></>
-                          ) : b.impressions > 0 ? (
-                            <><p className="text-sm text-foreground font-medium">{b.impressions.toLocaleString()}</p>
+                          ) : bImpr > 0 ? (
+                            <><p className="text-sm text-foreground font-medium">{bImpr.toLocaleString()}</p>
                             <p className="text-[10px] text-foreground-muted">Impressions</p></>
                           ) : <p className="text-foreground-muted text-xs">--</p>}
                         </td>
@@ -921,25 +1336,336 @@ export default function CampaignDetailPage() {
                         {/* AMOUNT SPENT */}
                         <td className="px-4 py-4 text-right">
                           <p className="text-sm text-foreground">${bSpend.toFixed(2)}</p>
-                          {b.budget_daily && (
+                          {b.budget_daily && bSpend > 0 && b.budget_total && b.budget_total > 0 && (
                             <p className="text-[10px] text-foreground-muted mt-0.5">
-                              {b.budget_total ? Math.round((bSpend / b.budget_total) * 100) : 0}% of campaign&apos;s daily budget
+                              {Math.round((bSpend / b.budget_total) * 100)}% of budget
                             </p>
                           )}
                         </td>
 
-                        {/* CPP / CPM / CPC */}
-                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">--</p></td>
-                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{cpm > 0 ? `$${cpm.toFixed(2)}` : "--"}</p></td>
-                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{cpc > 0 ? `$${cpc.toFixed(2)}` : "--"}</p></td>
+                        {/* IMPR / CTR / CPM / CPC / FREQ */}
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{bImpr > 0 ? bImpr.toLocaleString() : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{bCtr > 0 ? `${Number(bCtr).toFixed(2)}%` : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{bCpm > 0 ? `$${Number(bCpm).toFixed(2)}` : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{bCpc > 0 ? `$${Number(bCpc).toFixed(2)}` : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{bFreq > 0 ? Number(bFreq).toFixed(2) : "--"}</p></td>
+
+                        {/* CONV / COST PER CONV — only rendered when campaign has pixel data */}
+                        {hasAdConvData && (() => {
+                          const bConv = (adI?.purchases || 0) + (adI?.leads || 0) + (adI?.add_to_cart || 0);
+                          const bCostConv = bConv > 0 && bSpend > 0 ? bSpend / bConv : null;
+                          return (
+                            <>
+                              <td className="px-4 py-4 text-right">
+                                {bConv > 0 ? (
+                                  <><p className="text-xs text-foreground font-medium">{bConv}</p>
+                                  <p className="text-[10px] text-foreground-muted">
+                                    {[
+                                      (adI?.purchases || 0) > 0 ? `${adI?.purchases} buy` : null,
+                                      (adI?.leads || 0) > 0 ? `${adI?.leads} lead` : null,
+                                      (adI?.add_to_cart || 0) > 0 ? `${adI?.add_to_cart} cart` : null,
+                                    ].filter(Boolean).join(" · ")}
+                                  </p></>
+                                ) : <p className="text-foreground-muted text-xs">--</p>}
+                              </td>
+                              <td className="px-4 py-4 text-right">
+                                {bCostConv != null ? (
+                                  <p className="text-xs text-foreground">${bCostConv.toFixed(2)}</p>
+                                ) : <p className="text-foreground-muted text-xs">--</p>}
+                              </td>
+                            </>
+                          );
+                        })()}
                       </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
+              );})()}
             </div>
           )
         )}
+        {/* ════ AUDIENCE ════ */}
+        {tab === "audience" && (() => {
+          const hasAgeData  = (breakdown?.by_age_gender.length ?? 0) > 0;
+          const hasPlacData = (breakdown?.by_placement.length  ?? 0) > 0;
+          const hasAny      = hasAgeData || hasPlacData;
+
+          // Derive platform + device rollups from placement rows
+          const platMap: Record<string, { impressions: number; clicks: number; spend: number }> = {};
+          const devMap:  Record<string, { impressions: number; clicks: number; spend: number }> = {};
+          for (const row of (breakdown?.by_placement ?? [])) {
+            const plat = row.publisher_platform || "Unknown";
+            const dev  = row.impression_device  || "Unknown";
+            if (!platMap[plat]) platMap[plat] = { impressions: 0, clicks: 0, spend: 0 };
+            platMap[plat].impressions += row.impressions;
+            platMap[plat].clicks      += row.clicks;
+            platMap[plat].spend       += row.spend;
+            if (!devMap[dev]) devMap[dev] = { impressions: 0, clicks: 0, spend: 0 };
+            devMap[dev].impressions   += row.impressions;
+            devMap[dev].clicks        += row.clicks;
+            devMap[dev].spend         += row.spend;
+          }
+          const platRows = Object.entries(platMap).map(([k, v]) => ({ label: k, ...v })).sort((a,b) => b.impressions - a.impressions);
+          const devRows  = Object.entries(devMap).map(([k, v]) => ({ label: k, ...v })).sort((a,b) => b.impressions - a.impressions);
+
+          // Totals
+          const totalImpr  = (breakdown?.by_age_gender ?? []).reduce((s, r) => s + r.impressions, 0);
+          const totalReach = (breakdown?.by_age_gender ?? []).reduce((s, r) => s + r.reach, 0);
+          const totalClicks= (breakdown?.by_age_gender ?? []).reduce((s, r) => s + r.clicks, 0);
+          const totalSpend = (breakdown?.by_age_gender ?? []).reduce((s, r) => s + r.spend, 0);
+
+          return (
+            <div className="space-y-8 max-w-4xl">
+              {!hasAny ? (
+                <div className="py-16 flex flex-col items-center text-center gap-3">
+                  <TrendingUp className="w-8 h-8 text-foreground-muted" />
+                  <p className="text-foreground-muted font-semibold">No delivery data yet</p>
+                  <p className="text-sm text-foreground-muted max-w-sm">
+                    Audience breakdowns appear once Meta has recorded impressions. Make sure the campaign is active and has started spending.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* KPI summary row */}
+                  {hasAgeData && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: "Impressions", value: totalImpr.toLocaleString() },
+                        { label: "Reach",       value: totalReach.toLocaleString() },
+                        { label: "Clicks",      value: totalClicks.toLocaleString() },
+                        { label: "Spend",       value: `$${totalSpend.toFixed(2)}` },
+                      ].map(k => (
+                        <div key={k.label} className="bg-surface-raised/60 rounded-xl p-3 text-center">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted mb-1">{k.label}</p>
+                          <p className="text-lg font-bold text-foreground">{k.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Age / Gender */}
+                  {hasAgeData && (
+                    <section>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Users className="w-4 h-4 text-foreground-muted" />
+                        <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest">Age & Gender</p>
+                      </div>
+                      <div className="space-y-2.5">
+                        {breakdown!.by_age_gender.map((row, i) => {
+                          const maxImpr = Math.max(...breakdown!.by_age_gender.map(r => r.impressions), 1);
+                          const pct     = Math.round((row.impressions / maxImpr) * 100);
+                          const isMale  = row.gender?.toLowerCase() === "male";
+                          const ctr     = row.impressions > 0 ? ((row.clicks / row.impressions) * 100).toFixed(2) : "0.00";
+                          return (
+                            <div key={i} className="flex items-center gap-3">
+                              <div className="w-28 shrink-0 text-xs text-foreground-muted font-medium text-right">
+                                {row.age ?? "—"} · {row.gender ? row.gender.charAt(0).toUpperCase() + row.gender.slice(1).toLowerCase() : "—"}
+                              </div>
+                              <div className="flex-1 h-5 bg-surface-hover rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all ${isMale ? "bg-blue-500/70" : "bg-pink-400/70"}`}
+                                  style={{ width: `${pct}%` }} />
+                              </div>
+                              <div className="w-52 shrink-0 text-xs text-foreground-muted text-right">
+                                {row.impressions.toLocaleString()} impr · {ctr}% CTR · ${Number(row.spend).toFixed(2)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex gap-4 mt-2 ml-[7.5rem] text-[10px] text-foreground-muted">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500/70 inline-block"/>Male</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-400/70 inline-block"/>Female / Other</span>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Platform + Device side by side */}
+                  {hasPlacData && (
+                    <>
+                      <div className="border-t border-border/60" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+                        {/* Platform */}
+                        <section>
+                          <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-3">Platform</p>
+                          <div className="space-y-2.5">
+                            {platRows.map((row, i) => {
+                              const max = Math.max(...platRows.map(r => r.impressions), 1);
+                              const pct = Math.round((row.impressions / max) * 100);
+                              return (
+                                <div key={i} className="flex items-center gap-3">
+                                  <div className="w-20 shrink-0 text-xs text-foreground-muted font-medium capitalize text-right">{row.label}</div>
+                                  <div className="flex-1 h-4 bg-surface-hover rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full bg-[#1877F2]/60 transition-all" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <div className="w-20 shrink-0 text-xs text-foreground-muted text-right">{row.impressions.toLocaleString()}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+
+                        {/* Device */}
+                        <section>
+                          <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-3">Device</p>
+                          <div className="space-y-2.5">
+                            {devRows.map((row, i) => {
+                              const max = Math.max(...devRows.map(r => r.impressions), 1);
+                              const pct = Math.round((row.impressions / max) * 100);
+                              return (
+                                <div key={i} className="flex items-center gap-3">
+                                  <div className="w-20 shrink-0 text-xs text-foreground-muted font-medium capitalize text-right">{row.label}</div>
+                                  <div className="flex-1 h-4 bg-surface-hover rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full bg-purple-500/60 transition-all" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <div className="w-20 shrink-0 text-xs text-foreground-muted text-right">{row.impressions.toLocaleString()}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Age & Gender full table */}
+                  {hasAgeData && (
+                    <>
+                      <div className="border-t border-border/60" />
+                      <section>
+                        <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-3">Age & Gender Detail</p>
+                        <div className="border border-border rounded-xl overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-card">
+                                {["Segment","Impressions","Reach","Clicks","CTR","Spend"].map(h => (
+                                  <th key={h} className={`px-4 py-2.5 text-[10px] font-bold text-foreground-muted uppercase tracking-widest ${h === "Segment" ? "text-left" : "text-right"}`}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {breakdown!.by_age_gender.map((row, i) => {
+                                const rowCtr = row.ctr != null
+                                  ? Number(row.ctr).toFixed(2)
+                                  : row.impressions > 0 ? ((row.clicks / row.impressions) * 100).toFixed(2) : "0.00";
+                                return (
+                                  <tr key={`ag-${i}`} className="hover:bg-surface/30 transition-colors">
+                                    <td className="px-4 py-2.5 text-foreground-muted capitalize">
+                                      {row.age ?? "—"} · {row.gender ? row.gender.charAt(0).toUpperCase() + row.gender.slice(1).toLowerCase() : "—"}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.impressions.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.reach.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.clicks.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{rowCtr}%</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">${Number(row.spend).toFixed(2)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </>
+                  )}
+
+                  {/* Placement breakdown table with CTR + CPC from Meta */}
+                  {hasPlacData && (
+                    <>
+                      <div className="border-t border-border/60" />
+                      <section>
+                        <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-3">Placement Detail</p>
+                        <div className="border border-border rounded-xl overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-card">
+                                {["Placement","Impressions","Reach","Clicks","CTR","CPC","Spend"].map(h => (
+                                  <th key={h} className={`px-4 py-2.5 text-[10px] font-bold text-foreground-muted uppercase tracking-widest ${h === "Placement" ? "text-left" : "text-right"}`}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {breakdown!.by_placement.map((row, i) => {
+                                const rowCtr = row.ctr != null
+                                  ? Number(row.ctr).toFixed(2)
+                                  : row.impressions > 0 ? ((row.clicks / row.impressions) * 100).toFixed(2) : "0.00";
+                                const rowCpc = row.cpc != null
+                                  ? Number(row.cpc).toFixed(2)
+                                  : row.clicks > 0 ? (row.spend / row.clicks).toFixed(2) : null;
+                                const platform = (row.publisher_platform || "unknown").charAt(0).toUpperCase() + (row.publisher_platform || "unknown").slice(1).toLowerCase();
+                                const device   = row.impression_device ? ` · ${row.impression_device.replace(/_/g, " ")}` : "";
+                                return (
+                                  <tr key={`pl-${i}`} className="hover:bg-surface/30 transition-colors">
+                                    <td className="px-4 py-2.5 text-foreground-muted">{platform}{device}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.impressions.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.reach.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.clicks.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{rowCtr}%</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{rowCpc ? `$${rowCpc}` : "--"}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">${Number(row.spend).toFixed(2)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </>
+                  )}
+
+                  {/* Ad Position Breakdown — Feed vs Story vs Reels */}
+                  {(breakdown?.by_position?.length ?? 0) > 0 && (
+                    <>
+                      <div className="border-t border-border/60" />
+                      <section>
+                        <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-3">Ad Position (Feed · Story · Reels)</p>
+                        <div className="border border-border rounded-xl overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-card">
+                                {["Position","Platform","Impressions","Reach","Clicks","CTR","CPC","Spend"].map(h => (
+                                  <th key={h} className={`px-4 py-2.5 text-[10px] font-bold text-foreground-muted uppercase tracking-widest ${h === "Position" ? "text-left" : "text-right"}`}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {(breakdown!.by_position ?? []).sort((a, b) => b.impressions - a.impressions).map((row: any, i: number) => {
+                                const rowCtr = row.ctr != null
+                                  ? Number(row.ctr).toFixed(2)
+                                  : row.impressions > 0 ? ((row.clicks / row.impressions) * 100).toFixed(2) : "0.00";
+                                const rowCpc = row.cpc != null
+                                  ? Number(row.cpc).toFixed(2)
+                                  : row.clicks > 0 ? (row.spend / row.clicks).toFixed(2) : null;
+                                const posLabel = (row.platform_position || "feed")
+                                  .replace(/_/g, " ")
+                                  .replace(/\b\w/g, (c: string) => c.toUpperCase());
+                                const platLabel = (row.publisher_platform || "")
+                                  .charAt(0).toUpperCase() + (row.publisher_platform || "").slice(1).toLowerCase();
+                                return (
+                                  <tr key={`pos-${i}`} className="hover:bg-surface/30 transition-colors">
+                                    <td className="px-4 py-2.5 text-foreground-muted font-medium">{posLabel}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{platLabel}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.impressions.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.reach.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{row.clicks.toLocaleString()}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{rowCtr}%</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">{rowCpc ? `$${rowCpc}` : "--"}</td>
+                                    <td className="px-4 py-2.5 text-right text-foreground-muted">${Number(row.spend).toFixed(2)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {menu && <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />}

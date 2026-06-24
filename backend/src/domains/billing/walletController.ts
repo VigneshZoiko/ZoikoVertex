@@ -381,12 +381,8 @@ export const stripeWebhook = async (req: Request, res: Response) => {
   const secret  = env.STRIPE_WEBHOOK_SECRET;
 
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('[Billing] STRIPE_WEBHOOK_SECRET not configured — rejecting webhook in production');
-      return res.status(400).json({ error: 'Webhook secret not configured' });
-    }
-    logger.warn('[Billing] STRIPE_WEBHOOK_SECRET not set — passing through (dev only)');
-    return res.status(200).json({ received: true });
+    logger.error('[Billing] STRIPE_WEBHOOK_SECRET not configured — rejecting webhook');
+    return res.status(400).json({ error: 'Webhook secret not configured' });
   }
 
   const stripeClient = getStripe();

@@ -35,6 +35,8 @@ export default function SupportInbox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [showFilter, setShowFilter] = useState(false);
 
   const sixMonthsAgo = useMemo(() => {
     const d = new Date();
@@ -52,7 +54,14 @@ export default function SupportInbox() {
     [tickets, sixMonthsAgo]
   );
 
-  const displayedTickets = showLog ? resolvedTickets : activeTickets;
+  const baseTickets = showLog ? resolvedTickets : activeTickets;
+
+  const displayedTickets = useMemo(
+    () => priorityFilter
+      ? baseTickets.filter(t => (t.urgency || '').toLowerCase().includes(priorityFilter))
+      : baseTickets,
+    [baseTickets, priorityFilter]
+  );
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -106,9 +115,37 @@ export default function SupportInbox() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-md text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5" /> Filter
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilter(!showFilter)}
+              className="px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-md text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-1.5"
+            >
+              <Filter className="w-3.5 h-3.5" /> {priorityFilter ? `Priority: ${priorityFilter}` : 'Filter'}
+            </button>
+            {showFilter && (
+              <div className="absolute right-0 top-full mt-1 w-40 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg z-10 py-1">
+                {['urgent', 'critical', 'standard'].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => { setPriorityFilter(priorityFilter === p ? null : p); setShowFilter(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs capitalize hover:bg-[var(--surface-hover)] transition-colors ${
+                      priorityFilter === p ? 'text-[var(--accent)] font-medium' : 'text-[var(--foreground-muted)]'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                {priorityFilter && (
+                  <button
+                    onClick={() => { setPriorityFilter(null); setShowFilter(false); }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[var(--foreground-muted)] border-t border-[var(--border)] mt-1 pt-1 hover:text-[var(--foreground)]"
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setShowLog(!showLog)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${

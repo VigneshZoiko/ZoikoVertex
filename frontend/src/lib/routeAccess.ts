@@ -106,11 +106,4 @@ export function canAccess(
   return { allowed: true };
 }
 
-export function canAccessSimple(
-  pathname: string,
-  role: string | null,
-  isSuperAdmin: boolean,
-  planType?: string | null,
-): boolean {
-  return canAccess(pathname, role, isSuperAdmin, planType).allowed;
-}
+// ponytail: `canAccessSimple` was dead code (zero consumers), removed.

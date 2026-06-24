@@ -103,12 +103,12 @@ beforeEach(() => {
   h.googleCtor.length = 0;
 });
 
-afterEach(() => {
-  clearModelAdapters();
-  _resetBootRegistrationForTests();
-});
+  afterEach(() => {
+    clearModelAdapters();
+    _resetBootRegistrationForTests();
+  });
 
-describe('Phase 6 — Production model adapter registration (Gemini + Groq only)', () => {
+describe('Phase 6 — Production model adapter registration (Groq + Groq Alt)', () => {
   // ── Flag=OFF (default) ────────────────────────────────────────────────────
   describe('ENABLE_REAL_MODEL_VALIDATION=false (default)', () => {
     it('boots successfully with ZERO model keys set (no failure)', () => {
@@ -145,59 +145,54 @@ describe('Phase 6 — Production model adapter registration (Gemini + Groq only)
 
   // ── Flag=ON ───────────────────────────────────────────────────────────────
   describe('ENABLE_REAL_MODEL_VALIDATION=true', () => {
-    it('registers both providers when both keys are set', () => {
-      (env as any).GEMINI_API_KEY = 'gemini-test';
+    it('registers both providers when GROQ_API_KEY is set', () => {
       (env as any).GROQ_API_KEY = 'groq-test';
       (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
 
       const result = registerProductionAdapters();
 
-      expect(result.registered.sort()).toEqual(['google', 'groq']);
+      expect(result.registered.sort()).toEqual(['groq', 'groq_alt']);
       expect(result.skipped).toEqual([]);
       expect(result.disabled).toBe(false);
-      expect(listRegisteredProviders().sort()).toEqual(['google', 'groq']);
-      // Google adapter is wired through the Gemini SDK.
-      expect(h.googleCtor).toEqual(['gemini-test']);
-      // Groq adapter is wired through the OpenAI SDK with the groq baseURL
-      // (generic HTTP client reuse — NOT an OpenAI-the-provider registration).
+      expect(listRegisteredProviders().sort()).toEqual(['groq', 'groq_alt']);
+      // Both groq and groq_alt use the same Groq HTTP adapter (not Gemini).
       expect(h.openaiCtor).toEqual([
+        { apiKey: 'groq-test', baseURL: 'https://api.groq.com/openai/v1' },
         { apiKey: 'groq-test', baseURL: 'https://api.groq.com/openai/v1' },
       ]);
     });
 
-    it('registers only Gemini when only GEMINI_API_KEY is set', () => {
+    it('registers both when GROQ_API_KEY is set (Gemini key is ignored)', () => {
       (env as any).GEMINI_API_KEY = 'gemini-test';
-      (env as any).GROQ_API_KEY = undefined;
-      (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
-
-      const result = registerProductionAdapters();
-
-      expect(result.registered).toEqual(['google']);
-      expect(result.skipped).toEqual(['groq']);
-      expect(getModelAdapter('groq')).toBe(NullAdapter.execute);
-      expect(getModelAdapter('google')).not.toBe(NullAdapter.execute);
-    });
-
-    it('registers only Groq when only GROQ_API_KEY is set', () => {
-      (env as any).GEMINI_API_KEY = undefined;
       (env as any).GROQ_API_KEY = 'groq-test';
       (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
 
       const result = registerProductionAdapters();
 
-      expect(result.registered).toEqual(['groq']);
-      expect(result.skipped).toEqual(['google']);
-      expect(getModelAdapter('google')).toBe(NullAdapter.execute);
+      // Both groq and groq_alt register regardless of GEMINI_API_KEY
+      expect(result.registered.sort()).toEqual(['groq', 'groq_alt']);
       expect(getModelAdapter('groq')).not.toBe(NullAdapter.execute);
+      expect(getModelAdapter('groq_alt')).not.toBe(NullAdapter.execute);
     });
 
-    it('THROWS when both keys are missing', () => {
-      (env as any).GEMINI_API_KEY = undefined;
+    it('registers both when GROQ_API_KEY is set', () => {
+      (env as any).GROQ_API_KEY = 'groq-test';
+      (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
+
+      const result = registerProductionAdapters();
+
+      expect(result.registered.sort()).toEqual(['groq', 'groq_alt']);
+      expect(getModelAdapter('groq')).not.toBe(NullAdapter.execute);
+      expect(getModelAdapter('groq_alt')).not.toBe(NullAdapter.execute);
+    });
+
+    it('THROWS when GROQ_API_KEY is missing', () => {
+      (env as any).GEMINI_API_KEY = 'gemini-test';
       (env as any).GROQ_API_KEY = undefined;
       (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
 
       expect(() => registerProductionAdapters()).toThrowError(
-        /ENABLE_REAL_MODEL_VALIDATION=true but neither GEMINI_API_KEY nor GROQ_API_KEY is set/,
+        /GROQ_API_KEY is not set/,
       );
     });
 
@@ -209,8 +204,7 @@ describe('Phase 6 — Production model adapter registration (Gemini + Groq only)
 
   // ── Provider matrix invariant: OpenAI and Anthropic are NEVER registered ─
   describe('Provider matrix invariant', () => {
-    it('never registers "openai" or "anthropic" as a provider id, regardless of flag', () => {
-      (env as any).GEMINI_API_KEY = 'gemini-test';
+    it('never registers "openai", "anthropic", or "google"', () => {
       (env as any).GROQ_API_KEY = 'groq-test';
       (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
 
@@ -219,31 +213,30 @@ describe('Phase 6 — Production model adapter registration (Gemini + Groq only)
       const providers = listRegisteredProviders();
       expect(providers).not.toContain('openai');
       expect(providers).not.toContain('anthropic');
+      expect(providers).not.toContain('google');
     });
   });
 
   // ── Idempotency ───────────────────────────────────────────────────────────
   describe('Idempotent boot guard', () => {
     it('a second call in the same process is a no-op', () => {
-      (env as any).GEMINI_API_KEY = 'gemini-test';
       (env as any).GROQ_API_KEY = 'groq-test';
       (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
 
       const first = registerProductionAdapters();
       const second = registerProductionAdapters();
 
-      expect(first.registered.sort()).toEqual(['google', 'groq']);
+      expect(first.registered.sort()).toEqual(['groq', 'groq_alt']);
       // Second call returns the empty idempotent sentinel (no double-register).
       expect(second.registered).toEqual([]);
       expect(second.skipped).toEqual([]);
     });
 
     it('fail-fast throw does NOT leave the registry half-populated', () => {
-      (env as any).GEMINI_API_KEY = undefined;
       (env as any).GROQ_API_KEY = undefined;
       (env as any).ENABLE_REAL_MODEL_VALIDATION = 'true';
 
-      expect(() => registerProductionAdapters()).toThrow(/ENABLE_REAL_MODEL_VALIDATION=true/);
+      expect(() => registerProductionAdapters()).toThrow(/GROQ_API_KEY is not set/);
       expect(listRegisteredProviders()).toEqual([]);
     });
   });

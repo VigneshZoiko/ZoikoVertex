@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 
 const LANDING = "https://zoikovertex.com";
@@ -78,7 +79,11 @@ function DropdownMenu({ items, viewAllLabel, viewAllHref, title }: { items: type
   );
 }
 
+// ponytail: inlined NavbarWrapper — Navbar shows on public non-auth pages only.
+const _SHOW_ROUTES = ['/privacy', '/terms'];
+const _AUTH_ROUTES = ['/login', '/signup', '/signin', '/reset-password', '/auth/update-password'];
 export default function Navbar() {
+  const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -97,6 +102,10 @@ export default function Navbar() {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
+
+  const isShow = _SHOW_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
+  const isAuth = _AUTH_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
+  if (!isShow || isAuth) return null;
 
   return (
     <nav

@@ -63,9 +63,10 @@ export class KnowledgeController {
       const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const { data, error } = await supabaseAdmin
         .from('knowledge_bases')
-        .select('*')
+        .select('id, name, type, created_at')
         .eq('org_id', orgId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
       res.json({ success: true, data });
     } catch (error) {
@@ -102,9 +103,10 @@ export class KnowledgeController {
       if (!base) return res.status(404).json({ error: 'Knowledge base not found' });
       const { data, error } = await supabaseAdmin
         .from('knowledge_entries')
-        .select('*')
+        .select('id, kb_id, title, source_url, created_at, updated_at')
         .eq('kb_id', baseId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
       res.json({ success: true, data });
     } catch (error) {

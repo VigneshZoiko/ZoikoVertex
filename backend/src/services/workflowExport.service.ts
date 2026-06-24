@@ -246,7 +246,7 @@ export async function exportApprovalsCsv(params: {
     .eq('workflow_id', workflowId);
 
   const versionIds = (versions || []).map((v: any) => v.id);
-  if (!versionIds.length) return headerRow;
+  if (!versionIds.length) return '';
 
   const { data: chains } = await supabaseAdmin
     .from('workflow_approval_chains')

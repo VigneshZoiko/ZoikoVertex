@@ -83,7 +83,7 @@ function stubAdapters() {
       error: null,
       executedAt: new Date().toISOString(),
     });
-  registerModelAdapter('google', stub('google', 'google-stub-output'));
+  registerModelAdapter('groq_alt', stub('groq_alt', 'groq_alt-stub-output'));
   registerModelAdapter('groq', stub('groq', 'groq-stub-output'));
 }
 
@@ -191,7 +191,7 @@ describe('ENABLE_REAL_MODEL_VALIDATION=true', () => {
     (env as any).GEMINI_API_KEY = 'g';
     (env as any).GROQ_API_KEY = 'q';
     const r = registerProductionAdapters();
-    expect(r.registered.sort()).toEqual(['google', 'groq']);
+    expect(r.registered.sort()).toEqual(['groq', 'groq_alt']);
     expect(r.disabled).toBe(false);
   });
 
@@ -217,7 +217,7 @@ describe('ENABLE_REAL_MODEL_VALIDATION=true', () => {
     expect(report.attacks.length).toBe(1);
     // The real adapter was called (not NullAdapter): the stub returns
     // 'google-stub-output' or 'groq-stub-output', not the refusal placeholder.
-    expect(['google-stub-output', 'groq-stub-output']).toContain(report.attacks[0].response_text);
+    expect(['groq_alt-stub-output', 'groq-stub-output']).toContain(report.attacks[0].response_text);
   });
 
   it('CrossModelComparisonService: runs real comparison across both providers', async () => {
@@ -237,7 +237,7 @@ describe('ENABLE_REAL_MODEL_VALIDATION=true', () => {
     expect(result.skip_reason).toBeNull();
     expect(result.providers.length).toBe(2);
     for (const c of result.providers) {
-      expect(['google', 'groq']).toContain(c.provider);
+      expect(['groq', 'groq_alt']).toContain(c.provider);
     }
   });
 
@@ -253,11 +253,11 @@ describe('ENABLE_REAL_MODEL_VALIDATION=true', () => {
     const dv = await GovernanceDashboardService.getDriftView('ws-a');
 
     expect(ev.validation_enabled).toBe(true);
-    expect(ev.registered_providers.sort()).toEqual(['google', 'groq']);
+    expect(ev.registered_providers.sort()).toEqual(['groq', 'groq_alt']);
     expect(av.validation_enabled).toBe(true);
-    expect(av.registered_providers.sort()).toEqual(['google', 'groq']);
+    expect(av.registered_providers.sort()).toEqual(['groq', 'groq_alt']);
     expect(dv.validation_enabled).toBe(true);
-    expect(dv.registered_providers.sort()).toEqual(['google', 'groq']);
+    expect(dv.registered_providers.sort()).toEqual(['groq', 'groq_alt']);
   });
 });
 
@@ -269,7 +269,7 @@ describe('Provider matrix invariant — OpenAI and Anthropic are NEVER in Prompt
   it('PROVIDER_LIST contains only google and groq', async () => {
     const { PROVIDER_LIST } = await import('../../modules/prompts/crossModelProviders');
     const ids = PROVIDER_LIST.map((p) => p.id);
-    expect(ids.sort()).toEqual(['google', 'groq']);
+    expect(ids.sort()).toEqual(['groq', 'groq_alt']);
     expect(ids).not.toContain('openai');
     expect(ids).not.toContain('anthropic');
   });

@@ -393,7 +393,7 @@ export default function OnboardingPage() {
           return;
         }
       } catch {}
-      if (active && !navigated) setTimeout(poll, 2000);
+      if (active && !navigated) setTimeout(poll, 30000);
     };
 
     poll();

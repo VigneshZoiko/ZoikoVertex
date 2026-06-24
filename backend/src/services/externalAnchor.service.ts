@@ -25,7 +25,7 @@ export function verifyAnchorIntegrity(
 }
 
 export function generateAnchorId(): string {
-  return `ANCHOR-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString('hex').toUpperCase()}`;
+  return `ANCHOR-${Date.now().toString(36).toUpperCase()}-${randomBytes(8).toString('hex').toUpperCase()}`;
 }
 
 export function generateAnchorTxId(): string {

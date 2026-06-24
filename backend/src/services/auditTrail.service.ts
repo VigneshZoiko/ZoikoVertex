@@ -932,7 +932,7 @@ export async function preserveEvents(params: {
       source_type: 'audit_event', source_id: event.event_id,
       source_system: 'audit_trail', evidence_type: 'audit_event',
     }));
-    const itemId = `EVI-${now.substring(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+    const itemId = `EVI-${now.substring(0, 10).replace(/-/g, '')}-${randomBytes(8).toString('hex').toUpperCase()}`;
     const preservationInput = `${itemId}:${contentHash}:${metadataHash}:${now}`;
     const preservationReceiptHash = computeHash(preservationInput);
 

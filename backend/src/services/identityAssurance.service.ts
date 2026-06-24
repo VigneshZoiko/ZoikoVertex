@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 function generateOpaqueId(prefix: string): string {
   const stamp = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `${prefix}-${stamp}-${rand}`;
 }
 

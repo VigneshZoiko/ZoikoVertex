@@ -63,7 +63,7 @@ export async function createEvidenceBundle(
   req: CreateEvidenceBundleRequest
 ): Promise<{ success: boolean; bundle?: EvidenceBundle; message?: string }> {
   try {
-    const bundle_id = `bundle-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const bundle_id = `bundle-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
 
     const hash_input = JSON.stringify({
       bundle_id,

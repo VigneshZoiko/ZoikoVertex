@@ -131,37 +131,37 @@ function computeHash(input: string): string {
 
 function generateItemId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `EVI-${seq}-${rand}`;
 }
 
 function generateCollectionId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `COL-${seq}-${rand}`;
 }
 
 function generatePackageId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `PKG-${seq}-${rand}`;
 }
 
 function generateHoldId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `HLD-${seq}-${rand}`;
 }
 
 function generateExportId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `EXP-${seq}-${rand}`;
 }
 
 function generateRedactionPolicyId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `RP-${seq}-${rand}`;
 }
 
@@ -1199,7 +1199,7 @@ export interface VaultDlpScan {
 
 function generateShareId(): string {
   const seq = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `SHR-${seq}-${rand}`;
 }
 
@@ -1527,15 +1527,15 @@ export interface VaultTemplateVersion {
 }
 
 function generateJobId(): string {
-  return `JOB-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+  return `JOB-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 }
 
 function generateAnchorId(): string {
-  return `ANCHOR-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+  return `ANCHOR-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 }
 
 function generateTemplateId(): string {
-  return `TPL-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+  return `TPL-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 }
 
 async function resolveChainAnchorScope(params: {

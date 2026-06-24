@@ -2,13 +2,13 @@ import { supabaseAdmin } from '../../shared/supabase';
 
 export class KnowledgeReviewService {
   static async list(filters?: { source_id?: string; reviewer_id?: string; decision?: string }) {
-    let query = supabaseAdmin.from('knowledge_reviews').select('*');
+    let query = supabaseAdmin.from('knowledge_reviews').select('id, decision, review_type, comments, completed_at, created_at');
 
     if (filters?.source_id) query = query.eq('source_id', filters.source_id);
     if (filters?.reviewer_id) query = query.eq('reviewer_id', filters.reviewer_id);
     if (filters?.decision) query = query.eq('decision', filters.decision);
 
-    const { data, error } = await query;
+    const { data, error } = await query.limit(100);
     if (error) throw error;
     return data || [];
   }
@@ -38,8 +38,9 @@ export class KnowledgeReviewService {
   static async getBySource(sourceId: string) {
     const { data, error } = await supabaseAdmin
       .from('knowledge_reviews')
-      .select('*')
-      .eq('source_id', sourceId);
+      .select('id, decision, review_type, comments, completed_at, created_at')
+      .eq('source_id', sourceId)
+      .limit(100);
     if (error) throw error;
     return data || [];
   }

@@ -29,7 +29,7 @@ interface AuthCacheEntry {
   expiresAt: number;
 }
 const _authCache = new Map<string, AuthCacheEntry>();
-const AUTH_CACHE_TTL_MS = 30_000; // 30 seconds
+const AUTH_CACHE_TTL_MS = 5_000; // 5 seconds
 
 // Purge stale entries every minute to prevent unbounded growth
 setInterval(() => {

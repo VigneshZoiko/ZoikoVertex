@@ -1,192 +1,235 @@
 "use client";
 
-import { useNotifications, NotificationPriority, NotificationCategory } from "@/lib/context/NotificationContext";
-import { Bell, Check, Clock, AlertCircle, ShieldAlert, ArrowRight, X, Trash2, CheckCircle2 } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Bell, CheckCheck, Trash2, Loader2, AlertCircle, Info, Shield, Workflow, MessageSquare, ExternalLink, X, Clock, Filter } from "lucide-react";
+import { useNotifications } from "@/lib/context/NotificationContext";
+import type { NotificationCategory } from "@/lib/context/NotificationContext";
+
+const CATEGORY_CONFIG: Record<NotificationCategory, { label: string; icon: typeof Bell; color: string }> = {
+  SYSTEM:   { label: "System",   icon: Info,          color: "text-blue-500" },
+  WORKFLOW: { label: "Workflow", icon: Workflow,      color: "text-purple-500" },
+  SECURITY: { label: "Security", icon: Shield,        color: "text-amber-500" },
+  SOCIAL:   { label: "Social",   icon: MessageSquare, color: "text-emerald-500" },
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  LOW:    "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
+  MEDIUM: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  HIGH:   "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  URGENT: "bg-red-500/10 text-red-500 border-red-500/20",
+};
 
 export default function NotificationsPage() {
   const { state, dispatch, markAsRead, markAllRead, clearAll } = useNotifications();
-  const [filter, setFilter] = useState<'ALL' | 'UNREAD'>('ALL');
+  const [activeCategory, setActiveCategory] = useState<NotificationCategory | "ALL">("ALL");
+  const [loading, setLoading] = useState(true);
 
-  const notifications = filter === 'UNREAD' 
-    ? state.notifications.filter(n => !n.read) 
-    : state.notifications;
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const { api } = await import("@/lib/api");
+        const res = await api.get("/api/v1/notifications");
+        if (res.success) {
+          dispatch({ type: "SET_NOTIFICATIONS", payload: (res.data || []).map((n: any) => ({
+            ...n,
+            timestamp: new Date(n.created_at || n.timestamp),
+          })) });
+        }
+      } catch { /* silent */ }
+      finally { setLoading(false) }
+    };
+    fetch();
+  }, [dispatch]);
 
-  const getPriorityColor = (priority: NotificationPriority) => {
-    switch (priority) {
-      case 'URGENT': return 'bg-error-bg text-error-text border-error-border';
-      case 'HIGH': return 'bg-warning-bg text-warning-text border-warning-border';
-      case 'MEDIUM': return 'bg-info-bg text-info-text border-info-border';
-      case 'LOW': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
-      default: return 'bg-info-bg text-info-text border-info-border';
-    }
+  const notifications = state.notifications;
+  const filtered = activeCategory === "ALL"
+    ? notifications
+    : notifications.filter(n => n.category === activeCategory);
+  const unread = notifications.filter(n => !n.read);
+
+  const handleMarkAllRead = async () => {
+    await markAllRead();
   };
 
-  const getCategoryIcon = (category: NotificationCategory, priority: NotificationPriority) => {
-    if (priority === 'URGENT' || priority === 'HIGH') return <ShieldAlert className="w-5 h-5" />;
-    switch (category) {
-      case 'WORKFLOW': return <Check className="w-5 h-5" />;
-      case 'SECURITY': return <AlertCircle className="w-5 h-5" />;
-      case 'SYSTEM':
-      default: return <Clock className="w-5 h-5" />;
-    }
+  const handleClearAll = async () => {
+    if (notifications.length === 0) return;
+    await clearAll();
   };
+
+  const categoryCounts = notifications.reduce((acc, n) => {
+    acc[n.category] = (acc[n.category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">Notification History</h1>
-          <p className="text-sm text-[var(--foreground-muted)] mt-1">Manage and review all system and workflow alerts.</p>
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto space-y-6 sm:space-y-8 pb-24">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 bg-surface-hover rounded-xl border border-border mt-0.5 shrink-0">
+            <Bell className="w-5 h-5 text-foreground-muted" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Notifications</h1>
+            <p className="text-sm text-foreground-muted mt-0.5">
+              {unread.length > 0
+                ? `${unread.length} unread notification${unread.length !== 1 ? "s" : ""}`
+                : "All caught up"}
+            </p>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={markAllRead}
-            disabled={state.notifications.filter(n => !n.read).length === 0}
-            className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50"
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleMarkAllRead}
+            disabled={unread.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-hover hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed text-foreground-muted rounded-xl text-xs font-medium transition-colors"
           >
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Mark all read
+            <CheckCheck className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mark All Read</span>
+            <span className="sm:hidden">Read All</span>
           </button>
-          <button 
-            onClick={clearAll}
-            disabled={state.notifications.length === 0}
-            className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-error-bg text-error-text hover:brightness-110 hover:text-white transition-colors disabled:opacity-50"
+          <button
+            onClick={handleClearAll}
+            disabled={notifications.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-hover hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed text-foreground-muted rounded-xl text-xs font-medium transition-colors"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Clear all
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Clear All</span>
+            <span className="sm:hidden">Clear</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-        {/* Filters */}
-        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center gap-4 bg-[var(--surface-hover)]/30">
-          <button 
-            onClick={() => setFilter('ALL')}
-            className={`text-sm font-semibold px-3 py-1.5 rounded-md transition-colors ${filter === 'ALL' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
+      {/* Category filters */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        <button
+          onClick={() => setActiveCategory("ALL")}
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+            activeCategory === "ALL"
+              ? "bg-foreground text-background border-foreground"
+              : "bg-card text-foreground-muted border-border hover:border-border"
+          }`}
+        >
+          All ({notifications.length})
+        </button>
+        {(Object.entries(CATEGORY_CONFIG) as [NotificationCategory, typeof CATEGORY_CONFIG[NotificationCategory]][]).map(([key, config]) => (
+          <button
+            key={key}
+            onClick={() => setActiveCategory(key)}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+              activeCategory === key
+                ? "bg-foreground text-background border-foreground"
+                : "bg-card text-foreground-muted border-border hover:border-border"
+            }`}
           >
-            All Notifications
+            <config.icon className="w-3.5 h-3.5" />
+            {config.label}
+            {categoryCounts[key] > 0 && <span className="opacity-60">({categoryCounts[key]})</span>}
           </button>
-          <button 
-            onClick={() => setFilter('UNREAD')}
-            className={`text-sm font-semibold px-3 py-1.5 rounded-md transition-colors flex items-center ${filter === 'UNREAD' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
-          >
-            Unread
-            {state.notifications.filter(n => !n.read).length > 0 && (
-              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${filter === 'UNREAD' ? 'bg-[var(--background)] text-[var(--foreground)]' : 'bg-info-text text-foreground'}`}>
-                {state.notifications.filter(n => !n.read).length}
-              </span>
-            )}
-          </button>
+        ))}
+      </div>
+
+      {/* Notification list */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-foreground-muted">
+          <Loader2 className="w-6 h-6 animate-spin mb-3" />
+          <p className="text-sm">Loading notifications...</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-foreground-muted">
+          <Bell className="w-10 h-10 mb-3 opacity-40" />
+          <p className="text-sm font-medium">No notifications</p>
+          <p className="text-xs mt-1">
+            {activeCategory === "ALL"
+              ? "You're all caught up!"
+              : `No ${CATEGORY_CONFIG[activeCategory]?.label.toLowerCase()} notifications`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((notif) => {
+            const config = CATEGORY_CONFIG[notif.category] || CATEGORY_CONFIG.SYSTEM;
+            const Icon = config.icon;
+            return (
+              <div
+                key={notif.id}
+                className={`group flex items-start gap-3 sm:gap-4 p-4 rounded-xl border transition-all ${
+                  notif.read
+                    ? "bg-card border-border"
+                    : "bg-surface border-border ring-1 ring-border/40"
+                }`}
+              >
+                {/* Icon */}
+                <div className={`p-2 rounded-lg shrink-0 border border-border/50 ${
+                  notif.read ? "bg-surface-hover" : "bg-surface"
+                }`}>
+                  <Icon className={`w-4 h-4 ${config.color}`} />
+                </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="py-24 px-6 text-center h-full flex flex-col items-center justify-center">
-              <div className="w-20 h-20 bg-gradient-to-tr from-info-text/10 to-info-text/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-info-border">
-                <Bell className="w-10 h-10 text-info-text/40" />
-              </div>
-              <h3 className="text-xl font-bold text-[var(--foreground)] mb-2">You&apos;re all caught up!</h3>
-              <p className="text-sm text-[var(--foreground-muted)] max-w-sm mx-auto">
-                No notifications to display. Any new updates, alerts, or workflow requests will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--border)]">
-              {notifications.map((notif) => (
-                <div 
-                  key={notif.id} 
-                  className={`p-6 transition-colors group relative flex gap-6 hover:bg-[var(--surface-hover)]/40 ${!notif.read ? 'bg-info-bg' : ''}`}
-                >
-                  {/* Icon */}
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${getPriorityColor(notif.priority)}`}>
-                    {getCategoryIcon(notif.category, notif.priority)}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-4 mb-2">
-                      <h4 className={`text-base font-bold tracking-tight ${!notif.read ? 'text-[var(--foreground)]' : 'text-[var(--foreground-muted)]'}`}>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`text-sm leading-snug ${notif.read ? "text-foreground-muted" : "text-foreground font-medium"}`}>
                         {notif.title}
-                      </h4>
-                      <span className="text-xs text-[var(--foreground-muted)] font-medium whitespace-nowrap bg-[var(--background)] px-2 py-1 rounded-md border border-[var(--border)]">
-                        {notif.timestamp.toLocaleString()}
-                      </span>
+                      </p>
+                      {notif.message && (
+                        <p className="text-xs text-foreground-muted mt-1 leading-relaxed line-clamp-2">{notif.message}</p>
+                      )}
                     </div>
-                    
-                    <p className="text-sm text-[var(--foreground-muted)] leading-relaxed font-medium mb-4 max-w-3xl">
-                      {notif.message}
-                    </p>
-
-                    <div className="flex items-center justify-between">
-                      {/* Action Buttons */}
-                      <div className="flex gap-3">
-                        {notif.actions?.map((action, i) => (
-                          action.href ? (
-                            <Link 
-                              key={i} 
-                              href={action.href}
-                              className={`text-sm px-4 py-2 rounded-xl font-bold flex items-center transition-colors ${
-                                action.primary 
-                                  ? 'bg-info-bg text-info-text hover:brightness-110' 
-                                  : 'bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
-                              }`}
-                            >
-                              {action.label}
-                              {action.primary && <ArrowRight className="w-4 h-4 ml-2" />}
-                            </Link>
-                          ) : (
-                            <button 
-                              key={i}
-                              onClick={(e) => { e.stopPropagation(); action.onClick?.(); }}
-                              className={`text-sm px-4 py-2 rounded-xl font-bold flex items-center transition-colors ${
-                                action.primary 
-                                  ? 'bg-info-bg text-info-text hover:brightness-110' 
-                                  : 'bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
-                              }`}
-                            >
-                              {action.label}
-                            </button>
-                          )
-                        ))}
-                      </div>
-
-                      {/* Utilities */}
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {!notif.read && (
-                          <button
-                            onClick={() => markAsRead(notif.id)}
-                            className="p-2 rounded-lg text-info-text hover:brightness-110 transition-colors tooltip-trigger"
-                            title="Mark as read"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => dispatch({ type: 'REMOVE', payload: notif.id })}
-                          className="p-2 rounded-lg text-error-text hover:brightness-110 transition-colors"
-                          title="Remove notification"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
+                    {!notif.read && (
+                      <span className="shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+                    )}
                   </div>
 
-                  {/* Unread indicator bar */}
+                  {/* Meta row */}
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${PRIORITY_COLORS[notif.priority] || PRIORITY_COLORS.LOW}`}>
+                      {notif.priority}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-foreground-muted">
+                      <Clock className="w-3 h-3" />
+                      {new Date(notif.timestamp).toLocaleDateString("en-US", {
+                        month: "short", day: "numeric",
+                        ...(new Date(notif.timestamp).getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
+                      })}
+                      {" "}
+                      {new Date(notif.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                    {notif.actions?.map((action, i) => (
+                      <a
+                        key={i}
+                        href={action.href || "#"}
+                        onClick={(e) => { if (action.onClick) { e.preventDefault(); action.onClick(); } }}
+                        className={`text-[10px] font-medium flex items-center gap-1 transition-colors ${
+                          action.primary
+                            ? "text-blue-500 hover:text-blue-400"
+                            : "text-foreground-muted hover:text-foreground"
+                        }`}
+                      >
+                        {action.label} <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-0.5 shrink-0">
                   {!notif.read && (
-                    <div className="absolute left-0 top-6 bottom-6 w-1 bg-info-text rounded-r-full" />
+                    <button
+                      onClick={() => markAsRead(notif.id)}
+                      className="p-1.5 text-foreground-muted hover:text-blue-500 transition-colors rounded-lg hover:bg-surface-hover"
+                      title="Mark as read"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                    </button>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

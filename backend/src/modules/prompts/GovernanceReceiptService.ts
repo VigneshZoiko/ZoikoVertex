@@ -55,7 +55,7 @@ export class GovernanceReceiptService {
     workspaceId: string,
     actorId?: string,
   ): Promise<GovernanceReceipt> {
-    const receiptId = `GR-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const receiptId = `GR-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 
     const { data: prompt } = await supabaseAdmin
       .from('prompts')

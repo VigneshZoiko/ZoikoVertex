@@ -2,6 +2,7 @@
 import * as crypto from 'crypto';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logToDatabase } from '../../shared/databaseLogger';
+import { isUuid } from '../../shared/validation';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PromptAuditService
@@ -68,9 +69,7 @@ function riskTierToLevel(riskTier?: string | null): string {
   return 'medium';
 }
 
-function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
+// ponytail: isUuid extracted to shared/validation.ts
 
 // ── State-size guard ─────────────────────────────────────────────────────────
 // Audit rows must stay small and bounded. Before/after/context payloads are

@@ -29,9 +29,10 @@ export class KnowledgeCollectionService {
   static async list(workspaceId: string) {
     const { data, error } = await supabaseAdmin
       .from('knowledge_collections')
-      .select('*')
+      .select('id, name, description, source_count')
       .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
     if (error) throw error;
     return data || [];
   }

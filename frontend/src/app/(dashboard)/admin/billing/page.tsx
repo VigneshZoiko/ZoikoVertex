@@ -603,15 +603,15 @@ export default function BillingPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-24">
       {/* â"€â"€ Header â"€â"€ */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Billing & Administration</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">Billing & Administration</h1>
         <p className="text-sm text-foreground-muted">Manage your workspace plan, platform usage, and credits.</p>
       </div>
 
       {/* â"€â"€ Tabs â"€â"€ */}
-      <div className="flex items-center gap-6 border-b border-border">
+      <div className="flex items-center gap-6 border-b border-border overflow-x-auto">
         <button type="button"
           onClick={() => setActiveTab("credits")}
           className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
@@ -652,7 +652,7 @@ export default function BillingPage() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
 
             {/* Balance Card */}
             <div className="bg-card border border-border rounded-xl p-6 flex flex-col justify-between">
@@ -682,18 +682,22 @@ export default function BillingPage() {
 
             {/* Auto Top-up Settings */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between gap-4 mb-4">
                 <h3 className="text-sm font-medium text-foreground">Auto Top-up</h3>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    className="sr-only peer"
-                    checked={wallet.auto_topup_enabled}
-                    onChange={(e) => handleAutoTopupChange({ auto_topup_enabled: e.target.checked })}
-                    disabled={updatingAutoTopup}
-                  />
-                  <div className="w-9 h-5 bg-surface-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-zinc-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
-                </label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={wallet.auto_topup_enabled}
+                  onClick={() => handleAutoTopupChange({ auto_topup_enabled: !wallet.auto_topup_enabled })}
+                  disabled={updatingAutoTopup}
+                  className={`inline-flex shrink-0 h-5 w-9 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                    wallet.auto_topup_enabled ? "bg-white" : "bg-zinc-700"
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full shadow-sm transition-transform duration-200 ${
+                    wallet.auto_topup_enabled ? "translate-x-4 bg-zinc-900" : "translate-x-0 bg-zinc-400"
+                  }`} />
+                </button>
               </div>
               
               {wallet.auto_topup_enabled ? (
@@ -761,69 +765,69 @@ export default function BillingPage() {
             </div>
             
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="bg-card text-foreground-muted">
                   <tr>
-                    <th className="px-5 py-3 font-medium">Date</th>
-                    <th className="px-5 py-3 font-medium">Description</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium text-right">Credits</th>
-                    <th className="px-5 py-3 font-medium text-right">Receipt</th>
+                    <th className="px-3 sm:px-5 py-3 font-medium">Date</th>
+                    <th className="px-3 sm:px-5 py-3 font-medium">Description</th>
+                    <th className="px-3 sm:px-5 py-3 font-medium">Status</th>
+                    <th className="px-3 sm:px-5 py-3 font-medium text-right">Credits</th>
+                    <th className="px-3 sm:px-5 py-3 font-medium text-right">Receipt</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-border text-foreground-muted">
                   {loadingWallet ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-foreground-muted">
+                      <td colSpan={5} className="px-3 sm:px-5 py-8 text-center text-foreground-muted">
                         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                         Loading transactions...
                       </td>
                     </tr>
                   ) : transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-foreground-muted">
+                      <td colSpan={5} className="px-3 sm:px-5 py-8 text-center text-foreground-muted">
                         No transactions yet. Add credits to get started.
                       </td>
                     </tr>
                   ) : (
                     transactions.map(tx => (
                       <tr key={tx.id} className={`hover:bg-surface-hover transition-colors ${tx.status === "PROCESSING" ? "bg-warning-text/3" : ""}`}>
-                        <td className="px-5 py-3 whitespace-nowrap text-foreground-muted">
+                        <td className="px-3 sm:px-5 py-3 whitespace-nowrap text-foreground-muted text-xs sm:text-sm">
                           <div>{new Date(tx.created_at).toLocaleDateString()}</div>
                           {tx.status === "PROCESSING" && tx.available_at && (
                             <div className="text-[10px] text-warning-text">Avail. {new Date(tx.available_at).toLocaleDateString()}</div>
                           )}
                         </td>
-                        <td className="px-5 py-3">
-                          <div>{tx.description}</div>
+                        <td className="px-3 sm:px-5 py-3 text-xs sm:text-sm max-w-[140px] sm:max-w-none">
+                          <div className="truncate">{tx.description}</div>
                           {tx.stripe_fee && tx.stripe_fee > 0 && (
                             <div className="text-[10px] text-foreground-muted">Fee: ${Number(tx.stripe_fee).toFixed(2)}</div>
                           )}
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-3 sm:px-5 py-3">
                           {tx.status === "PROCESSING" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-warning-bg text-warning-text border border-warning-border">
-                              <Clock className="w-2.5 h-2.5" />PROCESSING
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-warning-bg text-warning-text border border-warning-border">
+                              <Clock className="w-2.5 h-2.5" />PROC.
                             </span>
                           )}
                           {(tx.status === "AVAILABLE" || tx.status === "COMPLETED" || !tx.status) && tx.type === "CREDIT" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-success-bg text-success-text border border-success-border">
-                              <CheckCircle2 className="w-2.5 h-2.5" />AVAILABLE
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-success-bg text-success-text border border-success-border">
+                              <CheckCircle2 className="w-2.5 h-2.5" />OK
                             </span>
                           )}
                           {tx.type === "DEBIT" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-surface-hover text-foreground-muted border border-border">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-hover text-foreground-muted border border-border">
                               SPENT
                             </span>
                           )}
                         </td>
-                        <td className={`px-5 py-3 text-right font-medium ${tx.type === 'CREDIT' ? 'text-foreground' : 'text-foreground-muted'}`}>
+                        <td className={`px-3 sm:px-5 py-3 text-right font-medium text-xs sm:text-sm ${tx.type === 'CREDIT' ? 'text-foreground' : 'text-foreground-muted'}`}>
                           <div>{tx.type === 'CREDIT' ? '+' : '-'}{fmtCurrency(tx.net_amount ?? tx.amount, tx.currency || wallet.currency)}</div>
                           {tx.gross_amount && tx.gross_amount !== (tx.net_amount ?? tx.amount) && (
-                            <div className="text-[10px] text-foreground-muted">Charged: {fmtCurrency(tx.gross_amount, tx.currency || wallet.currency)}</div>
+                            <div className="text-[10px] text-foreground-muted hidden sm:block">Charged: {fmtCurrency(tx.gross_amount, tx.currency || wallet.currency)}</div>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-3 sm:px-5 py-3 text-right">
                           {tx.stripe_charge_id && tx.type === 'CREDIT' && (
                             <a
                               href={`https://dashboard.stripe.com/test/payments/${tx.stripe_charge_id}`}
@@ -832,7 +836,7 @@ export default function BillingPage() {
                               className="inline-flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground transition-colors"
                               title="View receipt"
                             >
-                              <FileText className="w-3 h-3" /> Receipt
+                              <FileText className="w-3 h-3" /><span className="hidden sm:inline">Receipt</span>
                             </a>
                           )}
                         </td>
@@ -851,15 +855,25 @@ export default function BillingPage() {
         <div className="space-y-6">
 
           {/* Enable Overcharge */}
-          <div className="bg-card/50 border border-border rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+          <div className="bg-card/50 border border-border rounded-xl p-5 sm:p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-medium text-foreground">Enable Overcharge</h3>
-                <p className="text-xs text-foreground-muted mt-0.5">Allow usage beyond your plan quota — extra AI tokens and additional storage are charged from your wallet.</p>
+                <p className="text-xs text-foreground-muted mt-0.5 leading-relaxed">Allow usage beyond your plan quota — extra AI tokens and additional storage are charged from your wallet.</p>
               </div>
-              <button type="button" onClick={handleOverchargeToggle} disabled={overchargeLoading}
-                className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${overchargeEnabled ? "bg-white" : "bg-surface"}`}>
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${overchargeEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+              <button
+                type="button"
+                role="switch"
+                aria-checked={overchargeEnabled}
+                onClick={handleOverchargeToggle}
+                disabled={overchargeLoading}
+                className={`inline-flex shrink-0 h-6 w-11 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                  overchargeEnabled ? "bg-white" : "bg-zinc-700"
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full shadow-sm transition-transform duration-200 ${
+                  overchargeEnabled ? "translate-x-5 bg-zinc-900" : "translate-x-0 bg-zinc-400"
+                }`} />
               </button>
             </div>
             {overchargeEnabled ? (
@@ -946,7 +960,7 @@ export default function BillingPage() {
                 </div>
 
                 {/* CTA */}
-                <div className="flex flex-col items-start md:items-end gap-3 min-w-[180px] justify-start pt-1">
+                <div className="flex flex-col items-stretch md:items-end gap-3 md:min-w-[180px] justify-start pt-1">
                   <button
                     onClick={() => setShowUpgradeModal(true)}
                     className="px-5 py-2.5 w-full bg-white text-black hover:bg-zinc-200 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -982,7 +996,7 @@ export default function BillingPage() {
               {loadingUsage && <Loader2 className="w-3.5 h-3.5 text-foreground-muted animate-spin ml-2" />}
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {[
                 { key: "AI_TOKENS",       icon: Zap,      label: "AI Intelligence",   unit: "tokens",   fmt: (v: number) => v.toLocaleString() },
                 { key: "SOCIAL_API_CALLS",icon: Globe,    label: "Social API Calls",  unit: "calls",    fmt: (v: number) => v.toLocaleString() },
@@ -1022,28 +1036,28 @@ export default function BillingPage() {
                 <p className="text-xs text-foreground-muted mt-1">Plan subscription invoices will appear here after your first billing cycle.</p>
               </div>
             ) : (
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="bg-card border border-border rounded-xl overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Date</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Description</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Status</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Amount</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Invoice</th>
+                      <th className="px-3 sm:px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Date</th>
+                      <th className="px-3 sm:px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Description</th>
+                      <th className="px-3 sm:px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Status</th>
+                      <th className="px-3 sm:px-5 py-3 text-right text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Amount</th>
+                      <th className="px-3 sm:px-5 py-3 text-right text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Invoice</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {invoices.map(inv => (
                       <tr key={inv.id} className="hover:bg-surface transition-colors">
-                        <td className="px-5 py-3 text-foreground-muted whitespace-nowrap">
+                        <td className="px-3 sm:px-5 py-3 text-foreground-muted whitespace-nowrap text-xs sm:text-sm">
                           {new Date(inv.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
-                        <td className="px-5 py-3 text-foreground-muted">
-                          {inv.description || 'Subscription'}
+                        <td className="px-3 sm:px-5 py-3 text-foreground-muted text-xs sm:text-sm max-w-[120px] sm:max-w-none">
+                          <span className="truncate block">{inv.description || 'Subscription'}</span>
                         </td>
-                        <td className="px-5 py-3">
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${
+                        <td className="px-3 sm:px-5 py-3">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
                             inv.status === 'paid'
                               ? 'bg-success-text/10 text-success-text border-success-border/20'
                               : 'bg-warning-text/10 text-warning-text border-warning-border/20'
@@ -1052,10 +1066,10 @@ export default function BillingPage() {
                             {inv.status?.toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-medium text-foreground">
+                        <td className="px-3 sm:px-5 py-3 text-right font-medium text-foreground text-xs sm:text-sm whitespace-nowrap">
                           ${(inv.amount_paid / 100).toFixed(2)} {inv.currency?.toUpperCase()}
                         </td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-3 sm:px-5 py-3 text-right">
                           {inv.hosted_url && (
                             <a href={inv.hosted_url} target="_blank" rel="noopener noreferrer"
                               className="text-xs text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1 justify-end">
@@ -1372,12 +1386,12 @@ export default function BillingPage() {
       {/* â"€â"€ Upgrade Modal â"€â"€ */}
       {showUpgradeModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex justify-end">
-          <div 
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
-            onClick={() => setShowUpgradeModal(false)} 
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowUpgradeModal(false)}
           />
-          <div className="relative z-10 w-full max-w-5xl bg-card border-l border-border h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300">
-            <div className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border p-6 flex items-center justify-between">
+          <div className="relative z-10 w-full sm:max-w-5xl bg-card border-t sm:border-t-0 sm:border-l border-border h-[92vh] sm:h-full mt-auto sm:mt-0 overflow-y-auto shadow-2xl rounded-t-2xl sm:rounded-none">
+            <div className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border p-4 sm:p-6 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-foreground">Change subscription plan</h2>
               <button
                 onClick={() => setShowUpgradeModal(false)}
@@ -1401,7 +1415,7 @@ export default function BillingPage() {
               </div>
             )}
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {PLANS.map(plan => {
                 const Icon = plan.icon;
                 const isActive = plan.id === activePlanId;

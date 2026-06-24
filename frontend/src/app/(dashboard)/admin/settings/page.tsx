@@ -138,18 +138,18 @@ export default function WorkspaceSettingsPage() {
   const planColor = PLAN_COLORS[planKey] || PLAN_COLORS.FREE;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
-            <Sliders className="w-8 h-8 text-info-text" />
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
+            <Sliders className="w-6 h-6 sm:w-8 sm:h-8 text-info-text" />
             Workspace Settings
           </h1>
           <p className="text-foreground-muted mt-1 text-sm">Manage your workspace configuration and identity.</p>
         </div>
         <button
           onClick={load}
-          className="flex items-center gap-2 px-4 py-2 bg-surface-hover hover:bg-surface-hover text-foreground-muted rounded-xl text-sm font-medium transition-colors"
+          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-surface-hover hover:bg-surface-hover text-foreground-muted rounded-xl text-sm font-medium transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Refresh
@@ -330,7 +330,7 @@ export default function WorkspaceSettingsPage() {
           ].map(({ label, value }) => (
             <div key={label} className="px-6 py-4 flex items-center justify-between">
               <span className="text-foreground-muted text-sm">{label}</span>
-              <span className="text-foreground-muted text-sm font-mono break-all max-w-[60%] text-right">{value}</span>
+              <span className="text-foreground-muted text-sm font-mono break-all text-right sm:max-w-[60%]">{value}</span>
             </div>
           ))}
         </div>

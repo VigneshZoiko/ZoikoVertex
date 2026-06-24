@@ -3,14 +3,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   X, ChevronDown, ChevronLeft, Loader2, ImageIcon, Trash2,
-  Monitor, Smartphone, Globe as InstaIcon, Check, Link2,
+  Monitor, Smartphone, Globe as InstaIcon, Images,
   Globe2, Heart, MessageCircle, Send, Bookmark, ThumbsUp, ArrowRight
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import MediaVaultPicker from "@/components/MediaVaultPicker";
 
 // —— Types ——————————————————————————————————————————————————————
 
@@ -402,7 +402,6 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   editId?: string;
   prefill?: { pixel_id: string; pixel_name: string; objective: string };
 }) {
-  const router = useRouter();
   const [step,       setStep]       = useState(1);
   const [saving,     setSaving]     = useState(false);
   const [publishing,       setPublishing]       = useState(false);
@@ -557,6 +556,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLength, setAiLength] = useState("");
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const [showVaultPicker, setShowVaultPicker] = useState(false);
+  const [vaultPickerType, setVaultPickerType] = useState<"image" | "video" | "all">("image");
+  const [vaultPickerCardIdx, setVaultPickerCardIdx] = useState<number | null>(null);
   const uploadCounterRef = useRef(0);
 
   const generateAdCopy = async () => {
@@ -588,13 +591,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const uid  = user?.id || "anon";
-      const ext  = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      uploadCounterRef.current += 1;
-      const path = `${uid}/${uploadCounterRef.current}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}.${ext}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${uid}/${crypto.randomUUID()}_${safeName}`;
 
       const { error: upErr } = await supabase.storage
         .from("campaign-images")
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, file, { contentType: file.type });
 
       if (upErr) {
         if (upErr.message?.includes("Bucket not found") || upErr.message?.includes("bucket")) {
@@ -630,6 +632,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const ad = ads[selectedAdIdx] || ads[0];
   const setAd = (updater: (prev: AdData) => AdData) => {
     setAds(prev => prev.map((a, i) => i === selectedAdIdx ? updater(a) : a));
+    setCarouselIdx(0);
   };
 
   // Load meta accounts
@@ -2487,7 +2490,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                     if (file) uploadAdImage(file);
                                   }} />
                               </label>
-                              <button type="button" onClick={() => router.push('/library')}
+                              <button type="button" onClick={() => { setVaultPickerType("video"); setVaultPickerCardIdx(null); setShowVaultPicker(true); }}
                                 className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border hover:border-border rounded-xl cursor-pointer transition-colors group">
                                 <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
                                   <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2525,6 +2528,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     {(ad.ad_type || "image_ad") === "carousel_ad" && convLocation !== "message" && (
                       <Field label="Carousel cards (2–10 images)">
                         <div className="space-y-3">
+                          {/* Bulk-load a pack from library */}
+                          <button type="button"
+                            onClick={() => { setVaultPickerType("image"); setVaultPickerCardIdx(null); setShowVaultPicker(true); }}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border hover:border-white/30 text-foreground-muted hover:text-foreground text-xs font-semibold transition-colors">
+                            <Images className="w-3.5 h-3.5" />
+                            Load image pack from library
+                          </button>
                           {ad.carousel_cards?.map((card, ci) => (
                             <div key={ci} className="flex gap-3 items-start p-3 rounded-xl border border-border bg-surface/50">
                               {card.image_url ? (
@@ -2539,9 +2549,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                   </button>
                                 </div>
                               ) : (
-                                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-border shrink-0">
-                                  <svg className="w-4 h-4 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                  <span className="text-[8px] text-foreground-muted">Add</span>
+                                <div className="flex flex-col gap-1 shrink-0">
+                                <label className="w-20 h-9 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-border">
+                                  <svg className="w-3 h-3 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                  <span className="text-[8px] text-foreground-muted">Upload</span>
                                   <input type="file" accept="image/*" className="hidden" onChange={e => {
                                     const file = e.target.files?.[0];
                                     if (!file) return;
@@ -2550,9 +2561,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                       try {
                                         const { data: { user } } = await supabase.auth.getUser();
                                         const uid = user?.id || "anon";
-                                        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-                                        const path = `${uid}/carousel_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}.${ext}`;
-                                        await supabase.storage.from("campaign-images").upload(path, file, { upsert: true, contentType: file.type });
+                                        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                                        const path = `${uid}/carousel_${crypto.randomUUID()}_${safeName}`;
+                                        await supabase.storage.from("campaign-images").upload(path, file, { contentType: file.type });
                                         const { data: urlData } = supabase.storage.from("campaign-images").getPublicUrl(path);
                                         if (urlData?.publicUrl) {
                                           const next = [...(ad.carousel_cards || [])];
@@ -2567,6 +2578,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                     })();
                                   }} />
                                 </label>
+                                <button type="button" onClick={() => { setVaultPickerType("image"); setVaultPickerCardIdx(ci); setShowVaultPicker(true); }}
+                                  className="w-20 h-9 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-0.5 hover:border-border cursor-pointer">
+                                  <svg className="w-3 h-3 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                  <span className="text-[8px] text-foreground-muted">Library</span>
+                                </button>
+                                </div>
                               )}
                               <div className="flex-1 min-w-0 space-y-1.5">
                                 <input type="text" value={card.headline || ""} onChange={e => {
@@ -2649,7 +2666,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 if (file) uploadAdImage(file);
                               }} />
                           </label>
-                          <button type="button" onClick={() => router.push('/library')}
+                          <button type="button" onClick={() => { setVaultPickerType("image"); setVaultPickerCardIdx(null); setShowVaultPicker(true); }}
                             className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border hover:border-border rounded-xl cursor-pointer transition-colors group">
                             <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
                               <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2775,7 +2792,26 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     {(() => {
                       const pageName = pages.find(p => p.id === selectedPage)?.account_name || "Your Page";
                       const pageInitial = pageName.charAt(0).toUpperCase();
-                      const imageEl = ad.image_url
+                      const filledCards = (ad.carousel_cards || []).filter(c => c.image_url);
+                      const safeIdx = Math.min(carouselIdx, Math.max(0, filledCards.length - 1));
+                      const imageEl = (ad.ad_type === "video_ad" && ad.video_url)
+                        ? <video src={ad.video_url} className="w-full object-cover" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }} muted playsInline controls />
+                        : (ad.ad_type === "carousel_ad" && filledCards.length > 0)
+                        ? (
+                          <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1/1" }}>
+                            <Image src={filledCards[safeIdx].image_url} alt="" fill className="object-cover" unoptimized />
+                            {filledCards.length > 1 && (
+                              <>
+                                <button type="button" onClick={() => setCarouselIdx(i => Math.max(0, i - 1))} className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white text-xs">‹</button>
+                                <button type="button" onClick={() => setCarouselIdx(i => Math.min(filledCards.length - 1, i + 1))} className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white text-xs">›</button>
+                                <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-1">
+                                  {filledCards.map((_, di) => <span key={di} className={`w-1.5 h-1.5 rounded-full ${di === safeIdx ? "bg-white" : "bg-white/40"}`} />)}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )
+                        : ad.image_url
                         ? <Image src={ad.image_url} alt="" width={400} height={previewTab === "instagram" ? 400 : 225} className="w-full object-cover" unoptimized />
                         : <div className="w-full bg-zinc-100 flex items-center justify-center" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }}><ImageIcon className="w-8 h-8 text-foreground-muted" /></div>;
 
@@ -2985,9 +3021,38 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     document.body
   );
 
+  const vaultPicker = showVaultPicker ? createPortal(
+    <MediaVaultPicker
+      typeFilter={vaultPickerType}
+      onClose={() => { setShowVaultPicker(false); setVaultPickerCardIdx(null); }}
+      onSelect={(url) => {
+        if (vaultPickerCardIdx !== null) {
+          const next = [...(ad.carousel_cards || [])];
+          next[vaultPickerCardIdx] = { ...next[vaultPickerCardIdx], image_url: url };
+          setAds(prev => prev.map((a, i) => i === selectedAdIdx ? { ...a, carousel_cards: next } : a));
+        } else if (vaultPickerType === "video") {
+          setAds(prev => prev.map((a, i) => i === selectedAdIdx ? { ...a, video_url: url } : a));
+        } else {
+          setAds(prev => prev.map((a, i) => i === selectedAdIdx ? { ...a, image_url: url } : a));
+        }
+        setShowVaultPicker(false);
+        setVaultPickerCardIdx(null);
+      }}
+      onSelectPack={(urls: string[], packTitle: string) => {
+        const cards = urls.map((u: string, idx: number) => ({ image_url: u, headline: packTitle ? `${packTitle} ${idx + 1}` : "", description: "", link: "" }));
+        setAds(prev => prev.map((a, i) => i === selectedAdIdx ? { ...a, ad_type: "carousel_ad" as const, carousel_cards: cards, image_url: "" } : a));
+        setCarouselIdx(0);
+        setShowVaultPicker(false);
+        setVaultPickerCardIdx(null);
+      }}
+    />,
+    document.body
+  ) : null;
+
   return (
     <>
       {modal}
+      {vaultPicker}
     </>
   );
 }

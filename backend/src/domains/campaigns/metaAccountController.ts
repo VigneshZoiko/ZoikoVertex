@@ -121,6 +121,7 @@ export const fetchMetaAdAccounts = async (req: AuthRequest, res: Response) => {
       timezone:       a.timezone_name,
       status:         ACTIVE_STATUSES.has(a.account_status) ? 'Active' : 'Inactive',
       amount_spent:   a.amount_spent ? (parseInt(a.amount_spent) / 100).toFixed(2) : '0.00',
+      spend_cap:      a.spend_cap && parseInt(a.spend_cap) > 0 ? (parseInt(a.spend_cap) / 100).toFixed(2) : null,
       disable_reason: a.disable_reason ? (DISABLE_REASON[a.disable_reason] || 'Account issue') : null,
     }));
 
@@ -215,7 +216,7 @@ export const fetchMetaPixels = async (req: AuthRequest, res: Response) => {
     const url = metaUrl(
       `/${adAccountId}/adspixels`,
       token,
-      '&fields=id,name,creation_time,last_fired_time&limit=50',
+      '&fields=id,name,creation_time,last_fired_time,code,is_unavailable,automatic_matching_fields,connected_datasets{id,name}&limit=50',
     );
     const r    = await fetch(url);
     const data = await r.json() as any;
@@ -225,12 +226,29 @@ export const fetchMetaPixels = async (req: AuthRequest, res: Response) => {
       return res.json({ success: true, data: { pixels: [], error: data.error.message } });
     }
 
-    const pixels = (data.data || []).map((p: any) => ({
-      id:              p.id,
-      name:            p.name || `Pixel ${p.id}`,
-      creation_time:   p.creation_time   || null,
-      last_fired_time: p.last_fired_time || null,
+    const rawPixels = (data.data || []).map((p: any) => ({
+      id:                        p.id,
+      name:                      p.name || `Pixel ${p.id}`,
+      creation_time:             p.creation_time             || null,
+      last_fired_time:           p.last_fired_time           || null,
+      code:                      p.code                      || null,
+      is_unavailable:            p.is_unavailable            ?? false,
+      automatic_matching_fields: p.automatic_matching_fields || [],
+      connected_datasets:        (p.connected_datasets?.data || []) as { id: string; name: string }[],
     }));
+
+    // Fetch which pixels have ZoikoVertex CAPI configured
+    const pixelIds = rawPixels.map((p: any) => p.id);
+    const { data: capiRows } = pixelIds.length
+      ? await supabaseAdmin
+          .from('meta_pixel_capi')
+          .select('pixel_id')
+          .eq('workspace_id', workspaceId)
+          .in('pixel_id', pixelIds)
+      : { data: [] };
+
+    const capiSet = new Set((capiRows || []).map((r: any) => r.pixel_id));
+    const pixels  = rawPixels.map((p: any) => ({ ...p, capi_enabled: capiSet.has(p.id) }));
 
     return res.json({ success: true, data: { pixels, ad_account_id: adAccountId } });
   } catch (err: unknown) {
@@ -240,10 +258,9 @@ export const fetchMetaPixels = async (req: AuthRequest, res: Response) => {
 };
 
 // ── GET /api/v1/campaigns/meta/pixels/:pixelId/stats ─────────────────────────
-// Returns pixel event stats: 24h total, 7-day daily trend, 7-day by event name.
-// Meta API: GET /{pixel-id}/stats?aggregation=<type>&start_time=<unix>&end_time=<unix>
-// aggregation options: total | day | hour | event_name | device_type
-// Required scope: ads_read or ads_management
+// Returns pixel event stats: 24h total, 7-day daily trend, by event name,
+// by device type, by country, top URLs, and event match quality (EMQ).
+// Meta Pixel Stats API: GET /{pixel-id}/stats?aggregation=<type>&start_time=<unix>&end_time=<unix>
 
 export const getPixelStats = async (req: AuthRequest, res: Response) => {
   const { pixelId } = req.params;
@@ -255,40 +272,113 @@ export const getPixelStats = async (req: AuthRequest, res: Response) => {
     if (!acct) return res.status(400).json({ error: 'No connected ad account found' });
 
     const { token } = acct;
-    const nowTs     = Math.floor(Date.now() / 1000);
-    const ts7d      = nowTs - 7 * 86400;
-    const ts24h     = nowTs - 86400;
+    const nowTs = Math.floor(Date.now() / 1000);
+    const ts7d  = nowTs - 7 * 86400;
+    const ts24h = nowTs - 86400;
 
-    // Three parallel calls to Meta stats endpoint
-    // Meta requires valid aggregations: browser_type, custom_data_field, device_os, device_type, event, host, match_keys, had_pii, pixel_fire, event_detection_method, url, event_value_count, url_by_rule, event_total_counts, event_source, event_processing_results
-    const [evR, dayR, totR] = await Promise.all([
+    // Five parallel calls — evData drives both event breakdown AND daily totals
+    // (pixel_fire aggregation does NOT carry per-bucket counts reliably)
+    const [evR, totR, devR, urlR, cntryR] = await Promise.all([
       fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=event&start_time=${ts7d}&end_time=${nowTs}`)),
-      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=pixel_fire&start_time=${ts7d}&end_time=${nowTs}`)),
       fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=event_total_counts&start_time=${ts24h}&end_time=${nowTs}`)),
+      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=device_type&start_time=${ts7d}&end_time=${nowTs}`)),
+      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=url&start_time=${ts7d}&end_time=${nowTs}`)),
+      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=country&start_time=${ts7d}&end_time=${nowTs}`)),
     ]);
 
-    const [evData, dayData, totData] = await Promise.all([
-      evR.json(),  dayR.json(),  totR.json(),
+    const [evData, totData, devData, urlData, cntryData] = await Promise.all([
+      evR.json(), totR.json(), devR.json(), urlR.json(), cntryR.json(),
     ]) as any[];
 
     if (evData.error) {
       logger.warn({ err: evData.error.message, pixelId }, '[PixelStats] Meta API error');
-      // Return empty stats — non-fatal (insufficient permissions on some pixels)
-      return res.json({ success: true, data: { events_24h: 0, by_event: [], by_day: [], meta_error: evData.error.message } });
+      return res.json({ success: true, data: { events_24h: 0, by_event: [], by_day: [], by_device: [], by_url: [], by_country: [], meta_error: evData.error.message } });
     }
 
-    const byEvent = ((evData.data  || []) as any[])
-      .map(e => ({ event: e.event || e.value || 'Unknown', count: parseInt(e.count || e.value || '0', 10) }))
+    // ── Event name breakdown ────────────────────────────────────────────────
+    // Outer data[] = hourly time buckets; each has inner data[] of {value, count}
+    const flatEvent = ((evData.data || []) as any[]).flatMap((b: any) => b.data || []);
+    const eventMap: Record<string, number> = {};
+    for (const e of flatEvent) {
+      const name = (e.value as string) || 'Unknown';
+      eventMap[name] = (eventMap[name] || 0) + (Number(e.count) || 0);
+    }
+    const byEvent = Object.entries(eventMap)
+      .map(([event, count]) => ({ event, count }))
       .sort((a, b) => b.count - a.count);
 
-    const byDay = ((dayData.data || []) as any[])
-      .map(d => ({ date: d.time || null, count: parseInt(d.value || '0', 10) }));
+    // ── Daily trend — derived directly from evData (reliable, same response) ─
+    const dayMap: Record<string, number> = {};
+    for (const bucket of ((evData.data || []) as any[])) {
+      const day = ((bucket.start_time as string) || '').substring(0, 10); // "YYYY-MM-DD"
+      const cnt = ((bucket.data || []) as any[]).reduce((s: number, e: any) => s + (Number(e.count) || 0), 0);
+      if (day) dayMap[day] = (dayMap[day] || 0) + cnt;
+    }
+    const byDay = Object.entries(dayMap)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
-    const events24h = (totData.data?.[0]?.value)
-      ? parseInt(totData.data[0].value, 10)
-      : 0;
+    // ── 24h total ────────────────────────────────────────────────────────────
+    const events24h = ((totData.data || []) as any[])
+      .flatMap((b: any) => b.data || [])
+      .reduce((s: number, e: any) => s + (Number(e.count) || 0), 0);
 
-    return res.json({ success: true, data: { events_24h: events24h, by_event: byEvent, by_day: byDay } });
+    // ── Device type breakdown (nested or flat depending on Meta response) ───
+    function aggregateFlatOrNested(raw: any[]): Record<string, number> {
+      const map: Record<string, number> = {};
+      // Check if first entry has an inner data[] (nested time-bucket format)
+      const isNested = raw.length > 0 && Array.isArray(raw[0]?.data);
+      const entries = isNested ? raw.flatMap((b: any) => b.data || []) : raw;
+      for (const e of entries) {
+        const key = (e.value as string) || (e.device_type as string) || (e.country as string) || 'Unknown';
+        map[key] = (map[key] || 0) + (Number(e.count) || 0);
+      }
+      return map;
+    }
+
+    const devMap     = aggregateFlatOrNested((devData.data   || []) as any[]);
+    const urlRawMap  = aggregateFlatOrNested((urlData.data   || []) as any[]);
+    const cntryMap   = aggregateFlatOrNested((cntryData.data || []) as any[]);
+
+    const byDevice = Object.entries(devMap)
+      .map(([device, count]) => ({ device, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Top 10 URLs — strip query strings for cleaner display
+    const byUrl = Object.entries(urlRawMap)
+      .map(([url, count]) => ({ url, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const byCountry = Object.entries(cntryMap)
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // ── Event Match Quality (EMQ) — best-effort, fails gracefully ──────────
+    let eventQuality: { event: string; score: number; match_keys: string[] }[] = [];
+    try {
+      const emqR = await fetch(metaUrl(`/${pixelId}/signal_sources_stats`, token,
+        `&fields=event_name,event_match_quality_score,match_keys_seen`));
+      const emqData = await emqR.json() as any;
+      if (!emqData.error && Array.isArray(emqData.data)) {
+        eventQuality = emqData.data
+          .filter((e: any) => e.event_name && e.event_match_quality_score != null)
+          .map((e: any) => ({
+            event:       e.event_name as string,
+            score:       Number(e.event_match_quality_score),
+            match_keys:  Array.isArray(e.match_keys_seen) ? e.match_keys_seen as string[] : [],
+          }))
+          .sort((a: any, b: any) => b.score - a.score);
+      }
+    } catch {
+      // EMQ is best-effort — not all tokens have access
+    }
+
+    return res.json({
+      success: true,
+      data: { events_24h: events24h, by_event: byEvent, by_day: byDay, by_device: byDevice, by_url: byUrl, by_country: byCountry, event_quality: eventQuality },
+    });
   } catch (err: unknown) {
     logger.error({ err: err instanceof Error ? err.message : err }, '[PixelStats] Error');
     return res.status(500).json({ error: 'Failed to fetch pixel stats' });

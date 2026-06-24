@@ -196,7 +196,7 @@ function computeHash(value: unknown): string {
 
 function generateOpaqueId(prefix: string): string {
   const stamp = Date.now().toString(36).toUpperCase();
-  const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+  const rand = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `${prefix}-${stamp}-${rand}`;
 }
 
@@ -1522,7 +1522,7 @@ export async function preserveToVault(params: {
     source_type: 'identity_ledger', source_id: entry.ledger_entry_id,
     source_system: 'identity_ledger', evidence_type: 'identity_entry',
   }));
-  const itemId = `EVI-${now.substring(0, 10).replace(/-/g, '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  const itemId = `EVI-${now.substring(0, 10).replace(/-/g, '')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
   const preservationInput = `${itemId}:${contentHash}:${metadataHash}:${now}`;
   const preservationReceiptHash = computeHash(preservationInput);
 

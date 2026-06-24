@@ -19,7 +19,7 @@ import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../shared/logger';
 import { internalEventBus } from '../shared/internalEventBus';
-import { isUuid } from './operationsRun.service';
+import { isUuid } from '../shared/validation';
 import { runPolicyCheck } from './operationsPolicy.service';
 
 // Workflow instance status -> agent_runs run_status enum.

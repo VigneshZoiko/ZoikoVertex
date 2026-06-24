@@ -94,10 +94,14 @@ export function planRateLimit(type: 'general' | 'ai') {
     let bucket      = _store.get(bucketKey);
 
     if (!bucket || bucket.resetAt < now) {
-      bucket = { count: 1, resetAt: now + 60_000 };
+      bucket = { count: 0, resetAt: now + 60_000 };
       _store.set(bucketKey, bucket);
-    } else {
+    }
+    // Skip duplicate-count for the first request (count === 0 → this is #1)
+    if (bucket.count > 0) {
       bucket.count++;
+    } else {
+      bucket.count = 1;
     }
 
     const remaining = Math.max(0, max - bucket.count);
