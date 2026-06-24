@@ -80,9 +80,10 @@ function DropdownMenu({ items, viewAllLabel, viewAllHref, title }: { items: type
 }
 
 // ponytail: inlined NavbarWrapper — Navbar shows on public non-auth pages only.
+// Pass forceShow={true} (e.g. from AuthLayout) to bypass the route guard.
 const _SHOW_ROUTES = ['/privacy', '/terms'];
 const _AUTH_ROUTES = ['/login', '/signup', '/signin', '/reset-password', '/auth/update-password'];
-export default function Navbar() {
+export default function Navbar({ forceShow = false }: { forceShow?: boolean }) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,7 +106,7 @@ export default function Navbar() {
 
   const isShow = _SHOW_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
   const isAuth = _AUTH_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
-  if (!isShow || isAuth) return null;
+  if (!forceShow && (!isShow || isAuth)) return null;
 
   return (
     <nav
