@@ -1669,24 +1669,33 @@ export default function AgentOperationsPage() {
         const blocked = runs.filter(r => ['POLICY_BLOCKED','FAILED','QUARANTINED','ESCALATED'].includes(r.status)).length
         const waiting = runs.filter(r => r.status === 'WAITING_HUMAN_REVIEW').length
         const needsAction = blocked + waiting
-        return needsAction > 0 ? (
+        return (
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-              {needsAction} need{needsAction === 1 ? 's' : ''} action
-            </span>
-            {blocked > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
-                {blocked} blocked
-              </span>
-            )}
-            {waiting > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium">
-                {waiting} awaiting review
+            {needsAction > 0 ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                  {needsAction} need{needsAction === 1 ? 's' : ''} action
+                </span>
+                {blocked > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
+                    {blocked} blocked
+                  </span>
+                )}
+                {waiting > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium">
+                    {waiting} awaiting review
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                All clear
               </span>
             )}
           </div>
-        ) : null
+        )
       })()}
 
       {/* ── Tab Bar ── */}
@@ -1773,7 +1782,7 @@ export default function AgentOperationsPage() {
                 {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   return (
-                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${statusCfg.severity === "critical" || run.severity === "critical" ? "border-l-[3px] border-l-rose-500/70 bg-rose-500/[0.04]" : statusCfg.severity === "warning" || run.severity === "warning" ? "border-l-[3px] border-l-orange-500/50 bg-orange-500/[0.03]" : ""}`}>
+                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${statusCfg.severity === "critical" || run.severity === "critical" ? "border-l-4 border-l-rose-500/70 bg-rose-500/[0.04]" : statusCfg.severity === "warning" || run.severity === "warning" ? "border-l-4 border-l-orange-500/50 bg-orange-500/[0.03]" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1944,7 +1953,7 @@ export default function AgentOperationsPage() {
                   const sla = formatTimeRemaining(item.due_at);
                   const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
-                    <div key={item.id} className={`grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached || ['POLICY_BLOCKED','FAILED','QUARANTINED','ESCALATED'].includes(String(item.status)) ? "border-l-[3px] border-l-rose-500/70 bg-rose-500/[0.04]" : item.status === 'WAITING_HUMAN_REVIEW' ? "border-l-[3px] border-l-orange-500/50 bg-orange-500/[0.03]" : ""}`}>
+                    <div key={item.id} className={`grid grid-cols-[1fr_90px_150px_110px_150px] gap-4 px-4 py-3.5 items-center hover:bg-surface-hover transition-colors ${item.sla_breached || ['POLICY_BLOCKED','FAILED','QUARANTINED','ESCALATED'].includes(String(item.status)) ? "border-l-4 border-l-rose-500/70 bg-rose-500/[0.04]" : item.status === 'WAITING_HUMAN_REVIEW' ? "border-l-4 border-l-orange-500/50 bg-orange-500/[0.03]" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-foreground">{item.queue_type.replace(/_/g, " ")}</p>
                         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>

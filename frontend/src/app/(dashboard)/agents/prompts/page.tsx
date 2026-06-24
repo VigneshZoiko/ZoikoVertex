@@ -2833,9 +2833,9 @@ export default function PromptsPage() {
     <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-background min-h-screen">
 
       {/* Header */}
-      <div className="relative overflow-hidden bg-card border border-indigo-500/20 rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
+      <div className="relative overflow-hidden bg-card border border-indigo-500/20 rounded-[3rem] p-6 sm:p-8 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/8 blur-[150px] rounded-full -mr-60 -mt-60" />
-        <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/5 border border-indigo-500/15 text-indigo-400 text-[10px] font-black uppercase tracking-[0.4em]">
               <Lock className="w-3.5 h-3.5" />
@@ -2858,7 +2858,7 @@ export default function PromptsPage() {
                     placeholder="Search prompts…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-56 bg-background border border-border rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+                    className="w-full max-w-[224px] bg-background border border-border rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
                   />
                 </div>
                 {(() => {
@@ -2922,6 +2922,30 @@ export default function PromptsPage() {
         })}
       </div>
 
+      {/* Tab navigation */}
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+        {([
+          { key: "registry",    label: "Registry",    icon: BookOpen },
+          { key: "test_center", label: "Test Center",  icon: FlaskConical },
+          { key: "approvals",   label: "Approvals",   icon: CheckCircle2 },
+          { key: "evidence",    label: "Evidence",    icon: FileCheck },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActiveTab(key)}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all focus:outline-none ${
+              activeTab === key
+                ? "bg-indigo-600 text-white shadow-md"
+                : "text-foreground-muted hover:text-foreground hover:bg-card border border-transparent hover:border-border"
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Tab content */}
       <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
         {activeTab === "registry" && (
@@ -2931,6 +2955,29 @@ export default function PromptsPage() {
             onRetirePrompt={(p) => handleLifecycleAction(p.id, "retire")}
             onActivatePrompt={(p) => handleLifecycleAction(p.id, "reactivate")}
             canManage={canManagePrompts}
+          />
+        )}
+        {activeTab === "test_center" && (
+          <GovernanceTestCenterTab
+            prompts={systemPrompts}
+            onRunTests={(versionId) => handleVersionAction(versionId, "run_tests")}
+          />
+        )}
+        {activeTab === "approvals" && (
+          <ApprovalsTab
+            prompts={systemPrompts}
+            approvalStats={approvalStats}
+            onApprovalAction={handleApprovalAction}
+            canWaive={canWaive}
+            onWaive={handleWaive}
+            onExportPromptEvidence={handleExportPromptEvidence}
+          />
+        )}
+        {activeTab === "evidence" && (
+          <EvidenceTab
+            prompts={systemPrompts}
+            auditStats={auditStats}
+            onExportPromptEvidence={handleExportPromptEvidence}
           />
         )}
       </div>
