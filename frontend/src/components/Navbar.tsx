@@ -80,9 +80,10 @@ function DropdownMenu({ items, viewAllLabel, viewAllHref, title }: { items: type
 }
 
 // ponytail: inlined NavbarWrapper — Navbar shows on public non-auth pages only.
+// Pass forceShow={true} (e.g. from AuthLayout) to bypass the route guard.
 const _SHOW_ROUTES = ['/privacy', '/terms'];
 const _AUTH_ROUTES = ['/login', '/signup', '/signin', '/reset-password', '/auth/update-password'];
-export default function Navbar() {
+export default function Navbar({ forceShow = false }: { forceShow?: boolean }) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,14 +106,14 @@ export default function Navbar() {
 
   const isShow = _SHOW_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
   const isAuth = _AUTH_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
-  if (!isShow || isAuth) return null;
+  if (!forceShow && (!isShow || isAuth)) return null;
 
   return (
     <nav
       ref={navRef}
       style={{ position: "sticky", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(4,10,23,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
     >
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
         {/* Logo */}
         <Link href={LANDING} style={{ display: "flex", alignItems: "center" }}>
@@ -130,7 +131,12 @@ export default function Navbar() {
             );
             const linkStyle = { fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif", fontWeight: 400, fontSize: 13.4, letterSpacing: "0.01em", color: "#A9B8C7", textDecoration: "none", padding: "25.6px 14px", display: "flex", alignItems: "center", gap: 4, height: 68, transition: "color 0.15s" };
             return (
-              <div key={item.label} style={{ position: "relative" }}>
+              <div
+                key={item.label}
+                style={{ position: "relative" }}
+                onMouseEnter={() => item.hasDropdown && setOpenMenu(item.label)}
+                onMouseLeave={() => item.hasDropdown && setOpenMenu(null)}
+              >
                 {item.hasDropdown && hasPanel ? (
                   <button
                     onClick={() => setOpenMenu(openMenu === item.label ? null : item.label)}

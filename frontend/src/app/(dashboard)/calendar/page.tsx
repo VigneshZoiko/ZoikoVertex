@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ChevronLeft, ChevronRight, Calendar, X,
-  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical,
+  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical, CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -78,14 +78,15 @@ function getStatusLabel(post: CalendarPost): string {
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [currentDate, setCurrentDate]     = useState(new Date());
-  const [posts, setPosts]                 = useState<CalendarPost[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingPost, setEditingPost]     = useState<CalendarPost | null>(null);
-  const [selectedDate, setSelectedDate]   = useState(new Date());
-  const [statusFilter, setStatusFilter]   = useState<"all" | "scheduled" | "publishing">("all");
-  const [openMenuId, setOpenMenuId]       = useState<string | null>(null);
+  const [currentDate, setCurrentDate]         = useState(new Date());
+  const [posts, setPosts]                     = useState<CalendarPost[]>([]);
+  const [loading, setLoading]                 = useState(true);
+  const [showEditModal, setShowEditModal]     = useState(false);
+  const [editingPost, setEditingPost]         = useState<CalendarPost | null>(null);
+  const [selectedDate, setSelectedDate]       = useState(new Date());
+  const [statusFilter, setStatusFilter]       = useState<"all" | "scheduled" | "publishing">("all");
+  const [openMenuId, setOpenMenuId]           = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker]   = useState(false);
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -164,6 +165,17 @@ export default function CalendarPage() {
     setSelectedDate(next);
   };
 
+  const jumpToDate = (dateStr: string) => {
+    if (!dateStr) return;
+    // dateStr is YYYY-MM-DD from the input; parse in local time to avoid UTC offset shift
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const picked = new Date(y, m - 1, d);
+    if (isNaN(picked.getTime())) return;
+    setCurrentDate(picked);
+    setSelectedDate(picked);
+    setShowDatePicker(false);
+  };
+
   const getWeekStart = (d: Date): Date => {
     const day = d.getDay();
     const diff = day === 0 ? -6 : 1 - day;
@@ -201,17 +213,40 @@ export default function CalendarPage() {
       )}
 
       {/* ── Month header ── */}
-      <div className="flex items-center justify-between py-4">
-        <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
+      <div className="relative flex items-center justify-between py-4">
+        <button onClick={() => { navigateWeek(-1); setShowDatePicker(false); }} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
           <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
         </button>
         <div className="text-center">
-          <h2 className="text-xl font-bold text-[var(--foreground)]">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
+          <button
+            onClick={() => setShowDatePicker((v) => !v)}
+            className="flex items-center gap-2 group"
+          >
+            <h2 className="text-xl font-bold text-[var(--foreground)] group-hover:text-info-text transition-colors">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+            <CalendarDays className="w-4 h-4 text-[var(--foreground-muted)] group-hover:text-info-text transition-colors" />
+          </button>
           {loading && <span className="text-xs text-info-text animate-pulse">Loading…</span>}
+          {showDatePicker && (
+            <div className="absolute left-1/2 -translate-x-1/2 mt-2 z-30 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl p-4 flex flex-col gap-3 min-w-[220px]">
+              <span className="text-xs font-bold text-[var(--foreground-muted)] tracking-widest uppercase">Jump to date</span>
+              <input
+                type="date"
+                defaultValue={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,"0")}-${String(selectedDate.getDate()).padStart(2,"0")}`}
+                onChange={(e) => jumpToDate(e.target.value)}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
+              />
+              <button
+                onClick={() => { jumpToDate(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-${String(new Date().getDate()).padStart(2,"0")}`); }}
+                className="text-xs text-info-text font-semibold hover:opacity-80 transition-opacity"
+              >
+                Go to today
+              </button>
+            </div>
+          )}
         </div>
-        <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
+        <button onClick={() => { navigateWeek(1); setShowDatePicker(false); }} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
           <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
         </button>
       </div>
@@ -346,8 +381,8 @@ export default function CalendarPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--foreground-muted)]">Completed</span>
-            <Link href="/library" className="flex items-center gap-1 text-xs text-info-text font-semibold hover:opacity-80 transition-opacity">
-              History <ExternalLink className="w-3 h-3" />
+            <Link href="/governance" className="flex items-center gap-1 text-xs text-info-text font-semibold hover:opacity-80 transition-opacity">
+              Full History <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
           <div className="space-y-3">
@@ -405,9 +440,9 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* ── Menu backdrop ── */}
-      {openMenuId && (
-        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+      {/* ── Backdrop for dot-menus and date picker ── */}
+      {(openMenuId || showDatePicker) && (
+        <div className="fixed inset-0 z-10" onClick={() => { setOpenMenuId(null); setShowDatePicker(false); }} />
       )}
 
       {/* ── Edit Scheduled Post Modal ── */}
