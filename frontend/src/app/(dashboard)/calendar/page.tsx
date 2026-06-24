@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   ChevronLeft, ChevronRight, Calendar, X,
   Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical,
@@ -277,9 +278,9 @@ export default function CalendarPage() {
             {upcoming.map((post) => (
               <div key={`up-${post.source}-${post.id}`} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 flex items-start gap-3">
                 {/* Thumbnail */}
-                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
+                <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
                   {post.media_url
-                    ? <img src={post.media_url} alt="" className="w-full h-full object-cover" />
+                    ? <Image src={post.media_url} alt="" fill className="object-cover" unoptimized />
                     : <Calendar className="w-5 h-5 text-[var(--foreground-muted)]" />
                   }
                 </div>
@@ -352,9 +353,9 @@ export default function CalendarPage() {
           <div className="space-y-3">
             {completed.map((post) => (
               <div key={`done-${post.source}-${post.id}`} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 flex items-start gap-3">
-                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
+                <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
                   {post.media_url
-                    ? <img src={post.media_url} alt="" className="w-full h-full object-cover" />
+                    ? <Image src={post.media_url} alt="" fill className="object-cover" unoptimized />
                     : <CheckCircle2 className="w-5 h-5 text-blue-400" />
                   }
                 </div>

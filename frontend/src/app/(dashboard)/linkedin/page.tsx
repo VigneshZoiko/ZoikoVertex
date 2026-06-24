@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import {
   BarChart2, MessageSquare, Rss, Users,
@@ -369,10 +370,13 @@ export default function LinkedInCommunityPage() {
             <div key={post.urn} className="rounded-xl border border-border bg-surface p-5 space-y-3 hover:border-border/80 transition-colors">
               <div className="flex items-start gap-4">
                 {post.thumbnail && (
-                  <img
+                  <Image
                     src={post.thumbnail}
                     alt=""
-                    className="w-16 h-16 rounded-lg object-cover shrink-0 border border-border"
+                    width={64}
+                    height={64}
+                    className="rounded-lg object-cover shrink-0 border border-border"
+                    unoptimized
                   />
                 )}
                 <div className="flex-1 min-w-0">
@@ -504,7 +508,7 @@ export default function LinkedInCommunityPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                       {c.actor_image ? (
-                        <img src={c.actor_image} alt={c.actor_name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        <Image src={c.actor_image} alt={c.actor_name} width={32} height={32} className="rounded-full object-cover shrink-0" unoptimized />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-[#0077B5]/15 flex items-center justify-center shrink-0">
                           <span className="text-[11px] font-bold text-[#0077B5]">{c.actor_name.charAt(0)}</span>
