@@ -592,7 +592,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
       const { data: { user } } = await supabase.auth.getUser();
       const uid  = user?.id || "anon";
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${uid}/${Date.now()}_${safeName}`;
+      const path = `${uid}/${crypto.randomUUID()}_${safeName}`;
 
       const { error: upErr } = await supabase.storage
         .from("campaign-images")
@@ -2562,7 +2562,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                         const { data: { user } } = await supabase.auth.getUser();
                                         const uid = user?.id || "anon";
                                         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-                                        const path = `${uid}/carousel_${Date.now()}_${safeName}`;
+                                        const path = `${uid}/carousel_${crypto.randomUUID()}_${safeName}`;
                                         await supabase.storage.from("campaign-images").upload(path, file, { contentType: file.type });
                                         const { data: urlData } = supabase.storage.from("campaign-images").getPublicUrl(path);
                                         if (urlData?.publicUrl) {
