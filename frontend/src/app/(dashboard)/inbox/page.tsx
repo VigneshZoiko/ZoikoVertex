@@ -639,7 +639,7 @@ export default function InboxPage() {
   const PAGE_SIZE = 30;
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ synced: number; message: string } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ synced: number; message: string; errors?: string[] } | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -1002,12 +1002,16 @@ export default function InboxPage() {
     setSyncResult(null);
     try {
       const res = await api.syncInboxMessages();
+      const liDebug = (res.debug || []).filter((d: string) => d.includes('linkedin') || d.includes('LinkedIn'));
+      if (liDebug.length) console.group('[LinkedIn Sync]'); liDebug.forEach((d: string) => console.log(d)); if (liDebug.length) console.groupEnd();
       if (res.debug?.length) console.debug('[Inbox sync debug]', res.debug);
-      if (res.errors?.length) console.warn('[Inbox sync errors]', res.errors);
-      setSyncResult({ synced: res.synced ?? 0, message: res.message || 'Sync complete' });
+      const visibleErrors: string[] = (res.errors || []).filter((e: string) =>
+        !e.startsWith('[') // hide internal debug-prefixed lines
+      );
+      setSyncResult({ synced: res.synced ?? 0, message: res.message || 'Sync complete', errors: visibleErrors });
       if ((res.synced ?? 0) > 0) await fetchMessages();
       setLastSynced(new Date());
-      setTimeout(() => setSyncResult(null), 4000);
+      setTimeout(() => setSyncResult(null), 6000);
     } catch (e: unknown) {
       setSyncResult({ synced: 0, message: e instanceof Error ? e.message : "Sync failed" });
       setTimeout(() => setSyncResult(null), 4000);
@@ -1087,9 +1091,20 @@ export default function InboxPage() {
             </span>
           )}
           {syncResult && (
-            <span className="text-[9px] text-success-text/60 px-2 py-1 rounded-lg border border-success-border bg-success-bg max-w-[220px] truncate">
-              {syncResult.message}
-            </span>
+            <div className="flex flex-col gap-1 max-w-[280px]">
+              <span className={`text-[9px] px-2 py-1 rounded-lg border truncate ${
+                syncResult.errors?.length
+                  ? "text-error-text/70 border-error-border bg-error-bg"
+                  : "text-success-text/60 border-success-border bg-success-bg"
+              }`}>
+                {syncResult.message}
+              </span>
+              {syncResult.errors?.map((e, i) => (
+                <span key={i} className="text-[9px] text-error-text/70 px-2 py-1 rounded-lg border border-error-border bg-error-bg truncate" title={e}>
+                  ⚠ {e}
+                </span>
+              ))}
+            </div>
           )}
           {isDemo ? (
             <button
@@ -1551,6 +1566,14 @@ export default function InboxPage() {
                     <div className="border-t border-border px-4 py-3 flex items-center gap-2 text-[11px] text-foreground-muted flex-shrink-0">
                       <ArrowUpRight className="w-3 h-3 text-warning-text/40" />
                       Upgrade to Growth to reply
+                    </div>
+                  ) : detail.platform === "LINKEDIN" && detail.message_type === "DM" ? (
+                    <div className="border-t border-border px-4 py-3 flex items-start gap-2 text-[11px] flex-shrink-0">
+                      <span className="text-[16px] leading-none mt-0.5">🔒</span>
+                      <div>
+                        <p className="text-foreground font-medium">LinkedIn DMs not available via API</p>
+                        <p className="text-foreground-muted mt-0.5">LinkedIn restricts Messaging API access to approved partner apps. Open LinkedIn to reply directly.</p>
+                      </div>
                     </div>
                   ) : (
                     <ComposeBar

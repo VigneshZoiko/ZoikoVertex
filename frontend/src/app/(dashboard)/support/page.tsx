@@ -39,21 +39,21 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5 sm:space-y-6">
       {/* Header */}
-      <div className="border-b border-[var(--border)] pb-4">
-        <h1 className="text-xl font-semibold text-[var(--foreground)] flex items-center gap-2.5">
+      <div className="border-b border-[var(--border)] pb-3 sm:pb-4">
+        <h1 className="text-lg sm:text-xl font-semibold text-[var(--foreground)] flex items-center gap-2.5">
           <HelpCircle className="w-5 h-5 text-[var(--accent)]" />
           Help &amp; Support
         </h1>
-        <p className="text-sm text-[var(--foreground-muted)] mt-0.5">
+        <p className="text-xs sm:text-sm text-[var(--foreground-muted)] mt-0.5">
           Get assistance from the ZoikoVertex team
         </p>
       </div>
 
       {/* Contact Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 sm:p-4">
           <Mail className="w-5 h-5 text-[var(--accent)] mb-2" />
           <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Email Support</h3>
           <p className="text-xs text-[var(--foreground-muted)] mb-2">Response within 24 hours</p>
@@ -62,34 +62,26 @@ export default function SupportPage() {
           </a>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 sm:p-4">
           <MessageSquare className="w-5 h-5 text-[var(--accent)] mb-2" />
           <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Live Chat</h3>
           <p className="text-xs text-[var(--foreground-muted)] mb-2">Available Mon–Fri</p>
-          <button className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
+          <button onClick={() => window.dispatchEvent(new Event('toggle-chatbot'))} className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
             Open Chat Portal <ExternalLink className="w-3 h-3" />
           </button>
         </div>
 
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
-          <ShieldCheck className="w-5 h-5 text-[var(--accent)] mb-2" />
-          <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Security Report</h3>
-          <p className="text-xs text-[var(--foreground-muted)] mb-2">Report urgent vulnerabilities</p>
-          <button className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
-            File Secure Report <ExternalLink className="w-3 h-3" />
-          </button>
-        </div>
       </div>
 
       {/* Ticket Form */}
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border)]">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[var(--border)]">
           <h2 className="text-sm font-semibold text-[var(--foreground)]">Open a Support Ticket</h2>
           <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Provide details about the issue you&apos;re encountering</p>
         </div>
 
         {submitted ? (
-          <div className="py-12 px-6 text-center">
+          <div className="py-10 sm:py-12 px-4 sm:px-6 text-center">
             <div className="w-12 h-12 bg-success-bg dark:bg-success-text/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <ShieldCheck className="w-6 h-6 text-success-text dark:text-success-text" />
             </div>
@@ -105,8 +97,8 @@ export default function SupportPage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-5 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Category</label>
                 <select name="category" className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors">
