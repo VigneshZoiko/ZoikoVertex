@@ -194,7 +194,7 @@ export default function OrganizationStructurePage() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 pb-24">
       {/* Toast */}
       {toast && (
         <div className={`fixed top-6 right-6 z-[9999] px-4 py-3 rounded-2xl shadow-2xl text-sm font-medium transition-all ${toast.type === "success" ? "bg-success-text/10 border border-success-text/20 text-success-text" : "bg-red-500/10 border border-red-500/20 text-red-400"} flex items-center gap-2`}>
@@ -219,13 +219,13 @@ export default function OrganizationStructurePage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-[var(--surface-hover)] rounded-xl w-fit mb-8">
+      <div className="flex gap-1 p-1 bg-[var(--surface-hover)] rounded-xl w-full sm:w-fit mb-8">
         <button onClick={() => setTab("business-units")}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${tab === "business-units" ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"}`}>
+          className={`flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-semibold transition-all ${tab === "business-units" ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"}`}>
           Business Units
         </button>
         <button onClick={() => setTab("role-architecture")}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${tab === "role-architecture" ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"}`}>
+          className={`flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-semibold transition-all ${tab === "role-architecture" ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm" : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"}`}>
           Role Architecture
         </button>
       </div>
@@ -260,39 +260,41 @@ export default function OrganizationStructurePage() {
           )}
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-muted)]" />
                 <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search units…"
-                  className="w-56 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all" />
+                  className="w-full sm:w-56 bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl pl-9 pr-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all" />
               </div>
-              {/* Status filter */}
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
-                <option value="all">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="ARCHIVED">Archived</option>
-                <option value="DRAFT">Draft</option>
-              </select>
-              {/* Type filter */}
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-                className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
-                <option value="all">All Types</option>
-                {UNIT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-              {/* Owner filter */}
-              <select value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)}
-                className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
-                <option value="all">All Owners</option>
-                <option value="none">No Owner</option>
-                {ownerOptions.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Status filter */}
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                  className="flex-1 sm:flex-none bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+                  <option value="all">All Status</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="ARCHIVED">Archived</option>
+                  <option value="DRAFT">Draft</option>
+                </select>
+                {/* Type filter */}
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
+                  className="flex-1 sm:flex-none bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+                  <option value="all">All Types</option>
+                  {UNIT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                {/* Owner filter */}
+                <select value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)}
+                  className="flex-1 sm:flex-none bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border/50 transition-all">
+                  <option value="all">All Owners</option>
+                  <option value="none">No Owner</option>
+                  {ownerOptions.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+              </div>
             </div>
             <button onClick={() => setShowWizard(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text text-foreground text-sm font-semibold rounded-xl transition-colors">
+              className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-info-text hover:bg-info-text text-foreground text-sm font-semibold rounded-xl transition-colors w-full sm:w-auto shrink-0">
               <Plus className="w-4 h-4" /> New Unit
             </button>
           </div>
@@ -334,7 +336,8 @@ export default function OrganizationStructurePage() {
           {/* Table */}
           {!loading && filteredUnits.length > 0 && (
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
-              <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--surface-hover)]/50">
                     <th className="py-3 px-4 text-[9px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Name</th>
@@ -415,6 +418,7 @@ export default function OrganizationStructurePage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </>

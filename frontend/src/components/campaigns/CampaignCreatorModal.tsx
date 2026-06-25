@@ -1816,7 +1816,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           <p className="text-sm font-bold text-foreground">Current audience details</p>
                           <div className="space-y-2">
                             <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest flex items-center gap-1">
-                              <span>ðŸ‘¥</span> Included people who match
+                              <span>👥</span> Included people who match
                             </p>
                             <p className="text-xs text-foreground-muted">Age: {tmpAge[0]} - {tmpAge[1]}</p>
                             <p className="text-xs text-foreground-muted">Gender: {tmpGender === "ALL" ? "All" : tmpGender.charAt(0) + tmpGender.slice(1).toLowerCase()}</p>
@@ -2513,8 +2513,19 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             </p>
                           </>
                         ) : (
-                          <div className="relative rounded-xl overflow-hidden border border-border">
-                            <video src={ad.video_url} className="w-full max-h-48 object-contain bg-black/40" controls />
+                          <div className="relative rounded-xl overflow-hidden border border-border group/advid">
+                            <video src={ad.video_url} className="w-full aspect-video object-contain bg-black" controls />
+                            {/* Fullscreen expand */}
+                            <button type="button"
+                              onClick={() => {
+                                const v = document.querySelector<HTMLVideoElement>('[data-advid]');
+                                if (v?.requestFullscreen) v.requestFullscreen();
+                              }}
+                              className="absolute top-2 left-2 p-1.5 rounded-lg bg-black/60 text-white opacity-0 group-hover/advid:opacity-100 transition-opacity hover:bg-black/80"
+                              title="View fullscreen">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                            </button>
+                            {/* Remove */}
                             <button type="button" onClick={() => setAd(a => ({...a, video_url: ""}))}
                               className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-foreground hover:bg-black transition-colors">
                               <X className="w-3 h-3" />
@@ -2526,7 +2537,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
 
                     {/* Carousel card editor — shown when carousel_ad selected */}
                     {(ad.ad_type || "image_ad") === "carousel_ad" && convLocation !== "message" && (
-                      <Field label="Carousel cards (2–10 images)">
+                      <Field label={`Carousel cards (${ad.carousel_cards?.length ?? 1}/10 — min 2, max 10)`}>
                         <div className="space-y-3">
                           {/* Bulk-load a pack from library */}
                           <button type="button"
@@ -2602,21 +2613,27 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                   setAd(a => ({ ...a, carousel_cards: next }));
                                 }} placeholder="Card link (optional, defaults to ad URL)" className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground placeholder:text-foreground-muted/50 focus:outline-none focus:ring-1 focus:ring-border" />
                               </div>
-                              <button type="button" onClick={() => {
-                                const next = ad.carousel_cards?.filter((_, i) => i !== ci) || [];
-                                setAd(a => ({ ...a, carousel_cards: next }));
-                              }} className="p-1.5 rounded-lg hover:bg-error-text/10 text-foreground-muted hover:text-error-text transition-colors shrink-0">
+                              <button type="button"
+                                disabled={(ad.carousel_cards?.length ?? 0) <= 2}
+                                onClick={() => {
+                                  const next = ad.carousel_cards?.filter((_, i) => i !== ci) || [];
+                                  setAd(a => ({ ...a, carousel_cards: next }));
+                                }} className="p-1.5 rounded-lg hover:bg-error-text/10 text-foreground-muted hover:text-error-text transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-foreground-muted">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               </button>
                             </div>
                           ))}
-                          <button type="button" onClick={() => {
-                            const next = [...(ad.carousel_cards || []), { image_url: "", headline: "", description: "", link: "" }];
-                            setAd(a => ({ ...a, carousel_cards: next }));
-                          }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border hover:border-border text-foreground-muted hover:text-foreground-muted transition-colors text-sm font-semibold">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                            Add card
-                          </button>
+                          {(ad.carousel_cards?.length ?? 0) < 10 ? (
+                            <button type="button" onClick={() => {
+                              const next = [...(ad.carousel_cards || []), { image_url: "", headline: "", description: "", link: "" }];
+                              setAd(a => ({ ...a, carousel_cards: next }));
+                            }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-border hover:border-white/30 text-foreground-muted hover:text-foreground transition-colors text-sm font-semibold">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                              Add card
+                            </button>
+                          ) : (
+                            <p className="text-center text-xs text-foreground-muted py-2">Maximum 10 cards reached</p>
+                          )}
                         </div>
                       </Field>
                     )}
@@ -2795,7 +2812,18 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       const filledCards = (ad.carousel_cards || []).filter(c => c.image_url);
                       const safeIdx = Math.min(carouselIdx, Math.max(0, filledCards.length - 1));
                       const imageEl = (ad.ad_type === "video_ad" && ad.video_url)
-                        ? <video src={ad.video_url} className="w-full object-cover" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }} muted playsInline controls />
+                        ? <div className="relative w-full group/prevvid">
+                            <video src={ad.video_url} className="w-full object-contain bg-black" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }} muted playsInline controls />
+                            <button type="button"
+                              onClick={() => {
+                                const v = document.querySelector<HTMLVideoElement>('[data-prevvid]');
+                                if (v?.requestFullscreen) v.requestFullscreen();
+                              }}
+                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white opacity-0 group-hover/prevvid:opacity-100 transition-opacity hover:bg-black/80"
+                              title="View fullscreen">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                            </button>
+                          </div>
                         : (ad.ad_type === "carousel_ad" && filledCards.length > 0)
                         ? (
                           <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1/1" }}>

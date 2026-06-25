@@ -383,7 +383,39 @@ async function computeStorageMb(workspaceId: string): Promise<number> {
   let totalMb = 0;
 
   try {
-    // Knowledge entries file sizes
+    // ── 1. Media library assets (file_size_bytes tracked at upload time) ───────
+    // This is the primary source — covers all videos/images uploaded via the
+    // Creator Upload Center. file_size_bytes is set in addToLibrary().
+    const { data: mediaAssets } = await supabaseAdmin
+      .from('media_library')
+      .select('file_size_bytes')
+      .eq('workspace_id', workspaceId)
+      .limit(5000);
+
+    totalMb += (mediaAssets ?? []).reduce((acc: number, a: any) =>
+      acc + (Number(a.file_size_bytes ?? 0) / (1024 * 1024)), 0);
+
+    // ── 2. Media Supabase storage (fallback for assets without file_size_bytes) ─
+    // Files are stored under library/{user_id}/ — not {user_id}/ directly.
+    const { data: members } = await supabaseAdmin
+      .from('workspace_members').select('user_id').eq('workspace_id', workspaceId).limit(50);
+
+    await Promise.all(
+      (members ?? []).map(async (m: any) => {
+        try {
+          const { data: files } = await supabaseAdmin.storage
+            .from('media').list(`library/${m.user_id}`, { limit: 500 });
+          // Only count files not already counted via media_library table
+          // (avoid double-counting; file_size_bytes is the authoritative source)
+          const storageOnlyMb = (files ?? []).reduce((acc: number, f: any) =>
+            acc + ((f.metadata?.size ?? 0) / (1024 * 1024)), 0);
+          // Use storage listing only if media_library returned 0 for this workspace
+          if ((mediaAssets ?? []).length === 0) totalMb += storageOnlyMb;
+        } catch { /* best-effort */ }
+      })
+    );
+
+    // ── 3. Knowledge entries file sizes ─────────────────────────────────────────
     const { data: wsRow } = await supabaseAdmin
       .from('workspaces').select('org_id').eq('id', workspaceId).maybeSingle();
 
@@ -400,20 +432,6 @@ async function computeStorageMb(workspaceId: string): Promise<number> {
           acc + (Number(row.metadata?.file_size ?? 0) / (1024 * 1024)), 0);
       }
     }
-
-    // Media Supabase storage
-    const { data: members } = await supabaseAdmin
-      .from('workspace_members').select('user_id').eq('workspace_id', workspaceId).limit(50);
-
-    await Promise.all(
-      (members ?? []).map(async (m: any) => {
-        try {
-          const { data: files } = await supabaseAdmin.storage.from('media').list(m.user_id, { limit: 500 });
-          totalMb += (files ?? []).reduce((acc: number, f: any) =>
-            acc + ((f.metadata?.size ?? 0) / (1024 * 1024)), 0);
-        } catch { /* best-effort */ }
-      })
-    );
   } catch (err: any) {
     logger.warn({ err }, '[Storage] computeStorageMb failed (non-fatal)');
   }

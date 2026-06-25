@@ -758,11 +758,15 @@ export default function ResourceMonitoringPage() {
                     <div className="h-3 bg-[var(--surface)] rounded-full overflow-hidden mb-2">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${quotaBarColor(storageUsedPct)}`}
-                        style={{ width: `${Math.min(storageUsedPct, 100)}%` }}
+                        style={{ width: `${sq.usage.used_mb > 0 ? Math.max(storageUsedPct, 0.5) : 0}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-xs text-[var(--foreground-muted)]">
-                      <span className="tabular-nums">{storageUsedPct.toFixed(1)}% used</span>
+                      <span className="tabular-nums">
+                        {sq.usage.used_mb > 0 && storageUsedPct < 0.1
+                          ? `< 0.1% used (${formatStorage(sq.usage.used_mb)})`
+                          : `${storageUsedPct.toFixed(1)}% used`}
+                      </span>
                       {sq.usage.remaining_mb !== null && (
                         <span className="tabular-nums">{formatStorage(sq.usage.remaining_mb)} remaining</span>
                       )}

@@ -146,24 +146,44 @@ export const getCampaignStats = async (req: AuthRequest, res: Response, next: Ne
 
     const { data, error } = await supabaseAdmin
       .from('campaigns')
-      .select('status, risk_tier, budget_total, spend_recorded')
+      .select('status, risk_tier, budget_total, spend_recorded, end_at')
       .eq('workspace_id', workspaceId);
 
     if (error) throw error;
     const rows = data || [];
+    const now = new Date();
+
+    // A campaign is effectively completed when:
+    //   - status is explicitly COMPLETED, OR
+    //   - it was ACTIVE/PAUSED/SCHEDULED but its end_at has passed
+    const isEffectivelyCompleted = (r: any) =>
+      r.status === 'COMPLETED' ||
+      (['ACTIVE', 'PAUSED', 'SCHEDULED'].includes(r.status) && r.end_at && new Date(r.end_at) < now);
+
+    const isStillActive = (r: any) =>
+      r.status === 'ACTIVE' && (!r.end_at || new Date(r.end_at) >= now);
+
+    const isStillPaused = (r: any) =>
+      r.status === 'PAUSED' && (!r.end_at || new Date(r.end_at) >= now);
+
+    // Meta submits campaigns for platform review — until we sync Meta's effective_status
+    // back, any ACTIVE campaign currently running (not expired) may be in review on Meta.
+    // We surface internal workflow review statuses here; Meta review appears as ACTIVE
+    // until a future status-sync worker updates the DB.
+    const inReviewStatuses = ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED'];
 
     const stats = {
       total:             rows.length,
       draft:             rows.filter(r => r.status === 'DRAFT').length,
-      in_review:         rows.filter(r => ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED'].includes(r.status)).length,
+      in_review:         rows.filter(r => inReviewStatuses.includes(r.status)).length,
       approval_pending:  rows.filter(r => r.status === 'APPROVED').length,
-      active:            rows.filter(r => r.status === 'ACTIVE').length,
-      paused:            rows.filter(r => r.status === 'PAUSED').length,
-      completed:         rows.filter(r => r.status === 'COMPLETED').length,
+      active:            rows.filter(isStillActive).length,
+      paused:            rows.filter(isStillPaused).length,
+      completed:         rows.filter(isEffectivelyCompleted).length,
       risk_flags:        rows.filter(r => ['high', 'critical'].includes(r.risk_tier)).length,
       budget_allocated:  rows.reduce((sum, r) => sum + (Number(r.budget_total) || 0), 0),
       spend_recorded:    rows.reduce((sum, r) => sum + (Number(r.spend_recorded) || 0), 0),
-      needs_action:      rows.filter(r => ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED'].includes(r.status)).length,
+      needs_action:      rows.filter(r => inReviewStatuses.includes(r.status)).length,
     };
 
     res.json({ success: true, data: stats });
