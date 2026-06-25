@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Shield,
   AlertCircle, 
@@ -495,8 +496,8 @@ export default function PlatformAnalytics() {
       </div>
 
       {/* Upgrade Plan Modal */}
-      {upgradeOrgId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
+      {upgradeOrgId && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Change Plan</h3>
             <p className="text-xs text-[var(--foreground-muted)] mb-4">
@@ -546,12 +547,13 @@ export default function PlatformAnalytics() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirm Dialog Modal */}
-      {confirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmDialog(null)}>
+      {confirmDialog && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setConfirmDialog(null)}>
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
               confirmDialog.type === 'delete'
@@ -596,7 +598,8 @@ export default function PlatformAnalytics() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Toasts */}
