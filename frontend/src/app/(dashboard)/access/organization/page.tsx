@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   Building2, GitBranch, Shield, Users, Search, Plus, X,
@@ -430,7 +431,7 @@ export default function OrganizationStructurePage() {
       )}
 
       {/* Delete confirmation dialog */}
-      {deleteTarget && (
+      {deleteTarget && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
@@ -459,7 +460,8 @@ export default function OrganizationStructurePage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
