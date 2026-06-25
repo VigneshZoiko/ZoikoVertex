@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Shield,
   AlertCircle, 
@@ -31,6 +32,7 @@ export default function PlatformAnalytics() {
   const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'restricted'>('all');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [openMenuOrgId, setOpenMenuOrgId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number; openUp: boolean } | null>(null);
   const [upgradeOrgId, setUpgradeOrgId] = useState<string | null>(null);
   const [upgradePlanType, setUpgradePlanType] = useState<string>('GROWTH');
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -38,7 +40,6 @@ export default function PlatformAnalytics() {
     orgId: string;
     orgName: string;
   } | null>(null);
-  const [dropdownUpward, setDropdownUpward] = useState(false);
 
 
   const fetchData = async () => {
@@ -97,6 +98,7 @@ export default function PlatformAnalytics() {
   const handleRestrict = (orgId: string) => {
     const org = organizations.find(o => o.id === orgId);
     setOpenMenuOrgId(null);
+    setMenuAnchor(null);
     setConfirmDialog({ type: 'restrict', orgId, orgName: org?.name || 'Unknown' });
   };
 
@@ -127,6 +129,7 @@ export default function PlatformAnalytics() {
       const target = e.target as HTMLElement;
       if (!target.closest('[data-dropdown-menu]')) {
         setOpenMenuOrgId(null);
+        setMenuAnchor(null);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -410,43 +413,28 @@ export default function PlatformAnalytics() {
                           </button>
                         )}
                         {org.status !== 'DELETED' && (
-                        <div className="relative" data-dropdown-menu>
+                        <div data-dropdown-menu>
                           <button
                             onClick={(e) => {
-                              const willOpen = openMenuOrgId !== org.id;
-                              if (willOpen) {
+                              if (openMenuOrgId === org.id) {
+                                setOpenMenuOrgId(null);
+                                setMenuAnchor(null);
+                              } else {
                                 const rect = e.currentTarget.getBoundingClientRect();
-                                setDropdownUpward(window.innerHeight - rect.bottom < 180);
+                                const openUp = window.innerHeight - rect.bottom < 100;
+                                setMenuAnchor({
+                                  top: openUp ? rect.top : rect.bottom + 4,
+                                  right: window.innerWidth - rect.right,
+                                  openUp,
+                                });
+                                setOpenMenuOrgId(org.id);
                               }
-                              setOpenMenuOrgId(willOpen ? org.id : null);
                             }}
                             className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
                             title="More"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
-                          {openMenuOrgId === org.id && (
-                            <div className={`absolute right-0 z-50 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-xl py-1 overflow-hidden ${
-                              dropdownUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-                            }`}>
-                              <button
-                                onClick={() => { setOpenMenuOrgId(null); handleDelete(org.id); }}
-                                disabled={!!actionLoading}
-                                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-[var(--surface-hover)] transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete Organization
-                              </button>
-                              <button
-                                onClick={() => handleRestrict(org.id)}
-                                disabled={!!actionLoading}
-                                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
-                              >
-                                <Shield className="w-3.5 h-3.5" />
-                                Restrict Organization
-                              </button>
-                            </div>
-                          )}
                         </div>
                       )}
                       </div>
@@ -495,8 +483,8 @@ export default function PlatformAnalytics() {
       </div>
 
       {/* Upgrade Plan Modal */}
-      {upgradeOrgId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
+      {upgradeOrgId && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Change Plan</h3>
             <p className="text-xs text-[var(--foreground-muted)] mb-4">
@@ -546,12 +534,13 @@ export default function PlatformAnalytics() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirm Dialog Modal */}
-      {confirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmDialog(null)}>
+      {confirmDialog && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setConfirmDialog(null)}>
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
               confirmDialog.type === 'delete'
@@ -596,7 +585,40 @@ export default function PlatformAnalytics() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 3-dot dropdown portal */}
+      {openMenuOrgId && menuAnchor && createPortal(
+        <div
+          className="fixed z-[9999]"
+          style={menuAnchor.openUp
+            ? { bottom: window.innerHeight - menuAnchor.top + 4, right: menuAnchor.right }
+            : { top: menuAnchor.top, right: menuAnchor.right }
+          }
+          data-dropdown-menu
+        >
+          <div className="w-48 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => { setOpenMenuOrgId(null); setMenuAnchor(null); handleDelete(openMenuOrgId); }}
+              disabled={!!actionLoading}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left text-red-500 hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Organization
+            </button>
+            <button
+              onClick={() => { setOpenMenuOrgId(null); setMenuAnchor(null); handleRestrict(openMenuOrgId); }}
+              disabled={!!actionLoading}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Restrict Organization
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Toasts */}

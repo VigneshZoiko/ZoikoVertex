@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Search, Filter, Image as ImageIcon, Video as VideoIcon,
   ExternalLink, Send, Trash2, Loader2, User, Calendar, Eye, X
@@ -107,6 +108,13 @@ export default function MediaLibraryPage() {
     });
     router.push(`/publish?${params.toString()}`);
   };
+
+  useEffect(() => {
+    if (!previewAsset) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [previewAsset]);
 
   const handleDeleteAsset = async (id: string, title: string) => {
     setDeleteAsset({ id, title });
@@ -279,11 +287,11 @@ export default function MediaLibraryPage() {
         </div>
       )}
       {/* Preview Modal */}
-      {previewAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-md" onClick={() => setPreviewAsset(null)}>
+      {previewAsset && createPortal(
+        <div className="fixed inset-0 z-[998] flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-md" onClick={() => setPreviewAsset(null)}>
           <div className="relative w-full max-w-5xl flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="w-full flex justify-end mb-4">
-              <button 
+              <button
                 onClick={() => setPreviewAsset(null)}
                 className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
               >
@@ -318,7 +326,8 @@ export default function MediaLibraryPage() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <ConfirmActionModal

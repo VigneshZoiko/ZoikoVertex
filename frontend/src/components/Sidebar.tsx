@@ -479,9 +479,7 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [lockedFeature, setLockedFeature] = useState<Feature | null>(null);
 
-  const { isDirty, setIsDirty } = useDraftGuard();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const { isDirty, setIsDirty, requestNavigation, pendingHref, showDiscardModal, confirmDiscard, cancelDiscard } = useDraftGuard();
 
   const [pendingCount, setPendingCount] = useState(0);
   const [returnedCount, setReturnedCount] = useState(0);
@@ -586,23 +584,21 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
 
   const handleNavClick = useCallback(
     (e: React.MouseEvent, href: string) => {
-      if (isDirty && pathname !== href) {
+      if (isDirty && pathname === '/publish' && pathname !== href) {
         e.preventDefault();
-        setPendingHref(href);
-        setShowDiscardModal(true);
+        requestNavigation(href);
       } else {
         onMobileClose?.();
       }
     },
-    [isDirty, pathname, onMobileClose],
+    [isDirty, pathname, onMobileClose, requestNavigation],
   );
 
   const handleDiscardConfirm = useCallback(async () => {
-    setIsDirty(false);
-    setShowDiscardModal(false);
-    onMobileClose?.();
     const dest = pendingHref;
-    setPendingHref(null);
+    confirmDiscard();
+    setIsDirty(false);
+    onMobileClose?.();
     if (!dest) return;
     if (dest === "/login" || dest === "/platform-login") {
       await supabase.auth.signOut();
@@ -610,18 +606,16 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
     } else {
       router.push(dest);
     }
-  }, [pendingHref, router, setIsDirty, onMobileClose]);
+  }, [pendingHref, router, setIsDirty, onMobileClose, confirmDiscard]);
 
   const handleDiscardCancel = useCallback(() => {
-    setShowDiscardModal(false);
-    setPendingHref(null);
-  }, []);
+    cancelDiscard();
+  }, [cancelDiscard]);
 
   const handleLogout = async () => {
     const loginDest = isSuperAdmin ? "/platform-login" : "/login";
-    if (isDirty) {
-      setPendingHref(loginDest);
-      setShowDiscardModal(true);
+    if (isDirty && pathname === '/publish') {
+      requestNavigation(loginDest);
       return;
     }
     onMobileClose?.();
