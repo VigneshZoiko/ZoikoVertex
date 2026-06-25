@@ -12,6 +12,7 @@ import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 import { MediaPreview } from "@/components/MediaPreview";
+import { createPortal } from "react-dom";
 
 interface LibraryAsset {
   id: string;
@@ -279,8 +280,8 @@ export default function MediaLibraryPage() {
         </div>
       )}
       {/* Preview Modal */}
-      {previewAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-md" onClick={() => setPreviewAsset(null)}>
+      {previewAsset && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 backdrop-blur-md" onClick={() => setPreviewAsset(null)}>
           <div className="relative w-full max-w-5xl flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="w-full flex justify-end mb-4">
               <button 
@@ -318,7 +319,8 @@ export default function MediaLibraryPage() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <ConfirmActionModal

@@ -1,24 +1,25 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { 
+import React, { useState, useEffect } from "react";
+import {
   Shield,
-  AlertCircle, 
-  CheckCircle2, 
-  X, 
-  ChevronRight, 
-  Loader2, 
-  Pause, 
-  Play, 
-  Trash2, 
-  Search, 
+  AlertCircle,
+  CheckCircle2,
+  X,
+  ChevronRight,
+  Loader2,
+  Pause,
+  Play,
+  Trash2,
+  Search,
   MoreHorizontal,
   Users,
   RotateCcw,
   Mail,
-  ArrowUpCircle
-} from 'lucide-react';
-import { api } from '@/lib/api';
+  ArrowUpCircle,
+} from "lucide-react";
+import { api } from "@/lib/api";
+import { createPortal } from "react-dom";
 
 export default function PlatformAnalytics() {
   const [organizations, setOrganizations] = useState<any[]>([]);
@@ -28,23 +29,24 @@ export default function PlatformAnalytics() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'restricted'>('all');
+  const [tabFilter, setTabFilter] = useState<
+    "all" | "active" | "paused" | "restricted"
+  >("all");
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [openMenuOrgId, setOpenMenuOrgId] = useState<string | null>(null);
   const [upgradeOrgId, setUpgradeOrgId] = useState<string | null>(null);
-  const [upgradePlanType, setUpgradePlanType] = useState<string>('GROWTH');
+  const [upgradePlanType, setUpgradePlanType] = useState<string>("GROWTH");
   const [confirmDialog, setConfirmDialog] = useState<{
-    type: 'restrict' | 'delete' | 'pause';
+    type: "restrict" | "delete" | "pause";
     orgId: string;
     orgName: string;
   } | null>(null);
   const [dropdownUpward, setDropdownUpward] = useState(false);
 
-
   const fetchData = async () => {
     setFetching(true);
     try {
-      const result = await api.get('/api/v1/superadmin/analytics');
+      const result = await api.get("/api/v1/superadmin/analytics");
       if (result.success !== false) {
         setOrganizations(result.data);
         setStats(result.stats);
@@ -65,49 +67,77 @@ export default function PlatformAnalytics() {
 
   useEffect(() => {
     if (!success && !error) return;
-    const timer = setTimeout(() => { setSuccess(null); setError(null); }, 2000);
+    const timer = setTimeout(() => {
+      setSuccess(null);
+      setError(null);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [success, error]);
 
   const handlePause = async (orgId: string) => {
-    const org = organizations.find(o => o.id === orgId);
-    setConfirmDialog({ type: 'pause', orgId, orgName: org?.name || 'Unknown' });
+    const org = organizations.find((o) => o.id === orgId);
+    setConfirmDialog({ type: "pause", orgId, orgName: org?.name || "Unknown" });
   };
 
   const handleResume = async (orgId: string) => {
     setActionLoading(orgId);
-    setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
+    setOrganizations((current) =>
+      current.map((o) => (o.id === orgId ? { ...o, status: "ACTIVE" } : o)),
+    );
     try {
-      const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/resume`, {});
-      if (res.success === false) throw new Error(res.error || "Failed to resume");
+      const res = await api.post(
+        `/api/v1/superadmin/organizations/${orgId}/resume`,
+        {},
+      );
+      if (res.success === false)
+        throw new Error(res.error || "Failed to resume");
       setSuccess("Organization resumed. Normal operations restored.");
     } catch (err) {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'SUSPENDED' } : o));
-      setError(err instanceof Error ? err.message : "Failed to resume organization.");
+      setOrganizations((current) =>
+        current.map((o) =>
+          o.id === orgId ? { ...o, status: "SUSPENDED" } : o,
+        ),
+      );
+      setError(
+        err instanceof Error ? err.message : "Failed to resume organization.",
+      );
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleDelete = (orgId: string) => {
-    const org = organizations.find(o => o.id === orgId);
-    setConfirmDialog({ type: 'delete', orgId, orgName: org?.name || 'Unknown' });
+    const org = organizations.find((o) => o.id === orgId);
+    setConfirmDialog({
+      type: "delete",
+      orgId,
+      orgName: org?.name || "Unknown",
+    });
   };
 
   const handleRestrict = (orgId: string) => {
-    const org = organizations.find(o => o.id === orgId);
+    const org = organizations.find((o) => o.id === orgId);
     setOpenMenuOrgId(null);
-    setConfirmDialog({ type: 'restrict', orgId, orgName: org?.name || 'Unknown' });
+    setConfirmDialog({
+      type: "restrict",
+      orgId,
+      orgName: org?.name || "Unknown",
+    });
   };
 
   const handleChangePlan = async () => {
     if (!upgradeOrgId) return;
-    const orgName = organizations.find(o => o.id === upgradeOrgId)?.name || 'this organization';
+    const orgName =
+      organizations.find((o) => o.id === upgradeOrgId)?.name ||
+      "this organization";
     if (!confirm(`Change ${orgName} plan to ${upgradePlanType}?`)) return;
     setActionLoading(upgradeOrgId);
     setUpgradeOrgId(null);
     try {
-      const result = await api.put(`/api/v1/superadmin/organizations/${upgradeOrgId}/plan`, { planType: upgradePlanType });
+      const result = await api.put(
+        `/api/v1/superadmin/organizations/${upgradeOrgId}/plan`,
+        { planType: upgradePlanType },
+      );
       if (result.success) {
         setSuccess(`Organization plan changed to ${upgradePlanType}.`);
       } else {
@@ -125,24 +155,34 @@ export default function PlatformAnalytics() {
     if (!openMenuOrgId) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('[data-dropdown-menu]')) {
+      if (!target.closest("[data-dropdown-menu]")) {
         setOpenMenuOrgId(null);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [openMenuOrgId]);
 
   const handleRestore = async (orgId: string) => {
     setActionLoading(orgId);
-    setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
+    setOrganizations((current) =>
+      current.map((o) => (o.id === orgId ? { ...o, status: "ACTIVE" } : o)),
+    );
     try {
-      const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/restore`, {});
-      if (res.success === false) throw new Error(res.error || "Failed to restore");
+      const res = await api.post(
+        `/api/v1/superadmin/organizations/${orgId}/restore`,
+        {},
+      );
+      if (res.success === false)
+        throw new Error(res.error || "Failed to restore");
       setSuccess("Organization restored and reactivated.");
     } catch (err) {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
-      setError(err instanceof Error ? err.message : "Failed to restore organization.");
+      setOrganizations((current) =>
+        current.map((o) => (o.id === orgId ? { ...o, status: "DELETED" } : o)),
+      );
+      setError(
+        err instanceof Error ? err.message : "Failed to restore organization.",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -153,65 +193,108 @@ export default function PlatformAnalytics() {
     const { type, orgId } = confirmDialog;
     setConfirmDialog(null);
     setActionLoading(orgId);
-    if (type === 'delete') {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
+    if (type === "delete") {
+      setOrganizations((current) =>
+        current.map((o) => (o.id === orgId ? { ...o, status: "DELETED" } : o)),
+      );
       try {
-        const res = await api.delete(`/api/v1/superadmin/organizations/${orgId}`);
-        if (res.success === false) throw new Error(res.error || "Deletion failed");
+        const res = await api.delete(
+          `/api/v1/superadmin/organizations/${orgId}`,
+        );
+        if (res.success === false)
+          throw new Error(res.error || "Deletion failed");
         setSuccess("Organization permanently banned and all data purged.");
       } catch (err) {
-        setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-        setError(err instanceof Error ? err.message : "Deletion failed. Organization may have active dependencies.");
+        setOrganizations((current) =>
+          current.map((o) => (o.id === orgId ? { ...o, status: "ACTIVE" } : o)),
+        );
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Deletion failed. Organization may have active dependencies.",
+        );
       } finally {
         setActionLoading(null);
       }
-    } else if (type === 'restrict') {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'RESTRICTED' } : o));
+    } else if (type === "restrict") {
+      setOrganizations((current) =>
+        current.map((o) =>
+          o.id === orgId ? { ...o, status: "RESTRICTED" } : o,
+        ),
+      );
       try {
-        const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/restrict`, {});
-        if (res.success === false) throw new Error(res.error || "Failed to restrict");
+        const res = await api.post(
+          `/api/v1/superadmin/organizations/${orgId}/restrict`,
+          {},
+        );
+        if (res.success === false)
+          throw new Error(res.error || "Failed to restrict");
         setSuccess("Organization temporarily banned.");
       } catch (err) {
-        setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-        setError(err instanceof Error ? err.message : "Failed to restrict organization.");
+        setOrganizations((current) =>
+          current.map((o) => (o.id === orgId ? { ...o, status: "ACTIVE" } : o)),
+        );
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to restrict organization.",
+        );
       } finally {
         setActionLoading(null);
       }
-    } else if (type === 'pause') {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'SUSPENDED' } : o));
+    } else if (type === "pause") {
+      setOrganizations((current) =>
+        current.map((o) =>
+          o.id === orgId ? { ...o, status: "SUSPENDED" } : o,
+        ),
+      );
       try {
-        const res = await api.post(`/api/v1/superadmin/organizations/${orgId}/pause`, {});
-        if (res.success === false) throw new Error(res.error || "Failed to pause");
+        const res = await api.post(
+          `/api/v1/superadmin/organizations/${orgId}/pause`,
+          {},
+        );
+        if (res.success === false)
+          throw new Error(res.error || "Failed to pause");
         setSuccess("Organization paused. All workspaces restricted.");
       } catch (err) {
-        setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-        setError(err instanceof Error ? err.message : "Failed to pause organization.");
+        setOrganizations((current) =>
+          current.map((o) => (o.id === orgId ? { ...o, status: "ACTIVE" } : o)),
+        );
+        setError(
+          err instanceof Error ? err.message : "Failed to pause organization.",
+        );
       } finally {
         setActionLoading(null);
       }
     }
   };
 
-  const activeOrgs = organizations.filter(o => o.status === 'ACTIVE');
-  const pausedOrgs = organizations.filter(o => o.status === 'SUSPENDED');
-  const restrictedOrgs = organizations.filter(o => o.status === 'RESTRICTED');
+  const activeOrgs = organizations.filter((o) => o.status === "ACTIVE");
+  const pausedOrgs = organizations.filter((o) => o.status === "SUSPENDED");
+  const restrictedOrgs = organizations.filter((o) => o.status === "RESTRICTED");
 
-  const filteredOrgs = organizations.filter(org => {
-    if (tabFilter === 'active') return org.status === 'ACTIVE';
-    if (tabFilter === 'paused') return org.status === 'SUSPENDED';
-    if (tabFilter === 'restricted') return org.status === 'RESTRICTED';
-    return org.status !== 'DELETED';
-  }).filter(org => 
-    (org.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrgs = organizations
+    .filter((org) => {
+      if (tabFilter === "active") return org.status === "ACTIVE";
+      if (tabFilter === "paused") return org.status === "SUSPENDED";
+      if (tabFilter === "restricted") return org.status === "RESTRICTED";
+      return org.status !== "DELETED";
+    })
+    .filter((org) =>
+      (org.name || "").toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--foreground)]">Platform Overview</h1>
-          <p className="text-sm text-[var(--foreground-muted)] mt-0.5">SuperAdmin console for organization management</p>
+          <h1 className="text-xl font-semibold text-[var(--foreground)]">
+            Platform Overview
+          </h1>
+          <p className="text-sm text-[var(--foreground-muted)] mt-0.5">
+            SuperAdmin console for organization management
+          </p>
         </div>
         <div className="px-3 py-1 rounded text-xs font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)]">
           ADMIN
@@ -222,20 +305,36 @@ export default function PlatformAnalytics() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
-            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Organizations</div>
-            <div className="text-xl font-semibold text-[var(--foreground)]">{organizations.filter(o => o.status !== 'DELETED').length}</div>
+            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">
+              Organizations
+            </div>
+            <div className="text-xl font-semibold text-[var(--foreground)]">
+              {organizations.filter((o) => o.status !== "DELETED").length}
+            </div>
           </div>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
-            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Users</div>
-            <div className="text-xl font-semibold text-[var(--foreground)]">{stats.totalUsers}</div>
+            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">
+              Users
+            </div>
+            <div className="text-xl font-semibold text-[var(--foreground)]">
+              {stats.totalUsers}
+            </div>
           </div>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
-            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Posts</div>
-            <div className="text-xl font-semibold text-[var(--foreground)]">{stats.totalPosts}</div>
+            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">
+              Posts
+            </div>
+            <div className="text-xl font-semibold text-[var(--foreground)]">
+              {stats.totalPosts}
+            </div>
           </div>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
-            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Storage</div>
-            <div className="text-xl font-semibold text-success-text">Healthy</div>
+            <div className="text-xs text-[var(--foreground-muted)] mb-0.5">
+              Storage
+            </div>
+            <div className="text-xl font-semibold text-success-text">
+              Healthy
+            </div>
           </div>
         </div>
       )}
@@ -244,44 +343,46 @@ export default function PlatformAnalytics() {
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg">
         <div className="px-5 py-3 border-b border-[var(--border)] flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-[var(--foreground)]">Organizations</h2>
+            <h2 className="text-sm font-semibold text-[var(--foreground)]">
+              Organizations
+            </h2>
             <div className="flex bg-[var(--background)] rounded-md p-0.5 border border-[var(--border)]">
               <button
-                onClick={() => setTabFilter('all')}
+                onClick={() => setTabFilter("all")}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  tabFilter === 'all'
-                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  tabFilter === "all"
+                    ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 }`}
               >
-                All {organizations.filter(o => o.status !== 'DELETED').length}
+                All {organizations.filter((o) => o.status !== "DELETED").length}
               </button>
               <button
-                onClick={() => setTabFilter('active')}
+                onClick={() => setTabFilter("active")}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  tabFilter === 'active'
-                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  tabFilter === "active"
+                    ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 }`}
               >
                 Active {activeOrgs.length}
               </button>
               <button
-                onClick={() => setTabFilter('paused')}
+                onClick={() => setTabFilter("paused")}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  tabFilter === 'paused'
-                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  tabFilter === "paused"
+                    ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 }`}
               >
                 Paused {pausedOrgs.length}
               </button>
               <button
-                onClick={() => setTabFilter('restricted')}
+                onClick={() => setTabFilter("restricted")}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  tabFilter === 'restricted'
-                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  tabFilter === "restricted"
+                    ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
                 }`}
               >
                 Restricted {restrictedOrgs.length}
@@ -290,7 +391,7 @@ export default function PlatformAnalytics() {
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--foreground-muted)]" />
-            <input 
+            <input
               type="text"
               placeholder="Search..."
               value={searchTerm}
@@ -304,11 +405,21 @@ export default function PlatformAnalytics() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--border)]">
-                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">Organization</th>
-                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">Status</th>
-                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">Members</th>
-                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">Plan</th>
-                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)] text-right">Actions</th>
+                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">
+                  Organization
+                </th>
+                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">
+                  Status
+                </th>
+                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">
+                  Members
+                </th>
+                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)]">
+                  Plan
+                </th>
+                <th className="px-5 py-3 text-xs font-medium text-[var(--foreground-muted)] text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -317,62 +428,92 @@ export default function PlatformAnalytics() {
                   <td colSpan={5} className="px-5 py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 className="w-5 h-5 text-[var(--foreground-muted)] animate-spin" />
-                      <p className="text-sm text-[var(--foreground-muted)]">Loading...</p>
+                      <p className="text-sm text-[var(--foreground-muted)]">
+                        Loading...
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : filteredOrgs.length > 0 ? (
-                filteredOrgs.map(org => (
-                  <tr key={org.id} className={`hover:bg-[var(--background)] transition-colors ${selectedOrgId === org.id ? 'bg-[var(--background)]' : ''}`}>
+                filteredOrgs.map((org, index) => (
+                  <tr
+                    key={org.id}
+                    className={`hover:bg-[var(--background)] transition-colors ${selectedOrgId === org.id ? "bg-[var(--background)]" : ""}`}
+                  >
                     <td className="px-5 py-3.5 align-top">
-                      <div 
+                      <div
                         className="flex flex-col cursor-pointer"
-                        onClick={() => setSelectedOrgId(selectedOrgId === org.id ? null : org.id)}
+                        onClick={() =>
+                          setSelectedOrgId(
+                            selectedOrgId === org.id ? null : org.id,
+                          )
+                        }
                       >
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium text-[var(--foreground)]">{org.name}</span>
-                          <ChevronRight className={`w-3 h-3 text-[var(--foreground-muted)] transition-transform ${selectedOrgId === org.id ? 'rotate-90' : ''}`} />
+                          <span className="text-sm font-medium text-[var(--foreground)]">
+                            {org.name}
+                          </span>
+                          <ChevronRight
+                            className={`w-3 h-3 text-[var(--foreground-muted)] transition-transform ${selectedOrgId === org.id ? "rotate-90" : ""}`}
+                          />
                         </div>
-                        
+
                         {selectedOrgId === org.id && (
                           <div className="mt-2.5 pt-2.5 border-t border-[var(--border)] space-y-1.5">
                             {org.adminName && (
                               <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
                                 <Mail className="w-3 h-3" />
-                                <span>{org.adminName}{org.adminEmail ? ` — ${org.adminEmail}` : ''}</span>
+                                <span>
+                                  {org.adminName}
+                                  {org.adminEmail ? ` — ${org.adminEmail}` : ""}
+                                </span>
                               </div>
                             )}
                             <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
                               <Users className="w-3 h-3" />
-                              <span>{org.memberCount} member{org.memberCount !== 1 ? 's' : ''}</span>
+                              <span>
+                                {org.memberCount} member
+                                {org.memberCount !== 1 ? "s" : ""}
+                              </span>
                             </div>
                           </div>
                         )}
                       </div>
                     </td>
                     <td className="px-5 py-3.5 align-top">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                        org.status === 'ACTIVE' 
-                          ? 'bg-success-bg text-success-text' 
-                          : org.status === 'SUSPENDED'
-                            ? 'bg-warning-bg text-warning-text'
-                            : org.status === 'RESTRICTED'
-                              ? 'bg-error-bg text-error-text'
-                              : org.status === 'DELETED'
-                                ? 'bg-error-bg text-error-text'
-                                : 'bg-[var(--surface)] text-[var(--foreground-muted)]'
-                      }`}>
-                        {org.status === 'SUSPENDED' ? 'Paused' : org.status === 'RESTRICTED' ? 'Restricted' : org.status.charAt(0) + org.status.slice(1).toLowerCase()}
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                          org.status === "ACTIVE"
+                            ? "bg-success-bg text-success-text"
+                            : org.status === "SUSPENDED"
+                              ? "bg-warning-bg text-warning-text"
+                              : org.status === "RESTRICTED"
+                                ? "bg-error-bg text-error-text"
+                                : org.status === "DELETED"
+                                  ? "bg-error-bg text-error-text"
+                                  : "bg-[var(--surface)] text-[var(--foreground-muted)]"
+                        }`}
+                      >
+                        {org.status === "SUSPENDED"
+                          ? "Paused"
+                          : org.status === "RESTRICTED"
+                            ? "Restricted"
+                            : org.status.charAt(0) +
+                              org.status.slice(1).toLowerCase()}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-[var(--foreground-muted)] align-top">{org.memberCount}</td>
+                    <td className="px-5 py-3.5 text-sm text-[var(--foreground-muted)] align-top">
+                      {org.memberCount}
+                    </td>
                     <td className="px-5 py-3.5 align-top">
-                      <span className="text-xs text-[var(--foreground-muted)]">{org.plan_type || '—'}</span>
+                      <span className="text-xs text-[var(--foreground-muted)]">
+                        {org.plan_type || "—"}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-right align-top">
                       <div className="flex items-center justify-end gap-1">
-                        {org.status === 'ACTIVE' ? (
-                          <button 
+                        {org.status === "ACTIVE" ? (
+                          <button
                             onClick={() => handlePause(org.id)}
                             disabled={!!actionLoading}
                             className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
@@ -380,8 +521,8 @@ export default function PlatformAnalytics() {
                           >
                             <Pause className="w-3.5 h-3.5" />
                           </button>
-                        ) : org.status === 'RESTRICTED' ? (
-                          <button 
+                        ) : org.status === "RESTRICTED" ? (
+                          <button
                             onClick={() => handleRestore(org.id)}
                             disabled={!!actionLoading}
                             className="px-2.5 py-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] rounded text-xs font-medium transition-colors flex items-center gap-1"
@@ -389,8 +530,8 @@ export default function PlatformAnalytics() {
                             <RotateCcw className="w-3 h-3" />
                             Restore
                           </button>
-                        ) : org.status === 'SUSPENDED' ? (
-                          <button 
+                        ) : org.status === "SUSPENDED" ? (
+                          <button
                             onClick={() => handleResume(org.id)}
                             disabled={!!actionLoading}
                             className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
@@ -399,9 +540,12 @@ export default function PlatformAnalytics() {
                             <Play className="w-3.5 h-3.5" />
                           </button>
                         ) : null}
-                        {org.status !== 'DELETED' && (
+                        {org.status !== "DELETED" && (
                           <button
-                            onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type || 'GROWTH'); }}
+                            onClick={() => {
+                              setUpgradeOrgId(org.id);
+                              setUpgradePlanType(org.plan_type || "GROWTH");
+                            }}
                             disabled={!!actionLoading}
                             className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-info-text border border-[var(--border)] rounded transition-colors"
                             title="Upgrade Plan"
@@ -409,46 +553,56 @@ export default function PlatformAnalytics() {
                             <ArrowUpCircle className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {org.status !== 'DELETED' && (
-                        <div className="relative" data-dropdown-menu>
-                          <button
-                            onClick={(e) => {
-                              const willOpen = openMenuOrgId !== org.id;
-                              if (willOpen) {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setDropdownUpward(window.innerHeight - rect.bottom < 180);
-                              }
-                              setOpenMenuOrgId(willOpen ? org.id : null);
-                            }}
-                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
-                            title="More"
-                          >
-                            <MoreHorizontal className="w-3.5 h-3.5" />
-                          </button>
-                          {openMenuOrgId === org.id && (
-                            <div className={`absolute right-0 z-50 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-xl py-1 overflow-hidden ${
-                              dropdownUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-                            }`}>
-                              <button
-                                onClick={() => { setOpenMenuOrgId(null); handleDelete(org.id); }}
-                                disabled={!!actionLoading}
-                                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-[var(--surface-hover)] transition-colors"
+                        {org.status !== "DELETED" && (
+                          <div className="relative" data-dropdown-menu>
+                            <button
+                              onClick={(e) => {
+                                const willOpen = openMenuOrgId !== org.id;
+                                if (willOpen) {
+                                  const rect =
+                                    e.currentTarget.getBoundingClientRect();
+                                  setDropdownUpward(
+                                    window.innerHeight - rect.bottom < 180,
+                                  );
+                                }
+                                setOpenMenuOrgId(willOpen ? org.id : null);
+                              }}
+                              className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
+                              title="More"
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                            {openMenuOrgId === org.id && (
+                              <div
+                                className={`absolute right-0 z-50 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-xl py-1 overflow-hidden ${
+                                  index >= filteredOrgs.length - 1
+                                    ? "bottom-full mb-1"
+                                    : "top-full mt-1"
+                                }`}
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete Organization
-                              </button>
-                              <button
-                                onClick={() => handleRestrict(org.id)}
-                                disabled={!!actionLoading}
-                                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
-                              >
-                                <Shield className="w-3.5 h-3.5" />
-                                Restrict Organization
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                                <button
+                                  onClick={() => {
+                                    setOpenMenuOrgId(null);
+                                    handleDelete(org.id);
+                                  }}
+                                  disabled={!!actionLoading}
+                                  className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-[var(--surface-hover)] transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete Organization
+                                </button>
+                                <button
+                                  onClick={() => handleRestrict(org.id)}
+                                  disabled={!!actionLoading}
+                                  className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                                >
+                                  <Shield className="w-3.5 h-3.5" />
+                                  Restrict Organization
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -457,14 +611,13 @@ export default function PlatformAnalytics() {
                 <tr>
                   <td colSpan={5} className="px-5 py-16 text-center">
                     <p className="text-sm text-[var(--foreground-muted)]">
-                      {tabFilter === 'paused'
-                        ? 'No paused organizations.'
-                        : tabFilter === 'active'
-                          ? 'No active organizations.'
-                          : tabFilter === 'restricted'
-                            ? 'No restricted organizations.'
-                            : `No results for "${searchTerm}"`
-                      }
+                      {tabFilter === "paused"
+                        ? "No paused organizations."
+                        : tabFilter === "active"
+                          ? "No active organizations."
+                          : tabFilter === "restricted"
+                            ? "No restricted organizations."
+                            : `No results for "${searchTerm}"`}
                     </p>
                   </td>
                 </tr>
@@ -475,11 +628,22 @@ export default function PlatformAnalytics() {
 
         <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between">
           <p className="text-xs text-[var(--foreground-muted)]">
-            {filteredOrgs.length} of {organizations.filter(o => o.status !== 'DELETED').length}
+            {filteredOrgs.length} of{" "}
+            {organizations.filter((o) => o.status !== "DELETED").length}
           </p>
           <div className="flex gap-1">
-            <button className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] disabled:opacity-40" disabled>Prev</button>
-            <button className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] disabled:opacity-40" disabled>Next</button>
+            <button
+              className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] disabled:opacity-40"
+              disabled
+            >
+              Prev
+            </button>
+            <button
+              className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] disabled:opacity-40"
+              disabled
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
@@ -489,32 +653,41 @@ export default function PlatformAnalytics() {
         <div className="flex items-start gap-2.5">
           <Shield className="w-4 h-4 text-[var(--foreground-muted)] mt-0.5 shrink-0" />
           <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
-            SuperAdmin view. Individual content, media files, and private workspace activity are isolated from this console.
+            SuperAdmin view. Individual content, media files, and private
+            workspace activity are isolated from this console.
           </p>
         </div>
       </div>
 
       {/* Upgrade Plan Modal */}
       {upgradeOrgId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Change Plan</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setUpgradeOrgId(null)}
+        >
+          <div
+            className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">
+              Change Plan
+            </h3>
             <p className="text-xs text-[var(--foreground-muted)] mb-4">
-              {organizations.find(o => o.id === upgradeOrgId)?.name}
+              {organizations.find((o) => o.id === upgradeOrgId)?.name}
             </p>
             <div className="flex flex-col gap-1.5 mb-4">
               {[
-                { value: 'FREE', label: 'Free' },
-                { value: 'STARTER', label: 'Vertex Starter' },
-                { value: 'GROWTH', label: 'Vertex Growth ($399/mo)' },
-                { value: 'ENTERPRISE', label: 'Vertex Enterprise ($999/mo)' },
-              ].map(p => (
+                { value: "FREE", label: "Free" },
+                { value: "STARTER", label: "Vertex Starter" },
+                { value: "GROWTH", label: "Vertex Growth ($399/mo)" },
+                { value: "ENTERPRISE", label: "Vertex Enterprise ($999/mo)" },
+              ].map((p) => (
                 <label
                   key={p.value}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
                     upgradePlanType === p.value
-                      ? 'border-info-border bg-info-bg text-[var(--foreground)]'
-                      : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'
+                      ? "border-info-border bg-info-bg text-[var(--foreground)]"
+                      : "border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]"
                   }`}
                 >
                   <input
@@ -541,7 +714,11 @@ export default function PlatformAnalytics() {
                 disabled={!!actionLoading}
                 className="px-3 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
-                {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpCircle className="w-3.5 h-3.5" />}
+                {actionLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ArrowUpCircle className="w-3.5 h-3.5" />
+                )}
                 Save
               </button>
             </div>
@@ -550,54 +727,80 @@ export default function PlatformAnalytics() {
       )}
 
       {/* Confirm Dialog Modal */}
-      {confirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmDialog(null)}>
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
-              confirmDialog.type === 'delete'
-                ? 'bg-error-bg text-error-text shadow-rose-500/10'
-                : confirmDialog.type === 'pause'
-                  ? 'bg-warning-bg text-warning-text shadow-amber-500/10'
-                  : 'bg-warning-bg text-warning-text shadow-amber-500/10'
-            }`}>
-              {confirmDialog.type === 'delete' ? <Trash2 className="w-6 h-6" /> : <Shield className="w-6 h-6" />}
-            </div>
-            <h3 className="text-sm font-semibold text-[var(--foreground)] text-center mb-2">
-              {confirmDialog.type === 'delete' ? 'Permanent Ban' : confirmDialog.type === 'pause' ? 'Pause Organization' : 'Temporary Ban'}
-            </h3>
-            <p className="text-xs text-[var(--foreground-muted)] text-center mb-1">
-              <span className="text-[var(--foreground)] font-semibold">{confirmDialog.orgName}</span>
-            </p>
-            <p className="text-xs text-[var(--foreground-muted)] text-center mb-5">
-              {confirmDialog.type === 'delete'
-                ? 'This is a permanent ban. The organization and ALL associated workspace data will be deleted across the entire platform. This action cannot be undone.'
-                : confirmDialog.type === 'pause'
-                  ? 'This will pause the organization and restrict all associated workspaces until resumed.'
-                  : 'This is a temporary ban. The organization will lose all access until restored by an administrator.'}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmDialog(null)}
-                className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executeConfirmAction}
-                disabled={!!actionLoading}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
-                  confirmDialog.type === 'delete'
-                    ? 'bg-error-text hover:brightness-110 text-foreground'
-                    : 'bg-warning-text hover:brightness-110 text-foreground'
+      {confirmDialog &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            onClick={() => setConfirmDialog(null)}
+          >
+            <div
+              className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
+                  confirmDialog.type === "delete"
+                    ? "bg-error-bg text-error-text shadow-rose-500/10"
+                    : confirmDialog.type === "pause"
+                      ? "bg-warning-bg text-warning-text shadow-amber-500/10"
+                      : "bg-warning-bg text-warning-text shadow-amber-500/10"
                 }`}
               >
-                {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                {confirmDialog.type === 'delete' ? 'Permanently Delete' : confirmDialog.type === 'pause' ? 'Pause' : 'Temporarily Ban'}
-              </button>
+                {confirmDialog.type === "delete" ? (
+                  <Trash2 className="w-6 h-6" />
+                ) : (
+                  <Shield className="w-6 h-6" />
+                )}
+              </div>
+              <h3 className="text-sm font-semibold text-[var(--foreground)] text-center mb-2">
+                {confirmDialog.type === "delete"
+                  ? "Permanent Ban"
+                  : confirmDialog.type === "pause"
+                    ? "Pause Organization"
+                    : "Temporary Ban"}
+              </h3>
+              <p className="text-xs text-[var(--foreground-muted)] text-center mb-1">
+                <span className="text-[var(--foreground)] font-semibold">
+                  {confirmDialog.orgName}
+                </span>
+              </p>
+              <p className="text-xs text-[var(--foreground-muted)] text-center mb-5">
+                {confirmDialog.type === "delete"
+                  ? "This is a permanent ban. The organization and ALL associated workspace data will be deleted across the entire platform. This action cannot be undone."
+                  : confirmDialog.type === "pause"
+                    ? "This will pause the organization and restrict all associated workspaces until resumed."
+                    : "This is a temporary ban. The organization will lose all access until restored by an administrator."}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeConfirmAction}
+                  disabled={!!actionLoading}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                    confirmDialog.type === "delete"
+                      ? "bg-error-text hover:brightness-110 text-foreground"
+                      : "bg-warning-text hover:brightness-110 text-foreground"
+                  }`}
+                >
+                  {actionLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : null}
+                  {confirmDialog.type === "delete"
+                    ? "Permanently Delete"
+                    : confirmDialog.type === "pause"
+                      ? "Pause"
+                      : "Temporarily Ban"}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Toasts */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none">
@@ -605,14 +808,18 @@ export default function PlatformAnalytics() {
           <div className="bg-error-bg text-error-text dark:text-red-200 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm pointer-events-auto border border-error-border">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="ml-2"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setError(null)} className="ml-2">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
         {success && (
           <div className="bg-success-bg text-success-text dark:text-success-text px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm pointer-events-auto border border-success-border">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
-            <button onClick={() => setSuccess(null)} className="ml-2"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setSuccess(null)} className="ml-2">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
