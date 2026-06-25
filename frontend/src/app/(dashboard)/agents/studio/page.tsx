@@ -62,7 +62,6 @@ interface Agent {
   primary_dri?: Person | null;
   backup_dri?: Person | null;
   last_activity?: string | null;
-  lifecycle_stage?: string | null;
   created_at: string;
   runtime_controls?: {
     environment?: string;
@@ -168,7 +167,6 @@ export default function StudioPage() {
   const [environmentFilter, setEnvironmentFilter] = useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
-  const [attentionDismissed, setAttentionDismissed] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -757,22 +755,8 @@ export default function StudioPage() {
     return { active, certified, riskAlerts, avgTrust, governanceDebt };
   }, [agents, getReadiness]);
 
-  // Agents that need immediate operator attention — drives the attention banner.
-  // Reset dismissed state whenever this set changes so new issues resurface.
-  const attentionAgents = useMemo(() => {
-    return agents.filter(
-      (a) =>
-        ["RESTRICTED", "SUSPENDED"].includes(a.status) ||
-        ["high", "critical"].includes((a.risk_level || "").toLowerCase()),
-    );
-  }, [agents]);
-
-  useEffect(() => {
-    setAttentionDismissed(false);
-  }, [attentionAgents]);
-
   return (
-    <div className="p-4 sm:p-5 lg:p-8 mx-auto max-w-[1850px] space-y-5">
+    <div className="p-5 mx-auto max-w-[1850px] space-y-5">
       {/* Hidden file input for Import Template */}
       <input
         ref={importFileRef}
@@ -885,18 +869,8 @@ export default function StudioPage() {
               </div>
             </div>
 
-            {/* Action buttons — Import Template and Refresh on left; Kill Switch
-                isolated at far right after a visual separator (emergency action
-                should never share visual proximity with mundane actions). */}
+            {/* Action buttons — Kill Switch, Refresh, Import Template (Hire removed: fixed 6-agent catalog) */}
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => importFileRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-                title="Import an agent template JSON file"
-              >
-                <Upload className="h-4 w-4" />
-                Import Template
-              </button>
               <button
                 onClick={() => fetchAgents(workspaceId)}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
@@ -904,16 +878,22 @@ export default function StudioPage() {
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
-              {/* Spacer + separator isolate the emergency action from routine ones */}
-              <div className="flex-1" />
-              <div className="hidden sm:block w-px h-6 self-center bg-[var(--border)]" />
               <button
                 onClick={() => setIsKillSwitchOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/8 px-4 py-2 text-sm font-semibold text-rose-400 transition hover:border-rose-500/60 hover:bg-rose-500/15 hover:text-rose-300"
-                title="Emergency: suspend all active agents"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
               >
                 <ShieldAlert className="h-4 w-4" />
                 Kill Switch
+              </button>
+              {/* "Hire New Agent" removed — the Studio is a fixed catalog of the
+                  6 governed post-validation agents. New agents are not created here. */}
+              <button
+                onClick={() => importFileRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                title="Import an agent template JSON file"
+              >
+                <Upload className="h-4 w-4" />
+                Import Template
               </button>
             </div>
           </div>
@@ -928,268 +908,63 @@ export default function StudioPage() {
         </div>
       )}
 
-      {/* ── Metrics Strip — Active Agents | Certifications | Avg Trust Score | Risk Alerts ── */}
-      {/* Clickable slots filter the agent list. Avg Trust Score is a readout only. */}
-      <div className="overflow-hidden rounded-2xl border border-[var(--card-border)]">
-        <div className="grid grid-cols-2 sm:grid-cols-4">
-          {([
-            {
-              key: "active",
-              label: "Active Agents",
-              value: String(summary.active),
-              onClick: () => { setStatusFilter("ACTIVE"); setRiskFilter(""); },
-              clickable: true,
-              isActive: statusFilter === "ACTIVE",
-              danger: false,
-              hint: "Filter to active agents",
-            },
-            {
-              key: "certified",
-              label: "Certifications",
-              value: String(summary.certified),
-              onClick: () => { setStatusFilter("APPROVED"); setRiskFilter(""); },
-              clickable: true,
-              isActive: statusFilter === "APPROVED",
-              danger: false,
-              hint: "Filter to approved & active agents",
-            },
-            {
-              key: "trust",
-              label: "Avg Trust Score",
-              value: summary.avgTrust === "—" ? "No data" : summary.avgTrust,
-              onClick: undefined,
-              clickable: false,
-              isActive: false,
-              danger: false,
-              hint: undefined,
-            },
-            {
-              key: "risk",
-              label: "Risk Alerts",
-              value: String(summary.riskAlerts),
-              onClick: () => { setRiskFilter("high"); setStatusFilter(""); },
-              clickable: true,
-              isActive: riskFilter === "high",
-              danger: summary.riskAlerts > 0,
-              hint: "Filter to high-risk agents",
-            },
-          ] as const).map((slot, i) => {
-            const borderCls = [
-              "border-b border-r border-[var(--card-border)] sm:border-b-0",
-              "border-b border-[var(--card-border)] sm:border-b-0 sm:border-r",
-              "border-r border-[var(--card-border)]",
-              "",
-            ][i];
-
-            const isNoData = slot.value === "No data";
-
-            return (
-              <div
-                key={slot.key}
-                role={slot.clickable ? "button" : undefined}
-                tabIndex={slot.clickable ? 0 : undefined}
-                title={slot.hint}
-                onClick={slot.onClick}
-                onKeyDown={slot.clickable ? (e) => { if (e.key === "Enter" || e.key === " ") slot.onClick?.(); } : undefined}
-                className={[
-                  "relative flex flex-col gap-1.5 px-5 py-4 transition-colors",
-                  borderCls,
-                  slot.clickable
-                    ? "cursor-pointer hover:bg-[var(--surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500/40"
-                    : "cursor-default",
-                  slot.isActive ? "bg-indigo-500/5" : "",
-                ].filter(Boolean).join(" ")}
-              >
-                {slot.isActive && (
-                  <span className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-indigo-500" />
-                )}
-                <span
-                  className={[
-                    "font-mono font-bold tabular-nums leading-none",
-                    isNoData
-                      ? "text-sm text-[var(--foreground-muted)] font-medium mt-1"
-                      : "text-[26px]",
-                    !isNoData && slot.danger
-                      ? "text-rose-400"
-                      : !isNoData
-                      ? "text-[var(--foreground)]"
-                      : "",
-                  ].filter(Boolean).join(" ")}
-                >
-                  {slot.value}
-                </span>
-                <span
-                  className={[
-                    "flex items-center gap-1 text-[11px]",
-                    slot.isActive
-                      ? "text-indigo-400"
-                      : "text-[var(--foreground-muted)]",
-                  ].join(" ")}
-                >
-                  {slot.label}
-                  {slot.clickable && (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 10 10"
-                      className="h-2.5 w-2.5 opacity-50"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M2 8L8 2M5 2h3v3" />
-                    </svg>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Lifecycle Pipeline — clickable filter strip ── */}
-      {/* Each stage chip filters the agent list to that lifecycle segment.
-          "All" clears the filter. Active chip shows the current filter state. */}
-      {agents.length > 0 && (() => {
-        const stageCounts: Record<string, number> = {}
-        for (const a of agents) {
-          const key = a.lifecycle_stage || a.status || 'UNKNOWN'
-          stageCounts[key] = (stageCounts[key] || 0) + 1
-        }
-        const stages = [
-          { key: 'DRAFT',    label: 'Draft',    filterValue: 'DRAFT',                color: 'text-[var(--foreground-muted)]', activeColor: 'text-[var(--foreground)]',    activeBg: 'bg-[var(--background)]',   activeBorder: 'border-[var(--border)]' },
-          { key: 'PENDING',  label: 'Certify',  filterValue: 'PENDING_CERTIFICATION', color: 'text-amber-400',                activeColor: 'text-amber-300',              activeBg: 'bg-amber-500/15',           activeBorder: 'border-amber-500/40' },
-          { key: 'REVIEW',   label: 'Review',   filterValue: 'IN_REVIEW',             color: 'text-orange-400',               activeColor: 'text-orange-300',             activeBg: 'bg-orange-500/15',          activeBorder: 'border-orange-500/40' },
-          { key: 'APPROVED', label: 'Approved', filterValue: 'APPROVED',              color: 'text-sky-400',                  activeColor: 'text-sky-300',                activeBg: 'bg-sky-500/15',             activeBorder: 'border-sky-500/40' },
-          { key: 'ACTIVE',   label: 'Active',   filterValue: 'ACTIVE',                color: 'text-emerald-400',              activeColor: 'text-emerald-300',            activeBg: 'bg-emerald-500/15',         activeBorder: 'border-emerald-500/40' },
-        ]
-        const total = agents.length
-        const isAllActive = !statusFilter
-        return (
-          <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] px-4 py-3 scrollbar-none">
-            {/* All — clears status filter */}
-            <button
-              onClick={() => setStatusFilter("")}
-              className={`flex flex-col items-center gap-1 px-3 rounded-xl py-1.5 transition shrink-0 focus:outline-none ${
-                isAllActive
-                  ? "bg-indigo-500/15 border border-indigo-500/40 ring-1 ring-indigo-500/20"
-                  : "hover:bg-[var(--background)] border border-transparent"
-              }`}
-            >
-              <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${isAllActive ? "text-indigo-400" : "text-[var(--foreground-muted)]"}`}>All</span>
-              <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${isAllActive ? "border-indigo-500/40 bg-indigo-500/10" : "border-[var(--border)] bg-[var(--background)]"}`}>
-                <span className={`text-sm font-bold ${isAllActive ? "text-indigo-400" : "text-[var(--foreground-muted)]"}`}>{total}</span>
-              </div>
-              <span className="text-[9px] text-[var(--foreground-muted)]">100%</span>
-            </button>
-            <span className="text-[var(--foreground-muted)] text-xs shrink-0 opacity-40">→</span>
-            {stages.map((stage, idx) => {
-              const count = Object.entries(stageCounts).reduce((acc, [k, v]) => {
-                return k.toUpperCase().includes(stage.key) ? acc + v : acc
-              }, 0)
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0
-              const isActive = statusFilter === stage.filterValue
-              return (
-                <div key={stage.key} className="flex items-center shrink-0">
-                  <button
-                    onClick={() => setStatusFilter(isActive ? "" : stage.filterValue)}
-                    title={`Filter: ${stage.label} (${count})`}
-                    className={`flex flex-col items-center gap-1 px-3 rounded-xl py-1.5 transition focus:outline-none ${
-                      isActive
-                        ? `${stage.activeBg} border ${stage.activeBorder} ring-1 ring-inset ring-white/5`
-                        : "hover:bg-[var(--background)] border border-transparent"
-                    }`}
-                  >
-                    <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${isActive ? stage.activeColor : stage.color}`}>{stage.label}</span>
-                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${
-                      isActive
-                        ? `${stage.activeBorder} ${stage.activeBg}`
-                        : "border-[var(--border)] bg-[var(--background)]"
-                    }`}>
-                      <span className={`text-sm font-bold ${isActive ? stage.activeColor : stage.color}`}>{count}</span>
-                    </div>
-                    <span className="text-[9px] text-[var(--foreground-muted)]">{pct}%</span>
-                  </button>
-                  {idx < stages.length - 1 && (
-                    <span className="text-[var(--foreground-muted)] text-xs px-1 shrink-0 opacity-40">→</span>
-                  )}
+      {/* ── Stats Row — spec: Active Agents | Certifications | Avg Trust Score | Risk Alerts ── */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: "Active Agents",
+            value: summary.active,
+            icon: PlayCircle,
+            tone: "text-emerald-500",
+            border: "border-emerald-500/10",
+            bg: "bg-emerald-500/5",
+          },
+          {
+            label: "Certifications",
+            value: summary.certified,
+            icon: Award,
+            tone: "text-indigo-500",
+            border: "border-indigo-500/10",
+            bg: "bg-indigo-500/5",
+          },
+          {
+            label: "Avg Trust Score",
+            value: summary.avgTrust,
+            icon: ShieldCheck,
+            tone: "text-sky-500",
+            border: "border-sky-500/10",
+            bg: "bg-sky-500/5",
+          },
+          {
+            label: "Risk Alerts",
+            value: summary.riskAlerts,
+            icon: ShieldAlert,
+            tone: "text-rose-500",
+            border: "border-rose-500/10",
+            bg: "bg-rose-500/5",
+          },
+        ].map((card) => (
+          <div
+            key={card.label}
+            className={`rounded-3xl border ${card.border} ${card.bg} p-5`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
+                  {card.label}
                 </div>
-              )
-            })}
-            {/* Show clear button when a filter is active */}
-            {statusFilter && (
-              <button
-                onClick={() => setStatusFilter("")}
-                className="ml-auto shrink-0 flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-[10px] font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition"
+                <div className="mt-2 text-3xl font-bold text-[var(--foreground)]">
+                  {card.value}
+                </div>
+              </div>
+              <div
+                className={`rounded-2xl bg-[var(--background)] p-3 ${card.tone}`}
               >
-                <X className="h-3 w-3" />
-                Clear
-              </button>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* ── Attention Required surface ── */}
-      {/* Surfaces agents needing immediate review. Separate from the main list —
-          sort order is intentionally preserved below. Dismissible per page load;
-          resets automatically when the attention set changes. */}
-      {attentionAgents.length > 0 && !attentionDismissed && (
-        <div className="flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/8 p-4">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-rose-300">
-              {attentionAgents.length} agent{attentionAgents.length !== 1 ? "s" : ""} need immediate attention
-            </div>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-              {attentionAgents.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => { setSelectedAgent(a); setIsDetailsOpen(true); }}
-                  className="text-xs text-rose-400/80 hover:text-rose-300 transition underline-offset-2 hover:underline whitespace-nowrap"
-                >
-                  {a.name}
-                  <span className="ml-1.5 text-rose-500/60 no-underline">
-                    {["RESTRICTED", "SUSPENDED"].includes(a.status)
-                      ? `— ${a.status.toLowerCase()}`
-                      : `— ${(a.risk_level || "").toUpperCase()} risk`}
-                  </span>
-                </button>
-              ))}
+                <card.icon className="h-5 w-5" />
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => setAttentionDismissed(true)}
-            className="shrink-0 rounded-lg p-1 text-rose-400/60 transition hover:bg-rose-500/15 hover:text-rose-300"
-            aria-label="Dismiss attention banner"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* ── Search ── */}
-      {/* Uses existing searchTerm state + filteredAgents memo — no new filtering logic. */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--foreground-muted)]" />
-        <input
-          type="search"
-          placeholder="Search agents by name, type, or brand…"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] py-2.5 pl-10 pr-4 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] transition focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
-        />
-        {searchTerm && (
-          <button
-            onClick={() => setSearchTerm("")}
-            aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
+        ))}
       </div>
 
       {/* ── Agent Catalog ── */}
@@ -1246,12 +1021,11 @@ export default function StudioPage() {
             Refresh Catalog
           </button>
         </div>
-      ) : (
-        <>
-        {viewMode === "table" && (
-        <div className="hidden md:block overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--surface)]">
+      ) : viewMode === "table" ? (
+        /* ── Table View ── */
+        <div className="overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--surface)]">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed divide-y divide-[var(--card-border)] min-w-[800px]">
+            <table className="w-full table-fixed divide-y divide-[var(--card-border)]">
               <colgroup>
                 <col className="w-[15%]" />
                 <col className="w-[24%]" />
@@ -1360,13 +1134,12 @@ export default function StudioPage() {
                               Trust Score
                             </div>
                             <div className="mt-0.5 flex items-center gap-2">
-                              {/* Trust bar with threshold marker at 85% */}
-                              <div className="relative h-1.5 w-20 overflow-visible rounded-full bg-[var(--background)]">
+                              <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--background)]">
                                 <div
                                   className={`h-full rounded-full ${
-                                    agent.trust_score >= 0.85
+                                    agent.trust_score >= 0.8
                                       ? "bg-emerald-500"
-                                      : agent.trust_score >= 0.70
+                                      : agent.trust_score >= 0.6
                                         ? "bg-amber-500"
                                         : "bg-rose-500"
                                   }`}
@@ -1374,20 +1147,8 @@ export default function StudioPage() {
                                     width: `${(agent.trust_score || 0) * 100}%`,
                                   }}
                                 />
-                                {/* Threshold marker at 85% */}
-                                <div
-                                  className="absolute -top-0.5 bottom-0 w-px bg-[var(--foreground-muted)]/40"
-                                  style={{ left: "85%" }}
-                                  title="85% threshold"
-                                />
                               </div>
-                              <span className={`text-sm font-bold ${
-                                agent.trust_score >= 0.85
-                                  ? "text-emerald-400"
-                                  : agent.trust_score >= 0.70
-                                    ? "text-amber-400"
-                                    : "text-rose-400"
-                              }`}>
+                              <span className="text-sm font-bold text-[var(--foreground)]">
                                 {formatPercent(agent.trust_score)}
                               </span>
                             </div>
@@ -1654,8 +1415,9 @@ export default function StudioPage() {
             </table>
           </div>
         </div>
-        )}
-        <div className={`grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 ${viewMode === "table" ? "md:hidden" : ""}`}>
+      ) : (
+        /* ── Card View ── */
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredAgents.map((agent) => {
             const readiness = getReadiness(agent);
             const isRetired = agent.status === "RETIRED";
@@ -1701,18 +1463,11 @@ export default function StudioPage() {
                     {(agent.linked_channels || []).join(", ") || "None"}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[var(--foreground-muted)]">Trust</span>
-                    <div className="relative h-1.5 w-16 overflow-visible rounded-full bg-[var(--background)]">
-                      <div
-                        className={`h-full rounded-full ${(agent.trust_score || 0) >= 0.85 ? 'bg-emerald-500' : (agent.trust_score || 0) >= 0.70 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                        style={{ width: `${(agent.trust_score || 0) * 100}%` }}
-                      />
-                      {/* Threshold marker at 85% */}
-                      <div className="absolute -top-0.5 bottom-0 w-px bg-[var(--foreground-muted)]/40" style={{ left: "85%" }} />
-                    </div>
-                    <span className={`text-xs font-bold ${(agent.trust_score || 0) >= 0.85 ? 'text-emerald-400' : (agent.trust_score || 0) >= 0.70 ? 'text-amber-400' : 'text-rose-400'}`}>{formatPercent(agent.trust_score)}</span>
-                    <span className="text-[var(--foreground-muted)]">·</span>
-                    <span className="text-[10px] text-[var(--foreground-muted)]">Faith {formatPercent(agent.faithfulness_score)}</span>
+                    <span>Trust: {formatPercent(agent.trust_score)}</span>
+                    <span>·</span>
+                    <span>
+                      Faithfulness: {formatPercent(agent.faithfulness_score)}
+                    </span>
                   </div>
                   <div>
                     Last activity: {agent.last_activity || "Not yet active"}
@@ -1792,7 +1547,6 @@ export default function StudioPage() {
             );
           })}
         </div>
-        </>
       )}
 
     </div>
