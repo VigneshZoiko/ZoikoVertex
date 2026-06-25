@@ -928,96 +928,125 @@ export default function StudioPage() {
         </div>
       )}
 
-      {/* ── Stats Row — spec: Active Agents | Certifications | Avg Trust Score | Risk Alerts ── */}
-      {/* Each card is a filter shortcut: clicking narrows the agent list to the
-          relevant segment. Avg Trust Score has no single-filter equivalent so
-          it remains a static readout. */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-4">
-        {[
-          {
-            label: "Active Agents",
-            value: summary.active,
-            icon: PlayCircle,
-            tone: "text-emerald-500",
-            border: "border-emerald-500/10",
-            bg: "bg-emerald-500/5",
-            hoverBorder: "hover:border-emerald-500/40",
-            onClick: () => { setStatusFilter("ACTIVE"); setRiskFilter(""); },
-            clickable: true,
-            hint: "Show active agents",
-          },
-          {
-            label: "Certifications",
-            value: summary.certified,
-            icon: Award,
-            tone: "text-indigo-500",
-            border: "border-indigo-500/10",
-            bg: "bg-indigo-500/5",
-            hoverBorder: "hover:border-indigo-500/40",
-            onClick: () => { setStatusFilter("APPROVED"); setRiskFilter(""); },
-            clickable: true,
-            hint: "Show approved & active agents",
-          },
-          {
-            label: "Avg Trust Score",
-            value: summary.avgTrust,
-            icon: ShieldCheck,
-            tone: "text-sky-500",
-            border: "border-sky-500/10",
-            bg: "bg-sky-500/5",
-            hoverBorder: "",
-            onClick: undefined,
-            clickable: false,
-            hint: undefined,
-          },
-          {
-            label: "Risk Alerts",
-            value: summary.riskAlerts,
-            icon: ShieldAlert,
-            tone: "text-rose-500",
-            border: "border-rose-500/10",
-            bg: "bg-rose-500/5",
-            hoverBorder: "hover:border-rose-500/40",
-            onClick: () => { setRiskFilter("high"); setStatusFilter(""); },
-            clickable: true,
-            hint: "Show high-risk agents",
-          },
-        ].map((card) => (
-          <div
-            key={card.label}
-            role={card.clickable ? "button" : undefined}
-            tabIndex={card.clickable ? 0 : undefined}
-            title={card.hint}
-            onClick={card.onClick}
-            onKeyDown={card.clickable ? (e) => { if (e.key === "Enter" || e.key === " ") card.onClick?.(); } : undefined}
-            className={`rounded-3xl border ${card.border} ${card.bg} p-5 ${
-              card.clickable
-                ? `cursor-pointer transition ${card.hoverBorder} hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--border)]`
-                : ""
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
-                  {card.label}
-                </div>
-                <div className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-                  {card.value}
-                </div>
-              </div>
-              <div className={`flex flex-col items-center gap-1`}>
-                <div className={`rounded-2xl bg-[var(--background)] p-3 ${card.tone}`}>
-                  <card.icon className="h-5 w-5" />
-                </div>
-                {card.clickable && (
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--foreground-muted)]">
-                    Filter ↗
-                  </span>
+      {/* ── Metrics Strip — Active Agents | Certifications | Avg Trust Score | Risk Alerts ── */}
+      {/* Clickable slots filter the agent list. Avg Trust Score is a readout only. */}
+      <div className="overflow-hidden rounded-2xl border border-[var(--card-border)]">
+        <div className="grid grid-cols-2 sm:grid-cols-4">
+          {([
+            {
+              key: "active",
+              label: "Active Agents",
+              value: String(summary.active),
+              onClick: () => { setStatusFilter("ACTIVE"); setRiskFilter(""); },
+              clickable: true,
+              isActive: statusFilter === "ACTIVE",
+              danger: false,
+              hint: "Filter to active agents",
+            },
+            {
+              key: "certified",
+              label: "Certifications",
+              value: String(summary.certified),
+              onClick: () => { setStatusFilter("APPROVED"); setRiskFilter(""); },
+              clickable: true,
+              isActive: statusFilter === "APPROVED",
+              danger: false,
+              hint: "Filter to approved & active agents",
+            },
+            {
+              key: "trust",
+              label: "Avg Trust Score",
+              value: summary.avgTrust === "—" ? "No data" : summary.avgTrust,
+              onClick: undefined,
+              clickable: false,
+              isActive: false,
+              danger: false,
+              hint: undefined,
+            },
+            {
+              key: "risk",
+              label: "Risk Alerts",
+              value: String(summary.riskAlerts),
+              onClick: () => { setRiskFilter("high"); setStatusFilter(""); },
+              clickable: true,
+              isActive: riskFilter === "high",
+              danger: summary.riskAlerts > 0,
+              hint: "Filter to high-risk agents",
+            },
+          ] as const).map((slot, i) => {
+            const borderCls = [
+              "border-b border-r border-[var(--card-border)] sm:border-b-0",
+              "border-b border-[var(--card-border)] sm:border-b-0 sm:border-r",
+              "border-r border-[var(--card-border)]",
+              "",
+            ][i];
+
+            const isNoData = slot.value === "No data";
+
+            return (
+              <div
+                key={slot.key}
+                role={slot.clickable ? "button" : undefined}
+                tabIndex={slot.clickable ? 0 : undefined}
+                title={slot.hint}
+                onClick={slot.onClick}
+                onKeyDown={slot.clickable ? (e) => { if (e.key === "Enter" || e.key === " ") slot.onClick?.(); } : undefined}
+                className={[
+                  "relative flex flex-col gap-1.5 px-5 py-4 transition-colors",
+                  borderCls,
+                  slot.clickable
+                    ? "cursor-pointer hover:bg-[var(--surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500/40"
+                    : "cursor-default",
+                  slot.isActive ? "bg-indigo-500/5" : "",
+                ].filter(Boolean).join(" ")}
+              >
+                {slot.isActive && (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-indigo-500" />
                 )}
+                <span
+                  className={[
+                    "font-mono font-bold tabular-nums leading-none",
+                    isNoData
+                      ? "text-sm text-[var(--foreground-muted)] font-medium mt-1"
+                      : "text-[26px]",
+                    !isNoData && slot.danger
+                      ? "text-rose-400"
+                      : !isNoData
+                      ? "text-[var(--foreground)]"
+                      : "",
+                  ].filter(Boolean).join(" ")}
+                >
+                  {slot.value}
+                </span>
+                <span
+                  className={[
+                    "flex items-center gap-1 text-[11px]",
+                    slot.isActive
+                      ? "text-indigo-400"
+                      : "text-[var(--foreground-muted)]",
+                  ].join(" ")}
+                >
+                  {slot.label}
+                  {slot.clickable && (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 10 10"
+                      className="h-2.5 w-2.5 opacity-50"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M2 8L8 2M5 2h3v3" />
+                    </svg>
+                  )}
+                </span>
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Lifecycle Pipeline — clickable filter strip ── */}

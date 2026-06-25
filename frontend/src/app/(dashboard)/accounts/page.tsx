@@ -477,7 +477,7 @@ export default function AccountsPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         {[
           { label: "Platforms Connected",   value: connectedPlatforms,                      icon: Link2,        color: "text-info-text",  bg: "bg-info-text/10"  },
           { label: "Total Accounts",         value: totalAccounts,                            icon: CheckCircle2, color: "text-success-text", bg: "bg-success-text/10" },
