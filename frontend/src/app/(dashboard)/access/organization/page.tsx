@@ -149,6 +149,14 @@ export default function OrganizationStructurePage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  useEffect(() => {
+    if (!deleteTarget) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return () => { document.body.style.overflow = prev; };
+  }, [deleteTarget]);
+
   const handleAction = async (
     action: "archive" | "restore" | "delete",
     id: string,

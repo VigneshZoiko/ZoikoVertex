@@ -758,6 +758,11 @@ function PublishPageInner() {
     setIsDirty(hasDraft);
   }, [topic, description, media, mediaUrls, setIsDirty]);
 
+  // Reset dirty flag when navigating away from this page
+  useEffect(() => {
+    return () => { setIsDirty(false); };
+  }, [setIsDirty]);
+
   // Discard handler
   const handleDiscard = useCallback(() => {
     setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);

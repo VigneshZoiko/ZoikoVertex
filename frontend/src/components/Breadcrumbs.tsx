@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
+import { useDraftGuard } from '@/lib/context/DraftGuardContext';
 
 // Map paths to readable names
 const routeMap: Record<string, string> = {
@@ -57,6 +58,14 @@ const routeMap: Record<string, string> = {
 
 export default function Breadcrumbs() {
   const pathname = usePathname();
+  const { isDirty, requestNavigation } = useDraftGuard();
+
+  const handleHomeClick = (e: React.MouseEvent) => {
+    if (isDirty && pathname === '/publish') {
+      e.preventDefault();
+      requestNavigation('/dashboard');
+    }
+  };
   
   if (!pathname) return null;
 
@@ -78,8 +87,9 @@ export default function Breadcrumbs() {
     <nav className="flex items-center text-sm" aria-label="Breadcrumb">
       <ol className="flex items-center gap-1">
         <li>
-          <Link 
+          <Link
             href="/dashboard"
+            onClick={handleHomeClick}
             className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] p-1.5 rounded-md transition-colors flex items-center"
             title="Dashboard"
           >
