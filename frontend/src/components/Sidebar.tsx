@@ -307,14 +307,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 
-  // ── Evidence Layer — audit, forensic, legal ───────────────────────────────
+  // ── Evidence Layer — audit, forensic, vault ───────────────────────────────
   {
     id: "evidence",
     label: "Evidence Layer",
     icon: FileSearch,
     items: [
       {
-        name: "Audit Trail",
+        name: "Activity Log",
         href: "/evidence/audit-trail",
         // Tamper-evident records — auditors primary, validators (evidence read)
         icon: FileSearch,
@@ -322,36 +322,20 @@ const NAV_GROUPS: NavGroup[] = [
         plan: "audit_trail" as Feature,
       },
       {
-        name: "Forensic Hub",
-        href: "/evidence/forensic-hub",
-        icon: Fingerprint,
-        // Deep investigation — auditors, compliance, security
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
-        plan: "forensic_hub" as Feature,
-      },
-      {
         name: "Evidence Vault",
         href: "/evidence/evidence-vault",
         icon: Archive,
-        // Exportable evidence packs — auditors and compliance only
+        // Evidence items, legal holds, packages — auditors and compliance only
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"],
         plan: "evidence_vault" as Feature,
       },
       {
-        name: "Legal Holds",
-        href: "/evidence/legal-holds",
-        icon: Gavel,
-        // Legal hold management — auditors and compliance
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"],
-        plan: "legal_holds" as Feature,
-      },
-      {
-        name: "Identity Ledger",
-        href: "/evidence/identity-ledger",
+        name: "Investigations",
+        href: "/evidence/forensic-hub",
         icon: Fingerprint,
-        // Identity audit chain — developers (technical view), auditors (read)
-        roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","AUDITOR"],
-        plan: "identity_ledger" as Feature,
+        // Case investigation center — auditors, compliance, security
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
+        plan: "forensic_hub" as Feature,
       },
     ],
   },

@@ -191,6 +191,7 @@ function PostPreview({
               controls={isVideoMedia(currentMedia)}
               muted
               playsInline
+              expandable={isVideoMedia(currentMedia)}
             />
             {!isVideoMedia(currentMedia) && (
               <div className="absolute bottom-2 right-2 bg-black/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
@@ -223,6 +224,7 @@ function PostPreview({
               controls={isVideoMedia(currentMedia)}
               muted
               playsInline
+              expandable={isVideoMedia(currentMedia)}
             />
             {/* Save button overlay */}
             <button className="absolute top-2.5 right-2.5 bg-red-600 text-foreground text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
@@ -325,6 +327,7 @@ function PostPreview({
           controls={isVideoMedia(currentMedia)}
           muted
           playsInline
+          expandable={isVideoMedia(currentMedia)}
         />
 
         {/* ── Facebook action bar ── */}
@@ -1711,7 +1714,7 @@ function PublishPageInner() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* Discard Draft button — only show when dirty and user is MANAGER */}
           {isDirty && userRole === "MANAGER" && (
             <button
@@ -2157,7 +2160,9 @@ function PublishPageInner() {
                         😊
                       </button>
                       {showEmojiPicker && (
-                        <div className="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden">
+                        <div className="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden"
+                          style={{ maxWidth: 'calc(100vw - 2rem)' }}
+                        >
                           <EmojiPicker
                             onEmojiClick={handleEmojiSelect}
                             theme={"dark" as any}
@@ -2654,7 +2659,7 @@ function PublishPageInner() {
               {/* Date strip — 7 upcoming days + custom picker */}
               <div>
                 <p className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-1.5">Schedule For</p>
-                <div className="grid grid-cols-4 gap-1 mb-2">
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 mb-2">
                   {Array.from({ length: 7 }, (_, i) => {
                     const d = new Date();
                     d.setDate(d.getDate() + i);
@@ -2861,8 +2866,8 @@ function PublishPageInner() {
       {/* Edit Scheduled Post Modal */}
       {/* Edit Scheduled Post Modal */}
       {showEditScheduledModal && selectedScheduledPost && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 sm:p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-[var(--foreground)]">
                 Edit Scheduled Post

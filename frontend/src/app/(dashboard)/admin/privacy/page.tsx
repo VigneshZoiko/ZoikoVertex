@@ -44,7 +44,7 @@ export default function PrivacyDataPage() {
   }, []);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
           <Eye className="w-8 h-8 text-info-text" />
@@ -71,7 +71,7 @@ export default function PrivacyDataPage() {
           </p>
         </div>
         <div className="p-6 space-y-5">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { icon: Database, label: "Connected Accounts", desc: "Platform integrations" },
               { icon: Lock,     label: "Audit Trail",        desc: "Last 1,000 events" },

@@ -477,7 +477,7 @@ export default function AccountsPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         {[
           { label: "Platforms Connected",   value: connectedPlatforms,                      icon: Link2,        color: "text-info-text",  bg: "bg-info-text/10"  },
           { label: "Total Accounts",         value: totalAccounts,                            icon: CheckCircle2, color: "text-success-text", bg: "bg-success-text/10" },
@@ -485,13 +485,13 @@ export default function AccountsPage() {
         ].map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
-                <Icon className={`w-4 h-4 ${s.color}`} />
+            <div key={s.label} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 sm:p-3.5 flex items-center gap-2 sm:gap-3">
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${s.color}`} />
               </div>
-              <div>
-                <p className="text-lg font-black text-[var(--foreground)] tabular-nums leading-none">{s.value}</p>
-                <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">{s.label}</p>
+              <div className="min-w-0">
+                <p className="text-base sm:text-lg font-black text-[var(--foreground)] tabular-nums leading-none">{s.value}</p>
+                <p className="text-[10px] sm:text-[11px] text-[var(--foreground-muted)] mt-0.5 leading-tight">{s.label}</p>
               </div>
             </div>
           );
@@ -512,8 +512,8 @@ export default function AccountsPage() {
             <div key={platform.id}>
 
               {/* Platform row */}
-              <div 
-                className="flex items-center gap-4 px-5 py-4 transition-colors duration-150 cursor-pointer hover:bg-[var(--surface-hover)]"
+              <div
+                className="flex items-center gap-3 px-4 sm:px-5 py-4 transition-colors duration-150 cursor-pointer hover:bg-[var(--surface-hover)]"
                 onClick={(e) => {
                   if (!(e.target as HTMLElement).closest('button')) {
                     togglePlatform(platform.id);
@@ -521,7 +521,7 @@ export default function AccountsPage() {
                 }}
               >
                 {/* Chevron dropdown toggle */}
-                <div className="w-6 flex items-center justify-center shrink-0">
+                <div className="flex items-center justify-center shrink-0">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -534,8 +534,9 @@ export default function AccountsPage() {
                   </button>
                 </div>
 
+                {/* Platform icon */}
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
                     platform.comingSoon && platformAccounts.length === 0 ? "opacity-40" : ""
                   } ${
                     isDarkThemePlatform
@@ -547,8 +548,9 @@ export default function AccountsPage() {
                   <Icon />
                 </div>
 
+                {/* Name + badge + description */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <p className={`font-semibold text-sm${platform.comingSoon && platformAccounts.length === 0 ? " text-[var(--foreground-muted)]" : " text-[var(--foreground)]"}`}>
                       {platform.name}
                     </p>
@@ -560,10 +562,7 @@ export default function AccountsPage() {
                     {platformAccounts.length > 0 ? (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlatform(platform.id);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); togglePlatform(platform.id); }}
                         className="flex items-center gap-1 px-2 py-0.5 bg-success-text/10 border border-success-border/20 text-success-text text-[10px] font-bold rounded-full hover:bg-success-text/20 transition-colors"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-success-text" />
@@ -572,10 +571,7 @@ export default function AccountsPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlatform(platform.id);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); togglePlatform(platform.id); }}
                         className="flex items-center gap-1 px-2 py-0.5 bg-zinc-500/10 border border-zinc-500/20 text-[var(--foreground-muted)] text-[10px] font-bold rounded-full hover:bg-zinc-500/20 transition-colors"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
@@ -583,29 +579,30 @@ export default function AccountsPage() {
                       </button>
                     )}
                   </div>
-                  <p className="text-xs text-[var(--foreground-muted)] mt-0.5">{platform.description}</p>
+                  <p className="text-xs text-[var(--foreground-muted)] mt-0.5 leading-snug">{platform.description}</p>
                 </div>
 
+                {/* Action buttons — always on the right */}
                 {!platform.comingSoon && !isLoading && canManageAccounts && (
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {platform.id === "linkedin" && (
                       <button
                         onClick={() => handleConnect("linkedin_page")}
                         disabled={isSubmitting === "linkedin_page"}
-                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 border"
+                        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 border"
                         style={{ color: platform.color, borderColor: platform.color + "55", backgroundColor: platform.color + "11" }}
                       >
                         {isSubmitting === "linkedin_page"
-                          ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          : <Link2 className="w-3.5 h-3.5" />
+                          ? <RefreshCw className="w-3 h-3 animate-spin" />
+                          : <Link2 className="w-3 h-3" />
                         }
-                        Page
+                        <span className="hidden sm:inline">Page</span>
                       </button>
                     )}
                     <button
                       onClick={() => handleConnect(platform.id)}
                       disabled={isConnecting}
-                      className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 ${
+                      className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 ${
                         isDarkThemePlatform
                           ? "bg-black dark:bg-white text-foreground dark:text-black border border-border dark:border-zinc-200"
                           : "text-foreground"
@@ -613,10 +610,10 @@ export default function AccountsPage() {
                       style={isDarkThemePlatform ? {} : { backgroundColor: platform.color }}
                     >
                       {isConnecting
-                        ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        : <Plus className="w-3.5 h-3.5" />
+                        ? <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin" />
+                        : <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       }
-                      Connect
+                      <span>Connect</span>
                     </button>
                   </div>
                 )}
@@ -629,7 +626,7 @@ export default function AccountsPage() {
                     platformAccounts.map((account) => (
                       <div
                         key={account.id}
-                        className="flex items-center gap-3 px-5 py-3 pl-[80px]"
+                        className="flex items-center gap-3 px-4 sm:px-5 py-3 pl-12 sm:pl-20"
                       >
                         {/* Avatar */}
                         {account.avatar_url ? (
@@ -766,7 +763,7 @@ export default function AccountsPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="flex items-center gap-2 px-5 py-4 pl-[80px] text-xs text-[var(--foreground-muted)] italic">
+                    <div className="flex items-center gap-2 px-4 sm:px-5 py-4 pl-12 sm:pl-20 text-xs text-[var(--foreground-muted)] italic">
                       <AlertCircle className="w-3.5 h-3.5 text-[var(--foreground-muted)] shrink-0 opacity-60" />
                       <span>No accounts connected.</span>
                     </div>

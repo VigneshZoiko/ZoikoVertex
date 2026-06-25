@@ -1193,7 +1193,7 @@ export default function CreateAgentWizard({
                     {formData.permitted_actions.length} selected
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {AGENT_ACTIONS.map((action) => (
                     <button
                       key={action.id}
@@ -1228,7 +1228,7 @@ export default function CreateAgentWizard({
                     {formData.prohibited_actions.length} selected
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {AGENT_ACTIONS.map((action) => (
                     <button
                       key={action.id}

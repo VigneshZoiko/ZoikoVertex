@@ -14,6 +14,20 @@ async function resolveAuth(): Promise<AuthResolution> {
     if (!session?.access_token) {
       return { ok: false, reason: "NO_SESSION" };
     }
+
+    // If the token is expired or expiring within 60s, force a refresh before
+    // sending it to the backend — prevents the backend from seeing a stale JWT
+    // that it would correctly reject with 401 (e.g. after an idle overnight tab).
+    const expiresAt = session.expires_at ?? 0;
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (expiresAt < nowSec + 60) {
+      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+      if (refreshErr || !refreshed.session?.access_token) {
+        return { ok: false, reason: "REFRESH_FAILED", detail: refreshErr?.message };
+      }
+      return { ok: true, headers: { Authorization: `Bearer ${refreshed.session.access_token}` } };
+    }
+
     return { ok: true, headers: { Authorization: `Bearer ${session.access_token}` } };
   } catch (err) {
     console.warn(

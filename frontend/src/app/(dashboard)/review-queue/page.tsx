@@ -353,9 +353,9 @@ export default function ReviewQueuePage() {
     );
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 pb-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-16">
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 sm:mb-8 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-8 h-8 bg-surface border border-border rounded-lg flex items-center justify-center">
@@ -406,7 +406,7 @@ export default function ReviewQueuePage() {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
             {
               label: "Needs Review",
@@ -443,9 +443,9 @@ export default function ReviewQueuePage() {
       )}
 
       {/* Main Layout */}
-      <div className="flex gap-5 items-start">
+      <div className="flex flex-col md:flex-row gap-5 items-start">
         {/* Left: Item List */}
-        <div className="w-[260px] shrink-0 flex flex-col gap-3">
+        <div className="w-full md:w-[260px] md:shrink-0 flex flex-col gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
@@ -484,7 +484,7 @@ export default function ReviewQueuePage() {
             ))}
           </div>
 
-          <div className="space-y-1.5 max-h-[600px] overflow-y-auto scrollbar-none">
+          <div className="space-y-1.5 md:max-h-[600px] overflow-y-auto scrollbar-none">
             {loading ? (
               <div className="flex flex-col items-center py-12 text-foreground-muted gap-3">
                 <div className="w-5 h-5 border-2 border-border border-t-zinc-400 rounded-full animate-spin" />
@@ -557,11 +557,11 @@ export default function ReviewQueuePage() {
               {/* Instagram PC Card */}
               <div className="bg-card border border-border rounded-lg overflow-hidden">
                 <div
-                  className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}
+                  className={`flex flex-col sm:flex-row items-stretch ${hasMedia ? "" : "flex-col"}`}
                 >
                   {/* Left info pane */}
                   <div
-                    className={`flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-border p-4" : "w-full p-5"}`}
+                    className={`flex flex-col gap-3 ${hasMedia ? "w-full sm:w-[230px] sm:shrink-0 sm:border-r border-b sm:border-b-0 border-border p-4" : "w-full p-5"}`}
                   >
                     {/* Title + badges */}
                     <div className="pb-3 border-b border-border">

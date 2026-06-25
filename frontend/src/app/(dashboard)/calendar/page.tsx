@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
-  ChevronLeft, ChevronRight, Calendar, X,
-  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical,
+  ChevronLeft, ChevronRight, Calendar, Clock, X,
+  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical, CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
+import { MediaPreview } from "@/components/MediaPreview";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -41,10 +42,13 @@ function statusBadgeClass(status: string): string {
   return "bg-zinc-500/20 text-foreground-muted";
 }
 
+// Routes pending/in-flight intent posts to the appropriate workflow page.
+// PUBLISHED is intentionally excluded — completed posts open an inline detail
+// drawer instead of navigating away (restores pre-63929d0 behaviour).
 function intentLink(post: CalendarPost): string {
   if (post.status === "RETURNED") return "/publish";
-  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review";
-  if (post.status === "APPROVED" || post.status === "PUBLISHED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review-queue";
+  if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
   return "/publish";
 }
 
@@ -52,7 +56,6 @@ function intentLinkLabel(post: CalendarPost): string {
   if (post.status === "RETURNED") return "Edit Revision in Publish Hub";
   if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "View in Review Queue";
   if (post.status === "APPROVED") return "View in Approval Console";
-  if (post.status === "PUBLISHED") return "View in Governance";
   return "View in Publishing Hub";
 }
 
@@ -78,14 +81,16 @@ function getStatusLabel(post: CalendarPost): string {
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [currentDate, setCurrentDate]     = useState(new Date());
-  const [posts, setPosts]                 = useState<CalendarPost[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingPost, setEditingPost]     = useState<CalendarPost | null>(null);
-  const [selectedDate, setSelectedDate]   = useState(new Date());
-  const [statusFilter, setStatusFilter]   = useState<"all" | "scheduled" | "publishing">("all");
-  const [openMenuId, setOpenMenuId]       = useState<string | null>(null);
+  const [currentDate, setCurrentDate]         = useState(new Date());
+  const [posts, setPosts]                     = useState<CalendarPost[]>([]);
+  const [loading, setLoading]                 = useState(true);
+  const [showEditModal, setShowEditModal]     = useState(false);
+  const [editingPost, setEditingPost]         = useState<CalendarPost | null>(null);
+  const [selectedPost, setSelectedPost]       = useState<CalendarPost | null>(null);
+  const [selectedDate, setSelectedDate]       = useState(new Date());
+  const [statusFilter, setStatusFilter]       = useState<"all" | "scheduled" | "publishing">("all");
+  const [openMenuId, setOpenMenuId]           = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker]   = useState(false);
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -164,6 +169,17 @@ export default function CalendarPage() {
     setSelectedDate(next);
   };
 
+  const jumpToDate = (dateStr: string) => {
+    if (!dateStr) return;
+    // dateStr is YYYY-MM-DD from the input; parse in local time to avoid UTC offset shift
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const picked = new Date(y, m - 1, d);
+    if (isNaN(picked.getTime())) return;
+    setCurrentDate(picked);
+    setSelectedDate(picked);
+    setShowDatePicker(false);
+  };
+
   const getWeekStart = (d: Date): Date => {
     const day = d.getDay();
     const diff = day === 0 ? -6 : 1 - day;
@@ -201,17 +217,41 @@ export default function CalendarPage() {
       )}
 
       {/* ── Month header ── */}
-      <div className="flex items-center justify-between py-4">
-        <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
+      <div className="relative flex items-center justify-between py-4">
+        <button onClick={() => { navigateWeek(-1); setShowDatePicker(false); }} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
           <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
         </button>
         <div className="text-center">
-          <h2 className="text-xl font-bold text-[var(--foreground)]">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
+          <button
+            onClick={() => setShowDatePicker((v) => !v)}
+            className="flex items-center gap-2 group"
+          >
+            <h2 className="text-xl font-bold text-[var(--foreground)] group-hover:text-info-text transition-colors">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+            <CalendarDays className="w-4 h-4 text-[var(--foreground-muted)] group-hover:text-info-text transition-colors" />
+          </button>
           {loading && <span className="text-xs text-info-text animate-pulse">Loading…</span>}
+          {showDatePicker && (
+            <div className="absolute left-1/2 -translate-x-1/2 mt-2 z-30 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl p-4 flex flex-col gap-3 min-w-[220px]">
+              <span className="text-xs font-bold text-[var(--foreground-muted)] tracking-widest uppercase">Jump to date</span>
+              <input
+                key={selDateStr}
+                type="date"
+                defaultValue={selDateStr}
+                onChange={(e) => jumpToDate(e.target.value)}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border [color-scheme:dark]"
+              />
+              <button
+                onClick={() => { jumpToDate(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-${String(new Date().getDate()).padStart(2,"0")}`); }}
+                className="text-xs text-info-text font-semibold hover:opacity-80 transition-opacity"
+              >
+                Go to today
+              </button>
+            </div>
+          )}
         </div>
-        <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
+        <button onClick={() => { navigateWeek(1); setShowDatePicker(false); }} className="p-2 hover:bg-[var(--surface-hover)] rounded-xl transition-colors">
           <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
         </button>
       </div>
@@ -346,8 +386,8 @@ export default function CalendarPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-[var(--foreground-muted)]">Completed</span>
-            <Link href="/library" className="flex items-center gap-1 text-xs text-info-text font-semibold hover:opacity-80 transition-opacity">
-              History <ExternalLink className="w-3 h-3" />
+            <Link href="/agents/workflows" className="flex items-center gap-1 text-xs text-info-text font-semibold hover:opacity-80 transition-opacity">
+              Full History <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
           <div className="space-y-3">
@@ -380,13 +420,12 @@ export default function CalendarPage() {
                   </button>
                   {openMenuId === post.id && (
                     <div className="absolute right-0 top-8 z-20 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden min-w-[150px]">
-                      <Link
-                        href={intentLink(post)}
-                        onClick={() => setOpenMenuId(null)}
-                        className="flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                      <button
+                        onClick={() => { setSelectedPost(post); setOpenMenuId(null); }}
+                        className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" /> View Post
-                      </Link>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -405,9 +444,108 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* ── Menu backdrop ── */}
-      {openMenuId && (
-        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+      {/* ── Backdrop for dot-menus and date picker ── */}
+      {(openMenuId || showDatePicker) && (
+        <div className="fixed inset-0 z-10" onClick={() => { setOpenMenuId(null); setShowDatePicker(false); }} />
+      )}
+
+      {/* ── Post Detail Drawer ── */}
+      {selectedPost && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50" onClick={() => setSelectedPost(null)}>
+          <div
+            className="bg-[var(--card)] border border-[var(--border)] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                  selectedPost.source === "scheduled"
+                    ? "bg-success-text/20 text-success-text"
+                    : "bg-warning-text/20 text-warning-text"
+                }`}>
+                  {selectedPost.source === "scheduled" ? <Calendar className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                  {selectedPost.source === "scheduled" ? "Scheduled" : "Publishing Hub"}
+                </span>
+                <span className="px-2.5 py-1 bg-info-text/20 text-info-text rounded-full text-[10px] font-bold">
+                  {selectedPost.platform}
+                </span>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${statusBadgeClass(selectedPost.status)}`}>
+                  {getStatusLabel(selectedPost)}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="p-1.5 text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] rounded-lg transition-colors flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* Content */}
+              <p className="text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap">
+                {selectedPost.content}
+              </p>
+
+              {/* Media */}
+              {selectedPost.media_url && (
+                <MediaPreview
+                  src={selectedPost.media_url}
+                  alt="Post media"
+                  className="w-full rounded-xl aspect-video"
+                  fit="contain"
+                  type={selectedPost.media_url.match(/\.(mp4|mov|webm)/i) ? "video" : "image"}
+                  controls
+                />
+              )}
+
+              {/* Timestamp */}
+              <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>
+                  {selectedPost.source === "scheduled" && selectedPost.scheduled_time
+                    ? formatDateTime(selectedPost.scheduled_time)
+                    : selectedPost.scheduled_for
+                      ? `Target: ${formatDateTime(selectedPost.scheduled_for)}`
+                      : `Submitted ${formatDateTime(selectedPost.created_at)}`
+                  }
+                </span>
+              </div>
+
+              {/* Actions — only for in-flight intent posts (not PUBLISHED) */}
+              {selectedPost.source === "intent" && selectedPost.status !== "PUBLISHED" && (
+                <Link
+                  href={intentLink(selectedPost)}
+                  onClick={() => setSelectedPost(null)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-warning-text/20 hover:bg-warning-text/30 text-warning-text text-sm font-bold rounded-xl transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  {intentLinkLabel(selectedPost)}
+                </Link>
+              )}
+
+              {/* Scheduled posts that are still editable */}
+              {selectedPost.source === "scheduled" && selectedPost.status === "SCHEDULED" && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setEditingPost(selectedPost); setShowEditModal(true); setSelectedPost(null); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-info-text hover:opacity-90 text-[var(--background)] text-sm font-bold rounded-xl transition-opacity"
+                  >
+                    <Edit3 className="w-4 h-4" /> Edit
+                  </button>
+                  <button
+                    onClick={() => { handleCancelPost(selectedPost.id); setSelectedPost(null); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-error-text/20 hover:bg-error-text/30 text-error-text text-sm font-bold rounded-xl transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Edit Scheduled Post Modal ── */}

@@ -126,16 +126,16 @@ export default function IdentityLedgerPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <Users className="w-5 h-5 text-foreground-muted" /> Identity Ledger
           </h1>
           <p className="text-xs text-foreground-muted mt-0.5">Immutable actor registry, delegations, and emergency access sessions</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button onClick={() => { if (tab === "actors") fetchActors(); else if (tab === "delegations") fetchDelegations(); else fetchBreakGlass(); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-surface border border-border rounded-lg hover:bg-surface-hover text-foreground-muted">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
@@ -184,7 +184,7 @@ export default function IdentityLedgerPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border mb-5">
+      <div className="flex items-center gap-1 border-b border-border mb-5 overflow-x-auto">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-colors ${
@@ -225,7 +225,8 @@ export default function IdentityLedgerPage() {
             {actorsLoading ? (
               <div className="p-10 text-center text-xs text-foreground-muted">Loading…</div>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[560px]">
                 <thead>
                   <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                     <th className="text-left p-3 font-medium">Actor</th>
@@ -283,6 +284,7 @@ export default function IdentityLedgerPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
           <p className="text-xs text-foreground-muted mt-2">{actorsTotal} total actors</p>
@@ -295,7 +297,8 @@ export default function IdentityLedgerPage() {
           {delegationsLoading ? (
             <div className="p-10 text-center text-xs text-foreground-muted">Loading…</div>
           ) : (
-            <table className="w-full text-xs">
+            <div className="overflow-x-auto">
+            <table className="w-full text-xs min-w-[540px]">
               <thead>
                 <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                   <th className="text-left p-3 font-medium">Delegator</th>
@@ -336,6 +339,7 @@ export default function IdentityLedgerPage() {
                 )}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -351,7 +355,8 @@ export default function IdentityLedgerPage() {
             {bgLoading ? (
               <div className="p-10 text-center text-xs text-foreground-muted">Loading…</div>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[540px]">
                 <thead>
                   <tr className="border-b border-border text-foreground-muted bg-surface-hover">
                     <th className="text-left p-3 font-medium">Actor</th>
@@ -392,6 +397,7 @@ export default function IdentityLedgerPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </>

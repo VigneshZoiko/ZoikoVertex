@@ -305,67 +305,99 @@ export const deleteLinkedInComment = async (req: AuthRequest, res: Response, nex
 // ── Sync helper called from inboxController.syncPlatformMessages ──────────────
 // Pulls comments from recent LinkedIn page posts into inbox_messages.
 
+// Uses LinkedIn v2 API (ugcPosts + socialActions) — same API tier as posting,
+// so no Community Management API product required.
+async function liGetV2(url: string, token: string): Promise<any> {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    logger.warn({ status: res.status, url, body }, '[LinkedIn v2] GET failed');
+    return { error: { status: res.status, message: body, permission_denied: res.status === 401 || res.status === 403 } };
+  }
+  return res.json();
+}
+
 export async function syncLinkedInComments(
   workspaceId: string,
   account: { id: string; account_handle: string; account_name: string; access_token: string },
   insertFn: (wsId: string, payload: Record<string, unknown>, opts?: Record<string, unknown>) => Promise<string>,
   syncOpts: Record<string, unknown>,
-): Promise<{ synced: number; error?: string }> {
+): Promise<{ synced: number; error?: string; debug: string[] }> {
   const { account_handle: orgUrn, access_token: token } = account;
-  const encodedOrg = encodeURIComponent(orgUrn);
+  const debug: string[] = [];
 
-  // Fetch last 10 posts
-  const postsData = await liGet(
-    `${LI_REST}/posts?author=${encodedOrg}&count=10&sortBy=LAST_MODIFIED`,
+  // Fetch recent posts via v2 ugcPosts API (same as what posting uses)
+  const encodedAuthorList = `List(${encodeURIComponent(orgUrn)})`;
+  const postsData = await liGetV2(
+    `${LI_V2}/ugcPosts?q=authors&authors=${encodedAuthorList}&count=20&sortBy=LAST_MODIFIED`,
     token,
   );
 
   if (postsData.error) {
-    return { synced: 0, error: `LinkedIn posts fetch failed: ${postsData.error.message || JSON.stringify(postsData.error)}` };
+    const msg = typeof postsData.error.message === 'string' ? postsData.error.message : JSON.stringify(postsData.error);
+    return { synced: 0, error: `LinkedIn posts fetch failed (${postsData.error.status}): ${msg}`, debug };
   }
 
   const posts: any[] = postsData.elements || [];
+  debug.push(`found ${posts.length} post(s) on page`);
   let synced = 0;
 
   for (const post of posts) {
     const postUrn = post.id as string;
-    const commentsData = await liGet(
-      `${LI_REST}/comments?parentEntity=${encodeURIComponent(postUrn)}&count=50`,
+
+    // Fetch comments via v2 socialActions API
+    const commentsData = await liGetV2(
+      `${LI_V2}/socialActions/${encodeURIComponent(postUrn)}/comments?count=50`,
       token,
     );
-    if (commentsData.error) continue;
+    if (commentsData.error) {
+      debug.push(`comments fetch failed for ${postUrn}: status=${commentsData.error.status}`);
+      continue;
+    }
 
-    for (const c of (commentsData.elements || []) as any[]) {
-      // Skip page's own comments
-      if (c.actor === orgUrn) continue;
+    const allComments = (commentsData.elements || []) as any[];
+    const external = allComments.filter((c: any) => c.actor !== orgUrn);
+    debug.push(`post ${postUrn}: ${allComments.length} comment(s), ${external.length} external`);
 
-      const actorUrn = c.actor || '';
-      const actorName = c.$actor?.localizedFirstName
-        ? `${c.$actor.localizedFirstName} ${c.$actor.localizedLastName || ''}`.trim()
+    for (const c of external) {
+      const actorUrn = (c.actor as string) || '';
+      // v2 API may return actor profile via $actor or actor~ projection
+      const actorProfile = c['actor~'] || c.$actor;
+      const actorName = actorProfile?.localizedFirstName
+        ? `${actorProfile.localizedFirstName} ${actorProfile.localizedLastName || ''}`.trim()
         : 'LinkedIn Member';
       const text = c.message?.text || '';
-      if (!text) continue;
+      if (!text) {
+        debug.push(`  skipping comment ${c.id} — empty text`);
+        continue;
+      }
 
       const result = await insertFn(
         workspaceId,
         {
-          platform:           'LINKEDIN',
+          platform:            'LINKEDIN',
           platform_message_id: c.id,
-          sender_name:        actorName,
-          sender_handle:      actorUrn,
-          message_type:       'COMMENT',
-          message_body:       text,
-          original_post_id:   postUrn,
-          status:             'UNREAD',
-          risk_level:         'LOW',
-          sentiment:          'NEUTRAL',
-          received_at:        c.created?.time ? new Date(c.created.time).toISOString() : new Date().toISOString(),
+          sender_name:         actorName,
+          sender_handle:       actorUrn,
+          message_type:        'COMMENT',
+          message_body:        text,
+          original_post_id:    postUrn,
+          status:              'UNREAD',
+          risk_level:          'LOW',
+          sentiment:           'NEUTRAL',
+          received_at:         c.created?.time ? new Date(c.created.time).toISOString() : new Date().toISOString(),
         },
         syncOpts,
       );
+      debug.push(`  comment ${c.id}: ${result}`);
       if (result === 'new') synced++;
     }
   }
 
-  return { synced };
+  return { synced, debug };
 }

@@ -468,7 +468,7 @@ export default function RolesAndUnitsPage() {
   const [tab, setTab] = useState<Tab>("roles");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 pb-24">
       {/* Page header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
@@ -491,12 +491,12 @@ export default function RolesAndUnitsPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-[var(--surface-hover)] rounded-xl w-fit mb-8">
+      <div className="flex gap-1 p-1 bg-[var(--surface-hover)] rounded-xl w-full sm:w-fit mb-8">
         {(["roles", "units"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
+            className={`flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
               tab === t
                 ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm"
                 : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"

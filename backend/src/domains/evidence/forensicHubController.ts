@@ -77,9 +77,9 @@ export async function getStats(req: AuthRequest, res: Response, next: NextFuncti
 export async function getCase(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const caseId = req.params.caseId as string;
-    const result = caseId.includes('-')
-      ? await forensicService.getCaseByCaseId(caseId)
-      : await forensicService.getCase(caseId);
+    // Try primary key (id) first, then fall back to case_id
+    let result = await forensicService.getCase(caseId);
+    if (!result) result = await forensicService.getCaseByCaseId(caseId);
     if (!result) return res.status(404).json({ success: false, error: 'Case not found' });
 
     res.json({ success: true, data: result });

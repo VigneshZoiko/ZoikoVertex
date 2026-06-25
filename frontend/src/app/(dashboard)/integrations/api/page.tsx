@@ -300,7 +300,7 @@ function ApiKeysTab() {
                   <span className="text-sm font-medium text-foreground">{key.name}</span>
                   <StatusBadge active={key.is_active} />
                 </div>
-                <div className="flex items-center gap-3 text-xs text-foreground-muted">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-foreground-muted">
                   <code className="font-mono text-foreground-muted">{key.key_prefix}••••••••••••</code>
                   <CopyButton text={key.key_prefix} />
                   <span>Created {fmtDate(key.created_at)}</span>
@@ -527,27 +527,28 @@ function WebhooksTab() {
         <div className="space-y-2">
           {webhooks.map(wh => (
             <div key={wh.id} className="border border-border rounded-xl bg-background overflow-hidden">
-              <div className="flex items-center gap-4 p-4">
-                <div className="p-2 rounded-lg bg-surface border border-border">
-                  <Webhook size={14} className="text-foreground-muted" />
+              <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="p-2 rounded-lg bg-surface border border-border shrink-0 mt-0.5">
+                    <Webhook size={14} className="text-foreground-muted" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-foreground">{wh.name}</span>
+                      <StatusBadge active={wh.is_active} failCount={wh.failure_count} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-foreground-muted mb-2">
+                      <code className="font-mono text-foreground-muted truncate max-w-[200px] sm:max-w-[280px]">{wh.url}</code>
+                      <span>· Last triggered {timeAgo(wh.last_triggered_at)}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {wh.events.map(ev => (
+                        <span key={ev} className="px-1.5 py-0.5 rounded text-[10px] bg-surface border border-border text-foreground-muted">{ev}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-foreground">{wh.name}</span>
-                    <StatusBadge active={wh.is_active} failCount={wh.failure_count} />
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-foreground-muted mb-2">
-                    <code className="font-mono text-foreground-muted truncate max-w-[280px]">{wh.url}</code>
-                    <span>•</span>
-                    <span>Last triggered {timeAgo(wh.last_triggered_at)}</span>
-                  </div>
-                  <div className="flex gap-1">
-                    {wh.events.map(ev => (
-                      <span key={ev} className="px-1.5 py-0.5 rounded text-[10px] bg-surface border border-border text-foreground-muted">{ev}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
                   {testResult?.id === wh.id && (
                     <span className={`text-xs flex items-center gap-1 ${testResult.status === "success" ? "text-success-text" : "text-error-text"}`}>
                       {testResult.status === "success"
@@ -627,7 +628,7 @@ export default function ApiWebhooksPage() {
   const [tab, setTab] = useState<"keys" | "webhooks">("keys");
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="px-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <div className="p-2 rounded-lg bg-surface border border-border">
@@ -640,22 +641,22 @@ export default function ApiWebhooksPage() {
         </p>
       </div>
 
-      <div className="flex gap-3 mb-6">
-        <div className="flex-1 border border-border rounded-xl p-3 bg-background">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="border border-border rounded-xl p-3 bg-background">
           <div className="flex items-center gap-2 mb-0.5">
             <Key size={13} className="text-foreground-muted" />
             <span className="text-xs text-foreground-muted font-medium">API Keys</span>
           </div>
           <p className="text-xs text-foreground-muted">Authenticate external systems via <code className="text-foreground-muted">Authorization: Bearer &lt;key&gt;</code></p>
         </div>
-        <div className="flex-1 border border-border rounded-xl p-3 bg-background">
+        <div className="border border-border rounded-xl p-3 bg-background">
           <div className="flex items-center gap-2 mb-0.5">
             <Webhook size={13} className="text-foreground-muted" />
             <span className="text-xs text-foreground-muted font-medium">Webhooks</span>
           </div>
           <p className="text-xs text-foreground-muted">Receive events via POST. Verify with <code className="text-foreground-muted">X-ZV-Signature: sha256=...</code></p>
         </div>
-        <div className="flex-1 border border-border rounded-xl p-3 bg-background">
+        <div className="border border-border rounded-xl p-3 bg-background">
           <div className="flex items-center gap-2 mb-0.5">
             <Shield size={13} className="text-foreground-muted" />
             <span className="text-xs text-foreground-muted font-medium">Security</span>
@@ -664,12 +665,12 @@ export default function ApiWebhooksPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 p-1 bg-background border border-border rounded-xl mb-6 w-fit">
+      <div className="flex gap-1 p-1 bg-background border border-border rounded-xl mb-6 w-full sm:w-fit">
         {(["keys", "webhooks"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === t ? "bg-white text-black" : "text-foreground-muted hover:text-foreground"
             }`}
           >
