@@ -77,7 +77,7 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
   };
 
   return (
-    <div className="flex gap-2 justify-center">
+    <div className="flex gap-1 sm:gap-2 justify-center">
       {[0, 1, 2, 3, 4, 5].map((idx) => (
         <input
           key={idx}
@@ -89,7 +89,7 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
           onChange={(e) => handleChange(idx, e.target.value)}
           onKeyDown={(e) => handleKey(idx, e)}
           onPaste={idx === 0 ? handlePaste : undefined}
-          className="w-[44px] h-[50px] bg-[rgba(255,255,255,0.06)] border text-center text-[20px] font-semibold text-[#f1f5f9] rounded-[10px] outline-none transition-colors"
+          className="w-9 sm:w-[44px] h-[44px] sm:h-[50px] bg-[rgba(255,255,255,0.06)] border text-center text-[18px] sm:text-[20px] font-semibold text-[#f1f5f9] rounded-[10px] outline-none transition-colors"
           style={{ borderColor: value[idx] ? "rgba(32,231,242,0.6)" : "rgba(255,255,255,0.1)", caretColor: "#20E7F2" }}
         />
       ))}

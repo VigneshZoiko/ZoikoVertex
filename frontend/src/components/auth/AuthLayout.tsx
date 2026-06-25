@@ -19,7 +19,7 @@ export default function AuthLayout({ children, footer }: { children: React.React
       <div className="flex flex-1">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1523] w-[48%] shrink-0">
-        <div className="max-w-[380px]">
+        <div className="max-w-[460px]">
           {/* Logo */}
           <Image
             src="/images/zoikovertexlogo.png"
@@ -62,7 +62,7 @@ export default function AuthLayout({ children, footer }: { children: React.React
 
       {/* Right form panel */}
       <div className="flex flex-1 flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-[#0C1523] gap-6">
-        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-6 sm:px-[50px] pt-10 sm:pt-[68px] pb-10 sm:pb-[54px]">
+        <div className="w-full max-w-[480px] rounded-[20px] bg-[#080E1A] px-6 sm:px-10 pt-10 sm:pt-[52px] pb-10 sm:pb-[54px]">
           {children}
         </div>
         {footer && <div className="w-full max-w-[480px] text-center">{footer}</div>}
