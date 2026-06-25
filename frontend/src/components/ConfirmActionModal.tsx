@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X, ShieldAlert, Trash2, Power, LogOut, AlertCircle, Loader2 } from 'lucide-react';
 
 type Variant = 'danger' | 'warning' | 'info' | 'default';
@@ -94,6 +95,13 @@ export default function ConfirmActionModal({
 
   useEffect(() => {
     if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel();
     };
@@ -128,7 +136,7 @@ export default function ConfirmActionModal({
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
@@ -197,6 +205,7 @@ export default function ConfirmActionModal({
           <X className="w-4 h-4" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
