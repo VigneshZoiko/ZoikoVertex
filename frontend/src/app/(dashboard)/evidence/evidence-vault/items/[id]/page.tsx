@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import ActorDisplay from "@/components/evidence/ActorDisplay";
@@ -59,7 +59,10 @@ export default function EvidenceItemDetailPage() {
   if (error) return <div className="p-8 text-red-400">{error}</div>;
   if (!item) return <div className="p-8 text-foreground-muted">Item not found</div>;
 
-  const retCol = item.retention_until ? (new Date(item.retention_until).getTime() - Date.now()) / 86400000 : null;
+  const retCol = useMemo(
+    () => item?.retention_until ? (new Date(item.retention_until).getTime() - new Date().getTime()) / 86400000 : null,
+    [item?.retention_until]
+  );
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 pb-24">

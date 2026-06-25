@@ -79,6 +79,12 @@ export default function EvidenceVaultPage() {
     finally { setPkgLoading(false); }
   }, []);
 
+  // ─── Actions ───────────────────────────────────────────────
+  const [showPreserve, setShowPreserve] = useState(false);
+  const [showApplyHold, setShowApplyHold] = useState(false);
+  const [releaseTarget, setReleaseTarget] = useState<any>(null);
+  const [showCreatePkg, setShowCreatePkg] = useState(false);
+
   // Reset modals on tab switch
   useEffect(() => {
     setShowPreserve(false);
@@ -92,12 +98,6 @@ export default function EvidenceVaultPage() {
     else if (tab === "holds") fetchHolds();
     else fetchPackages();
   }, [tab, fetchItems, fetchHolds, fetchPackages]);
-
-  // ─── Actions ───────────────────────────────────────────────
-  const [showPreserve, setShowPreserve] = useState(false);
-  const [showApplyHold, setShowApplyHold] = useState(false);
-  const [releaseTarget, setReleaseTarget] = useState<any>(null);
-  const [showCreatePkg, setShowCreatePkg] = useState(false);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 pb-24">
