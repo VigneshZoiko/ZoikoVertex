@@ -214,8 +214,8 @@ export default function SafetyOverviewPage() {
     <div className="min-h-screen bg-background text-foreground pb-20 font-sans selection:bg-warning-bg selection:text-white">
       {/* Global Safety Bar */}
       <div className="bg-surface border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="hidden sm:flex items-center gap-3">
             <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
               Tenant: <span className="text-foreground font-bold">{data?.tenant_id}</span>
             </span>
@@ -224,7 +224,7 @@ export default function SafetyOverviewPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-foreground-muted">Posture:</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
@@ -275,13 +275,13 @@ export default function SafetyOverviewPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 space-y-5">
         
         {/* Header Strip with Page Title, Action Buttons and Simulation Toggle */}
-        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
           <div className="flex items-center gap-2.5">
-            <Layers className="w-6 h-6 text-warning-text" />
+            <Layers className="w-6 h-6 text-warning-text shrink-0" />
             <h1 className="text-xl font-extrabold text-foreground">Safety Layer Overview</h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <button onClick={() => fetchOverview(true)} className="p-2 bg-surface hover:bg-surface-hover border border-border rounded-lg" aria-label="Refresh">
               <RefreshCw className={`w-4 h-4 text-foreground ${isRefreshing ? "animate-spin" : ""}`} />
             </button>
@@ -292,7 +292,7 @@ export default function SafetyOverviewPage() {
         </div>
 
         {/* Posture Cards Grid */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Posture</p>
