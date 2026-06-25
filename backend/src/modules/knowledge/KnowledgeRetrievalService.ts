@@ -74,7 +74,7 @@ export class KnowledgeRetrievalService {
     }
 
     const { data, error } = await dbQuery
-      .eq('status', 'ACTIVE')
+      .in('status', ['ACTIVE', 'APPROVED'])
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -123,7 +123,7 @@ export class KnowledgeRetrievalService {
     let dbQuery = supabaseAdmin
       .from('knowledge_sources')
       .select('id, title, content, collection_id, metadata, status, workspace_id')
-      .eq('status', 'ACTIVE')
+      .eq('status', 'APPROVED')
       .or(orFilter)
       .limit(20);
 

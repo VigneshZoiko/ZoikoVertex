@@ -78,7 +78,7 @@ export function normalizePromptRiskTier(raw: string | undefined): string {
 
 export class PromptService {
   static async list(workspaceId: string, filters?: { status?: string; risk_tier?: string; prompt_type?: string }) {
-    let query = supabaseAdmin.from('prompts').select('id, name, prompt_type, status, risk_tier, owner_name, description, linked_agent, linked_workflow, workflow_node, autonomy_level, review_requirement, knowledge_sources, linked_knowledge_sources, tools_permitted, metadata, current_version_id, created_by, created_at, updated_at').eq('workspace_id', workspaceId);
+    let query = supabaseAdmin.from('prompts').select('id, name, prompt_type, status, risk_tier, owner_name, description, linked_agent, linked_workflow, knowledge_sources, tools_permitted, metadata, current_version_id, created_by, created_at, updated_at').eq('workspace_id', workspaceId);
     if (filters?.status) query = query.eq('status', normalizePromptStatus(filters.status));
     if (filters?.risk_tier) query = query.eq('risk_tier', normalizePromptRiskTier(filters.risk_tier));
     if (filters?.prompt_type) query = query.eq('prompt_type', normalizePromptType(filters.prompt_type));

@@ -1,6 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { createReviewItem } from './reviewQueue.service';
 import { createApprovalItem } from './approval.service';
 import { internalEventBus } from '../shared/internalEventBus';
 
@@ -88,29 +87,13 @@ async function createRoutedItem(params: {
   tenant_id: string;
   metadata?: Record<string, unknown>;
 }): Promise<string> {
-  if (params.target_module === 'review_queue') {
-    const item = await createReviewItem({
-      tenant_id: params.tenant_id,
-      workspace_id: params.workspace_id,
-      item_type: (params.item_type || 'validation_failed') as any,
-      source_module: params.source_module,
-      source_entity_id: params.source_entity_id,
-      title: params.title,
-      submitted_by: params.submitted_by,
-      risk_level: (params.risk_level || 'LOW') as any,
-      priority: 'NORMAL',
-      content_snapshot: params.metadata || {},
-    });
-    return item.id;
-  }
-
-  if (params.target_module === 'approvals') {
+  if (params.target_module === 'review_queue' || params.target_module === 'approvals') {
     const item = await createApprovalItem({
       tenant_id: params.tenant_id,
       workspace_id: params.workspace_id,
+      item_type: (params.item_type || 'VALIDATION_OVERRIDE') as any,
       source_module: params.source_module,
       source_entity_id: params.source_entity_id,
-      item_type: (params.item_type || 'VALIDATION_OVERRIDE') as any,
       title: params.title,
       submitted_by: params.submitted_by,
       risk_level: params.risk_level || 'LOW',

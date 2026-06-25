@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
-import { createReviewItem } from '../../services/reviewQueue.service';
+import { createApprovalItem } from '../../services/approval.service';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -340,34 +340,23 @@ export const submitIntent = async (
       logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }
 
-    // Bridge: create review_items for PENDING_REVIEW posts so they surface in the Review Queue UI.
-    // Uses createReviewItem with undefined auth (bypasses queue:manage gate — governance submit
-    // is already gated by its own route-level auth). Non-blocking — publish always succeeds.
+    // Bridge: create approval_items for PENDING_REVIEW posts so they surface in the Approval Console.
+    // Non-blocking — publish always succeeds regardless of this bridge.
     const pendingPosts = (data || []).filter((r: any) => r.status === 'PENDING_REVIEW');
     await Promise.all(pendingPosts.map(async (intent: any) => {
       try {
-        await createReviewItem({
+        await createApprovalItem({
           tenant_id: targetWorkspaceId,
           workspace_id: targetWorkspaceId,
-          item_type: 'social_post',
+          item_type: 'PUBLISHING_ACTION',
           source_module: 'publish',
           source_entity_id: intent.id,
           title: (intent.content || '').slice(0, 80).trim() || `${intent.platform || 'Social'} post`,
-          content_snapshot: {
-            copy: intent.content || '',
-            urls: intent.media_urls || [],
-            platform: intent.platform,
-            target_account_ids: intent.target_account_ids || [],
-          },
-          platform: intent.platform || null,
-          campaign_id: intent.campaign_id || null,
           submitted_by: userId,
-          assigned_to: undefined,
-          priority: intent.risk_level === 'CRITICAL' ? 'URGENT' : intent.risk_level === 'HIGH' ? 'HIGH' : 'NORMAL',
           risk_level: intent.risk_level || 'LOW',
-        }, undefined); // undefined = skip permission check
+        });
       } catch (err) {
-        logger.warn({ err: err instanceof Error ? err.message : String(err), intentId: intent.id }, '[Governance] review_item bridge failed for intent');
+        logger.warn({ err: err instanceof Error ? err.message : String(err), intentId: intent.id }, '[Governance] approval_item bridge failed for intent');
       }
     }));
 

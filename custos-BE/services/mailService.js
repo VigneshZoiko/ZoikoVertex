@@ -1,0 +1,62 @@
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+
+const nodemailer = require("nodemailer");
+
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: Number(process.env.SMTP_PORT) === 465,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeout: 15000,
+});
+
+// ✅ VERIFY CONNECTION
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP Connection Failed:", error);
+  } else {
+    console.log("✅ SMTP Server Ready");
+  }
+});
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const sendMail = async ({ to, from, subject, body, html }) => {
+  if (!to || !subject) {
+    throw new Error("Missing required fields: to, subject");
+  }
+
+  if (!emailRegex.test(to)) throw new Error("Invalid recipient email");
+  if (from && !emailRegex.test(from))
+    throw new Error("Invalid sender email");
+
+  await transporter.sendMail({
+    from: process.env.FROM_EMAIL,
+    replyTo: from,
+    to,
+    subject,
+
+    text:
+      body ||
+      "User has reported an issue. Please view this email in HTML format.",
+
+    html:
+      html ||
+      `
+      <div style="font-family: Arial; padding: 10px;">
+        <h3>User Issue</h3>
+        <p>${(body || "No content").replace(/\n/g, "<br/>")}</p>
+      </div>
+      `,
+  });
+};
+
+module.exports = { sendMail };

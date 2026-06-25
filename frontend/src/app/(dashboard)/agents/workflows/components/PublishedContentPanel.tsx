@@ -90,22 +90,34 @@ export default function PublishedContentPanel({
               {/* Media thumbnail */}
               <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center">
                 {item.mediaUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.mediaUrl}
-                    alt="post media"
-                    className="w-full h-full object-cover"
-                    // Media objects can be removed from storage while the post
-                    // still references them (dangling URL → 400/404). Swap a
-                    // broken image for the placeholder icon instead of showing
-                    // the browser's broken-image glyph.
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      img.style.display = "none";
-                      const fallback = img.nextElementSibling as HTMLElement | null;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
+                  /\.(mp4|mov|webm|avi|mkv|m4v|ogv)(\?.*)?$/i.test(item.mediaUrl) ? (
+                    <video
+                      src={item.mediaUrl}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                      onError={(e) => {
+                        const vid = e.currentTarget;
+                        vid.style.display = "none";
+                        const fallback = vid.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.mediaUrl}
+                      alt="post media"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        img.style.display = "none";
+                        const fallback = img.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                  )
                 ) : null}
                 <span
                   className="w-full h-full items-center justify-center"
