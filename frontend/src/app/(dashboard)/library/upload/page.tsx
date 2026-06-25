@@ -144,8 +144,15 @@ export default function CreatorUploadPage() {
     return new Promise((resolve, reject) => {
       supabase.storage.from('media').createSignedUploadUrl(path).then(({ data, error }) => {
         if (error || !data) {
-          supabase.storage.from('media').upload(path, file).then(({ error: upErr }) => {
-            if (upErr) return reject(upErr);
+          supabase.storage.from('media').upload(path, file, { upsert: true, cacheControl: '3600' }).then(({ error: upErr }) => {
+            if (upErr) {
+              const msg = (upErr as { message?: string }).message || 'Upload failed';
+              return reject(new Error(
+                msg.toLowerCase().includes('payload') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size')
+                  ? `File too large — run migration 10 to increase the storage bucket limit to 500 MB.`
+                  : `Upload failed: ${msg}`
+              ));
+            }
             const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
             setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
             resolve(publicUrl);
@@ -166,10 +173,22 @@ export default function CreatorUploadPage() {
             setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
             resolve(publicUrl);
           } else {
-            reject(new Error(`Upload failed: ${xhr.statusText}`));
+            let detail = xhr.statusText;
+            try {
+              const body = JSON.parse(xhr.responseText);
+              detail = body?.error || body?.message || detail;
+            } catch { /* non-JSON response */ }
+            const isTooLarge = xhr.status === 413 || detail.toLowerCase().includes('too large') || detail.toLowerCase().includes('size');
+            reject(new Error(
+              isTooLarge
+                ? `File too large — run migration 10 to increase the storage bucket limit to 500 MB.`
+                : `Upload failed (${xhr.status}): ${detail}`
+            ));
           }
         });
-        xhr.addEventListener('error', () => reject(new Error('Network error')));
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload — check your connection and try again.')));
+        xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — the file may be too large for your current connection speed.')));
+        xhr.timeout = 30 * 60 * 1000; // 30-minute timeout for large video files
         xhr.open('PUT', data.signedUrl);
         xhr.setRequestHeader('x-upsert', 'true');
         const form = new FormData();
@@ -204,9 +223,10 @@ export default function CreatorUploadPage() {
         try {
           const url = await uploadSingleFile(i, entries[i].file, user.id);
           newUrls.push(url);
-        } catch {
-          setEntries(prev => prev.map((e, idx) => idx === i ? { ...e, status: 'error', error: 'Upload failed' } : e));
-          throw new Error('Upload failed');
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : 'Upload failed';
+          setEntries(prev => prev.map((e, j) => j === i ? { ...e, status: 'error', error: msg } : e));
+          throw new Error(msg);
         }
       }
 
@@ -245,8 +265,8 @@ export default function CreatorUploadPage() {
         }
         setTitle(""); setDescription(""); setEntries([]); setValidationErrors([]);
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Upload failed. Please try again.' });
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Upload failed. Please try again.' });
     } finally {
       setIsUploading(false);
     }

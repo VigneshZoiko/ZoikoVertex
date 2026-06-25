@@ -229,10 +229,10 @@ export default function TeamPage() {
   if (loading) return <div className="text-[var(--foreground)] p-8">Loading...</div>;
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-end mb-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 sm:mb-8 gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Access & Organization</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Access & Organization</h1>
           <p className="text-[var(--foreground-muted)] text-sm">Provision and manage RBAC roles for your workspace.</p>
         </div>
       </div>
@@ -404,7 +404,7 @@ export default function TeamPage() {
               </h2>
               <p className="text-sm text-[var(--foreground-muted)] mb-6">Users provisioned by Managers requiring your authorization.</p>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-[var(--foreground-muted)]">
+                <table className="w-full min-w-[520px] text-left text-sm text-[var(--foreground-muted)]">
                   <thead className="text-xs text-[var(--foreground-muted)] uppercase bg-[var(--surface)]/50">
                     <tr>
                       <th className="px-4 py-3 font-medium rounded-tl-lg">User</th>
@@ -453,7 +453,7 @@ export default function TeamPage() {
             </h2>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-[var(--foreground-muted)]">
+              <table className="w-full min-w-[560px] text-left text-sm text-[var(--foreground-muted)]">
                 <thead className="text-xs text-[var(--foreground-muted)] uppercase bg-[var(--surface)]/50">
                   <tr>
                     <th className="px-4 py-3 font-medium rounded-tl-lg">User</th>
@@ -579,7 +579,7 @@ export default function TeamPage() {
                               <button
                                 onClick={() => setConfirmDelete(member.id)}
                                 disabled={deleting === member.id}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-error-text/10 hover:bg-error-text/20 border border-error-border/20 text-error-text text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-error-text/10 hover:bg-error-text/20 border border-error-border/20 text-error-text text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                               >
                                 {deleting === member.id
                                   ? <RefreshCw className="w-3 h-3 animate-spin" />

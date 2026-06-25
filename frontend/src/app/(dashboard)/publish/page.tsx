@@ -191,6 +191,7 @@ function PostPreview({
               controls={isVideoMedia(currentMedia)}
               muted
               playsInline
+              expandable={isVideoMedia(currentMedia)}
             />
             {!isVideoMedia(currentMedia) && (
               <div className="absolute bottom-2 right-2 bg-black/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
@@ -223,6 +224,7 @@ function PostPreview({
               controls={isVideoMedia(currentMedia)}
               muted
               playsInline
+              expandable={isVideoMedia(currentMedia)}
             />
             {/* Save button overlay */}
             <button className="absolute top-2.5 right-2.5 bg-red-600 text-foreground text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
@@ -325,6 +327,7 @@ function PostPreview({
           controls={isVideoMedia(currentMedia)}
           muted
           playsInline
+          expandable={isVideoMedia(currentMedia)}
         />
 
         {/* ── Facebook action bar ── */}

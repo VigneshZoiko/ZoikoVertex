@@ -589,14 +589,14 @@ export default function AccountsPage() {
                       <button
                         onClick={() => handleConnect("linkedin_page")}
                         disabled={isSubmitting === "linkedin_page"}
-                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 border"
+                        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 border"
                         style={{ color: platform.color, borderColor: platform.color + "55", backgroundColor: platform.color + "11" }}
                       >
                         {isSubmitting === "linkedin_page"
                           ? <RefreshCw className="w-3 h-3 animate-spin" />
                           : <Link2 className="w-3 h-3" />
                         }
-                        <span>Page</span>
+                        <span className="hidden sm:inline">Page</span>
                       </button>
                     )}
                     <button
