@@ -55,14 +55,14 @@ export default function EvidenceItemDetailPage() {
 
   useEffect(() => { fetchItem(); }, [fetchItem]);
 
-  if (loading) return <div className="p-8 text-foreground-muted text-sm">Loading evidence…</div>;
-  if (error) return <div className="p-8 text-red-400">{error}</div>;
-  if (!item) return <div className="p-8 text-foreground-muted">Item not found</div>;
-
   const retCol = useMemo(
     () => item?.retention_until ? (new Date(item.retention_until).getTime() - new Date().getTime()) / 86400000 : null,
     [item?.retention_until]
   );
+
+  if (loading) return <div className="p-8 text-foreground-muted text-sm">Loading evidence…</div>;
+  if (error) return <div className="p-8 text-red-400">{error}</div>;
+  if (!item) return <div className="p-8 text-foreground-muted">Item not found</div>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
