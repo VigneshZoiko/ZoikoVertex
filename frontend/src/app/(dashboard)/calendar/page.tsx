@@ -47,7 +47,7 @@ function statusBadgeClass(status: string): string {
 // drawer instead of navigating away (restores pre-63929d0 behaviour).
 function intentLink(post: CalendarPost): string {
   if (post.status === "RETURNED") return "/publish";
-  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review-queue";
   if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
   return "/publish";
 }
@@ -240,7 +240,7 @@ export default function CalendarPage() {
                 type="date"
                 defaultValue={selDateStr}
                 onChange={(e) => jumpToDate(e.target.value)}
-                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border [color-scheme:dark]"
               />
               <button
                 onClick={() => { jumpToDate(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-${String(new Date().getDate()).padStart(2,"0")}`); }}
