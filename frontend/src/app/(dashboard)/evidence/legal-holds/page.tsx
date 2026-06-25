@@ -84,7 +84,7 @@ export default function LegalHoldsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <div className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center">
             <Lock className="w-4 h-4 text-red-500" />
