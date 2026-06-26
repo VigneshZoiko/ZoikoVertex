@@ -91,29 +91,6 @@ export function Popover({
     setPopoverStyle({ top: `${top}px`, left: `${left}px` });
   }, [anchorRef, position, align, offset]);
 
-  useEffect(() => {
-    if (!open) return;
-
-    previousActiveElement.current = document.activeElement as HTMLElement;
-
-    updatePosition();
-    window.addEventListener("scroll", updatePosition, true);
-    window.addEventListener("resize", updatePosition);
-
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside, true);
-
-    return () => {
-      window.removeEventListener("scroll", updatePosition, true);
-      window.removeEventListener("resize", updatePosition);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside, true);
-      if (previousActiveElement.current) {
-        previousActiveElement.current.focus();
-      }
-    };
-  }, [open, updatePosition]);
-
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!closeOnEscape) return;
@@ -135,6 +112,29 @@ export function Popover({
     },
     [anchorRef, closeOnOutsideClick, onClose]
   );
+
+  useEffect(() => {
+    if (!open) return;
+
+    previousActiveElement.current = document.activeElement as HTMLElement;
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside, true);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      if (previousActiveElement.current) {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, [open, updatePosition, handleKeyDown, handleClickOutside]);
 
   if (!open) return null;
 
