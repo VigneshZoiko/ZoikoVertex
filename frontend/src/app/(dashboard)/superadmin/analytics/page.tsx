@@ -800,8 +800,7 @@ export default function PlatformAnalytics() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>,
+          </div>,
         document.body
       )}
 
