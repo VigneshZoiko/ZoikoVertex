@@ -50,7 +50,7 @@ services:
   - type: web
     name: zoikovertex-api
     runtime: node
-    region: singapore
+    region: oregon
     plan: starter
     rootDir: backend
     buildCommand: npm install --include=dev && npm run build
