@@ -19,6 +19,8 @@ const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = new Set([
   process.env.CLIENT_URL || "http://localhost:3000",
+  "https://app.getzoikovertex.com",
+  "https://getzoikovertex.com",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:5175",
