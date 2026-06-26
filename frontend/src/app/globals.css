@@ -2,6 +2,9 @@
 
 /* ─── Semantic Design Tokens ─────────────────────────────────────────────── */
 :root {
+  /* Layout dimensions */
+  --app-header-height: 64px;
+
   /* Light Mode */
   --background: #f4f4f5;
   --background-subtle: #ffffff;
@@ -46,6 +49,13 @@
   --info-bg: rgba(99, 102, 241, 0.08);
   --info-border: rgba(99, 102, 241, 0.2);
   --info-text: #6366F1;
+}
+
+/* Mobile — matches header's `h-14` (3.5rem = 56px) */
+@media (width < 640px) {
+  :root {
+    --app-header-height: 56px;
+  }
 }
 
 .dark {
@@ -225,11 +235,9 @@ h6 {
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 .page-enter {
@@ -291,4 +299,31 @@ h6 {
   );
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─── Calendar Picker Indicator (native date input icon) ─────────────────── */
+/* WebKit/Blink (Chrome, Safari, Edge) */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Dark mode: make icon light */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Firefox */
+input[type="date"]::-moz-calendar-picker-indicator {
+  filter: invert(0);
+  opacity: 0.7;
+  cursor: pointer;
+}
+.dark input[type="date"]::-moz-calendar-picker-indicator {
+  filter: invert(1);
 }

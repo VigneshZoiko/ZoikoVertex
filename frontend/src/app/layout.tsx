@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import { Providers } from "./providers";
 import CacheBuster from "@/components/CacheBuster";
 import Navbar from "@/components/Navbar";
@@ -42,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body className="flex flex-col h-screen" suppressHydrationWarning>
+        <Script id="theme-init" strategy="beforeInteractive">{`try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark');document.documentElement.classList.add('light')}else{document.documentElement.classList.add('dark')}}catch(e){}`}</Script>
         <Providers>
           <CacheBuster />
           <Navbar />

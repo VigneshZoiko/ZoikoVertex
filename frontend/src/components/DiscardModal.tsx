@@ -3,6 +3,8 @@
 import { AlertTriangle, Edit3, X } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { AlertTriangle, X } from "lucide-react";
+import { Modal } from "@/components/ui/primitives";
 
 interface DiscardModalProps {
   isOpen: boolean;
@@ -29,29 +31,28 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel,
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
+export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel }: DiscardModalProps) {
   if (!isOpen) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={onCancel}
-      />
+  return (
+    <Modal open={isOpen} onClose={onCancel} size="sm" showCloseButton={false}>
+      <div className="-m-6">
+        <div className="h-1 rounded-t-2xl bg-[var(--warning-text)]" />
 
-      {/* Modal card */}
-      <div className="relative z-10 w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-3xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
-        {/* Top accent */}
-        <div className="h-1 rounded-t-3xl bg-[var(--warning-text)]" />
+        <button
+          onClick={onCancel}
+          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all"
+        >
+          <X className="w-4 h-4" />
+        </button>
 
-        <div className="p-8">
-          {/* Icon */}
+        <div className="p-6">
           <div className="w-14 h-14 bg-[var(--warning-bg)] border-[var(--warning-border)] rounded-2xl flex items-center justify-center mb-6">
             <AlertTriangle className="w-7 h-7 text-[var(--warning-text)]" />
           </div>
 
           <h2 className="text-xl font-bold text-[var(--foreground)] mb-2">Discard this draft?</h2>
-          <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-8">
+          <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-6">
             You have an unsaved post in progress. If you leave now, your topic, description, and media selection will be lost.
           </p>
 
@@ -80,16 +81,7 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel,
             </div>
           </div>
         </div>
-
-        {/* Close X */}
-        <button
-          onClick={onCancel}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }

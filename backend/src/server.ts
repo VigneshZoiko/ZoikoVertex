@@ -187,7 +187,7 @@ import {
   runAgentSandbox, getAgentTestHistory,
   getAgentLinkedResources, updateLinkedResources,
   getChecklist, getAgentEvidence, getEvidence,
-  cloneAgent, deployAgent, pauseAgent, resumeAgent, retireAgent, requestApproval,
+  cloneAgent, deployAgent, pauseAgent, resumeAgent, retireAgent, hardDeleteAgent, requestApproval,
   approveAgent, rejectAgentApproval, updateRuntimeControls,
   updateAgent, listAgentTemplates, getAgentTemplate, createAgentFromTemplate,
   getAgentProfile, getAgentGovernanceGates,
@@ -1098,6 +1098,7 @@ app.post('/api/v1/agents/:id/deploy', authenticate, scopeGuard('write:agents', '
 app.post('/api/v1/agents/:id/pause', authenticate, scopeGuard('write:agents', '*'), pauseAgent);
 app.post('/api/v1/agents/:id/resume', authenticate, scopeGuard('write:agents', '*'), resumeAgent);
 app.post('/api/v1/agents/:id/retire', authenticate, scopeGuard('write:agents', '*'), retireAgent);
+app.delete('/api/v1/agents/:id', authenticate, scopeGuard('write:agents', '*'), hardDeleteAgent);
 app.post('/api/v1/agents/:id/clone', authenticate, scopeGuard('write:agents', '*'), cloneAgent);
 app.post('/api/v1/agents/:id/approval/request', authenticate, scopeGuard('write:agents', '*'), requestApproval);
 app.post('/api/v1/agents/:id/approval/approve', authenticate, scopeGuard('write:agents', '*'), approveAgent);

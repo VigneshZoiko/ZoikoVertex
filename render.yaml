@@ -1,5 +1,53 @@
 services:
   - type: web
+    name: zoikovertex-custos-api
+    runtime: node
+    region: oregon
+    plan: starter
+    rootDir: custos-BE
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URL
+        value: https://app.getzoikovertex.com
+      # Supabase
+      - key: SUPABASE_URL
+        value: https://wcudapbmavuyafllfyft.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Auth
+      - key: JWT_SECRET
+        sync: false
+      # Mail — SendGrid API (recommended for Render; SMTP is blocked)
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        value: info@zoikovertex.com
+      # SMTP fallback (local dev only — not used in production)
+      - key: SMTP_HOST
+        value: smtpout.secureserver.net
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        value: info@zoikovertex.com
+      - key: SMTP_PASS
+        sync: false
+      # AI
+      - key: AI_PROVIDER
+        value: groq
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: llama-3.3-70b-versatile
+
+  - type: web
     name: zoikovertex-api
     runtime: node
     region: singapore

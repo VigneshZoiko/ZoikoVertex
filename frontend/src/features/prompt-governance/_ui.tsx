@@ -117,5 +117,4 @@ export function isPermissionError(msg: string): boolean {
   );
 }
 
-// ponytail: `_styles` bundled card/muted into a named export; kept for 3 dashboard consumers.
 export const _styles = { card, muted };

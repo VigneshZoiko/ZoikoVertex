@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, X,
-  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical, CalendarDays,
+  Edit3, Trash2, Send, ExternalLink, CheckCircle2, MoreVertical, CalendarDays, Play,
 } from "lucide-react";
 import Link from "next/link";
 import { MediaPreview } from "@/components/MediaPreview";
@@ -47,7 +47,7 @@ function statusBadgeClass(status: string): string {
 // drawer instead of navigating away (restores pre-63929d0 behaviour).
 function intentLink(post: CalendarPost): string {
   if (post.status === "RETURNED") return "/publish";
-  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review-queue";
   if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
   return "/publish";
 }
@@ -240,7 +240,7 @@ export default function CalendarPage() {
                 type="date"
                 defaultValue={selDateStr}
                 onChange={(e) => jumpToDate(e.target.value)}
-                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border [color-scheme:dark]"
               />
               <button
                 onClick={() => { jumpToDate(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-${String(new Date().getDate()).padStart(2,"0")}`); }}
@@ -319,10 +319,20 @@ export default function CalendarPage() {
               <div key={`up-${post.source}-${post.id}`} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 flex items-start gap-3">
                 {/* Thumbnail */}
                 <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
-                  {post.media_url
-                    ? <Image src={post.media_url} alt="" fill className="object-cover" unoptimized />
-                    : <Calendar className="w-5 h-5 text-[var(--foreground-muted)]" />
-                  }
+                  {post.media_url ? (
+                    /\.(mp4|mov|webm|avi|mkv|m4v)(\?.*)?$/i.test(post.media_url) ? (
+                      <>
+                        <video src={post.media_url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Play className="w-5 h-5 text-white drop-shadow-lg" />
+                        </div>
+                      </>
+                    ) : (
+                      <Image src={post.media_url} alt="" fill className="object-cover" unoptimized />
+                    )
+                  ) : (
+                    <Calendar className="w-5 h-5 text-[var(--foreground-muted)]" />
+                  )}
                 </div>
                 {/* Body */}
                 <div className="flex-1 min-w-0">
@@ -394,10 +404,20 @@ export default function CalendarPage() {
             {completed.map((post) => (
               <div key={`done-${post.source}-${post.id}`} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3 flex items-start gap-3">
                 <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--surface)] flex items-center justify-center">
-                  {post.media_url
-                    ? <Image src={post.media_url} alt="" fill className="object-cover" unoptimized />
-                    : <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                  }
+                  {post.media_url ? (
+                    /\.(mp4|mov|webm|avi|mkv|m4v)(\?.*)?$/i.test(post.media_url) ? (
+                      <>
+                        <video src={post.media_url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Play className="w-5 h-5 text-white drop-shadow-lg" />
+                        </div>
+                      </>
+                    ) : (
+                      <Image src={post.media_url} alt="" fill className="object-cover" unoptimized />
+                    )
+                  ) : (
+                    <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md mb-1 ${statusBadgeClass(post.status)}`}>
