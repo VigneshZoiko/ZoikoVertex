@@ -95,7 +95,7 @@ export class KnowledgeSourceService {
         review_date: input.review_date || null,
         expiry_date: input.expiry_date || null,
         metadata: input.metadata || {},
-        status: 'DRAFT',
+        status: 'ACTIVE',
         version: 1,
         created_by: input.created_by || input.owner_id,
       })

@@ -436,7 +436,7 @@ function RegistryTab({
                 <td className="py-4 px-3 text-center">
                   <span className="text-[11px] text-foreground-muted whitespace-nowrap">{formatDateTime(p.metadata?.last_used_at) || formatDateTime(p.last_deployed) || "—"}</span>
                 </td>
-                <td className="py-4 px-3"><SimplifiedStatusBadge p={p} /></td>
+                <td className="py-4 px-3 text-center"><SimplifiedStatusBadge p={p} /></td>
                 <td className="py-4 px-3 text-center">
                   <span className="text-xs font-semibold text-foreground">{postsCheckedCount(p) > 0 ? postsCheckedCount(p).toLocaleString() : "—"}</span>
                 </td>
@@ -548,7 +548,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                 </thead>
                 <tbody className="divide-y divide-border">
                   {pending.map((p) => (
-                    <tr key={p.id} className={`hover:bg-surface/30 transition-colors ${['REVIEW_REQUESTED','PRODUCTION_PENDING'].includes(String(p.status)) ? 'border-l-[3px] border-l-amber-500/60' : ''}`}>
+                    <tr key={p.id} className="hover:bg-surface/30 transition-colors">
                       <td className="py-4 px-5"><span className="text-sm font-bold text-foreground max-w-[200px] truncate block">{p.name}</span></td>
                       <td className="py-4 px-5"><span className="text-[11px] text-foreground">{p.owner}</span></td>
                       <td className="py-4 px-5"><RiskBadge tier={p.risk_tier} /></td>
@@ -860,7 +860,7 @@ function EvidenceTab({
       {hasAnyEvidence ? (
         <>
           {/* KPI summary strip — 2×4 grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             {[
               { label: "Total Decisions", value: totalDecisions, color: "text-foreground" },
               { label: "Approvals", value: approvedCount, color: "text-emerald-400" },
@@ -1239,7 +1239,7 @@ function GuardrailGovernanceTab({
   return (
     <div className="space-y-5">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {[
           { label: "Total Rules", value: totalRules, color: "text-foreground" },
           { label: "Active Rules", value: activeRules, color: "text-emerald-400" },
@@ -1455,7 +1455,7 @@ function KnowledgeSourcesTab({ prompt }: { prompt: PromptRecord }) {
   return (
     <div className="space-y-5">
       {/* KPI summary strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {[
           { label: "Source Count", value: sourceCount, color: "text-foreground" },
           { label: "Active Sources", value: activeSources, color: "text-emerald-400" },
@@ -2083,7 +2083,7 @@ function PromptDetailDrawer({
                 <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black">Purpose</div>
                 <div className="text-sm text-foreground leading-relaxed">{prompt.description || "—"}</div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 {[
                   { label: "Current Status", value: STATUS_META[normalizeStatus(prompt.status)].label },
                   { label: "Linked Agent", value: prompt.linked_agent },
@@ -2244,7 +2244,7 @@ function GovernanceTestCenterTab({
 
       {/* Overview — KPI Cards */}
       {section === "overview" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           {KPI_CARDS.map((k) => (
             <div key={k.label} className="bg-background border border-border rounded-2xl p-5 text-center">
               <div className={`text-3xl font-black ${k.color}`}>{k.value}</div>
@@ -2252,7 +2252,7 @@ function GovernanceTestCenterTab({
             </div>
           ))}
           {totalTests === 0 && failed === 0 && (
-            <div className="col-span-2 md:col-span-4 p-8 text-center text-sm text-foreground-muted bg-card border border-border rounded-2xl">
+            <div className="col-span-4 p-8 text-center text-sm text-foreground-muted bg-card border border-border rounded-2xl">
               No governance checks recorded yet. Publish a post to run the governed checks.
             </div>
           )}
@@ -2833,9 +2833,9 @@ export default function PromptsPage() {
     <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-background min-h-screen">
 
       {/* Header */}
-      <div className="relative overflow-hidden bg-card border border-indigo-500/20 rounded-[3rem] p-6 sm:p-8 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
+      <div className="relative overflow-hidden bg-card border border-indigo-500/20 rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/8 blur-[150px] rounded-full -mr-60 -mt-60" />
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/5 border border-indigo-500/15 text-indigo-400 text-[10px] font-black uppercase tracking-[0.4em]">
               <Lock className="w-3.5 h-3.5" />
@@ -2850,32 +2850,16 @@ export default function PromptsPage() {
           </div>
           <div className="flex items-center gap-3">
             {activeTab === "registry" && (
-              <>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                  <input
-                    type="text"
-                    placeholder="Search prompts…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full max-w-[224px] bg-background border border-border rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
-                  />
-                </div>
-                {(() => {
-                  const needsApproval = systemPrompts.filter(p =>
-                    ['REVIEW_REQUESTED','PRODUCTION_PENDING','UNDER_REVIEW'].includes(String(p.status))
-                  ).length
-                  return needsApproval > 0 ? (
-                    <button
-                      onClick={() => setSearch('')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors whitespace-nowrap"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                      {needsApproval} approval{needsApproval !== 1 ? 's' : ''} due
-                    </button>
-                  ) : null
-                })()}
-              </>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
+                <input
+                  type="text"
+                  placeholder="Search prompts…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-56 bg-background border border-border rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
             )}
             <button
               onClick={handleAuditExport}
@@ -2922,30 +2906,6 @@ export default function PromptsPage() {
         })}
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-        {([
-          { key: "registry",    label: "Registry",    icon: BookOpen },
-          { key: "test_center", label: "Test Center",  icon: FlaskConical },
-          { key: "approvals",   label: "Approvals",   icon: CheckCircle2 },
-          { key: "evidence",    label: "Evidence",    icon: FileCheck },
-        ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setActiveTab(key)}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all focus:outline-none ${
-              activeTab === key
-                ? "bg-indigo-600 text-white shadow-md"
-                : "text-foreground-muted hover:text-foreground hover:bg-card border border-transparent hover:border-border"
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-
       {/* Tab content */}
       <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
         {activeTab === "registry" && (
@@ -2955,29 +2915,6 @@ export default function PromptsPage() {
             onRetirePrompt={(p) => handleLifecycleAction(p.id, "retire")}
             onActivatePrompt={(p) => handleLifecycleAction(p.id, "reactivate")}
             canManage={canManagePrompts}
-          />
-        )}
-        {activeTab === "test_center" && (
-          <GovernanceTestCenterTab
-            prompts={systemPrompts}
-            onRunTests={(versionId) => handleVersionAction(versionId, "run_tests")}
-          />
-        )}
-        {activeTab === "approvals" && (
-          <ApprovalsTab
-            prompts={systemPrompts}
-            approvalStats={approvalStats}
-            onApprovalAction={handleApprovalAction}
-            canWaive={canWaive}
-            onWaive={handleWaive}
-            onExportPromptEvidence={handleExportPromptEvidence}
-          />
-        )}
-        {activeTab === "evidence" && (
-          <EvidenceTab
-            prompts={systemPrompts}
-            auditStats={auditStats}
-            onExportPromptEvidence={handleExportPromptEvidence}
           />
         )}
       </div>

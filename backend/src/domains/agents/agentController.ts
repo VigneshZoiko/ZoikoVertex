@@ -567,6 +567,38 @@ export const retireAgent = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const hardDeleteAgent = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+
+    const { data: agent, error: fetchError } = await supabaseAdmin
+      .from('agents')
+      .select('id, name, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !agent) {
+      return res.status(404).json({ success: false, message: 'Agent not found.' });
+    }
+
+    if (agent.status !== 'RETIRED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only RETIRED agents can be permanently deleted.',
+      });
+    }
+
+    const { error } = await supabaseAdmin.from('agents').delete().eq('id', id);
+    if (error) throw error;
+
+    await logToDatabase('info', AGENT_SERVICE, `Agent ${id} (${agent.name}) permanently deleted`, {});
+
+    res.status(200).json({ success: true, message: `Agent "${agent.name}" permanently deleted.` });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const requestApproval = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = getParam(req, 'id');

@@ -637,6 +637,7 @@ function PublishPageInner() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
   const [reviewComment, setReviewComment] = useState("");
 
   // Recent publish intents (for status diagnostics)
@@ -679,6 +680,11 @@ function PublishPageInner() {
     const timers = pollTimers.current;
     return () => { timers.forEach(clearTimeout); };
   }, []);
+
+  useEffect(() => {
+    if (!message) return;
+    messageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [message]);
 
   useEffect(() => {
     if (assetUrls) {
@@ -751,6 +757,11 @@ function PublishPageInner() {
       mediaUrls.length > 0;
     setIsDirty(hasDraft);
   }, [topic, description, media, mediaUrls, setIsDirty]);
+
+  // Reset dirty flag when navigating away from this page
+  useEffect(() => {
+    return () => { setIsDirty(false); };
+  }, [setIsDirty]);
 
   // Discard handler
   const handleDiscard = useCallback(() => {
@@ -1777,6 +1788,7 @@ function PublishPageInner() {
 
       {message && (
         <div
+          ref={messageRef}
           className={`mb-8 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in duration-300 ${message.type === "success" ? "bg-success-text/10 border border-success-border/20 text-success-text" : "bg-error-text/10 border border-error-border/20 text-error-text"}`}
         >
           {message.type === "success" ? (

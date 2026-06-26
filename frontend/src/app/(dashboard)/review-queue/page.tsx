@@ -178,10 +178,14 @@ export default function ReviewQueuePage() {
       ]);
       if (itemsRes.success) {
         const all = (itemsRes.items || []) as ReviewItem[];
-        setItems(all);
-        if (all.length > 0 && !initialSelectDone.current) {
+        // Exclude agent-flagged publish/social_post items — those belong in the Approval Console
+        const filtered = all.filter(
+          (i) => i.source_module !== 'publish' && i.item_type !== 'social_post'
+        );
+        setItems(filtered);
+        if (filtered.length > 0 && !initialSelectDone.current) {
           initialSelectDone.current = true;
-          const pool = all.filter(
+          const pool = filtered.filter(
             (i) => i.status === "PENDING_REVIEW" && !i.assigned_to,
           );
           if (pool.length > 0) setSelectedItem(pool[0]);

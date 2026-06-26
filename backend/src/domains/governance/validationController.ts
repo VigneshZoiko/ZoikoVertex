@@ -1,7 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as validationService from '../../services/validationDesk.service';
-import { createReviewItem } from '../../services/reviewQueue.service';
 import { createApprovalItem } from '../../services/approval.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { buildAuthContext } from '../../shared/serviceAuth';
@@ -591,12 +590,11 @@ export const runValidation = async (req: AuthRequest, res: Response, next: NextF
     if (imageViolationActions.has('BLOCK') || results.blocked_count > 0) {
       finalStatus = 'BLOCKED';
       try {
-        await createReviewItem({
+        await createApprovalItem({
           tenant_id, workspace_id: tenant_id, source_module: 'validation_desk',
-          source_entity_id: itemId, item_type: 'validation_failed',
+          source_entity_id: itemId, item_type: 'VALIDATION_OVERRIDE',
           title: `[BLOCKED] Image violation: ${item.title || 'Untitled'}`,
           submitted_by: performed_by, risk_level: 'HIGH',
-          content_snapshot: (item.content_snapshot as Record<string, unknown>) || {},
         });
       } catch { /* non-blocking */ }
     }
@@ -678,12 +676,11 @@ export const revalidateItem = async (req: AuthRequest, res: Response, next: Next
     if (imageViolationActions.has('BLOCK') || results.blocked_count > 0) {
       finalStatus = 'BLOCKED';
       try {
-        await createReviewItem({
+        await createApprovalItem({
           tenant_id, workspace_id: tenant_id, source_module: 'validation_desk',
-          source_entity_id: itemId, item_type: 'validation_failed',
+          source_entity_id: itemId, item_type: 'VALIDATION_OVERRIDE',
           title: `[BLOCKED] Image violation: ${item.title || 'Untitled'}`,
           submitted_by: performed_by, risk_level: 'HIGH',
-          content_snapshot: (item.content_snapshot as Record<string, unknown>) || {},
         });
       } catch { /* non-blocking */ }
     }
@@ -753,20 +750,19 @@ export const sendToReviewQueue = async (req: AuthRequest, res: Response, next: N
       return res.status(400).json({ success: false, message: `Cannot send to Review Queue: ${eligibility.state}` });
     }
 
-    await createReviewItem({
+    await createApprovalItem({
       tenant_id,
       workspace_id: tenant_id,
       source_module: 'validation_desk',
       source_entity_id: getParamId(req),
-      item_type: 'validation_failed',
-      title: `Review: ${item.title || 'Validation Item'}`,
+      item_type: 'VALIDATION_OVERRIDE',
+      title: `Approval: ${item.title || 'Validation Item'}`,
       submitted_by: performed_by,
       risk_level: (item.risk_level as any) || 'LOW',
-      content_snapshot: (item.content_snapshot as Record<string, unknown>) || {},
     });
 
     await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id, auth);
-    res.json({ success: true, message: 'Sent to Review Queue' });
+    res.json({ success: true, message: 'Sent to Approval Console' });
   } catch (error) {
     next(error);
   }
