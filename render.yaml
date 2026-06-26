@@ -2,7 +2,7 @@ services:
   - type: web
     name: zoikovertex-custos-api
     runtime: node
-    region: singapore
+    region: oregon
     plan: starter
     rootDir: custos-BE
     buildCommand: npm install
@@ -25,7 +25,12 @@ services:
       # Auth
       - key: JWT_SECRET
         sync: false
-      # SMTP
+      # Mail — SendGrid API (recommended for Render; SMTP is blocked)
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        value: info@zoikovertex.com
+      # SMTP fallback (local dev only — not used in production)
       - key: SMTP_HOST
         value: smtpout.secureserver.net
       - key: SMTP_PORT
@@ -34,8 +39,6 @@ services:
         value: info@zoikovertex.com
       - key: SMTP_PASS
         sync: false
-      - key: FROM_EMAIL
-        value: info@zoikovertex.com
       # AI
       - key: AI_PROVIDER
         value: groq
