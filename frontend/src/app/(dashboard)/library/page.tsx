@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import {
   Search, Filter, Image as ImageIcon, Video as VideoIcon,
   ExternalLink, Send, Trash2, Loader2, User, Calendar, Eye, X
