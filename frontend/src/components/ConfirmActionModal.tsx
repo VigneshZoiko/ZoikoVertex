@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import { AlertTriangle, X, ShieldAlert, Trash2, Power, LogOut, AlertCircle, Loader2 } from 'lucide-react';
 import { Modal } from "@/components/ui/primitives";
 
-type Variant = "danger" | "warning" | "info" | "default";
+type Variant = 'danger' | 'warning' | 'info' | 'default';
 
 interface ConfirmActionModalProps {
   open: boolean;
