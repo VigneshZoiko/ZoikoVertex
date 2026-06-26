@@ -120,8 +120,9 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
   }, []);
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex justify-end bg-black/40 backdrop-blur-sm overflow-hidden" onClick={onClose}>
-      <div className="w-full max-w-[600px] h-screen max-h-screen bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[1000]">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute right-0 bottom-0 w-full max-w-[600px] bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col" style={{ top: "var(--app-header-height, 64px)" }} onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-[var(--surface)] shrink-0 px-6 py-5 border-b border-[var(--border)]">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-[var(--foreground)]">Create Business Unit</h2>

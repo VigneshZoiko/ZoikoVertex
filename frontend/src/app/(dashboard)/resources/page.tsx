@@ -205,7 +205,7 @@ function ManageStoragePanel({ onClose, onDeleted }: { onClose: () => void; onDel
       <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl flex flex-col bg-background border-l border-border shadow-2xl">
+      <div className="fixed right-0 bottom-0 z-50 w-full max-w-2xl flex flex-col bg-background border-l border-border shadow-2xl" style={{ top: "var(--app-header-height, 64px)" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">

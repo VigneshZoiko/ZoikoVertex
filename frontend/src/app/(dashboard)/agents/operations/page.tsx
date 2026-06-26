@@ -505,14 +505,15 @@ function RunDetailDrawer({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-end z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-end z-50"
+      style={{ padding: "var(--app-header-height, 64px) 1rem 1rem 1rem" }}
       role="dialog"
       aria-modal="true"
       aria-label={`Run detail: ${run.agent_name || run.id}`}
       onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div ref={cardRef} tabIndex={-1} className="bg-background border border-border rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl focus:outline-none">
+      <div ref={cardRef} tabIndex={-1} className="bg-background border border-border rounded-2xl w-full max-w-2xl h-[calc(100vh-var(--app-header-height)-1rem)] flex flex-col shadow-2xl focus:outline-none">
         {/* Drawer header */}
         <div className="flex items-start justify-between p-5 border-b border-border shrink-0">
           <div className="flex-1 min-w-0">
