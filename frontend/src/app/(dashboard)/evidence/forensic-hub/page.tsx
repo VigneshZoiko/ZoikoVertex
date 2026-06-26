@@ -76,7 +76,6 @@ export default function ForensicHubPage() {
     fetchData();
   }, []);
 
-  // Search
   useEffect(() => {
     api.get(`/api/forensic/cases?${new URLSearchParams(search ? { search } : {}).toString()}`)
       .then(res => { if (res.success) setCases(res.data); })

@@ -208,8 +208,10 @@ export default function EvidenceVaultPage() {
                         onClick={() => router.push(`/evidence/evidence-vault/items/${item.id}`)}
                         className="border-b border-border last:border-0 hover:bg-surface-hover cursor-pointer">
                         <td className="p-3">
-                          <span className="font-medium text-foreground text-[11px]">{item.evidence_type?.replace(/_/g, " ") || "Evidence item"}</span>
-                          {item.preservation_reason && <span className="block text-[10px] text-foreground-muted mt-0.5 line-clamp-1 max-w-[200px]">{item.preservation_reason}</span>}
+                          <span className="font-mono font-medium text-foreground text-[11px]">
+                            {item.source_id ? item.source_id.substring(0, 8) : item.id?.substring(0, 8) || "—"}
+                          </span>
+                          <span className="block text-[10px] text-foreground-muted mt-0.5">{item.evidence_type?.replace(/_/g, " ") || "evidence item"}</span>
                         </td>
                         <td className="p-3 text-foreground-muted text-[11px]">{item.source_type?.replace(/_/g, " ")}</td>
                         <td className="p-3">
@@ -218,7 +220,7 @@ export default function EvidenceVaultPage() {
                           </span>
                           {item.legal_hold && <Lock className="w-3 h-3 text-red-400 inline ml-1" />}
                         </td>
-                        <td className="p-3 text-foreground-muted text-[11px] max-w-[200px] truncate">{item.preservation_reason || "—"}</td>
+                        <td className="p-3 text-foreground-muted text-[11px] max-w-[200px] truncate" title={item.preservation_reason}>{item.preservation_reason || "—"}</td>
                         <td className="p-3 text-foreground-muted text-[11px]">{fmt(item.created_at)}</td>
                       </tr>
                     ))
