@@ -1,62 +1,74 @@
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
+const sgMail = require("@sendgrid/mail");
 const nodemailer = require("nodemailer");
 
+const USE_SENDGRID = !!process.env.SENDGRID_API_KEY;
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: Number(process.env.SMTP_PORT) === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 15000,
-});
+if (USE_SENDGRID) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log("✅ Mail provider: SendGrid");
+} else {
+  // Local dev fallback — SMTP (nodemailer)
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15000,
+  });
 
-// ✅ VERIFY CONNECTION
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ SMTP Connection Failed:", error);
-  } else {
-    console.log("✅ SMTP Server Ready");
-  }
-});
+  transporter.verify((error) => {
+    if (error) {
+      console.warn("⚠️  SMTP unavailable (local dev only):", error.message);
+    } else {
+      console.log("✅ SMTP Server Ready");
+    }
+  });
+
+  module._smtpTransporter = transporter;
+}
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const sendMail = async ({ to, from, subject, body, html }) => {
-  if (!to || !subject) {
-    throw new Error("Missing required fields: to, subject");
-  }
-
+  if (!to || !subject) throw new Error("Missing required fields: to, subject");
   if (!emailRegex.test(to)) throw new Error("Invalid recipient email");
-  if (from && !emailRegex.test(from))
-    throw new Error("Invalid sender email");
+  if (from && !emailRegex.test(from)) throw new Error("Invalid sender email");
 
-  await transporter.sendMail({
-    from: process.env.FROM_EMAIL,
-    replyTo: from,
-    to,
-    subject,
+  const fromAddress = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const textBody = body || "User has reported an issue. Please view this email in HTML format.";
+  const htmlBody =
+    html ||
+    `<div style="font-family: Arial; padding: 10px;">
+      <h3>User Issue</h3>
+      <p>${textBody.replace(/\n/g, "<br/>")}</p>
+    </div>`;
 
-    text:
-      body ||
-      "User has reported an issue. Please view this email in HTML format.",
-
-    html:
-      html ||
-      `
-      <div style="font-family: Arial; padding: 10px;">
-        <h3>User Issue</h3>
-        <p>${(body || "No content").replace(/\n/g, "<br/>")}</p>
-      </div>
-      `,
-  });
+  if (USE_SENDGRID) {
+    await sgMail.send({
+      to,
+      from: fromAddress,
+      replyTo: from || fromAddress,
+      subject,
+      text: textBody,
+      html: htmlBody,
+    });
+  } else {
+    await module._smtpTransporter.sendMail({
+      from: fromAddress,
+      replyTo: from,
+      to,
+      subject,
+      text: textBody,
+      html: htmlBody,
+    });
+  }
 };
 
 module.exports = { sendMail };
