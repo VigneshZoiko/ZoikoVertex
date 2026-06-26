@@ -573,7 +573,7 @@ function AccountDropdown({
 function PublishPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isDirty, setIsDirty } = useDraftGuard();
+  const { isDirty, setIsDirty, setSaveDraftHandler } = useDraftGuard();
 
   // Basic Content State
   const [topic, setTopic] = useState("");
@@ -763,6 +763,8 @@ function PublishPageInner() {
     return () => { setIsDirty(false); };
   }, [setIsDirty]);
 
+
+
   // Save to Drafts handler
   const handleSaveToDrafts = useCallback(async () => {
     try {
@@ -794,6 +796,12 @@ function PublishPageInner() {
       setMessage({ type: "error", text: err?.message || "Failed to save draft" });
     }
   }, [topic, description, contentType, isPlatformSpecific, platformCaptions, selectedUrls, mediaPreview, media, assetType, selectedAccountIds, platformPostTypes, aiTone, aiLength, aiStyleMode, aiAudience, useEmojis, metrics, setIsDirty]);
+
+  // Register save-to-draft handler with DraftGuard context
+  useEffect(() => {
+    setSaveDraftHandler(handleSaveToDrafts);
+    return () => setSaveDraftHandler(null);
+  }, [handleSaveToDrafts, setSaveDraftHandler]);
 
 
   // Discard handler

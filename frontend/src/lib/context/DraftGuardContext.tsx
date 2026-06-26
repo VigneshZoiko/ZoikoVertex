@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
 
 interface DraftGuardContextType {
   isDirty: boolean;
@@ -11,6 +11,10 @@ interface DraftGuardContextType {
   showDiscardModal: boolean;
   confirmDiscard: () => void;
   cancelDiscard: () => void;
+  /** Register a handler that saves the current draft */
+  setSaveDraftHandler: (handler: (() => Promise<void>) | null) => void;
+  /** Call to save draft then navigate away */
+  saveDraft: () => Promise<void>;
 }
 
 const DraftGuardContext = createContext<DraftGuardContextType>({
@@ -21,12 +25,15 @@ const DraftGuardContext = createContext<DraftGuardContextType>({
   showDiscardModal: false,
   confirmDiscard: () => {},
   cancelDiscard: () => {},
+  setSaveDraftHandler: () => {},
+  saveDraft: async () => {},
 });
 
 export function DraftGuardProvider({ children }: { children: ReactNode }) {
   const [isDirty, setIsDirtyState] = useState(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const saveDraftHandlerRef = useRef<(() => Promise<void>) | null>(null);
 
   const setIsDirty = useCallback((val: boolean) => {
     setIsDirtyState(val);
@@ -54,8 +61,22 @@ export function DraftGuardProvider({ children }: { children: ReactNode }) {
     setPendingHref(null);
   }, []);
 
+  const setSaveDraftHandler = useCallback((handler: (() => Promise<void>) | null) => {
+    saveDraftHandlerRef.current = handler;
+  }, []);
+
+  const saveDraft = useCallback(async () => {
+    const handler = saveDraftHandlerRef.current;
+    if (handler) {
+      await handler();
+    }
+    setIsDirtyState(false);
+    setShowDiscardModal(false);
+    setPendingHref(null);
+  }, []);
+
   return (
-    <DraftGuardContext.Provider value={{ isDirty, setIsDirty, requestNavigation, pendingHref, showDiscardModal, confirmDiscard, cancelDiscard }}>
+    <DraftGuardContext.Provider value={{ isDirty, setIsDirty, requestNavigation, pendingHref, showDiscardModal, confirmDiscard, cancelDiscard, setSaveDraftHandler, saveDraft }}>
       {children}
     </DraftGuardContext.Provider>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Edit3, X } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -9,9 +9,10 @@ interface DiscardModalProps {
   pendingHref: string | null;
   onConfirm: () => void;   // discard draft and navigate
   onCancel: () => void;    // stay on page
+  onSaveDraft?: () => void; // save draft then navigate
 }
 
-export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel }: DiscardModalProps) {
+export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel, onSaveDraft }: DiscardModalProps) {
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -54,19 +55,29 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
             You have an unsaved post in progress. If you leave now, your topic, description, and media selection will be lost.
           </p>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2">
             <button
-              onClick={onCancel}
-              className="flex-1 py-3 rounded-xl border border-[var(--border)] text-[var(--foreground)] font-semibold text-sm hover:bg-[var(--surface-hover)] transition-all"
+              type="button"
+              onClick={onSaveDraft}
+              className="w-full py-3 rounded-xl bg-info-text text-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-info-text/20 flex items-center justify-center gap-2"
             >
-              Keep Editing
+              <Edit3 className="w-4 h-4" />
+              Save to Draft
             </button>
-            <button
-              onClick={onConfirm}
-              className="flex-1 py-3 rounded-xl bg-[var(--error-text)] text-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-[var(--error-text)]/20"
-            >
-              Yes, Discard
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={onCancel}
+                className="flex-1 py-3 rounded-xl border border-[var(--border)] text-[var(--foreground)] font-semibold text-sm hover:bg-[var(--surface-hover)] transition-all"
+              >
+                Keep Editing
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex-1 py-3 rounded-xl bg-[var(--error-text)] text-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-[var(--error-text)]/20"
+              >
+                Yes, Discard
+              </button>
+            </div>
           </div>
         </div>
 

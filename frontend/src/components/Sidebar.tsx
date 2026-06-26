@@ -488,7 +488,7 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [lockedFeature, setLockedFeature] = useState<Feature | null>(null);
 
-  const { isDirty, setIsDirty, requestNavigation, pendingHref, showDiscardModal, confirmDiscard, cancelDiscard } = useDraftGuard();
+  const { isDirty, setIsDirty, requestNavigation, pendingHref, showDiscardModal, confirmDiscard, cancelDiscard, saveDraft } = useDraftGuard();
 
   const [pendingCount, setPendingCount] = useState(0);
   const [returnedCount, setReturnedCount] = useState(0);
@@ -624,6 +624,19 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
     cancelDiscard();
   }, [cancelDiscard]);
 
+  const handleSaveDraft = useCallback(async () => {
+    const dest = pendingHref;
+    await saveDraft();
+    onMobileClose?.();
+    if (!dest) return;
+    if (dest === "/login" || dest === "/platform-login") {
+      await supabase.auth.signOut();
+      router.replace(dest);
+    } else {
+      router.push(dest);
+    }
+  }, [pendingHref, router, onMobileClose, saveDraft]);
+
   const handleLogout = async () => {
     const loginDest = isSuperAdmin ? "/platform-login" : "/login";
     if (isDirty && pathname === '/publish') {
@@ -671,6 +684,7 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
         pendingHref={pendingHref}
         onConfirm={handleDiscardConfirm}
         onCancel={handleDiscardCancel}
+        onSaveDraft={handleSaveDraft}
       />
 
       <PlanUpgradeModal
