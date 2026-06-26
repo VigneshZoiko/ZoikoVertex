@@ -520,7 +520,8 @@ export default function StudioPage() {
       | "resume"
       | "retire"
       | "clone"
-      | "rollback",
+      | "rollback"
+      | "delete",
   ) => {
     try {
       setActionLoading((current) => ({ ...current, [agent.id]: action }));
@@ -566,6 +567,9 @@ export default function StudioPage() {
         result = await api.post(`/api/v1/agents/${agent.id}/retire`, {
           reason: `Retired from Agent Studio for ${agent.name}.`,
         });
+      } else if (action === "delete") {
+        if (!window.confirm(`Permanently delete "${agent.name}" from the database? This cannot be undone.`)) return;
+        result = await api.delete(`/api/v1/agents/${agent.id}`);
       } else {
         result = await api.post(`/api/v1/agents/${agent.id}/clone`, {});
       }
@@ -587,6 +591,7 @@ export default function StudioPage() {
         retire: `"${agent.name}" was retired and preserved for audit.`,
         clone: `"${agent.name}" was cloned into a new draft.`,
         rollback: `"${agent.name}" rolled back to the latest approved version snapshot.`,
+        delete: `"${agent.name}" permanently deleted.`,
       };
       setSuccessMsg(actionMessages[action]);
       setTimeout(() => setSuccessMsg(null), 5000);
@@ -1393,17 +1398,17 @@ export default function StudioPage() {
                             </button>
                           )}
 
-                          {/* Remove from view — only once retired. Hides the
-                              disabled card; the audit record is preserved. */}
+                          {/* Permanently delete — only for retired agents */}
                           {isRetired && (
                             <button
-                              onClick={() => dismissRetiredAgent(agent)}
-                              title="Remove from view (record preserved for audit)"
-                              aria-label={`Remove ${agent.name} from view`}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                              onClick={() => runAgentAction(agent, "delete")}
+                              disabled={actionLoading[agent.id] === "delete"}
+                              title="Permanently delete from database"
+                              aria-label={`Delete ${agent.name} permanently`}
+                              className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
                             >
                               <X className="h-3.5 w-3.5" />
-                              Remove
+                              {actionLoading[agent.id] === "delete" ? "Deleting..." : "Remove"}
                             </button>
                           )}
                         </div>
@@ -1529,17 +1534,17 @@ export default function StudioPage() {
                     </button>
                   )}
 
-                  {/* Remove from view — only once retired. Hides the disabled
-                      card; the audit record is preserved in the DB. */}
+                  {/* Permanently delete — only for retired agents */}
                   {isRetired && (
                     <button
-                      onClick={() => dismissRetiredAgent(agent)}
-                      title="Remove from view (record preserved for audit)"
-                      aria-label={`Remove ${agent.name} from view`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                      onClick={() => runAgentAction(agent, "delete")}
+                      disabled={actionLoading[agent.id] === "delete"}
+                      title="Permanently delete from database"
+                      aria-label={`Delete ${agent.name} permanently`}
+                      className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
                     >
                       <X className="h-3.5 w-3.5" />
-                      Remove
+                      {actionLoading[agent.id] === "delete" ? "Deleting..." : "Remove"}
                     </button>
                   )}
                 </div>
