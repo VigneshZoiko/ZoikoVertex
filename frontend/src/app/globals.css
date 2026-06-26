@@ -2,6 +2,9 @@
 
 /* ─── Semantic Design Tokens ─────────────────────────────────────────────── */
 :root {
+  /* Layout dimensions */
+  --app-header-height: 64px;
+
   /* Light Mode */
   --background: #f4f4f5;
   --background-subtle: #ffffff;
@@ -46,6 +49,13 @@
   --info-bg: rgba(99, 102, 241, 0.08);
   --info-border: rgba(99, 102, 241, 0.2);
   --info-text: #6366F1;
+}
+
+/* Mobile — matches header's `h-14` (3.5rem = 56px) */
+@media (width < 640px) {
+  :root {
+    --app-header-height: 56px;
+  }
 }
 
 .dark {
