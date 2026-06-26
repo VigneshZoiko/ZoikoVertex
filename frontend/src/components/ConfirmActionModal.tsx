@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { AlertTriangle, X, ShieldAlert, Trash2, Power, LogOut, AlertCircle, Loader2 } from 'lucide-react';
+import { Modal } from "@/components/ui/primitives";
 
 type Variant = 'danger' | 'warning' | 'info' | 'default';
 
@@ -95,22 +95,6 @@ export default function ConfirmActionModal({
 
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onCancel]);
-
-  useEffect(() => {
-    if (!open) return;
     const timer = setTimeout(() => {
       if (mode === 'prompt' && inputRef.current) inputRef.current.focus();
       else if (requireReason && textareaRef.current) textareaRef.current.focus();
@@ -136,22 +120,24 @@ export default function ConfirmActionModal({
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={onCancel}
-      />
-      <div className="relative z-10 w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-3xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
-        <div className={`h-1 rounded-t-3xl ${variant === 'danger' ? 'bg-[var(--error-text)]' : variant === 'warning' ? 'bg-[var(--warning-text)]' : variant === 'info' ? 'bg-[var(--info-text)]' : 'bg-[var(--foreground-muted)]'}`} />
-        <div className="p-8">
+  return (
+    <Modal open={open} onClose={onCancel} size="sm" showCloseButton={false}>
+      <div className="-m-6">
+        <div className={`h-1 rounded-t-2xl ${variant === 'danger' ? 'bg-[var(--error-text)]' : variant === 'warning' ? 'bg-[var(--warning-text)]' : variant === 'info' ? 'bg-[var(--info-text)]' : 'bg-[var(--foreground-muted)]'}`} />
+        <button
+          onClick={onCancel}
+          disabled={loading}
+          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all disabled:opacity-50"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <div className="p-6">
           <div className={`w-14 h-14 ${styles.iconBg} border rounded-2xl flex items-center justify-center mb-6`}>
             <Icon className={`w-7 h-7 ${styles.iconColor}`} />
           </div>
           <h2 className="text-xl font-bold text-[var(--foreground)] mb-2">{title}</h2>
           <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-6">{message}</p>
 
-          {/* Prompt text input */}
           {mode === 'prompt' && (
             <input
               ref={inputRef}
@@ -164,7 +150,6 @@ export default function ConfirmActionModal({
             />
           )}
 
-          {/* Reason textarea */}
           {requireReason && (
             <textarea
               ref={textareaRef}
@@ -197,15 +182,7 @@ export default function ConfirmActionModal({
             </button>
           </div>
         </div>
-        <button
-          onClick={onCancel}
-          disabled={loading}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all disabled:opacity-50"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
