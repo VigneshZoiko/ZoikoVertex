@@ -48,6 +48,8 @@ interface Campaign {
   meta_adset_id?: string | null;
   meta_ad_id?: string | null;
   meta_error?: string | null;
+  tracking_pixel_id?: string | null;
+  conversion_event?: string | null;
 }
 
 interface Boost {
@@ -512,6 +514,41 @@ export default function CampaignDetailPage() {
                   {campaign.created_at && (
                     <p className="text-[11px] text-foreground-muted mt-0.5">
                       on {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
+
+                {/* META PIXEL */}
+                <div>
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Meta Pixel</p>
+                  {campaign.tracking_pixel_id ? (
+                    <>
+                      <p className="text-sm text-foreground-muted font-medium font-mono">
+                        {campaign.tracking_pixel_id}
+                      </p>
+                      {campaign.conversion_event && (
+                        <p className="text-[11px] text-foreground-muted mt-0.5 capitalize">
+                          Event: {campaign.conversion_event.replace(/_/g, " ")}
+                        </p>
+                      )}
+                      <a
+                        href={`https://business.facebook.com/events_manager2/list/pixel/${campaign.tracking_pixel_id}/overview`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:underline mt-1"
+                      >
+                        View in Events Manager
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current stroke-2">
+                          <path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </a>
+                    </>
+                  ) : (
+                    <p className="text-sm text-foreground-muted">
+                      Not configured
+                      <span className="block text-[11px] text-foreground-muted/60 mt-0.5">
+                        Select a pixel in the campaign creator for conversion tracking
+                      </span>
                     </p>
                   )}
                 </div>

@@ -8,11 +8,6 @@ function getWorkspaceId(req: AuthRequest): string {
   return req.user.workspace_id;
 }
 
-function getTenantId(req: AuthRequest): string {
-  const rawTenantId = (req.user as Record<string, unknown>)?.tenant_id as string | undefined;
-  return rawTenantId && rawTenantId !== 'default' ? rawTenantId : getWorkspaceId(req);
-}
-
 // ─── GET /api/evidence-vault/items ────────────────────────────────────────────
 
 export async function listEvidenceItems(req: AuthRequest, res: Response, next: NextFunction) {
@@ -59,7 +54,7 @@ export async function preserveEvidence(req: AuthRequest, res: Response, next: Ne
       authority: authority || undefined,
       preservation_reason,
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       metadata,
     }, auth);
     res.status(201).json({ success: true, data: result });
@@ -85,7 +80,7 @@ export async function createCollection(req: AuthRequest, res: Response, next: Ne
     const auth = buildAuthContext(req.user);
     const result = await vaultService.createCollection({
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       title, description, scope, created_reason,
       created_by: req.user!.id,
     }, auth);
@@ -164,7 +159,7 @@ export async function createPackage(req: AuthRequest, res: Response, next: NextF
     const auth = buildAuthContext(req.user);
     const result = await vaultService.createPackage({
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       package_type, title, description, source_collection_id, item_ids, metadata,
       created_by: req.user!.id,
     }, auth);
@@ -232,7 +227,7 @@ export async function createExport(req: AuthRequest, res: Response, next: NextFu
     const result = await vaultService.createExport({
       package_id, disclosure_mode, requester_reason, delivery_method, expires_at,
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       requester_id: req.user!.id,
     }, auth);
     res.status(201).json({ success: true, data: result });
@@ -272,7 +267,7 @@ export async function applyHold(req: AuthRequest, res: Response, next: NextFunct
     const auth = buildAuthContext(req.user);
     const result = await vaultService.applyHold({
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       scope_type, scope_id, scope_query, matter_ref, jurisdiction, reason,
       requester_id: req.user!.id, approver_id, effective_date, review_date,
     }, auth);
@@ -341,7 +336,7 @@ export async function createShare(req: AuthRequest, res: Response, next: NextFun
       package_id, recipient_email, recipient_name, disclosure_mode, redaction_policy_id,
       expires_at, max_views, watermark, allow_download, require_mfa,
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       created_by: req.user!.id,
     }, auth);
     res.status(201).json({ success: true, data: result });
@@ -431,7 +426,7 @@ export async function createAsyncJob(req: AuthRequest, res: Response, next: Next
     const result = await vaultService.createAsyncJob({
       job_type, params, priority, max_retries, idempotency_key,
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       created_by: req.user!.id,
     }, auth);
     res.status(201).json({ success: true, data: result });
@@ -471,7 +466,7 @@ export async function createChainAnchor(req: AuthRequest, res: Response, next: N
       package_id,
       item_id,
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       anchor_provider,
       anchor_data,
       created_by: req.user!.id,
@@ -517,7 +512,7 @@ export async function createTemplateVersion(req: AuthRequest, res: Response, nex
     const auth = buildAuthContext(req.user);
     const result = await vaultService.createTemplateVersion({
       workspace_id: getWorkspaceId(req),
-      tenant_id: getTenantId(req),
+      tenant_id: getWorkspaceId(req),
       package_type,
       template_version,
       schema,

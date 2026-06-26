@@ -54,6 +54,7 @@ import {
   Lock,
   Sparkles,
   BarChart3,
+  Edit3,
   RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -185,6 +186,14 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER","CREATOR"],
         dirty: true,
         plan: "publishing" as Feature,
+      },
+      {
+        name: "Drafts",
+        href: "/drafts",
+        icon: Edit3,
+        // Private drafts per publisher — users see only their own, admins see all
+        roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER","CREATOR"],
+        badge: true,
       },
       {
         name: "Returned Items",
@@ -483,6 +492,7 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
 
   const [pendingCount, setPendingCount] = useState(0);
   const [returnedCount, setReturnedCount] = useState(0);
+  const [draftCount, setDraftCount] = useState(0);
   const [supportTicketCount, setSupportTicketCount] = useState(0);
   const prevRoleRef = useRef<string | null>(null);
 
@@ -504,10 +514,12 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
       if (result.success) {
         setPendingCount(result.data?.pending_count ?? 0);
         setReturnedCount(result.data?.returned_count ?? 0);
+        setDraftCount(result.data?.draft_count ?? 0);
       }
     } catch {
       setPendingCount(0);
       setReturnedCount(0);
+      setDraftCount(0);
     }
   }, []);
 
@@ -733,7 +745,12 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
 
                       const badges = (
                         <>
-                          {item.badge && item.href !== "/returned" && pendingCount > 0 && (
+                          {item.name === "Drafts" && draftCount > 0 && (
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-black text-[#080E1A] shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                              {draftCount}
+                            </span>
+                          )}
+                          {item.badge && item.name !== "Drafts" && item.href !== "/returned" && pendingCount > 0 && (
                             <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-black text-[#080E1A] shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {pendingCount}
                             </span>

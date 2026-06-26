@@ -90,7 +90,11 @@ function LoginForm() {
       const next = searchParams.get("next");
       router.replace(next && next.startsWith("/") ? next : "/dashboard");
     } catch (err: any) {
-      setError(err.message || "Invalid credentials");
+      if (err?.message === "Failed to fetch") {
+        setError("Unable to reach authentication server. The Supabase project may be paused — check your Supabase dashboard or contact support.");
+      } else {
+        setError(err?.message || "Invalid credentials");
+      }
       setLoading(false);
     }
   };

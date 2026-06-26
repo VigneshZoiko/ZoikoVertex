@@ -10,10 +10,18 @@ import { AuthRequest } from '../../shared/authMiddleware';
 // CSRF nonce store for OAuth state verification (5 min TTL)
 const oauthNonces = new Map<string, { wsId: string; expiresAt: number; codeVerifier?: string }>();
 
-export const generateOAuthNonce = async (req: Request, res: Response, next: NextFunction) => {
+export const generateOAuthNonce = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { workspaceId } = req.body;
     if (!workspaceId) return res.status(400).json({ error: 'workspaceId required' });
+
+    // Validate that the authenticated user owns this workspace.
+    // Prevents cross-workspace OAuth state abuse where an attacker generates
+    // a nonce for their own workspace and tricks a victim into completing OAuth.
+    if (req.user?.workspace_id && req.user.workspace_id !== workspaceId) {
+      return res.status(403).json({ error: 'Forbidden: workspace does not belong to the authenticated user' });
+    }
+
     const nonce = randomUUID();
     oauthNonces.set(nonce, { wsId: workspaceId, expiresAt: Date.now() + 5 * 60 * 1000 });
     res.json({ success: true, data: { nonce } });
