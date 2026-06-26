@@ -34,6 +34,7 @@ export default function PlatformAnalytics() {
   >("all");
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [openMenuOrgId, setOpenMenuOrgId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number; openUp: boolean } | null>(null);
   const [upgradeOrgId, setUpgradeOrgId] = useState<string | null>(null);
   const [upgradePlanType, setUpgradePlanType] = useState<string>("GROWTH");
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -41,7 +42,6 @@ export default function PlatformAnalytics() {
     orgId: string;
     orgName: string;
   } | null>(null);
-  const [dropdownUpward, setDropdownUpward] = useState(false);
 
   const fetchData = async () => {
     setFetching(true);
@@ -157,6 +157,7 @@ export default function PlatformAnalytics() {
       const target = e.target as HTMLElement;
       if (!target.closest("[data-dropdown-menu]")) {
         setOpenMenuOrgId(null);
+        setMenuAnchor(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -723,7 +724,8 @@ export default function PlatformAnalytics() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirm Dialog Modal */}
@@ -798,9 +800,42 @@ export default function PlatformAnalytics() {
                 </button>
               </div>
             </div>
-          </div>,
-          document.body,
-        )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 3-dot dropdown portal */}
+      {openMenuOrgId && menuAnchor && createPortal(
+        <div
+          className="fixed z-[9999]"
+          style={menuAnchor.openUp
+            ? { bottom: window.innerHeight - menuAnchor.top + 4, right: menuAnchor.right }
+            : { top: menuAnchor.top, right: menuAnchor.right }
+          }
+          data-dropdown-menu
+        >
+          <div className="w-48 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => { setOpenMenuOrgId(null); setMenuAnchor(null); handleDelete(openMenuOrgId); }}
+              disabled={!!actionLoading}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left text-red-500 hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Organization
+            </button>
+            <button
+              onClick={() => { setOpenMenuOrgId(null); setMenuAnchor(null); handleRestrict(openMenuOrgId); }}
+              disabled={!!actionLoading}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              Restrict Organization
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Toasts */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none">

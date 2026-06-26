@@ -155,7 +155,7 @@ const isRetired = (s?: KBSource) => s?.status === "RETIRED";
 const isBlocked = (s?: KBSource) => s?.status === "QUARANTINED" || s?.status === "REJECTED";
 const isReview = (s?: KBSource) =>
   s?.status === "DRAFT" || s?.status === "REVIEW_REQUIRED" || s?.status === "PROCESSING";
-const isApproved = (s?: KBSource) => s?.status === "APPROVED" || s?.status === "ACTIVE";
+const isApproved = (s?: KBSource) => s?.status === "APPROVED";
 const isActiveLive = (s?: KBSource) => s?.status === "ACTIVE";
 
 const meta = (s?: KBSource): SourceMetadata => s?.metadata || {};
@@ -469,7 +469,7 @@ export default function KnowledgeBasePage() {
       if (category === getGovernanceCategory(s)) return;
       setBusy(s.id);
       try {
-        const needsReapproval = isApproved(s); // APPROVED or ACTIVE
+        const needsReapproval = isActiveLive(s) || isApproved(s); // ACTIVE or APPROVED both need re-review on category change
         const top: Record<string, unknown> = { metadata: { ...meta(s), governance_category: category } };
         if (needsReapproval) top.status = "REVIEW_REQUIRED";
         const r = await api.updateKnowledgeSource(s.id, top);
@@ -724,19 +724,19 @@ export default function KnowledgeBasePage() {
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-500/10 rounded-2xl shrink-0">
+          <div className="p-3 bg-indigo-500/10 rounded-2xl">
             <Database className="w-6 h-6 text-indigo-400" />
           </div>
-          <div className="min-w-0">
+          <div>
             <h1 className="text-2xl font-bold text-[var(--foreground)]">Knowledge Base</h1>
             <p className="text-sm text-[var(--foreground-muted)]">Governed source-of-truth for agents — collections, sources, and approved content.</p>
           </div>
         </div>
         <button
           onClick={refreshAll}
-          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition shrink-0"
+          className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
@@ -955,7 +955,6 @@ export default function KnowledgeBasePage() {
 
             {/* Metadata strip — one clean professional line */}
             <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] flex flex-wrap items-center gap-x-4 gap-y-2">
-              <MetaInline label="Type" value={selectedSource.source_type || "MANUAL_ARTICLE"} options={SOURCE_TYPES} readOnly={!canEditSource(selectedSource)} onSave={(v) => patchSourceTop(selectedSource, { source_type: v })} />
               <MetaInline label="Author" value={getAuthor(selectedSource)} readOnly={!canEditSource(selectedSource)} onSave={(v) => patchSourceMeta(selectedSource, { author: v })} />
               <span className="inline-flex items-center gap-1.5 min-w-0">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">Owner</span>
@@ -1016,8 +1015,19 @@ export default function KnowledgeBasePage() {
                   ))}
                 {isApprover && (
                   <>
-                    <ActionBtn tone="emerald" label="Approve" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} disabled={isApproved(selectedSource)} onClick={() => runSourceAction(selectedSource, "approve")} />
-                    <ActionBtn tone="rose" label="Block" icon={<Ban className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => confirmBlock(selectedSource)} />
+                    {!isApproved(selectedSource) && !isBlocked(selectedSource) && (
+                      <ActionBtn tone="emerald" label="Approve" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => runSourceAction(selectedSource, "approve")} />
+                    )}
+                    {isApproved(selectedSource) && (
+                      <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-400 border border-emerald-500/30 bg-emerald-500/10">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Approved
+                      </span>
+                    )}
+                    {isBlocked(selectedSource) ? (
+                      <ActionBtn tone="emerald" label="Unblock" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => runSourceAction(selectedSource, "activate")} />
+                    ) : (
+                      <ActionBtn tone="rose" label="Block" icon={<Ban className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => confirmBlock(selectedSource)} />
+                    )}
                   </>
                 )}
               </div>
@@ -1688,13 +1698,7 @@ function CreateSourceModal({ busy, onClose, onCreate }: { busy?: boolean; onClos
       <Field label="Source Name">
         <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. 2026 Pricing Sheet" className={inputCls} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) onCreate(title.trim(), sourceType, file, fileText, governanceCategory); }} />
       </Field>
-      <Field label="Source Type">
-        <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className={inputCls}>
-          {SOURCE_TYPES.map((t) => (
-            <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
-          ))}
-        </select>
-      </Field>
+
       <Field label="Governance Category">
         <select value={governanceCategory} onChange={(e) => setGovernanceCategory(e.target.value)} className={inputCls}>
           <option value="">— none —</option>

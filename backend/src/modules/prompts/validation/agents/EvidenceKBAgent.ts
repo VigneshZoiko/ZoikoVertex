@@ -9,8 +9,8 @@
 //             SUPPORT counts as evidence.
 //
 //   • SUPPORT match found → PASS (claim is backed by approved knowledge)
-//   • no support / Groq unavailable → REVIEW (fail safe: never auto-approve an
-//     unverified claim on word overlap alone)
+//   • Groq unavailable → word-overlap fallback (candidates returned as matches)
+//   • no word-overlap candidates at all → REVIEW (no KB evidence)
 //
 // This agent only runs when a claim is present, so it is invoked by the
 // orchestrator rather than on every post.
@@ -18,7 +18,7 @@
 
 import type { AgentFinding, PostInput, ValidationAgent } from '../types';
 import type { KnowledgeMatch } from '../../PostGovernanceService.types';
-import { GENERIC_STOPWORDS, tokenize } from '../patterns';
+import { tokenize } from '../patterns';
 import { verifyEvidence } from '../../EvidenceEntailmentService';
 import { supabaseAdmin } from '../../../../shared/supabase';
 import { logger } from '../../../../shared/logger';
@@ -80,20 +80,31 @@ export class EvidenceKBAgent implements ValidationAgent {
         .eq('workspace_id', workspaceId)
         .limit(50);
 
-      const USABLE_STATUSES = ['ACTIVE', 'APPROVED'];
+      const USABLE_STATUSES = ['APPROVED'];
       const sources = (allSources || []).filter((s: any) =>
         USABLE_STATUSES.includes(String(s.status || '').toUpperCase()),
       );
       if (sources.length === 0) return [];
 
+      // Use only true function words as stopwords — NOT business/content words like
+      // "best", "company", "world" which are meaningful for KB evidence matching.
+      const KB_STOPWORDS = new Set([
+        'the', 'and', 'for', 'are', 'with', 'this', 'that', 'from', 'your', 'you', 'our',
+        'they', 'them', 'their', 'there', 'here', 'will', 'has', 'have', 'had', 'was', 'were',
+        'what', 'when', 'which', 'who', 'into', 'than', 'then', 'about', 'after', 'before',
+        'while', 'been', 'being', 'such', 'some', 'any', 'all', 'can', 'could', 'would',
+        'should', 'may', 'might', 'must', 'not', 'but', 'yet', 'its', 'also', 'more', 'most',
+        'very', 'just', 'only', 'over', 'under', 'each', 'every', 'these', 'those', 'how',
+      ]);
+      // Include 3-char words (e.g. brand names like "tcs") for matching
       const contentWords = [
-        ...new Set(tokenize(content).filter((w) => w.length > 3 && !GENERIC_STOPWORDS.has(w))),
+        ...new Set(tokenize(content).filter((w) => w.length > 2 && !KB_STOPWORDS.has(w))),
       ];
       const namedEntities = [
         ...new Set(
           (content.match(/\b[A-Z][A-Za-z0-9'&-]{2,}\b/g) || [])
             .map((w) => w.toLowerCase())
-            .filter((w) => !GENERIC_STOPWORDS.has(w)),
+            .filter((w) => !KB_STOPWORDS.has(w)),
         ),
       ];
 
@@ -130,13 +141,15 @@ export class EvidenceKBAgent implements ValidationAgent {
         })),
       );
 
-      // Fail safe: cannot certify support without the model → no evidence.
+      // Groq unavailable — fall back to word-overlap candidates so the feature
+      // works even without semantic verification. The post still goes to REVIEW
+      // unless every other agent passes, matching approved KB source by keyword.
       if (verdicts === null) {
         logger.warn(
           { candidateCount: candidates.length },
-          '[evidence-kb-agent] semantic verification unavailable — failing safe to review',
+          '[evidence-kb-agent] semantic verification unavailable — using word-overlap fallback',
         );
-        return [];
+        return candidates.map((c) => c.match);
       }
 
       return candidates

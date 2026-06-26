@@ -7,6 +7,7 @@ import { scanImage, type KeywordRule } from '../../modules/safety/imageScanner';
 import { v4 as uuidv4 } from 'uuid';
 import { trackUsage } from '../monitoring/usageController';
 import { createAuditEvent } from '../../services/auditTrail.service';
+import { createApprovalItem } from '../../services/approval.service';
 
 /**
  * Extracts the storage object path from a Supabase Storage public URL.
@@ -357,34 +358,17 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           manual_check_required: true,
         });
 
-      // Create a Review Queue item
-      const { error: reviewInsertError } = await supabaseAdmin
-        .from('review_items')
-        .insert({
-          id: uuidv4(),
-          tenant_id: workspaceId,
-          workspace_id: workspaceId,
-          item_type: 'campaign_asset',
-          source_module: 'media_library',
-          source_entity_id: mediaId,
-          title: scan.isVideo ? `[VIDEO REVIEW] ${title}` : `[BLOCKED] ${title}`,
-          content_snapshot: {
-            copy: title,
-            urls,
-            file_type,
-            violation_reason: scan.reason,
-            scan_notes: scan.imageScanNotes,
-          },
-          submitted_by: userId,
-          priority: 'HIGH',
-          risk_level: 'HIGH',
-          risk_category: scan.isVideo ? 'video_content' : 'content_safety',
-          status: 'PENDING_REVIEW',
-          // Videos await human review (not a safety failure); blocked images truly failed the scan.
-          validation_status: scan.isVideo ? 'NOT_RUN' : 'FAILED',
-        });
-
-      if (reviewInsertError) throw reviewInsertError;
+      // Route to Approval Console
+      await createApprovalItem({
+        tenant_id: workspaceId,
+        workspace_id: workspaceId,
+        item_type: 'CONTENT_APPROVAL',
+        source_module: 'media_library',
+        source_entity_id: mediaId,
+        title: scan.isVideo ? `[VIDEO REVIEW] ${title}` : `[BLOCKED] ${title}`,
+        submitted_by: userId,
+        risk_level: 'HIGH',
+      });
 
       // Notify creator
       await supabaseAdmin

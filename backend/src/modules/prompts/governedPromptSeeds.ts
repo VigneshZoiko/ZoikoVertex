@@ -213,14 +213,14 @@ export function buildGovernedPromptFixtures(workspaceId: string, seeds: Governed
       version_number: 1,
       body: seed.body,
       body_hash: crypto.createHash('sha256').update(seed.body).digest('hex'),
-      created_by: 'governance-seed',
+      created_by: null,
       created_at: ts,
     });
     fixtures.prompt_deployments.push({
       id: deterministicId(`deploy:${workspaceId}:${seed.useCaseKey}`),
       prompt_version_id: versionId,
       environment: 'production',
-      deployed_by: 'governance-seed',
+      deployed_by: null,
       created_at: ts,
     });
     fixtures.prompt_constraint_shadows.push({
@@ -233,7 +233,7 @@ export function buildGovernedPromptFixtures(workspaceId: string, seeds: Governed
       shadow_hash: shadowHash,
       status: 'locked',
       locked_at: ts,
-      locked_by: 'governance-seed',
+      locked_by: null,
       created_at: ts,
       updated_at: ts,
     });

@@ -210,6 +210,14 @@ export class PromptController {
 
   private static async resolveWorkspaceId(req: AuthRequest): Promise<string> {
     if (req.user?.workspace_id) return req.user.workspace_id;
+    if (!req.user?.id) throw new Error('Unauthorized');
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', req.user.id)
+      .limit(1)
+      .maybeSingle();
+    if (member?.workspace_id) return member.workspace_id;
     return PromptController.getWorkspaceId(req.user?.id);
   }
 

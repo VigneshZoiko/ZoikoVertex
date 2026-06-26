@@ -2,6 +2,7 @@
 
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface DiscardModalProps {
   isOpen: boolean;
@@ -19,10 +20,18 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onCancel]);
 
+  // Scroll-lock
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
@@ -69,6 +78,7 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
           <X className="w-4 h-4" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

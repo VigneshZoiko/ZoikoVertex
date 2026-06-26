@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -112,8 +113,14 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
     );
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm overflow-hidden" onClick={onClose}>
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex justify-end bg-black/40 backdrop-blur-sm overflow-hidden" onClick={onClose}>
       <div className="w-full max-w-[600px] h-screen max-h-screen bg-[var(--surface)] border-l border-[var(--border)] shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 z-10 bg-[var(--surface)] shrink-0 px-6 py-5 border-b border-[var(--border)]">
           <div className="flex items-center justify-between mb-3">
@@ -262,6 +269,7 @@ export default function CreateUnitWizard({ onClose, onCreated }: {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
