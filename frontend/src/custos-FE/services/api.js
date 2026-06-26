@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const _rawBase = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CUSTOS_API_URL) || "http://localhost:5000";
+const _rawBase = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CUSTOS_API_URL) || "https://zoikovertex.onrender.com";
 const _baseURL = _rawBase.endsWith("/api") ? _rawBase : _rawBase + "/api";
 
 const api = axios.create({

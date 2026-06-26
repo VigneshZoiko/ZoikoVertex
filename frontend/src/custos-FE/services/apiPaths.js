@@ -1,4 +1,4 @@
-const _raw = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CUSTOS_API_URL) || "http://localhost:5000";
+const _raw = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_CUSTOS_API_URL) || "https://zoikovertex.onrender.com";
 export const API_BASE_URL = _raw.replace(/\/api\/?$/, "");
 
 export const API_PATHS = {
