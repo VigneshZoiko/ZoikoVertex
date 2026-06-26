@@ -1,37 +1,17 @@
 "use client";
 
 import { AlertTriangle, Edit3, X } from "lucide-react";
-import { useEffect } from "react";
-import { createPortal } from "react-dom";
-import { AlertTriangle, X } from "lucide-react";
 import { Modal } from "@/components/ui/primitives";
 
 interface DiscardModalProps {
   isOpen: boolean;
   pendingHref: string | null;
-  onConfirm: () => void;   // discard draft and navigate
-  onCancel: () => void;    // stay on page
-  onSaveDraft?: () => void; // save draft then navigate
+  onConfirm: () => void;
+  onCancel: () => void;
+  onSaveDraft?: () => void;
 }
 
-export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel, onSaveDraft }: DiscardModalProps) {
-  // Close on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, onCancel]);
-
-  // Scroll-lock
-  useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [isOpen]);
-
-export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel }: DiscardModalProps) {
+export default function DiscardModal({ isOpen, onConfirm, onCancel, onSaveDraft }: DiscardModalProps) {
   if (!isOpen) return null;
 
   return (
