@@ -473,6 +473,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [eventDropOpen,  setEventDropOpen]  = useState(false);
   const [pixelSearch,    setPixelSearch]    = useState("");
   const [eventSearch,    setEventSearch]    = useState("");
+  const [availablePixels, setAvailablePixels] = useState<{ id: string; name: string }[]>([]);
+  const [pixelsLoading,  setPixelsLoading]  = useState(false);
   const [euTargeting,    setEuTargeting]    = useState(false);
   const [euConfirmed,  setEuConfirmed]  = useState(false);
   const [beneficiary,  setBeneficiary]  = useState("");
@@ -487,7 +489,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [tmpExcludeLoc,    setTmpExcludeLoc]    = useState("");   // legacy - unused
   const [excludeLocations, setExcludeLocations] = useState<{key:string; display_name:string; type:string}[]>([]);
   const [locResults,       setLocResults]       = useState<{key:string;display_name:string}[]>([]);
-  const [intResults,       setIntResults]       = useState<{id:string;name:string}[]>([]);
+  const [intResults,       setIntResults]       = useState<{id:string;name:string;audience_size_upper_bound?:number;path?:string[];topic?:string}[]>([]);
   const [locLoading,       setLocLoading]       = useState(false);
   const [intLoading,       setIntLoading]       = useState(false);
   const [locInputVal,      setLocInputVal]      = useState("");
@@ -538,6 +540,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [tmpLoc,    setTmpLoc]    = useState<{key:string; display_name:string; type:string}[]>([{ key: "US", display_name: "United States", type: "country" }]);
   const [tmpExcLocItems, setTmpExcLocItems] = useState<{key:string; display_name:string; type:string}[]>([]);
   const [tmpInt,    setTmpInt]    = useState<{id:string;name:string}[]>([]);
+  const [tmpReach,     setTmpReach]     = useState<string>("--");
+  const [tmpReachLoading, setTmpReachLoading] = useState(false);
   const [budgetAmt,   setBudget]    = useState("10.00");
   const [budgetType,  setBudgetType]= useState<"daily"|"total">("daily");
   const [startDate,   setStart]     = useState(() => new Date().toISOString().split("T")[0]);
@@ -681,11 +685,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     try { geoArr = JSON.parse(location); } catch { /* no location yet */ }
 
     api.post('/api/v1/campaigns/meta/reach-estimate', {
-      age_min:          parseInt(ageMin),
-      age_max:          parseInt(ageMax || "65"),
+      age_min:            parseInt(ageMin),
+      age_max:            parseInt(ageMax || "65"),
       gender,
-      geography:        geoArr,
-      optimization_goal: optimize || "REACH",
+      geography:          geoArr,
+      interests:          interests,
+      excluded_geography: excludeLocations,
+      optimization_goal:  optimize || "REACH",
     }).then(r => {
       if (r.success && r.data?.estimate) {
         setPotentialReach(r.data.estimate);
@@ -695,7 +701,30 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     }).catch(() => setPotentialReach("Unavailable"))
     .finally(() => setReachLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ageMin, ageMax, gender, location]);
+  }, [ageMin, ageMax, gender, location, interests, excludeLocations]);
+
+  // Live reach estimate in edit audience modal (debounced)
+  useEffect(() => {
+    if (!showEditAud || !tmpAge[0]) { setTmpReach("--"); return; }
+    const timer = setTimeout(() => {
+      setTmpReachLoading(true);
+      api.post('/api/v1/campaigns/meta/reach-estimate', {
+        age_min:            parseInt(tmpAge[0]),
+        age_max:            parseInt(tmpAge[1] || "65"),
+        gender:             tmpGender,
+        geography:          tmpLoc,
+        interests:          tmpInt,
+        excluded_geography: tmpExcLocItems,
+        optimization_goal:  optimize || "REACH",
+      }).then(r => {
+        if (r.success && r.data?.estimate) setTmpReach(r.data.estimate);
+        else setTmpReach("Unavailable");
+      }).catch(() => setTmpReach("Unavailable"))
+      .finally(() => setTmpReachLoading(false));
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showEditAud, tmpAge, tmpGender, tmpLoc, tmpInt, tmpExcLocItems]);
 
   // Fetch business units
   useEffect(() => {
@@ -1630,14 +1659,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                       {locLoading && <p className="px-3 py-2 text-xs text-foreground-muted">Searching...</p>}
                                       {locResults.map(l => (
                                         <button key={l.key} type="button"
-                                          onClick={() => {
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
                                             if (!tmpLoc.find(x => x.key === l.key)) {
                                               setTmpLoc(prev => [...prev, { key: l.key, display_name: l.display_name, type: (l as any).type || "city" }]);
                                             }
                                             setLocInputVal(""); setLocResults([]);
                                           }}
                                           className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
-                                          {l.display_name}
+                                          <span className="text-foreground">{l.display_name}</span>
                                         </button>
                                       ))}
                                     </div>
@@ -1680,7 +1710,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                           {exLocLoading && <p className="px-3 py-2 text-xs text-foreground-muted">Searching...</p>}
                                           {exLocResults.map(l => (
                                             <button key={l.key} type="button"
-                                              onClick={() => {
+                                              onMouseDown={(e) => {
+                                            e.preventDefault();
                                                 if (!tmpExcLocItems.find(x => x.key === l.key)) {
                                                   setTmpExcLocItems(prev => [...prev, l]);
                                                 }
@@ -1792,14 +1823,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                       {intLoading && <p className="px-3 py-2 text-xs text-foreground-muted">Searching...</p>}
                                       {intResults.map(i => (
                                         <button key={i.id} type="button"
-                                          onClick={() => {
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
                                             if (!tmpInt.find(x => x.id === i.id)) {
                                               setTmpInt(prev => [...prev, { id: i.id, name: i.name }]);
                                             }
                                             setIntInputVal(""); setIntResults([]);
                                           }}
                                           className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
-                                          {i.name}
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-foreground">{i.name}</span>
+                                            {i.audience_size_upper_bound && (
+                                              <span className="text-[10px] text-foreground-muted shrink-0 whitespace-nowrap">
+                                                ~{i.audience_size_upper_bound >= 1000000 ? (i.audience_size_upper_bound / 1000000).toFixed(1) + 'M' : i.audience_size_upper_bound >= 1000 ? Math.round(i.audience_size_upper_bound / 1000) + 'K' : '< 1K'}
+                                              </span>
+                                            )}
+                                          </div>
                                         </button>
                                       ))}
                                     </div>
@@ -1826,7 +1865,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           </div>
                           <div className="pt-3 border-t border-border">
                             <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Potential reach</p>
-                            <p className="text-xl font-bold text-foreground">{potentialReach}</p>
+                            <p className="text-xl font-bold text-foreground">{tmpReachLoading ? <span className="text-foreground-muted text-sm">Estimating...</span> : tmpReach}</p>
                           </div>
                         </div>
                       </div>
@@ -2118,21 +2157,136 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         </p>
                       </div>
 
-                      {/* Pixel ID — entered manually; found in Meta Events Manager */}
+                                            {/* Pixel ID — searchable dropdown auto-fetched from Meta */}
                       <Field label="Meta Pixel ID">
-                        <input
-                          type="text"
-                          value={trackingPixel}
-                          onChange={e => { setTrackingPixel(e.target.value); setConvEvent(""); }}
-                          placeholder="e.g. 1234567890123456"
-                          className={inp}
-                        />
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!pixelDropOpen) {
+                                setPixelsLoading(true);
+                                api.get("/api/v1/campaigns/meta/pixels").then(r => {
+                                  setAvailablePixels(r.data?.pixels || []);
+                                  setPixelsLoading(false);
+                                }).catch(() => setPixelsLoading(false));
+                              }
+                              setPixelDropOpen(o => !o);
+                              setEventDropOpen(false);
+                            }}
+                            className={inp + " flex items-center justify-between text-left"}
+                          >
+                            <span className={trackingPixel ? "text-foreground" : "text-foreground-muted"}>
+                              {trackingPixel
+                                ? availablePixels.find(p => p.id === trackingPixel)?.name
+                                  ? `${availablePixels.find(p => p.id === trackingPixel)?.name} (${trackingPixel})`
+                                  : trackingPixel
+                                : "Select or enter a Meta Pixel ID…"}
+                            </span>
+                            <ChevronDown className={`w-4 h-4 text-foreground-muted shrink-0 transition-transform ${pixelDropOpen ? "rotate-180" : ""}`} />
+                          </button>
+
+                          {pixelDropOpen && (
+                            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
+                              {/* Search input */}
+                              <div className="p-2 border-b border-border">
+                                <input
+                                  type="text"
+                                  value={pixelSearch}
+                                  onChange={e => setPixelSearch(e.target.value)}
+                                  placeholder="Search pixels…"
+                                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-white/30"
+                                  autoFocus
+                                />
+                              </div>
+
+                              {/* Pixel list */}
+                              <div className="max-h-48 overflow-y-auto">
+                                {pixelsLoading ? (
+                                  <div className="flex items-center justify-center gap-2 py-6 text-sm text-foreground-muted">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Loading pixels…
+                                  </div>
+                                ) : availablePixels.length === 0 && pixelSearch.length === 0 ? (
+                                  <div className="px-4 py-6 text-center text-sm text-foreground-muted">
+                                    No pixels found.{" "}
+                                    <a
+                                      href="https://business.facebook.com/events_manager"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-400 hover:underline"
+                                    >
+                                      Create one in Events Manager
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {(pixelSearch
+                                      ? availablePixels.filter(p =>
+                                          p.id.includes(pixelSearch) ||
+                                          p.name.toLowerCase().includes(pixelSearch.toLowerCase())
+                                        )
+                                      : availablePixels
+                                    ).map(px => (
+                                      <button
+                                        key={px.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setTrackingPixel(px.id);
+                                          setConvEvent("");
+                                          setPixelDropOpen(false);
+                                          setPixelSearch("");
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 ${
+                                          trackingPixel === px.id ? "bg-white/5" : ""
+                                        }`}
+                                      >
+                                        <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                                          trackingPixel === px.id ? "border-white" : "border-border"
+                                        }`}>
+                                          {trackingPixel === px.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-sm font-medium text-foreground truncate">{px.name}</p>
+                                          <p className="text-[11px] text-foreground-muted">ID {px.id}</p>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Manual entry separator */}
+                              <div className="border-t border-border">
+                                <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-foreground-muted text-center">
+                                  Or enter ID manually
+                                </div>
+                                <div className="px-4 pb-3">
+                                  <input
+                                    type="text"
+                                    value={pixelSearch}
+                                    onChange={e => { setPixelSearch(e.target.value); }}
+                                    onKeyDown={e => {
+                                      if (e.key === "Enter" && pixelSearch.trim()) {
+                                        setTrackingPixel(pixelSearch.trim());
+                                        setConvEvent("");
+                                        setPixelDropOpen(false);
+                                        setPixelSearch("");
+                                      }
+                                    }}
+                                    placeholder="Paste Pixel ID and press Enter…"
+                                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-white/30 font-mono"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         <p className="text-[11px] text-foreground-muted mt-1">
-                          Find your Pixel ID in{" "}
+                          Select a pixel from your ad account, or paste a Pixel ID from{" "}
                           <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
                             Meta Events Manager
                           </a>
-                          {" "}â†’ Data Sources â†’ your Pixel.
+                          {" "}→ Data Sources → your Pixel.
                         </p>
                       </Field>
 

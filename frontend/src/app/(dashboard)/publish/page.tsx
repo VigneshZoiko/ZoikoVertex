@@ -763,6 +763,39 @@ function PublishPageInner() {
     return () => { setIsDirty(false); };
   }, [setIsDirty]);
 
+  // Save to Drafts handler
+  const handleSaveToDrafts = useCallback(async () => {
+    try {
+      const payload = {
+        title: topic.trim() || description.trim().slice(0, 80) || "Untitled Draft",
+        topic: topic.trim(),
+        content_type: contentType,
+        universal_caption: description,
+        platform_captions: isPlatformSpecific ? platformCaptions : {},
+        media_urls: selectedUrls.length > 0 ? selectedUrls : (mediaPreview ? [mediaPreview] : []),
+        media_type: assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : null),
+        target_account_ids: selectedAccountIds,
+        platform_post_types: platformPostTypes,
+        ai_tone: aiTone,
+        ai_length: aiLength,
+        ai_style: aiStyleMode,
+        ai_audience: aiAudience,
+        use_emojis: useEmojis,
+        metrics: metrics,
+      };
+      const result = await api.post("/api/v1/drafts", payload);
+      if (result.success) {
+        setMessage({ type: "success", text: "Draft saved! You can find it in the Drafts page." });
+        setIsDirty(false);
+      } else {
+        setMessage({ type: "error", text: result.error || "Failed to save draft" });
+      }
+    } catch (err: any) {
+      setMessage({ type: "error", text: err?.message || "Failed to save draft" });
+    }
+  }, [topic, description, contentType, isPlatformSpecific, platformCaptions, selectedUrls, mediaPreview, media, assetType, selectedAccountIds, platformPostTypes, aiTone, aiLength, aiStyleMode, aiAudience, useEmojis, metrics, setIsDirty]);
+
+
   // Discard handler
   const handleDiscard = useCallback(() => {
     setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
@@ -2422,6 +2455,15 @@ function PublishPageInner() {
                 : activeRevisionId
                   ? "Republish"
                   : "Publish Now"}
+          </button>
+          {/* Save to Drafts */}
+          <button
+            onClick={handleSaveToDrafts}
+            disabled={submitting}
+            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--card-border)] hover:bg-[var(--surface-hover)]"
+          >
+            <Bookmark className="w-4 h-4" />
+            Save to Drafts
           </button>
         </div>
 

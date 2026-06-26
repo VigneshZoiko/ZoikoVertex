@@ -44,10 +44,20 @@ export const errorHandler = (
 
   logger.error(logData);
 
+  if (env.NODE_ENV === "production") {
+    return res.status(statusCode).json({
+      success: false,
+      error: {
+        message: "Internal Server Error",
+        code: "INTERNAL_ERROR",
+      },
+    });
+  }
+
   return res.status(statusCode).json({
     success: false,
     error: {
-      message: message, // production check removed temporarily for debugging
+      message,
       code: err.code || "INTERNAL_ERROR",
     },
   });

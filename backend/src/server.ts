@@ -174,7 +174,7 @@ import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages, generateOAuthNonce, initTwitterOAuth } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost, getSchedulerHealth, getBestSlot } from './domains/campaigns/schedulerController';
-import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
+import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts, bulkAssignPixel } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
 import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, getCampaignBreakdownInsights, getCampaignTrend, getCampaignAdInsights, syncBudgetToMeta, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
@@ -252,6 +252,7 @@ import { setupWorkspace, completeOnboarding } from './domains/identity/onboardin
 import { sendOtpCode, verifyOtpCode, resendOtpCode } from './modules/auth/otpController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 import { getSidebarCounts } from './domains/sidebar/sidebarController';
+import { listDrafts as listDraftPosts, getDraft as getDraftPost, saveDraft as saveDraftPost, updateDraft as updateDraftPost, deleteDraft as deleteDraftPost, getDraftCount } from "./domains/agents/draftsController";
 import { getCalendarEvents } from './domains/calendar/calendarController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications, deleteNotification } from './domains/identity/notificationController';
@@ -811,6 +812,9 @@ app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  create
 app.patch('/api/v1/campaigns/:id',     authenticate, campaignWriteGuard,  updateCampaign);
 app.delete('/api/v1/campaigns/:id',    authenticate, campaignWriteGuard,  deleteCampaign);
 
+// Bulk pixel assignment
+app.post('/api/v1/campaigns/bulk/assign-pixel', authenticate, campaignWriteGuard, bulkAssignPixel);
+
 // Campaign lifecycle
 app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,    submitCampaignForReview);
 app.post('/api/v1/campaigns/:id/approve',         authenticate, campaignLaunchGuard,   approveCampaign);
@@ -917,6 +921,12 @@ app.get('/api/v1/library/scan-logs', authenticate, requireRole('ADMIN','WORKSPAC
 });
 
 // Sidebar combined counts (pending review + returned items in one round-trip)
+app.get("/api/v1/drafts",        authenticate, scopeGuard("read:content", "*"), listDraftPosts);
+app.get("/api/v1/drafts/count",  authenticate, cache(20), getDraftCount);
+app.get("/api/v1/drafts/:id",    authenticate, scopeGuard("read:content", "*"), getDraftPost);
+app.post("/api/v1/drafts",       authenticate, scopeGuard("write:content", "*"), saveDraftPost);
+app.patch("/api/v1/drafts/:id",  authenticate, scopeGuard("write:content", "*"), updateDraftPost);
+app.delete("/api/v1/drafts/:id", authenticate, scopeGuard("write:content", "*"), deleteDraftPost);
 app.get('/api/v1/sidebar/counts', authenticate, cache(20), getSidebarCounts);
 
 // Calendar — unified workspace-scoped events (scheduler posts + publish intents)

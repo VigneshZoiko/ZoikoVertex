@@ -48,10 +48,12 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
   const workspaceId = req.user?.workspace_id;
   if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
 
-  const { age_min, age_max, gender, geography, optimization_goal } = req.body as {
+  const { age_min, age_max, gender, geography, optimization_goal, interests, excluded_geography } = req.body as {
     age_min?: number; age_max?: number; gender?: string;
     geography?: Array<{key: string; type: string}>;
     optimization_goal?: string;
+    interests?: Array<{id: string; name: string}>;
+    excluded_geography?: Array<{key: string; type: string}>;
   };
 
   try {
@@ -86,12 +88,31 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
 
     if (!Object.keys(geoLocations).length) geoLocations.countries = ['US'];
 
-    const targetingSpec = {
+    const targetingSpec: Record<string, any> = {
       age_min:       age_min || 18,
       age_max:       age_max || 65,
       genders:       genderNums,
       geo_locations: geoLocations,
     };
+
+    // Add interests to targeting spec if provided
+    if (interests && interests.length > 0) {
+      targetingSpec.interests = interests.map(i => ({ id: i.id, name: i.name }));
+    }
+
+    // Add excluded geo locations if provided
+    if (excluded_geography && excluded_geography.length > 0) {
+      const exclCountries = excluded_geography.filter(g => g.type === 'country').map(g => g.key.toUpperCase().slice(0, 2));
+      const exclCities    = excluded_geography.filter(g => g.type === 'city').map(g => ({ key: g.key }));
+      const exclRegions   = excluded_geography.filter(g => g.type === 'region').map(g => ({ key: g.key }));
+      const exclGeo: Record<string, any> = {};
+      if (exclCountries.length) exclGeo.countries = exclCountries;
+      if (exclCities.length)    exclGeo.cities    = exclCities;
+      if (exclRegions.length)   exclGeo.regions   = exclRegions;
+      if (Object.keys(exclGeo).length) {
+        targetingSpec.excluded_geo_locations = exclGeo;
+      }
+    }
 
     const goal = optimization_goal || 'REACH';
     const url  = metaUrl(`/${adAccountId}/delivery_estimate`, token, {

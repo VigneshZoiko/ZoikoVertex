@@ -580,6 +580,72 @@ export const deleteCampaign = async (req: AuthRequest, res: Response, next: Next
   } catch (err) { next(err); }
 };
 
+// ── POST /api/v1/campaigns/bulk/assign-pixel ────────────────────────────
+// Assigns a Meta Pixel ID to multiple campaigns at once.
+
+export const bulkAssignPixel = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId      = req.user?.id;
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    const { campaign_ids, tracking_pixel_id } = req.body as { campaign_ids?: string[]; tracking_pixel_id?: string | null };
+
+    if (!Array.isArray(campaign_ids) || campaign_ids.length === 0) {
+      return res.status(400).json({ error: 'campaign_ids array is required' });
+    }
+    if (campaign_ids.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 campaigns at a time' });
+    }
+
+    const pixelValue = tracking_pixel_id ?? null;
+
+    // Verify all campaigns belong to this workspace
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, name')
+      .eq('workspace_id', workspaceId)
+      .in('id', campaign_ids);
+
+    if (fetchErr) throw fetchErr;
+    if (!existing || existing.length === 0) {
+      return res.status(404).json({ error: 'No matching campaigns found' });
+    }
+
+    const validIds = existing.map(c => c.id);
+    const notFound = campaign_ids.filter(id => !validIds.includes(id));
+
+    // Bulk update
+    const { error: updateErr } = await supabaseAdmin
+      .from('campaigns')
+      .update({ tracking_pixel_id: pixelValue, updated_at: new Date().toISOString() })
+      .eq('workspace_id', workspaceId)
+      .in('id', validIds);
+
+    if (updateErr) throw updateErr;
+
+    // Log event for each campaign
+    for (const c of existing) {
+      await logCampaignEvent(
+        workspaceId, c.id,
+        'campaign.pixel.assigned',
+        userId, req.user?.role,
+        undefined, undefined,
+        { tracking_pixel_id: pixelValue, campaign_name: c.name },
+      );
+    }
+
+    res.json({
+      success: true,
+      data: {
+        updated_count: validIds.length,
+        not_found: notFound,
+        tracking_pixel_id: pixelValue,
+      },
+    });
+  } catch (err) { next(err); }
+};
+
 export const getCampaignPosts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;

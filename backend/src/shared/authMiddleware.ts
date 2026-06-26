@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
     user_metadata?: Record<string, unknown>;
     role?: string | null;
     workspace_id?: string | null;
+    org_id?: string | null;
     workspace_plan?: string | null;
     workspace_status?: string | null;
     is_superadmin?: boolean;
@@ -105,15 +106,14 @@ async function authenticateApiKey(
       .update({ last_active_at: new Date().toISOString() })
       .eq("id", workspace.org_id)
       .then(undefined, () => {});
-  }
-
-  req.user = {
-    id: apiKey.created_by,
-    workspace_id: apiKey.workspace_id,
-    workspace_plan: workspace?.plan_type ?? null,
-    api_key_id: apiKey.id,
-    api_key_scopes: apiKey.scopes,
-  };
+  }    req.user = {
+      id: apiKey.created_by,
+      workspace_id: apiKey.workspace_id,
+      org_id: workspace?.org_id ?? null,
+      workspace_plan: workspace?.plan_type ?? null,
+      api_key_id: apiKey.id,
+      api_key_scopes: apiKey.scopes,
+    };
 
   next();
   return true; // handled
@@ -207,6 +207,7 @@ export const authenticate = async (
       user_metadata: user.user_metadata as Record<string, unknown> | undefined,
       role: member?.role || null,
       workspace_id: workspaceId,
+      org_id: ws?.org_id ?? null,
       workspace_plan: workspacePlan,
       workspace_status: workspaceStatus,
       is_superadmin: isSuperAdmin,

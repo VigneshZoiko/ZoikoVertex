@@ -264,60 +264,70 @@ ${blocks.join('\n\n')}
       logger.warn({ kbErr }, '[Intelligence] Could not fetch knowledge context, proceeding without it');
     }
 
-    const prompt = `
-    Act as a World-Class Social Media Strategist and Copywriter.
-    Your goal is to generate UNIQUE, high-converting content for each platform.
-    ${knowledgeContextBlock}
-    INPUT DATA:
-    - TOPIC: "${topic}"
-    - IMAGE_CONTEXT: "${imageAnalysis || 'None'}"
-    - CONTENT_CATEGORY: "${contentType}"
-    - TARGETED_PLATFORMS: ${platforms.join(', ')}
-    - TONE: "${tone}"
-    - STYLE: "${selectedStyleRules}"
-    - EMOJIS: ${useEmojis ? 'Enabled' : 'Disabled'}
-
-    PLATFORM GOVERNANCE & CONSTRAINTS (2026 STANDARDS):
-    - Instagram: 3-5 hashtags. Length: 125-300 chars.
-    - X (Twitter): 1-2 hashtags. Length: 70-120 chars.
-    - Threads: 0-1 topic tag. Length: 100-300 chars.
-    - LinkedIn: 3-5 hashtags. Length: 150-400 chars.
-    - Facebook: 1-3 hashtags. Length: 40-120 chars.
-    - Pinterest: 0-3 hashtags. Length: 100-200 chars with keywords.
-
-    WRITING RULES:
-    1. MANDATORY: Every platform in TARGETED_PLATFORMS MUST have a unique caption. NO REPEATS.
-    2. MANDATORY: You MUST provide the specific number of hashtags defined in the GOVERNANCE section. NEVER leave the 'hashtags' array empty unless specified (e.g. Threads).
-    3. STRICT LENGTH LIMITS: You MUST strictly count characters for every platform. Ensure the caption length falls exactly within the specified character ranges (e.g., Facebook 40-120 chars). Do not exceed the maximum character limits under any circumstances.
-    4. NO INLINE HASHTAGS: DO NOT include ANY hashtags inside the "caption" string itself. Place all hashtags EXCLUSIVELY in the "hashtags" array. The system will append them automatically.
-    5. Hook Strength: Start with a viral-style hook (< 10 words).
-    6. Formatting: Use line breaks for readability. Ensure CTAs are platform-appropriate.
-
-    RESPONSE FORMAT (STRICT JSON):
-    {
-      "analysis": { "target_audience": "string", "strategic_hook": "string" },
-      "universal": { "caption": "string", "hashtags": ["string"] },
-      "platforms": {
-        "Instagram": { "caption": "string", "hashtags": ["string"] },
-        "Facebook": { "caption": "string", "hashtags": ["string"] },
-        "X": { "caption": "string", "hashtags": ["string"] },
-        "LinkedIn": { "caption": "string", "hashtags": ["string"] },
-        "Threads": { "caption": "string", "hashtags": ["string"] },
-        "Pinterest": { "caption": "string", "hashtags": ["string"] }
-      },
-      "metrics": { "viral_score": number, "sentiment_score": number },
-      "scheduling": { "suggested_times": [ { "hour": number, "minute": number, "label": "string" } ] }
-    }`;
-
     logger.info({ topic, length, tone, styleMode }, '[Intelligence] Generating content via Groq');
     await logToDatabase('info', 'AI', `Generating post via Groq for topic: ${topic}`, { topic, platforms, tone, styleMode, userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
+    // ─── BUILD SEPARATE SYSTEM & USER PROMPTS ────────────────────────────────
+    // System instructions + knowledge context go in the system role message.
+    // Only user-supplied values go in the user role message.
+    // This prevents prompt injection from exfiltrating workspace knowledge.
+    const systemPrompt = [
+      'Act as a World-Class Social Media Strategist and Copywriter.',
+      'Your goal is to generate UNIQUE, high-converting content for each platform.',
+      knowledgeContextBlock,
+      '',
+      'PLATFORM GOVERNANCE & CONSTRAINTS (2026 STANDARDS):',
+      '- Instagram: 3-5 hashtags. Length: 125-300 chars.',
+      '- X (Twitter): 1-2 hashtags. Length: 70-120 chars.',
+      '- Threads: 0-1 topic tag. Length: 100-300 chars.',
+      '- LinkedIn: 3-5 hashtags. Length: 150-400 chars.',
+      '- Facebook: 1-3 hashtags. Length: 40-120 chars.',
+      '- Pinterest: 0-3 hashtags. Length: 100-200 chars with keywords.',
+      '',
+      'WRITING RULES:',
+      '1. MANDATORY: Every platform in TARGETED_PLATFORMS MUST have a unique caption. NO REPEATS.',
+      '2. MANDATORY: You MUST provide the specific number of hashtags defined in the GOVERNANCE section. NEVER leave the \'hashtags\' array empty unless specified (e.g. Threads).',
+      '3. STRICT LENGTH LIMITS: You MUST strictly count characters for every platform. Ensure the caption length falls exactly within the specified character ranges (e.g., Facebook 40-120 chars). Do not exceed the maximum character limits under any circumstances.',
+      '4. NO INLINE HASHTAGS: DO NOT include ANY hashtags inside the "caption" string itself. Place all hashtags EXCLUSIVELY in the "hashtags" array. The system will append them automatically.',
+      '5. Hook Strength: Start with a viral-style hook (< 10 words).',
+      '6. Formatting: Use line breaks for readability. Ensure CTAs are platform-appropriate.',
+      '',
+      'RESPONSE FORMAT (STRICT JSON):',
+      '{',
+      '  "analysis": { "target_audience": "string", "strategic_hook": "string" },',
+      '  "universal": { "caption": "string", "hashtags": ["string"] },',
+      '  "platforms": {',
+      '    "Instagram": { "caption": "string", "hashtags": ["string"] },',
+      '    "Facebook": { "caption": "string", "hashtags": ["string"] },',
+      '    "X": { "caption": "string", "hashtags": ["string"] },',
+      '    "LinkedIn": { "caption": "string", "hashtags": ["string"] },',
+      '    "Threads": { "caption": "string", "hashtags": ["string"] },',
+      '    "Pinterest": { "caption": "string", "hashtags": ["string"] }',
+      '  },',
+      '  "metrics": { "viral_score": number, "sentiment_score": number },',
+      '  "scheduling": { "suggested_times": [ { "hour": number, "minute": number, "label": "string" } ] }',
+      '}',
+    ].filter(Boolean).join('\n');
+
+    // User role message contains ONLY user-supplied values
+    const userPrompt = [
+      `TOPIC: "${topic}"`,
+      imageAnalysis ? `IMAGE_CONTEXT: "${imageAnalysis}"` : null,
+      `CONTENT_CATEGORY: "${contentType}"`,
+      `TARGETED_PLATFORMS: ${platforms.join(', ')}`,
+      `TONE: "${tone}"`,
+      selectedStyleRules ? `STYLE: "${selectedStyleRules}"` : null,
+      `EMOJIS: ${useEmojis ? 'Enabled' : 'Disabled'}`,
+    ].filter(Boolean).join('\n');
+
     const captionWsId = req.user?.workspace_id as string | undefined;
     const captionCap: { tokens: number } = { tokens: 0 };
-    const callCaptionModel = async (p: string): Promise<string> => {
+    // Single-arg variant used by GovernedModelGate (governed prompt already
+    // contains full context). The governed prompt is sent as a user message.
+    const callCaptionModel = async (governedPrompt: string): Promise<string> => {
       const c = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: p }],
+        messages: [{ role: "user", content: governedPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.8,
       });
@@ -354,7 +364,20 @@ ${blocks.join('\n\n')}
       text = governedCaption.output || '';
     } else {
       await GovernedModelGate.legacyInlineFallback('social_caption_generation', captionWsId, `governed prompt unavailable: ${governedCaption.code}`);
-      text = await callCaptionModel(prompt);
+      // Fallback: send system instructions + KB context as system role, user input
+      // as user role. This separates workspace knowledge from user-controlled
+      // input, preventing prompt injection from exfiltrating the KB.
+      const fallbackCompletion = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+      });
+      captionCap.tokens = fallbackCompletion.usage?.total_tokens ?? 0;
+      text = fallbackCompletion.choices[0]?.message?.content || "";
     }
     if (!text) throw new Error('AI response was empty');
 
