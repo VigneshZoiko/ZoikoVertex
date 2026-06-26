@@ -187,7 +187,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
   ];
 
   return (
-    <div className={`fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-[var(--card)] border-l border-[var(--card-border)] shadow-2xl transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+    <div className={`fixed right-0 bottom-0 z-50 w-full max-w-xl bg-[var(--card)] border-l border-[var(--card-border)] shadow-2xl transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{ top: "var(--app-header-height, 64px)" }}>
       <div className="flex flex-col h-full">
         <div className="p-6 border-b border-[var(--card-border)] bg-[var(--surface)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">

@@ -2050,9 +2050,9 @@ function PromptDetailDrawer({
   }, [drawerTab, prompt.id, auditFetched, loadingAudit]);
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div ref={drawerRef} className="w-full max-w-2xl bg-card border-l border-border overflow-y-auto flex flex-col">
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div ref={drawerRef} className="absolute right-0 bottom-0 w-full max-w-2xl bg-card border-l border-border overflow-y-auto flex flex-col" style={{ top: "var(--app-header-height, 64px)" }}>
         {/* Drawer header */}
         <div className="p-6 border-b border-border space-y-4 sticky top-0 bg-card z-10">
           <div className="flex items-start justify-between gap-4">
