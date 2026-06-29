@@ -419,6 +419,44 @@ async function persistActor(existing: IdentityActor | null, seed: ActorSeed, sna
 async function createLedgerEntry(seed: ActorSeed, snapshotId: string): Promise<IdentityLedgerEntry> {
   const ledgerEntryId = generateOpaqueId('IDL');
 
+  // Get the previous entry's hash to link the chain
+  const { data: prevEntry } = await supabaseAdmin
+    .from('identity_ledger_entries')
+    .select('hash')
+    .eq('workspace_id', seed.workspace_id)
+    .order('timestamp_utc', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const prevHash: string | null = (prevEntry as Record<string, unknown> | null)?.hash as string | null ?? null;
+
+  const source = { source_type: seed.source_system, source_ref_id: seed.source_ref_id, actor_type: seed.actor_type };
+  const authority_change = { roles: seed.current_roles, permission_count: seed.current_permissions.length, authority_class: seed.authority_class };
+  const risk = { level: seed.risk_level, flags: seed.risk_flags };
+  const retention = { class: 'REGULATED', legal_hold: false };
+  const timestampUtc = seed.effective_from;
+
+  const entryHash = buildLedgerEntryHash({
+    tenant_id: seed.tenant_id,
+    workspace_id: String(seed.workspace_id),
+    data_residency: 'auto',
+    schema_version: '1.0',
+    entry_type: seed.entry_type,
+    entry_category: seed.entry_category,
+    timestamp_utc: timestampUtc,
+    actor_id: seed.actor_id,
+    actor_type: seed.actor_type,
+    source,
+    authority_change,
+    session_context: {},
+    approvals: [],
+    linked_authority_snapshot_id: snapshotId,
+    risk,
+    retention,
+    prev_hash: prevHash,
+  });
+
   const { data, error } = await supabaseAdmin
     .from('identity_ledger_entries')
     .insert({
@@ -429,30 +467,18 @@ async function createLedgerEntry(seed: ActorSeed, snapshotId: string): Promise<I
       schema_version: '1.0',
       entry_type: seed.entry_type,
       entry_category: seed.entry_category,
-      timestamp_utc: seed.effective_from,
+      timestamp_utc: timestampUtc,
       actor_id: seed.actor_id,
       actor_type: seed.actor_type,
-      source: {
-        source_type: seed.source_system,
-        source_ref_id: seed.source_ref_id,
-        actor_type: seed.actor_type,
-      },
-      authority_change: {
-        roles: seed.current_roles,
-        permission_count: seed.current_permissions.length,
-        authority_class: seed.authority_class,
-      },
+      source,
+      authority_change,
       session_context: {},
       approvals: [],
       linked_authority_snapshot_id: snapshotId,
-      risk: {
-        level: seed.risk_level,
-        flags: seed.risk_flags,
-      },
-      retention: {
-        class: 'REGULATED',
-        legal_hold: false,
-      },
+      risk,
+      retention,
+      hash: entryHash,
+      prev_hash: prevHash,
     })
     .select()
     .single();
