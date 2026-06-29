@@ -64,6 +64,10 @@ function fmtShort(ts: string) {
 // Canonical lookup — six sources per M1 spec §03
 const EVENT_TYPE_MAP: Record<string, { category: string; type: string }> = {
   // Source A — Human Actions
+  member_added:               { category: "HUMAN_ACTIVITY",       type: "MEMBER_ADDED" },
+  member_removed:             { category: "HUMAN_ACTIVITY",       type: "MEMBER_REMOVED" },
+  member_role_changed:        { category: "HUMAN_ACTIVITY",       type: "ROLE_CHANGED" },
+  member_request_rejected:    { category: "HUMAN_ACTIVITY",       type: "MEMBER_REQUEST_REJECTED" },
   login:                      { category: "HUMAN_ACTIVITY",       type: "SESSION_LOGIN" },
   logout:                     { category: "HUMAN_ACTIVITY",       type: "SESSION_ENDED" },
   session_started:            { category: "HUMAN_ACTIVITY",       type: "SESSION_STARTED" },

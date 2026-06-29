@@ -185,13 +185,28 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
 
     if (error) throw error;
 
+    const reqWsId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
     await logAuditEvent({
-      workspaceId: req.user?.workspace_id || '00000000-0000-0000-0000-000000000000',
+      workspaceId: reqWsId,
       actorId: userId,
       module: 'Team',
       action: `Updated account request ${id} to ${status}`,
       metadata: { request_id: id, status }
     });
+    createAuditEvent({
+      workspace_id: reqWsId,
+      event_category: 'user_identity',
+      event_type: status === 'APPROVED' ? 'member_added' : 'member_request_rejected',
+      event_title: status === 'APPROVED' ? 'Member Added' : 'Member Request Rejected',
+      event_summary: `Account request ${id} ${status.toLowerCase()}`,
+      actor: { actor_id: userId, actor_type: 'human_user' },
+      object: { object_type: 'account_request', object_id: String(id) },
+      risk_level: 'medium',
+      status: 'success',
+      evidence_state: 'not_preserved',
+      retention_class: 'STANDARD',
+      correlation: {},
+    }).catch(() => {});
 
     res.json({ success: true, message: `Request ${status.toLowerCase()}.` });
   } catch (error) {
