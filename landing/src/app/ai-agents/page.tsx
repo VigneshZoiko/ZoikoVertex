@@ -18,7 +18,7 @@ function Ticker() {
     "ROLE-SCOPED PERMISSIONS",
   ];
   return (
-    <div className="border-y border-white/10 bg-[#0a0f1e] py-3 overflow-hidden">
+    <div className="border-y border-white/10 bg-[#101D2F] py-3 overflow-hidden">
       <div className="flex gap-12 animate-none whitespace-nowrap">
         <div className="flex gap-12 text-xs font-semibold tracking-widest text-white/40">
           {[...items, ...items].map((item, i) => (
@@ -37,7 +37,7 @@ function Ticker() {
 /* ── Hero ── */
 function Hero() {
   return (
-    <section className="bg-[#080812] pt-16 pb-20 px-6">
+    <section className="bg-[#080F1B] pt-16 pb-20 px-6">
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
         <div>
           <div className="inline-flex items-center gap-2 border border-cyan-400/30 bg-cyan-400/5 text-cyan-400 text-xs font-bold tracking-widest uppercase px-4 py-2 rounded-full mb-8">
@@ -78,69 +78,91 @@ function Hero() {
           </div>
         </div>
 
-        {/* Orbit diagram */}
-        <div className="relative flex items-center justify-center h-[480px]">
-          {/* Outer ring */}
-          <div className="absolute w-[360px] h-[360px] rounded-full border border-white/5" />
-          <div className="absolute w-[240px] h-[240px] rounded-full border border-white/8" />
+        {/* Orbit diagram — matches Figma: 5 nodes at 72° intervals, dashed spokes */}
+        <div className="relative flex items-center justify-center h-[560px]">
+          {/* SVG: rings + dashed spokes */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 480 560" preserveAspectRatio="xMidYMid meet">
+            {/* Outer ring */}
+            <circle cx="240" cy="280" r="190" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+            {/* Inner ring */}
+            <circle cx="240" cy="280" r="115" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+            {/* Dashed spokes at 72° intervals from top */}
+            {[0, 72, 144, 216, 288].map((deg) => {
+              const rad = (deg - 90) * Math.PI / 180;
+              return (
+                <line
+                  key={deg}
+                  x1="240" y1="280"
+                  x2={240 + 190 * Math.cos(rad)}
+                  y2={280 + 190 * Math.sin(rad)}
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="1"
+                  strokeDasharray="4 5"
+                />
+              );
+            })}
+          </svg>
 
-          {/* Center */}
-          <div className="absolute w-20 h-20 rounded-full bg-[#0d1a2e] border border-cyan-400/30 flex flex-col items-center justify-center z-10">
-            <Shield className="w-6 h-6 text-cyan-400 mb-0.5" />
-            <span className="text-[9px] text-white/50 font-bold tracking-wider">GOVERNANCE</span>
-            <span className="text-[10px] text-white font-bold">Core</span>
+          {/* Center — Governance Core PNG */}
+          <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+            <img src="/images/governance_core.png" alt="Governance Core" className="w-28 h-28" />
           </div>
 
-          {/* Top — Strategy */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+          {/* Strategy — 0° (top) */}
+          <div className="absolute flex flex-col items-center gap-1" style={{ left: '50%', top: 'calc(50% - 190px)', transform: 'translate(-50%, -100%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <Brain className="w-6 h-6 text-cyan-400" />
+              <img src="/images/strategy_icon.png" alt="Strategy" className="w-8 h-8 object-contain" />
             </div>
-            <span className="text-[10px] font-bold text-white/60 tracking-wider">STRATEGY</span>
-            <span className="text-[9px] text-white/30">Campaign Direction</span>
-            <div className="mt-1 bg-[#0d1a2e] border border-white/15 rounded px-2 py-0.5 text-[9px] text-white/70 font-mono">
-              19 DEFAULT ROLES
-            </div>
+            <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">STRATEGY</span>
+            <span className="text-[10px] text-white/30">Campaign Direction</span>
           </div>
 
-          {/* Right — Content */}
-          <div className="absolute right-0 top-1/4 flex flex-col items-center gap-1">
+          {/* "19 DEFAULT ROLES" badge — upper right, outside ring */}
+          <div className="absolute" style={{ right: '0', top: '8%' }}>
+            <img src="/images/19-default-roles.png" alt="19 Default Roles" className="h-12 object-contain" />
+          </div>
+
+          {/* Content — 72° (upper right) */}
+          <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% + 181px)', top: 'calc(50% - 59px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <Pencil className="w-6 h-6 text-white/60" />
+              <img src="/images/content_icon.png" alt="Content" className="w-8 h-8 object-contain" />
             </div>
-            <span className="text-[10px] font-bold text-white/60 tracking-wider">CONTENT</span>
-            <span className="text-[9px] text-white/30">Brand-grounded Drafts</span>
+            <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">CONTENT</span>
+            <span className="text-[10px] text-white/30">Brand-grounded Drafts</span>
           </div>
 
-          {/* Bottom-right — Publishing */}
-          <div className="absolute right-4 bottom-1/4 flex flex-col items-center gap-1">
+          {/* Publishing — 144° (lower right) */}
+          <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% + 112px)', top: 'calc(50% + 154px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#1a2e1a] border border-green-500/20 flex items-center justify-center">
               <Send className="w-6 h-6 text-green-400" />
             </div>
-            <div className="bg-green-900/40 border border-green-500/30 rounded px-2 py-0.5 text-[9px] text-green-400 font-mono">
-              ✓ 100% APPROVAL-GATED
+            <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">PUBLISHING</span>
+            <div className="bg-[#0d2010] border border-green-500/30 rounded-xl px-3 py-1.5 text-[10px] text-green-400 font-bold flex items-center gap-1.5 mt-1">
+              <span className="text-green-400">✓</span> 100% APPROVAL-GATED
             </div>
           </div>
 
-          {/* Bottom — Engagement */}
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+          {/* Engagement — 216° (lower left) */}
+          <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% - 112px)', top: 'calc(50% + 154px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#2a1e0a] border border-amber-500/20 flex items-center justify-center">
-              <MessageCircle className="w-6 h-6 text-amber-400" />
+              <img src="/images/engagement_icon.png" alt="Engagement" className="w-8 h-8 object-contain" />
             </div>
-            <span className="text-[10px] font-bold text-white/60 tracking-wider">ENGAGEMENT</span>
-            <span className="text-[9px] text-white/30">Route &amp; Escalate</span>
-            <div className="bg-[#0d1a2e] border border-white/15 rounded px-2 py-0.5 text-[9px] text-white/70 font-mono flex items-center gap-1">
-              <span>🤖</span> 5 AI AGENTS
-            </div>
+            <span className="text-[11px] font-bold text-amber-400/80 tracking-widest mt-1">ENGAGEMENT</span>
+            <span className="text-[10px] text-white/30">Route &amp; Escalate</span>
           </div>
 
-          {/* Left — Revenue */}
-          <div className="absolute left-0 top-1/3 flex flex-col items-center gap-1">
+          {/* "5 AI AGENTS" badge — lower left, below engagement */}
+          <div className="absolute" style={{ left: '5%', bottom: '4%' }}>
+            <img src="/images/5-governed-agents.png" alt="5 AI Agents" className="h-12 object-contain" />
+          </div>
+
+          {/* Revenue — 288° (upper left) */}
+          <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% - 181px)', top: 'calc(50% - 59px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white/60" />
+              <img src="/images/revenue_icon.png" alt="Revenue" className="w-8 h-8 object-contain" />
             </div>
-            <span className="text-[10px] font-bold text-white/60 tracking-wider">REVENUE</span>
-            <span className="text-[9px] text-white/30">Attribution &amp; ROI</span>
+            <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">REVENUE</span>
+            <span className="text-[10px] text-white/30">Attribution &amp; ROI</span>
           </div>
         </div>
       </div>
@@ -177,7 +199,7 @@ function Distinction() {
     },
   ];
   return (
-    <section className="bg-[#080812] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -221,7 +243,7 @@ const AGENTS = [
     bestFor: "CMOs and Campaign Managers who need evidence-backed campaign direction.",
     failure: "Launching a campaign that contradicts prior performance or approved strategy.",
     plans: ["Audit", "Pro", "Scale", "Command"],
-    icon: <Brain className="w-6 h-6 text-cyan-400" />,
+    icon: <img src="/images/strategy_icon.png" alt="Strategy" className="w-7 h-7 object-contain" />,
     iconBg: "bg-cyan-900/40 border-cyan-500/20",
   },
   {
@@ -233,7 +255,7 @@ const AGENTS = [
     bestFor: "Creators, Brand Stewards, and Compliance Reviewers managing regulated or multi-brand content at volume.",
     failure: "A regulated claim reaching review without Brand Library verification.",
     plans: ["Pro", "Scale", "Command"],
-    icon: <Pencil className="w-6 h-6 text-white/70" />,
+    icon: <img src="/images/content_icon.png" alt="Content" className="w-7 h-7 object-contain" />,
     iconBg: "bg-white/5 border-white/10",
   },
   {
@@ -257,7 +279,7 @@ const AGENTS = [
     bestFor: "Community Managers and Crisis Communications leaders managing risk-sensitive engagement.",
     failure: "An unreviewed response to a sensitive complaint going public before escalation.",
     plans: ["Pro", "Scale", "Command"],
-    icon: <MessageCircle className="w-6 h-6 text-amber-400" />,
+    icon: <img src="/images/engagement_icon.png" alt="Engagement" className="w-7 h-7 object-contain" />,
     iconBg: "bg-amber-900/30 border-amber-500/20",
   },
   {
@@ -269,21 +291,21 @@ const AGENTS = [
     bestFor: "CMOs, CFOs, and Analysts who need ROI evidence that survives Finance and board scrutiny.",
     failure: "A marketing ROI claim that cannot be verified by Finance or the board.",
     plans: ["Pro", "Scale", "Command"],
-    icon: <TrendingUp className="w-6 h-6 text-white/60" />,
+    icon: <img src="/images/revenue_icon.png" alt="Revenue" className="w-7 h-7 object-contain" />,
     iconBg: "bg-white/5 border-white/10",
   },
 ];
 
 const PLAN_COLORS: Record<string, string> = {
-  Audit: "border-white/20 text-white/50",
-  Pro: "border-white/20 text-white/50",
+  Audit: "border-cyan-400/40 text-cyan-400",
+  Pro: "border-cyan-400/40 text-cyan-400",
   Scale: "border-cyan-400/40 text-cyan-400",
-  Command: "border-white/20 text-white/50",
+  Command: "border-cyan-400/40 text-cyan-400",
 };
 
 function FiveAgents() {
   return (
-    <section className="bg-[#06060f] py-24 px-6">
+    <section className="bg-[#080F1B] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
@@ -347,18 +369,18 @@ function FiveAgents() {
 
 /* ── Operating Model ── */
 const STAGES = [
-  { num: "01", title: "Connect", role: "Knowledge Mgr", tag: "Assets · Libraries", icon: <Database className="w-5 h-5 text-cyan-400" /> },
-  { num: "02", title: "Apply Standards", role: "Brand Steward", tag: "Voice · Claims", icon: <BookOpen className="w-5 h-5 text-cyan-400" /> },
-  { num: "03", title: "Set Policies", role: "Gov. Admin", tag: "Roles · Autonomy", icon: <Settings className="w-5 h-5 text-cyan-400" /> },
-  { num: "04", title: "Generate", role: "Agent Operator", tag: "Drafts · Plans", icon: <Zap className="w-5 h-5 text-cyan-400" /> },
-  { num: "05", title: "Route for Review", role: "Reviewer · Validator", tag: "Queue · Approval", icon: <Eye className="w-5 h-5 text-cyan-400" /> },
-  { num: "06", title: "Execute", role: "Publisher", tag: "Signed · Current", icon: <Send className="w-5 h-5 text-cyan-400" /> },
-  { num: "07", title: "Evidence", role: "Analyst · Auditor", tag: "Evidence Vault", icon: <FileText className="w-5 h-5 text-cyan-400" /> },
+  { num: "01", title: "Connect", role: "Knowledge Mgr", tag: "Assets · Libraries", iconBg: "#0C212F", icon: <Database style={{ width: 15, height: 15, flexShrink: 0 }} className="text-cyan-400" /> },
+  { num: "02", title: "Apply Standards", role: "Brand Steward", tag: "Voice · Claims", iconBg: "#0C212F", icon: <BookOpen style={{ width: 15, height: 15, flexShrink: 0 }} className="text-cyan-400" /> },
+  { num: "03", title: "Set Policies", role: "Gov. Admin", tag: "Roles · Autonomy", iconBg: "#18212E", icon: <Settings style={{ width: 15, height: 15, flexShrink: 0 }} className="text-white/50" /> },
+  { num: "04", title: "Generate", role: "Agent Operator", tag: "Drafts · Plans", iconBg: "#18212E", icon: <Zap style={{ width: 15, height: 15, flexShrink: 0 }} className="text-white/50" /> },
+  { num: "05", title: "Route for Review", role: "Reviewer · Validator", tag: "Queue · Approval", iconBg: "#0C212F", icon: <Eye style={{ width: 15, height: 15, flexShrink: 0 }} className="text-cyan-400" /> },
+  { num: "06", title: "Execute", role: "Publisher", tag: "Signed · Current", iconBg: "#0F2729", icon: <Send style={{ width: 15, height: 15, flexShrink: 0 }} className="text-green-400" /> },
+  { num: "07", title: "Evidence", role: "Analyst · Auditor", tag: "Evidence Vault", iconBg: "#0C212F", icon: <FileText style={{ width: 15, height: 15, flexShrink: 0 }} className="text-cyan-400" /> },
 ];
 
 function OperatingModel() {
   return (
-    <section className="bg-[#080812] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -371,7 +393,7 @@ function OperatingModel() {
         </div>
 
         {/* Agent tabs */}
-        <div className="border border-white/10 rounded-xl p-3 flex flex-wrap gap-2 mb-6 bg-[#0a0f1e]">
+        <div className="border border-white/10 rounded-xl p-3 flex flex-wrap gap-2 mb-6 bg-[#080F1B]">
           <span className="text-xs font-bold tracking-widest text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 rounded-lg px-3 py-1.5">AI ORCHESTRATION</span>
           {["Strategy Agent", "Content Agent", "Publishing Agent", "Engagement Agent", "Revenue Attribution Agent"].map((a) => (
             <span key={a} className="text-xs text-white/40 border border-white/10 rounded-lg px-3 py-1.5">{a}</span>
@@ -383,7 +405,7 @@ function OperatingModel() {
           {STAGES.map((s) => (
             <div key={s.num} className="bg-[#0a0f1e] border border-white/8 rounded-xl p-3 flex flex-col items-center text-center">
               <span className="text-white/20 text-xs font-mono mb-2">{s.num}</span>
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2">
+              <div className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center mb-2" style={{ backgroundColor: s.iconBg }}>
                 {s.icon}
               </div>
               <p className="text-white font-bold text-xs mb-1">{s.title}</p>
@@ -394,7 +416,7 @@ function OperatingModel() {
         </div>
 
         {/* Governance bar */}
-        <div className="border border-white/10 rounded-xl p-3 flex flex-wrap gap-2 bg-[#0a0f1e]">
+        <div className="border border-white/10 rounded-xl p-3 flex flex-wrap gap-2 bg-[#080F1B]">
           <span className="text-xs font-bold tracking-widest text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-1.5">GOVERNANCE CONTROL</span>
           {["Policy Engine", "Role-Based Access", "Approval Workflows", "Brand Standards", "Audit Trail", "Human Oversight"].map((g) => (
             <span key={g} className="text-xs text-white/40 border border-white/10 rounded-lg px-3 py-1.5">{g}</span>
@@ -417,7 +439,7 @@ const GOV_CARDS = [
 
 function Governance() {
   return (
-    <section className="bg-[#06060f] py-24 px-6">
+    <section className="bg-[#080F1B] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -432,7 +454,7 @@ function Governance() {
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {GOV_CARDS.map((c) => (
-            <div key={c.title} className="bg-[#0a0f1e] border border-white/8 rounded-2xl p-6">
+            <div key={c.title} className="bg-[#0C1523] border border-white/8 rounded-2xl p-6">
               <div className="w-12 h-12 rounded-xl bg-cyan-900/20 border border-cyan-500/20 flex items-center justify-center mb-4">
                 {c.icon}
               </div>
@@ -480,7 +502,7 @@ function Cell({ val, highlight }: { val: CellValue; highlight?: boolean }) {
 
 function PlanAccess() {
   return (
-    <section className="bg-[#080812] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -496,14 +518,14 @@ function PlanAccess() {
               <tr className="border-b border-white/8">
                 <th className="px-4 py-4 text-left text-xs font-bold text-white/30 tracking-widest">CAPABILITY</th>
                 {["AUDIT", "PRO", "SCALE ★", "COMMAND"].map((p, i) => (
-                  <th key={p} className={`px-4 py-4 text-center text-xs font-bold tracking-widest ${i === 2 ? "text-cyan-400 border-b-2 border-cyan-400" : "text-white/30"}`}>{p}</th>
+                  <th key={p} className={`px-4 py-4 text-center text-xs font-bold tracking-widest ${i === 2 ? "text-cyan-400 border-t-2 border-cyan-400" : "text-white/30"}`}>{p}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {TABLE_ROWS.map((row, i) =>
                 row.section ? (
-                  <tr key={i} className="bg-[#0a0f1e]">
+                  <tr key={i} className="bg-[#080F1B]">
                     <td colSpan={5} className="px-4 py-2 text-xs font-bold text-cyan-400 tracking-widest">{row.label}</td>
                   </tr>
                 ) : (
@@ -512,13 +534,13 @@ function PlanAccess() {
                     <Cell val={row.audit} />
                     <Cell val={row.pro} />
                     <Cell val={row.scale} highlight />
-                    <Cell val={row.command} />
+                    <Cell val={row.command} highlight />
                   </tr>
                 )
               )}
             </tbody>
             <tfoot>
-              <tr className="border-t border-white/8 bg-[#0a0f1e]">
+              <tr className="border-t border-white/8 bg-[#080F1B]">
                 <td className="px-4 py-4 text-xs text-white/30">Scale includes all five agents in advanced multi-brand mode.</td>
                 {[
                   { label: "Request Audit", style: "border border-white/20 text-white/60" },
@@ -562,7 +584,7 @@ const ROLES = [
 
 function RoleAware() {
   return (
-    <section className="bg-[#06060f] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
@@ -605,7 +627,7 @@ const USE_CASES = [
 
 function UseCases() {
   return (
-    <section className="bg-[#080812] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-4">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -648,7 +670,7 @@ const PERSONAS = [
 
 function LeaderPersonas() {
   return (
-    <section className="bg-[#06060f] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -706,7 +728,7 @@ const TRUST_PILLARS = [
 
 function EnterpriseTrust() {
   return (
-    <section className="bg-[#080812] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -717,7 +739,7 @@ function EnterpriseTrust() {
         </div>
         <div className="grid grid-cols-5 gap-px bg-white/5 rounded-2xl overflow-hidden border border-white/8">
           {TRUST_PILLARS.map((p) => (
-            <div key={p.title} className="bg-[#080812] p-6">
+            <div key={p.title} className="bg-[#0C1523] p-6">
               <div className="w-10 h-10 rounded-xl bg-cyan-900/20 border border-cyan-500/20 flex items-center justify-center mb-4">
                 {p.icon}
               </div>
@@ -753,7 +775,7 @@ function FAQ() {
   const right = FAQS.filter((_, i) => i % 2 !== 0);
 
   return (
-    <section className="bg-[#06060f] py-24 px-6">
+    <section className="bg-[#0C1523] py-24 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
@@ -822,7 +844,7 @@ function CTA() {
 /* ── Page ── */
 export default function AIAgentsPage() {
   return (
-    <main className="min-h-screen bg-[#080812]">
+    <main className="min-h-screen bg-[#0C1523]">
       <div>
         <Hero />
         <Ticker />
