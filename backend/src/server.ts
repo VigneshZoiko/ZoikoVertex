@@ -179,7 +179,7 @@ import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunch
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
 import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, getCampaignBreakdownInsights, getCampaignTrend, getCampaignAdInsights, syncBudgetToMeta, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
-import { listLibrary, addToLibrary, deleteFromLibrary, listStorageItems, bulkDeleteFromLibrary } from './domains/content/libraryController';
+import { listLibrary, addToLibrary, deleteFromLibrary, listStorageItems, bulkDeleteFromLibrary, scanMediaUrl } from './domains/content/libraryController';
 import { readRecentScans } from './modules/safety/scanLogger';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
@@ -915,6 +915,7 @@ app.post('/api/v1/library/upload', authenticate, mediaWriteGuard, planRateLimit(
 app.delete('/api/v1/library/:id', authenticate, mediaDeleteGuard, planRateLimit('general'), scopeGuard('write:content', '*'), deleteFromLibrary);
 app.get('/api/v1/monitoring/storage-items', authenticate, mediaReadGuard, scopeGuard('read:content', '*'), listStorageItems);
 app.post('/api/v1/library/bulk-delete', authenticate, mediaDeleteGuard, scopeGuard('write:content', '*'), bulkDeleteFromLibrary);
+app.post('/api/v1/media/scan', authenticate, mediaWriteGuard, planRateLimit('general'), scopeGuard('write:content', '*'), scanMediaUrl);
 app.get('/api/v1/library/scan-logs', authenticate, requireRole('ADMIN','WORKSPACE_OWNER','DEVELOPER','GOVERNANCE_ADMIN','SUPERADMIN'), scopeGuard('read:content', '*'), (req: any, res: any) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
   res.json({ success: true, data: readRecentScans(limit, req.user?.workspace_id) });

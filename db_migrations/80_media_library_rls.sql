@@ -75,15 +75,26 @@ DROP POLICY IF EXISTS "storage_media_upload"      ON storage.objects;
 DROP POLICY IF EXISTS "storage_media_public_read" ON storage.objects;
 DROP POLICY IF EXISTS "storage_media_delete_own"  ON storage.objects;
 
--- Storage RLS: allow authenticated users to upload to their own user folder
+-- Storage RLS: allow authenticated users to upload to their own folder.
+-- Supports two path patterns:
+--   library/{userId}/{filename}  ← media library uploads
+--   {userId}/{filename}          ← publish hub direct uploads
 CREATE POLICY "storage_media_upload"
   ON storage.objects
   FOR INSERT
   TO authenticated
   WITH CHECK (
     bucket_id = 'media'
-    AND (storage.foldername(name))[1] = 'library'
-    AND (storage.foldername(name))[2] = auth.uid()::text
+    AND (
+      -- Library path: library/{userId}/...
+      (
+        (storage.foldername(name))[1] = 'library'
+        AND (storage.foldername(name))[2] = auth.uid()::text
+      )
+      OR
+      -- Direct publish path: {userId}/...
+      (storage.foldername(name))[1] = auth.uid()::text
+    )
   );
 
 -- Storage RLS: allow public read of all media objects (bucket is public)
@@ -93,12 +104,15 @@ CREATE POLICY "storage_media_public_read"
   TO public
   USING (bucket_id = 'media');
 
--- Storage RLS: allow users to delete only their own files
+-- Storage RLS: allow users to delete only their own files (both path patterns)
 CREATE POLICY "storage_media_delete_own"
   ON storage.objects
   FOR DELETE
   TO authenticated
   USING (
     bucket_id = 'media'
-    AND (storage.foldername(name))[2] = auth.uid()::text
+    AND (
+      (storage.foldername(name))[2] = auth.uid()::text   -- library/{userId}/...
+      OR (storage.foldername(name))[1] = auth.uid()::text -- {userId}/...
+    )
   );

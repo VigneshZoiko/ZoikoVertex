@@ -20,6 +20,7 @@ interface LibraryAsset {
   url: string;         // first/primary URL (backward compat)
   urls: string[];      // all URLs in the pack
   file_type: string;
+  status: string;
   uploader_id: string; // Used for ownership check
   uploader: {
     id: string;
@@ -222,6 +223,7 @@ export default function MediaLibraryPage() {
                           {allUrls.length}
                         </div>
                       )}
+
 
                       {/* Delete Action - Only for Admin or Owner */}
                       {(['ADMIN','WORKSPACE_OWNER'].includes(userRole ?? '') || currentUserId === asset.uploader_id) && (

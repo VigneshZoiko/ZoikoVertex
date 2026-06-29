@@ -141,66 +141,24 @@ export default function CreatorUploadPage() {
     const ext = file.name.split('.').pop();
     const path = `library/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Try signed URL upload first (supports progress tracking)
-    const { data: signedData, error: signedErr } = await supabase.storage
+    // Use SDK upload directly — reliable and stores the correct binary content.
+    // Signed-URL XHR was removed: Supabase's upload/sign endpoint does not behave
+    // like a standard S3 presigned PUT and corrupts stored files when used raw.
+    const { error: upErr } = await supabase.storage
       .from('media')
-      .createSignedUploadUrl(path);
+      .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
 
-    if (signedErr || !signedData) {
-      // Fallback: direct SDK upload (no progress bar but reliable)
-      const { error: upErr } = await supabase.storage
-        .from('media')
-        .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
-      if (upErr) {
-        const msg = (upErr as { message?: string }).message || 'Upload failed';
-        const isTooLarge = msg.toLowerCase().includes('payload') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size');
-        throw new Error(isTooLarge
-          ? `File too large (${formatMB(file.size)} MB). Check the storage bucket file_size_limit in your Supabase dashboard.`
-          : `Upload failed: ${msg}`);
-      }
-      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
-      setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
-      return publicUrl;
+    if (upErr) {
+      const msg = (upErr as { message?: string }).message || 'Upload failed';
+      const isTooLarge = msg.toLowerCase().includes('payload') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size');
+      throw new Error(isTooLarge
+        ? `File too large (${formatMB(file.size)} MB). Check the storage bucket file_size_limit in your Supabase dashboard.`
+        : `Upload failed: ${msg}`);
     }
 
-    // XHR upload to signed URL — gives real progress events
-    return new Promise<string>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener('progress', (ev) => {
-        if (ev.lengthComputable) {
-          const pct = Math.round((ev.loaded / ev.total) * 100);
-          setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: pct } : e));
-        }
-      });
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
-          setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
-          resolve(publicUrl);
-        } else {
-          let detail = xhr.statusText;
-          try {
-            const body = JSON.parse(xhr.responseText);
-            detail = body?.error || body?.message || detail;
-          } catch { /* non-JSON response */ }
-          const isTooLarge = xhr.status === 413 || detail.toLowerCase().includes('too large') || detail.toLowerCase().includes('size');
-          reject(new Error(isTooLarge
-            ? `File too large (${formatMB(file.size)} MB). Check the storage bucket file_size_limit in your Supabase dashboard.`
-            : `Upload failed (${xhr.status}): ${detail}`));
-        }
-      });
-      xhr.addEventListener('error', () => reject(new Error('Network error during upload — check your connection and try again.')));
-      xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — file may be too large for your connection speed.')));
-      xhr.timeout = 30 * 60 * 1000;
-      xhr.open('PUT', signedData.signedUrl);
-      // Set Content-Type so Supabase stores the correct MIME type (critical for video playback)
-      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-      xhr.setRequestHeader('x-upsert', 'true');
-      const form = new FormData();
-      form.append('cacheControl', '3600');
-      form.append('', file, file.name);
-      xhr.send(form);
-    });
+    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+    setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
+    return publicUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -510,10 +468,10 @@ export default function CreatorUploadPage() {
                         )}
                         {entry.status === 'uploading' && (
                           <div className="absolute inset-x-0 bottom-0">
-                            <div className="h-1.5 bg-black/40">
-                              <div className="h-full bg-info-text transition-all duration-300" style={{ width: `${entry.progress}%` }} />
+                            <div className="h-1.5 bg-black/40 overflow-hidden">
+                              <div className="h-full bg-info-text animate-pulse" style={{ width: '100%' }} />
                             </div>
-                            <div className="bg-black/60 backdrop-blur text-center text-[10px] text-foreground py-1">{entry.progress}%</div>
+                            <div className="bg-black/60 backdrop-blur text-center text-[10px] text-foreground py-1">Uploading…</div>
                           </div>
                         )}
                         {entry.status === 'done' && (

@@ -1399,14 +1399,22 @@ function PublishPageInner() {
       let finalUrls: string[] = [...selectedUrls];
       if (media) {
         const fileExt = media.name.split(".").pop();
-        const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from("media")
-          .upload(filePath, media);
+          .upload(filePath, media, { contentType: media.type, cacheControl: "3600", upsert: false });
         if (uploadError) throw uploadError;
         const {
           data: { publicUrl: newUrl },
         } = supabase.storage.from("media").getPublicUrl(filePath);
+
+        // AI content scan — runs for images; videos return pending_review automatically
+        const scanResult = await api.post('/api/v1/media/scan', { url: newUrl });
+        if (scanResult?.status === 'blocked') {
+          await supabase.storage.from('media').remove([filePath]);
+          throw new Error(`Image blocked by content policy: ${scanResult.reason || 'Content not allowed'}`);
+        }
+
         finalUrls = [newUrl];
       }
 
@@ -1541,10 +1549,18 @@ function PublishPageInner() {
       let mediaUrl: string | null = selectedUrls[0] || null;
       if (media) {
         const fileExt = media.name.split('.').pop();
-        const filePath = `${user.id}/${Math.random()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, media);
+        const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, media, { contentType: media.type, cacheControl: '3600', upsert: false });
         if (uploadError) throw uploadError;
         const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+
+        // AI content scan — blocks disallowed content before scheduling
+        const scanResult = await api.post('/api/v1/media/scan', { url: publicUrl });
+        if (scanResult?.status === 'blocked') {
+          await supabase.storage.from('media').remove([filePath]);
+          throw new Error(`Image blocked by content policy: ${scanResult.reason || 'Content not allowed'}`);
+        }
+
         mediaUrl = publicUrl;
       }
 

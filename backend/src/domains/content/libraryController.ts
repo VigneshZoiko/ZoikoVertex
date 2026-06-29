@@ -70,7 +70,8 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     if (!workspaceId && !isSuper) return res.status(403).json({ error: 'Workspace context missing' });
 
-    // Step 1: Fetch library items scoped to workspace
+    // Step 1: Fetch only approved/available items — pending_review and blocked items
+    // are intentionally hidden from the vault (reviewers handle them in Review Queue)
     let query = supabaseAdmin
       .from('media_library')
       .select('id, title, url, urls, file_type, uploader_id, status, created_at, workspace_id')
@@ -130,9 +131,9 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
 interface ScanResult {
   safe: boolean;
   isVideo: boolean;
+  needsReview?: boolean; // true = REQUEST_REVIEW (pending), false/undefined = BLOCK (rejected)
   reason?: string;
   violations?: string[];
-  // per-image scan details for the audit note
   imageScanNotes: string[];
 }
 
@@ -242,12 +243,13 @@ async function scanMediaUpload(
           `  Violations: ${violSummary}`
         );
 
-        // Check for blocking violations
+        // Check for violations — BLOCK outright rejects; REQUEST_REVIEW routes to human reviewer
         for (const v of imgResult.violations) {
           if (v.action === 'BLOCK') {
             return {
               safe: false,
               isVideo: false,
+              needsReview: false,
               reason: `${label}: ${v.description}`,
               violations: [v.category],
               imageScanNotes,
@@ -257,7 +259,8 @@ async function scanMediaUpload(
             return {
               safe: false,
               isVideo: false,
-              reason: `${label} requires review: ${v.description}`,
+              needsReview: true,
+              reason: `${label} flagged for review: ${v.description}`,
               violations: [v.category],
               imageScanNotes,
             };
@@ -300,8 +303,15 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
     // Run the safety scan (pass mediaId so logs are linked)
     const scan = await scanMediaUpload(title, validatedUrls, file_type, workspaceId, mediaId);
 
-    // Determine library status
-    const libraryStatus = scan.safe ? 'available' : (scan.isVideo ? 'pending_review' : 'blocked');
+    // Determine library status:
+    //   available     → scan passed
+    //   pending_review → video OR REQUEST_REVIEW violation (drugs/alcohol/graphic — needs human sign-off)
+    //   blocked        → BLOCK violation (explicit nudity, gore, hate symbols, self-harm)
+    const libraryStatus = scan.safe
+      ? 'available'
+      : (scan.isVideo || scan.needsReview)
+        ? 'pending_review'
+        : 'blocked';
 
     const { file_size_bytes } = req.body;
 
@@ -366,24 +376,50 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
         .insert({ id: uuidv4(), validation_item_id: validationItemId, note_body: scanNoteBody, created_by: 'system' });
     } catch { /* non-blocking */ }
 
-    // If not safe — create run result + review queue item + notify creator
+    // If not safe — each governance side-effect runs in its own try-catch so a failure
+    // in one step never prevents the others from executing.
     if (!scan.safe) {
-      const runId = uuidv4();
-      await supabaseAdmin
-        .from('validation_runs')
-        .insert({
+      const reviewTitle = scan.isVideo
+        ? `[VIDEO REVIEW] ${title}`
+        : scan.needsReview
+          ? `[NEEDS REVIEW] ${title}`
+          : `[BLOCKED] ${title}`;
+
+      // ── 1. Review Queue (most critical for UX — runs first, isolated) ────────
+      try {
+        await supabaseAdmin.from('review_items').insert({
+          id: uuidv4(),
+          tenant_id: workspaceId,
+          workspace_id: workspaceId,
+          item_type: 'campaign_asset',
+          source_module: 'media_library',
+          source_entity_id: mediaId,
+          title: reviewTitle,
+          content_snapshot: { title, urls: validatedUrls, file_type, reason: scan.reason },
+          submitted_by: userId,
+          priority: scan.isVideo ? 'NORMAL' : 'HIGH',
+          risk_level: scan.needsReview ? 'MEDIUM' : 'HIGH',
+          status: 'PENDING_REVIEW',
+          submitted_at: new Date().toISOString(),
+        });
+        logger.info({ mediaId, title }, '[Library] review_items entry created');
+      } catch (reviewErr) {
+        logger.warn({ err: reviewErr, mediaId, title }, '[Library] Failed to create review_items entry');
+      }
+
+      // ── 2. Validation run trail ───────────────────────────────────────────────
+      try {
+        const runId = uuidv4();
+        await supabaseAdmin.from('validation_runs').insert({
           id: runId,
           validation_item_id: validationItemId,
-          run_by: 'system',
+          run_by: userId,
           run_status: 'COMPLETED',
           result_summary: scan.isVideo ? 'Video routed to human reviewer' : 'Blocked on upload safety scan',
           started_at: new Date().toISOString(),
           completed_at: new Date().toISOString(),
         });
-
-      await supabaseAdmin
-        .from('validation_rule_results')
-        .insert({
+        await supabaseAdmin.from('validation_rule_results').insert({
           id: uuidv4(),
           validation_run_id: runId,
           rule_name: scan.isVideo ? 'Video Review Policy' : 'Automated Media Safety Scan',
@@ -394,44 +430,59 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           override_eligible: scan.isVideo,
           manual_check_required: true,
         });
+      } catch (runErr) {
+        logger.warn({ err: runErr, mediaId }, '[Library] Validation run trail failed (non-blocking)');
+      }
 
-      // Route to Approval Console
-      await createApprovalItem({
-        tenant_id: workspaceId,
-        workspace_id: workspaceId,
-        item_type: 'CONTENT_APPROVAL',
-        source_module: 'media_library',
-        source_entity_id: mediaId,
-        title: scan.isVideo ? `[VIDEO REVIEW] ${title}` : `[BLOCKED] ${title}`,
-        submitted_by: userId,
-        risk_level: 'HIGH',
-      });
+      // ── 3. Approval Console ───────────────────────────────────────────────────
+      try {
+        await createApprovalItem({
+          tenant_id: workspaceId,
+          workspace_id: workspaceId,
+          item_type: 'CONTENT_APPROVAL',
+          source_module: 'media_library',
+          source_entity_id: mediaId,
+          title: reviewTitle,
+          submitted_by: userId,
+          risk_level: scan.needsReview ? 'MEDIUM' : 'HIGH',
+        });
+      } catch (approvalErr) {
+        logger.warn({ err: approvalErr, mediaId }, '[Library] Approval item creation failed (non-blocking)');
+      }
 
-      // Notify creator
-      await supabaseAdmin
-        .from('notifications')
-        .insert({
+      // ── 4. Notify creator ─────────────────────────────────────────────────────
+      try {
+        const notifTitle = scan.isVideo
+          ? '📹 Video Sent for Review'
+          : scan.needsReview
+            ? '🔍 Media Flagged for Review'
+            : '🚫 Media Blocked';
+        const notifBody = scan.isVideo
+          ? `Your video "${title}" has been sent to the Review Queue. A reviewer will approve or reject it before it can be published.`
+          : scan.needsReview
+            ? `Your media "${title}" was flagged for review: ${scan.reason}. A reviewer will check it before it appears in the library.`
+            : `Your media "${title}" was blocked: ${scan.reason}. It violates content policy and cannot be published.`;
+        await supabaseAdmin.from('notifications').insert({
           id: uuidv4(),
           user_id: userId,
-          title: scan.isVideo ? '📹 Video Sent for Review' : '⚠️ Media Blocked — Sent for Review',
-          body: scan.isVideo
-            ? `Your video "${title}" has been sent to the Review Queue. A reviewer will approve or reject it before it can be published.`
-            : `Your media "${title}" was flagged: ${scan.reason}. It has been sent to the Review Queue.`,
+          title: notifTitle,
+          body: notifBody,
           type: 'GOVERNANCE',
           link: '/queue',
           read: false,
         });
+      } catch (notifErr) {
+        logger.warn({ err: notifErr, mediaId }, '[Library] Notification failed (non-blocking)');
+      }
 
-      // Emit audit event so Evidence Intelligence Worker can auto-create a forensic case
+      // ── 5. Audit event ────────────────────────────────────────────────────────
       try {
         await createAuditEvent({
           workspace_id: workspaceId,
           tenant_id: workspaceId,
           event_category: 'content_lifecycle',
           event_type: scan.isVideo ? 'media.video_pending_review' : 'media.safety_violation',
-          event_title: scan.isVideo
-            ? `Video Upload Pending Review: ${title}`
-            : `Media Safety Violation: ${title}`,
+          event_title: scan.isVideo ? `Video Upload Pending Review: ${title}` : `Media Safety Violation: ${title}`,
           event_summary: scan.reason || 'Content flagged by automated safety scanner and routed to review queue.',
           actor: { actor_id: userId, actor_type: 'human' },
           object: { object_type: 'media_asset', object_id: mediaId },
@@ -440,7 +491,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           evidence_state: 'not_preserved',
           retention_class: 'STANDARD',
         } as any);
-      } catch { /* non-blocking — review queue item already created */ }
+      } catch { /* non-blocking */ }
     }
 
     logger.info({
@@ -719,6 +770,76 @@ export const bulkDeleteFromLibrary = async (req: AuthRequest, res: Response, nex
     }
 
     res.status(200).json({ success: true, deleted: actualCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Scan a single already-uploaded image URL for content policy violations.
+ * Used by the publishing hub after direct Supabase storage uploads so that
+ * images are scanned before being submitted to governance/scheduler.
+ *
+ * POST /api/v1/media/scan
+ * Body: { url: string }
+ * Response: { safe: boolean, status: 'available' | 'pending_review' | 'blocked', reason?: string, skipped?: boolean }
+ */
+export const scanMediaUrl = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { url } = req.body as { url?: string };
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+
+    if (!userId)      return res.status(401).json({ error: 'Unauthorized' });
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+    if (!url)         return res.status(400).json({ error: 'url is required' });
+
+    // Validate URL belongs to this Supabase project
+    const urlCheck = validateStorageUrls([url]);
+    if (!urlCheck.ok) return res.status(400).json({ error: urlCheck.error });
+    const checkedUrl = urlCheck.list[0];
+
+    // Videos: skip scan, route to review
+    const isVideoUrl = /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(checkedUrl);
+    if (isVideoUrl) {
+      return res.status(200).json({ safe: false, status: 'pending_review', reason: 'Video content requires human review before publishing.' });
+    }
+
+    // Load workspace keyword rules
+    const { data: activeRules } = await supabaseAdmin
+      .from('approval_rules')
+      .select('id, rule_name, rule_status, keyword_rules')
+      .eq('workspace_id', workspaceId)
+      .in('rule_status', ['ACTIVE', 'ACTIVE_WITH_DRAFT_CHANGES', 'DRAFT']);
+
+    const keywordRules: KeywordRule[] = [];
+    for (const rule of (activeRules || [])) {
+      const krs = rule.keyword_rules;
+      if (!Array.isArray(krs)) continue;
+      for (const kr of krs) {
+        if (Array.isArray(kr.keywords) && kr.keywords.length > 0 && kr.action) {
+          keywordRules.push({ id: rule.id, keywords: kr.keywords, action: kr.action });
+        }
+      }
+    }
+
+    // Run AI image scan
+    const result = await scanImage(checkedUrl, keywordRules, undefined, workspaceId);
+
+    if (result.skipped) {
+      return res.status(200).json({ safe: true, status: 'available', skipped: true });
+    }
+
+    for (const v of result.violations) {
+      if (v.action === 'BLOCK') {
+        return res.status(200).json({ safe: false, status: 'blocked', reason: v.description });
+      }
+      if (v.action === 'REQUEST_REVIEW') {
+        return res.status(200).json({ safe: false, status: 'pending_review', reason: v.description });
+      }
+    }
+
+    return res.status(200).json({ safe: true, status: 'available' });
   } catch (error) {
     next(error);
   }
