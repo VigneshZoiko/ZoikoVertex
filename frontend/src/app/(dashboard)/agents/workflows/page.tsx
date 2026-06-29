@@ -211,7 +211,7 @@ function ControlStrip({
       {strip.map((item) => (
         <div
           key={item.label}
-          className={`flex flex-col gap-1.5 p-3.5 rounded-xl border transition-all ${
+          className={`flex flex-col gap-1.5 p-3.5 rounded-xl border transition-all overflow-hidden ${
             item.urgent
               ? "bg-error-text/5 border-error-border/20"
               : item.success
@@ -219,9 +219,9 @@ function ControlStrip({
               : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+          <div className="flex items-center gap-2 min-w-0">
+            <item.icon className={`w-3.5 h-3.5 shrink-0 ${item.color}`} />
+            <span className="text-[10px] font-semibold uppercase tracking-wide leading-tight break-words min-w-0 text-[var(--text-muted)]">
               {item.label}
             </span>
           </div>

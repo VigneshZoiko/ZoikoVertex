@@ -99,19 +99,19 @@ export default function SecurityCenterPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="p-5 bg-card border border-border rounded-2xl">
+        <div className="p-5 bg-card border border-border rounded-2xl overflow-hidden">
           <Users className="w-5 h-5 text-info-text mb-3" />
-          <p className="text-xs text-foreground-muted font-medium uppercase tracking-wider">Team Members</p>
+          <p className="text-xs text-foreground-muted font-medium uppercase tracking-wide leading-tight break-words">Team Members</p>
           <p className="text-3xl font-black text-foreground mt-1">{members.length}</p>
         </div>
-        <div className="p-5 bg-card border border-border rounded-2xl">
+        <div className="p-5 bg-card border border-border rounded-2xl overflow-hidden">
           <FileSearch className="w-5 h-5 text-success-text mb-3" />
-          <p className="text-xs text-foreground-muted font-medium uppercase tracking-wider">Recent Events</p>
+          <p className="text-xs text-foreground-muted font-medium uppercase tracking-wide leading-tight break-words">Recent Events</p>
           <p className="text-3xl font-black text-foreground mt-1">{auditEvents.length}</p>
         </div>
-        <div className="p-5 bg-card border border-border rounded-2xl">
+        <div className="p-5 bg-card border border-border rounded-2xl overflow-hidden">
           <ShieldCheck className={`w-5 h-5 mb-3 ${highCount > 0 ? "text-error-text" : "text-success-text"}`} />
-          <p className="text-xs text-foreground-muted font-medium uppercase tracking-wider">High Severity</p>
+          <p className="text-xs text-foreground-muted font-medium uppercase tracking-wide leading-tight break-words">High Severity</p>
           <p className={`text-3xl font-black mt-1 ${highCount > 0 ? "text-error-text" : "text-foreground"}`}>{highCount}</p>
         </div>
       </div>
