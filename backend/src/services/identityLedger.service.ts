@@ -4,6 +4,7 @@ import { getPermissionsForRole } from '../shared/rolePermissions';
 import { internalEventBus } from '../shared/internalEventBus';
 import type { AuthContext } from '../shared/serviceAuth';
 import { requireAnyPermission } from '../shared/serviceAuth';
+import { logger } from '../shared/logger';
 
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const REDACTED_MARKER = 'REDACTED_BY_ACCESS_POLICY';
@@ -944,7 +945,9 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
         .maybeSingle();
 
       await ensureSnapshotForSeed(buildHumanUserSeed(workspaceId, tenantId, member, user as Record<string, unknown> | null));
-    } catch { /* skip this member, continue syncing others */ }
+    } catch (err) {
+      logger.error({ err, actor_id: String(member.user_id), workspaceId }, '[IdentityLedger] Failed to sync human_user actor');
+    }
   }
 
   const { data: agents } = await supabaseAdmin
