@@ -3,6 +3,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
+import { createAuditEvent } from '../../services/auditTrail.service';
 
 export const listMembers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -246,13 +247,29 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
     const { error: updateError } = await updateQuery;
     if (updateError) throw updateError;
 
+    const effectiveWsId = workspaceId || (memberData as any).workspace_id;
     await logAuditEvent({
-      workspaceId: workspaceId || (memberData as any).workspace_id,
+      workspaceId: effectiveWsId,
       actorId,
       module: 'Team',
       action: `Changed role of user ${userId} from ${memberData.role} to ${role}`,
       metadata: { user_id: userId, old_role: memberData.role, new_role: role }
     });
+    createAuditEvent({
+      workspace_id: effectiveWsId,
+      event_category: 'user_identity',
+      event_type: 'member_role_changed',
+      event_title: 'Member Role Changed',
+      event_summary: `Role changed from ${memberData.role} to ${role} for user ${userId}`,
+      actor: { actor_id: actorId, actor_type: 'human_user' },
+      object: { object_type: 'workspace_member', object_id: String(userId) },
+      change: { field_changed: 'role', previous_value: memberData.role, new_value: role },
+      risk_level: 'medium',
+      status: 'success',
+      evidence_state: 'not_preserved',
+      retention_class: 'STANDARD',
+      correlation: {},
+    }).catch(() => {});
 
     res.json({ success: true, message: `Role updated to ${role}.` });
   } catch (error) {
@@ -306,13 +323,28 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
 
     // Don't delete from users table (shared across workspaces) or from Auth
 
+    const deletedWsId = workspaceId || '00000000-0000-0000-0000-000000000000';
     await logAuditEvent({
-      workspaceId: workspaceId || '00000000-0000-0000-0000-000000000000',
+      workspaceId: deletedWsId,
       actorId,
       module: 'Team',
       action: `Deleted workspace member ${userData?.email || userId}`,
       metadata: { deleted_user_id: userId, name: displayName }
     });
+    createAuditEvent({
+      workspace_id: deletedWsId,
+      event_category: 'user_identity',
+      event_type: 'member_removed',
+      event_title: 'Member Removed',
+      event_summary: `Workspace member ${displayName} (${userData?.email || userId}) removed`,
+      actor: { actor_id: actorId, actor_type: 'human_user' },
+      object: { object_type: 'workspace_member', object_id: String(userId) },
+      risk_level: 'high',
+      status: 'success',
+      evidence_state: 'not_preserved',
+      retention_class: 'STANDARD',
+      correlation: {},
+    }).catch(() => {});
 
     res.json({ success: true, message: 'Member account permanently deleted.' });
   } catch (error) {

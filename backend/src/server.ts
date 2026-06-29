@@ -119,6 +119,7 @@ import {
   applyHold,
   listHolds as listVaultHolds,
   releaseHold,
+  deleteHold as deleteVaultHold,
   createRedactionPolicy,
   listRedactionPolicies,
   // Phase 3
@@ -668,6 +669,7 @@ app.get('/api/evidence-vault/exports/:id/receipt', authenticate, scopeGuard('rea
 app.post('/api/evidence-vault/holds', authenticate, scopeGuard('write:governance', '*'), applyHold);
 app.get('/api/evidence-vault/holds', authenticate, scopeGuard('read:governance', '*'), listVaultHolds);
 app.post('/api/evidence-vault/holds/:id/release', authenticate, scopeGuard('write:governance', '*'), releaseHold);
+app.delete('/api/evidence-vault/holds/:id', authenticate, scopeGuard('write:governance', '*'), deleteVaultHold);
 app.post('/api/evidence-vault/redaction-policies', authenticate, scopeGuard('write:governance', '*'), createRedactionPolicy);
 app.get('/api/evidence-vault/redaction-policies', authenticate, scopeGuard('read:governance', '*'), listRedactionPolicies);
 

@@ -300,6 +300,16 @@ export async function releaseHold(req: AuthRequest, res: Response, next: NextFun
   } catch (error) { next(error); }
 }
 
+export async function deleteHold(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const id = req.params.id as string;
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ success: false, error: 'Workspace context missing' });
+    await vaultService.deleteHold(id, workspaceId);
+    res.json({ success: true });
+  } catch (error) { next(error); }
+}
+
 // ─── Phase 2: Redaction Policies ─────────────────────────────────────────────────
 
 export async function createRedactionPolicy(req: AuthRequest, res: Response, next: NextFunction) {
