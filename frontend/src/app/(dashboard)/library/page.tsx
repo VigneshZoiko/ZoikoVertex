@@ -20,6 +20,7 @@ interface LibraryAsset {
   url: string;         // first/primary URL (backward compat)
   urls: string[];      // all URLs in the pack
   file_type: string;
+  status: string;
   uploader_id: string; // Used for ownership check
   uploader: {
     id: string;
@@ -201,11 +202,11 @@ export default function MediaLibraryPage() {
                   const primary = allUrls[0];
                   return (
                     <>
-                      {asset.file_type === 'video' ? (
+                      {asset.file_type?.startsWith('video') ? (
                         <div className="w-full h-full flex items-center justify-center">
                           <VideoIcon className="w-12 h-12 text-[var(--foreground-muted)]" />
                           <video className="absolute inset-0 w-full h-full object-cover opacity-60" onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}>
-                            <source src={primary} type="video/mp4" />
+                            <source src={primary} />
                           </video>
                         </div>
                       ) : (
@@ -222,6 +223,7 @@ export default function MediaLibraryPage() {
                           {allUrls.length}
                         </div>
                       )}
+
 
                       {/* Delete Action - Only for Admin or Owner */}
                       {(['ADMIN','WORKSPACE_OWNER'].includes(userRole ?? '') || currentUserId === asset.uploader_id) && (

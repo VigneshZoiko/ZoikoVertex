@@ -1020,10 +1020,12 @@ export default function InboxPage() {
     }
   };
 
-  // Auto-sync on mount and every 2 minutes (skip when tab is hidden)
+  // Auto-sync on mount and every 15 minutes (skip when tab is hidden).
+  // LinkedIn's socialActions/comments endpoint has a ~100 calls/day limit;
+  // backend throttle enforces a 2-hour minimum interval per account regardless.
   useEffect(() => {
     handleSync();
-    const id = setInterval(() => { if (document.visibilityState === 'visible') handleSync(); }, 120_000);
+    const id = setInterval(() => { if (document.visibilityState === 'visible') handleSync(); }, 15 * 60_000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -63,14 +63,17 @@ Output schema (exact keys):
 
 Omit keys inside sensitive_content that score 0. Return only the JSON object.`;
 
-const SENSITIVE_THRESHOLDS: Record<string, { threshold: number; label: string }> = {
-  nudity:          { threshold: 0.5, label: 'Nudity / Adult Content' },
-  violence:        { threshold: 0.6, label: 'Violence' },
-  gore:            { threshold: 0.5, label: 'Graphic Gore' },
-  hate_symbols:    { threshold: 0.5, label: 'Hate Symbols' },
-  drugs_alcohol:   { threshold: 0.7, label: 'Drugs / Alcohol' },
-  self_harm:       { threshold: 0.5, label: 'Self-Harm Content' },
-  graphic_content: { threshold: 0.6, label: 'Graphic Content' },
+// action controls what happens when this category exceeds the threshold:
+//   BLOCK          → content is rejected outright (explicit nudity, gore, hate, self-harm)
+//   REQUEST_REVIEW → content pauses for a human reviewer (drugs, alcohol, graphic-but-ambiguous)
+const SENSITIVE_THRESHOLDS: Record<string, { threshold: number; label: string; action: 'BLOCK' | 'REQUEST_REVIEW' }> = {
+  nudity:          { threshold: 0.80, label: 'Nudity / Adult Content',  action: 'BLOCK' },
+  violence:        { threshold: 0.80, label: 'Violence',                action: 'BLOCK' },
+  gore:            { threshold: 0.80, label: 'Graphic Gore',            action: 'BLOCK' },
+  hate_symbols:    { threshold: 0.75, label: 'Hate Symbols',            action: 'BLOCK' },
+  drugs_alcohol:   { threshold: 0.80, label: 'Drugs / Alcohol',         action: 'REQUEST_REVIEW' },
+  self_harm:       { threshold: 0.80, label: 'Self-Harm Content',       action: 'BLOCK' },
+  graphic_content: { threshold: 0.80, label: 'Graphic Content',         action: 'REQUEST_REVIEW' },
 };
 
 async function tryGroq(base64: string, mimeType: string): Promise<{ text: string; modelUsed: string; tokensUsed: number }> {
@@ -162,7 +165,7 @@ export async function scanImage(
           type: 'sensitive_content',
           category,
           description: `${cfg.label} detected in image (${(score * 100).toFixed(0)}% confidence)`,
-          action: 'BLOCK',
+          action: cfg.action,
           confidence: score,
         });
       }

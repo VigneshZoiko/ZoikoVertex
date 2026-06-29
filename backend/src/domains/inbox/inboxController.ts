@@ -490,7 +490,7 @@ export const createReply = async (req: AuthRequest, res: Response, next: NextFun
 
     const { data: msg } = await supabaseAdmin
       .from('inbox_messages')
-      .select('id, status, platform, message_type, platform_message_id, original_post_id, sender_handle')
+      .select('id, status, platform, message_type, platform_message_id, original_post_id, sender_handle, recipient_account_handle')
       .eq('id', (req.params.id as string))
       .eq('workspace_id', workspaceId)
       .single();
@@ -623,26 +623,43 @@ export const createReply = async (req: AuthRequest, res: Response, next: NextFun
     }
 
     if (msg.platform_message_id && msg.platform === 'LINKEDIN' && msg.message_type === 'COMMENT') {
-      const { data: liAccount } = await supabaseAdmin
+      // Prefer the account that received the comment (recipient_account_handle),
+      // fall back to any active org page in the workspace.
+      const recipientHandle = (msg as any).recipient_account_handle as string | undefined;
+      let liAccountQuery = supabaseAdmin
         .from('connected_accounts')
         .select('access_token, account_handle')
         .eq('workspace_id', workspaceId)
         .eq('platform', 'linkedin')
         .eq('status', 'active')
-        .like('account_handle', 'urn:li:organization:%')
-        .maybeSingle();
+        .like('account_handle', 'urn:li:organization:%');
+      if (recipientHandle) liAccountQuery = liAccountQuery.eq('account_handle', recipientHandle);
+      const { data: liAccount } = await liAccountQuery.maybeSingle();
 
       if (liAccount?.access_token && liAccount.account_handle) {
         try {
-          // Build the REST-compatible comment URN. The v2 API returns numeric
-          // comment IDs; the REST API requires a fully-qualified URN.
-          const postUrn = msg.original_post_id || '';
+          // platform_message_id from REST API sync is always a full comment URN:
+          //   urn:li:comment:(urn:li:ugcPost:123,456)
+          // For nested reply to commenter use the comment URN as object.
+          // For a fresh top-level reply use the post URN (original_post_id).
           const commentId = msg.platform_message_id || '';
-          const commentUrn = commentId.startsWith('urn:')
-            ? commentId
-            : `urn:li:comment:(${postUrn},${commentId})`;
+          const postUrn   = msg.original_post_id   || '';
 
-          const liRes = await fetch('https://api.linkedin.com/rest/comments', {
+          // Extract the numeric comment ID for v2 nested reply (parentComment field).
+          // v2 sync stores c.id as a numeric string e.g. "6789901234567890".
+          // REST sync stores full URN e.g. "urn:li:comment:(urn:li:ugcPost:123,456789)" — extract the number after the last comma.
+          let numericCommentId: number | null = null;
+          if (commentId.startsWith('urn:li:comment:')) {
+            const m = commentId.match(/,(\d+)\)$/);
+            if (m) numericCommentId = parseInt(m[1], 10);
+          } else if (/^\d+$/.test(commentId)) {
+            numericCommentId = parseInt(commentId, 10);
+          }
+
+          // Try REST first — Community Management API product is now added to app.
+          // REST uses the full comment URN as "object" for nested replies.
+          const restObjectUrn = commentId.startsWith('urn:li:comment:') ? commentId : postUrn;
+          const restRes = await fetch('https://api.linkedin.com/rest/comments', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${liAccount.access_token}`,
@@ -652,16 +669,47 @@ export const createReply = async (req: AuthRequest, res: Response, next: NextFun
             },
             body: JSON.stringify({
               actor:   liAccount.account_handle,
-              object:  commentUrn,
+              object:  restObjectUrn,
               message: { text: reply_body },
             }),
           });
-          if (liRes.ok || liRes.status === 201) {
+
+          if (restRes.ok || restRes.status === 201) {
             replyStatus = 'sent';
           } else {
-            const errBody = await liRes.text().catch(() => '');
-            metaError = `LinkedIn API error: ${liRes.status} ${errBody}`;
-            console.error(`[Inbox] LinkedIn comment reply failed: ${metaError}`);
+            const restErr = await restRes.text().catch(() => '');
+            console.warn(`[Inbox] LinkedIn REST reply failed (${restRes.status}), trying v2 fallback: ${restErr}`);
+
+            // v2 fallback — uses parentComment field for nested reply instead of "object" URN
+            const v2Body: Record<string, unknown> = {
+              actor:   liAccount.account_handle,
+              message: { text: reply_body },
+            };
+            if (numericCommentId !== null) {
+              v2Body.parentComment = numericCommentId;
+            }
+
+            const v2ParentUrn = postUrn || commentId;
+            const v2Res = await fetch(
+              `https://api.linkedin.com/v2/socialActions/${encodeURIComponent(v2ParentUrn)}/comments`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${liAccount.access_token}`,
+                  'X-Restli-Protocol-Version': '2.0.0',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(v2Body),
+              },
+            );
+
+            if (v2Res.ok || v2Res.status === 201) {
+              replyStatus = 'sent';
+            } else {
+              const errBody = await v2Res.text().catch(() => '');
+              metaError = `LinkedIn API error: ${v2Res.status} ${errBody}`;
+              console.error(`[Inbox] LinkedIn comment reply failed: ${metaError}`);
+            }
           }
         } catch (err: any) {
           metaError = err.message;

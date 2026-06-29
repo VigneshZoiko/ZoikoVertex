@@ -507,6 +507,7 @@ export async function listAuditEvents(params: {
   event_category?: string;
   event_type?: string;
   actor_id?: string;
+  actor_type?: string;
   object_id?: string;
   risk_level?: string;
   status?: string;
@@ -539,6 +540,9 @@ export async function listAuditEvents(params: {
   }
   if (params.actor_id) {
     query = query.filter('actor->>actor_id', 'eq', params.actor_id);
+  }
+  if (params.actor_type) {
+    query = query.filter('actor->>actor_type', 'eq', params.actor_type);
   }
   if (params.object_id) {
     query = query.filter('object->>object_id', 'eq', params.object_id);
