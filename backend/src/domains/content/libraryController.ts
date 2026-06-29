@@ -565,6 +565,8 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
 
     // Preserve evidence of deletion in Evidence Vault (fire-and-forget)
     if (workspaceId) {
+      const crossUserDeletion = item?.uploader_id && item.uploader_id !== userId;
+      const deletedAt = new Date().toISOString();
       const payload = JSON.stringify({
         action: 'media_deleted',
         asset_id: id,
@@ -573,20 +575,24 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
         mime_type: item?.mime_type || null,
         file_size_bytes: item?.file_size_bytes || 0,
         uploader_id: item?.uploader_id || null,
-        created_at: item?.created_at || null,
+        original_upload_at: item?.created_at || null,
         deleted_by: userId,
-        deleted_at: new Date().toISOString(),
+        deleted_by_role: role,
+        deleted_at: deletedAt,
+        cross_user_deletion: crossUserDeletion,
       });
       preserveEvidence({
         workspace_id: workspaceId,
-        tenant_id: '00000000-0000-0000-0000-000000000000',
+        tenant_id: workspaceId,
         source_type: 'media_library',
         source_id: String(id),
         source_system: 'media_vault',
         evidence_type: 'asset_deletion',
-        risk_level: 'medium',
+        risk_level: crossUserDeletion ? 'high' : 'medium',
         sensitivity: 'internal',
-        preservation_reason: 'Media asset permanently deleted from library',
+        preservation_reason: crossUserDeletion
+          ? `Media asset deleted by ${role} (${userId}) — originally uploaded by a different user`
+          : 'Media asset permanently deleted from library',
         preserved_by: userId,
         payload,
         payload_size: payload.length,
@@ -596,25 +602,39 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
           asset_id: id,
           asset_name: item?.name || id,
           asset_type: item?.type || 'unknown',
+          uploader_id: item?.uploader_id || null,
           deleted_by: userId,
-          role,
+          deleted_by_role: role,
+          cross_user_deletion: crossUserDeletion,
         },
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error('[Evidence] preserveEvidence failed for media deletion:', err?.message);
+      });
 
       createAuditEvent({
         workspace_id: workspaceId,
         event_category: 'content_lifecycle',
-        event_type: 'media_deleted',
+        event_type: 'content.deleted',
         event_title: 'Media Asset Deleted',
-        event_summary: `Media asset "${item?.name || String(id)}" deleted from library`,
+        event_summary: `Media asset "${item?.name || String(id)}" deleted from library${crossUserDeletion ? ` (deleted by ${role}, originally uploaded by another user)` : ''}`,
         actor: { actor_id: userId, actor_type: 'human_user' },
         object: { object_type: 'media_asset', object_id: String(id) },
-        risk_level: 'medium',
+        risk_level: crossUserDeletion ? 'high' : 'medium',
         status: 'success',
         evidence_state: 'preserved',
         retention_class: 'STANDARD',
         correlation: {},
-      }).catch(() => {});
+        change: {
+          field_changed: 'vault_state',
+          previous_value: 'active',
+          new_value: 'deleted',
+          change_reason: crossUserDeletion
+            ? `Deleted by ${role} (${userId}), originally uploaded by ${item?.uploader_id}`
+            : `Deleted by ${role}`,
+        },
+      }).catch((err) => {
+        console.error('[Audit] createAuditEvent failed for media deletion:', err?.message);
+      });
     }
 
     // Clean up resource_usage so the Storage meter reflects the deletion (fire-and-forget)

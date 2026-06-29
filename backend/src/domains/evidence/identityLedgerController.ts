@@ -80,7 +80,7 @@ export async function listActors(req: AuthRequest, res: Response, next: NextFunc
     if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
 
     const viewer = await getViewerContext(req);
-    const { actor_type, state, role, authority_class, risk_level, source, search, limit, offset } = req.query as Record<string, string | undefined>;
+    const { actor_type, state, role, authority_class, risk_level, source, search, limit, offset, refresh } = req.query as Record<string, string | undefined>;
 
     const result = await identityLedgerService.listActors({
       workspace_id: workspaceId,
@@ -94,6 +94,7 @@ export async function listActors(req: AuthRequest, res: Response, next: NextFunc
       limit: limit ? parseInt(limit, 10) : 50,
       offset: offset ? parseInt(offset, 10) : 0,
       viewer,
+      refresh: refresh === 'true',
     });
 
     logIdentityLedgerAccess({

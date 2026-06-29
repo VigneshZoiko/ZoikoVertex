@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
 import { createAuditEvent } from '../../services/auditTrail.service';
+import { syncActorAfterRoleChange } from '../../services/identityLedger.service';
 
 export const listMembers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -273,7 +274,7 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
     createAuditEvent({
       workspace_id: effectiveWsId,
       event_category: 'user_identity',
-      event_type: 'member_role_changed',
+      event_type: 'user.role_changed',
       event_title: 'Member Role Changed',
       event_summary: `Role changed from ${memberData.role} to ${role} for user ${userId}`,
       actor: { actor_id: actorId, actor_type: 'human_user' },
@@ -284,6 +285,13 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       evidence_state: 'not_preserved',
       retention_class: 'STANDARD',
       correlation: {},
+    }).catch(() => {});
+
+    // Sync Identity Ledger so the new role is immediately reflected
+    syncActorAfterRoleChange({
+      workspace_id: effectiveWsId,
+      user_id: String(userId),
+      new_role: role,
     }).catch(() => {});
 
     res.json({ success: true, message: `Role updated to ${role}.` });
