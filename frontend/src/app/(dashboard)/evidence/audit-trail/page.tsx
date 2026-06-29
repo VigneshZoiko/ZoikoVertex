@@ -264,9 +264,9 @@ export default function AuditTrailPage() {
           { label: "ESCALATED",     value: escalated,              cls: "text-amber-400" },
           { label: "AGENT ACTIONS", value: agentActions,           cls: "text-purple-400" },
         ].map(m => (
-          <div key={m.label} className="bg-surface px-3 py-4 text-center">
+          <div key={m.label} className="bg-surface px-3 py-4 text-center overflow-hidden">
             <p className={`text-2xl font-bold tracking-tight ${m.cls}`}>{m.value.toLocaleString()}</p>
-            <p className="text-[9px] tracking-widest uppercase text-foreground-muted mt-1">{m.label}</p>
+            <p className="text-[9px] tracking-wide uppercase leading-tight break-words text-foreground-muted mt-1">{m.label}</p>
           </div>
         ))}
       </div>
