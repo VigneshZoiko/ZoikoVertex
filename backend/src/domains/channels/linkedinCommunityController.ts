@@ -56,7 +56,7 @@ export const getLinkedInPageFeed = async (req: AuthRequest, res: Response, next:
 
     // Fetch recent posts from the page
     const postsData = await liGet(
-      `${LI_REST}/posts?author=${encodedOrg}&count=20&sortBy=LAST_MODIFIED`,
+      `${LI_REST}/posts?author=${encodedOrg}&count=20`,
       token,
     );
     if (postsData.error) {
@@ -302,25 +302,17 @@ export const deleteLinkedInComment = async (req: AuthRequest, res: Response, nex
   } catch (err) { next(err); }
 };
 
+// In-memory throttle: prevent hammering LinkedIn's rate-limited comments endpoint.
+// Keyed by `${workspaceId}:${accountId}`, value is the timestamp of the last sync.
+const _liSyncThrottle = new Map<string, number>();
+// 30 min auto-throttle. With 10 posts × max 48 syncs/day = 480... but frontend
+// fires every 15 min so real max = 96 calls/day. Well within ~100 limit.
+const LI_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes between auto comment syncs
+
 // ── Sync helper called from inboxController.syncPlatformMessages ──────────────
 // Pulls comments from recent LinkedIn page posts into inbox_messages.
-
-// Uses LinkedIn v2 API (ugcPosts + socialActions) — same API tier as posting,
-// so no Community Management API product required.
-async function liGetV2(url: string, token: string): Promise<any> {
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'X-Restli-Protocol-Version': '2.0.0',
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    logger.warn({ status: res.status, url, body }, '[LinkedIn v2] GET failed');
-    return { error: { status: res.status, message: body, permission_denied: res.status === 401 || res.status === 403 } };
-  }
-  return res.json();
-}
+// Rate limit note: LinkedIn's v2 socialActions/comments has ~100 calls/day per token.
+// With up to 10 posts × 1 call each = 10 calls/sync, 30-min throttle = max 48 syncs/day.
 
 export async function syncLinkedInComments(
   workspaceId: string,
@@ -331,43 +323,85 @@ export async function syncLinkedInComments(
   const { account_handle: orgUrn, access_token: token } = account;
   const debug: string[] = [];
 
-  // Fetch recent posts via v2 ugcPosts API (same as what posting uses)
-  const encodedAuthorList = `List(${encodeURIComponent(orgUrn)})`;
-  const postsData = await liGetV2(
-    `${LI_V2}/ugcPosts?q=authors&authors=${encodedAuthorList}&count=20&sortBy=LAST_MODIFIED`,
-    token,
-  );
+  // Throttle: skip if last sync was within LI_SYNC_INTERVAL_MS
+  const throttleKey = `${workspaceId}:${account.id}`;
+  const lastSync = _liSyncThrottle.get(throttleKey) ?? 0;
+  const msSince = Date.now() - lastSync;
+  if (msSince < LI_SYNC_INTERVAL_MS) {
+    const minutesLeft = Math.ceil((LI_SYNC_INTERVAL_MS - msSince) / 60_000);
+    debug.push(`throttled — next sync in ~${minutesLeft} min (rate-limit protection)`);
+    return { synced: 0, debug };
+  }
+  _liSyncThrottle.set(throttleKey, Date.now());
+
+  // Fetch recent posts — try REST API first, fall back to v2 ugcPosts.
+  // Only fetch last 5 posts: 5 calls/sync × max 12 syncs/day = 60 calls, within the ~100/day limit.
+  const encodedOrg = encodeURIComponent(orgUrn);
+
+  let postsData = await liGet(`${LI_REST}/posts?author=${encodedOrg}&count=10`, token);
 
   if (postsData.error) {
-    const msg = typeof postsData.error.message === 'string' ? postsData.error.message : JSON.stringify(postsData.error);
-    return { synced: 0, error: `LinkedIn posts fetch failed (${postsData.error.status}): ${msg}`, debug };
+    debug.push(`REST /posts failed (${postsData.error.status}) — trying v2 ugcPosts`);
+    const encodedAuthorList = `List(${encodeURIComponent(orgUrn)})`;
+    const v2Res = await fetch(
+      `${LI_V2}/ugcPosts?q=authors&authors=${encodedAuthorList}&count=10`,
+      { headers: { Authorization: `Bearer ${token}`, 'X-Restli-Protocol-Version': '2.0.0' } },
+    );
+    if (v2Res.ok) {
+      postsData = await v2Res.json();
+      debug.push(`v2 ugcPosts succeeded`);
+    } else {
+      await v2Res.text().catch(() => '');
+      const msg = typeof postsData.error.message === 'string' ? postsData.error.message : JSON.stringify(postsData.error);
+      return { synced: 0, error: `LinkedIn posts fetch failed: REST=${postsData.error.status} v2=${v2Res.status} — ${msg}`, debug };
+    }
   }
 
   const posts: any[] = postsData.elements || [];
   debug.push(`found ${posts.length} post(s) on page`);
   let synced = 0;
+  let rateLimited = false;
 
   for (const post of posts) {
+    if (rateLimited) break; // stop early — all remaining requests will also 429
+
     const postUrn = post.id as string;
 
-    // Fetch comments via v2 socialActions API
-    const commentsData = await liGetV2(
-      `${LI_V2}/socialActions/${encodeURIComponent(postUrn)}/comments?count=50`,
+    // Try REST comments first (requires Community Management API product — now added to app).
+    // Fall back to v2 socialActions if REST returns 404 (token issued before product was added).
+    let commentsData = await liGet(
+      `${LI_REST}/comments?parentEntity=${encodeURIComponent(postUrn)}&count=50`,
       token,
     );
     if (commentsData.error) {
-      debug.push(`comments fetch failed for ${postUrn}: status=${commentsData.error.status}`);
-      continue;
+      debug.push(`REST comments failed for ${postUrn} (${commentsData.error.status}) — trying v2 socialActions`);
+      const v2CommRes = await fetch(
+        `${LI_V2}/socialActions/${encodeURIComponent(postUrn)}/comments?count=50`,
+        { headers: { Authorization: `Bearer ${token}`, 'X-Restli-Protocol-Version': '2.0.0' } },
+      );
+      if (v2CommRes.ok) {
+        commentsData = await v2CommRes.json();
+      } else {
+        if (v2CommRes.status === 429) {
+          rateLimited = true;
+          debug.push(`rate limited (429) — v2 daily quota exhausted. Reconnect LinkedIn account to use Community Management API (already added to app).`);
+          _liSyncThrottle.delete(throttleKey);
+        } else {
+          debug.push(`v2 comments also failed for ${postUrn}: ${v2CommRes.status}`);
+        }
+        continue;
+      }
     }
 
     const allComments = (commentsData.elements || []) as any[];
+    // Filter out comments made by the org itself
     const external = allComments.filter((c: any) => c.actor !== orgUrn);
     debug.push(`post ${postUrn}: ${allComments.length} comment(s), ${external.length} external`);
 
     for (const c of external) {
       const actorUrn = (c.actor as string) || '';
-      // v2 API may return actor profile via $actor or actor~ projection
-      const actorProfile = c['actor~'] || c.$actor;
+      // REST API may include actor expansion via $actor or actor~
+      const actorProfile = c.$actor || c['actor~'];
       const actorName = actorProfile?.localizedFirstName
         ? `${actorProfile.localizedFirstName} ${actorProfile.localizedLastName || ''}`.trim()
         : 'LinkedIn Member';
@@ -377,6 +411,8 @@ export async function syncLinkedInComments(
         continue;
       }
 
+      // c.id from REST API is already a full URN: urn:li:comment:(postUrn,commentId)
+      // This is the correct format for the reply endpoint in inboxController
       const result = await insertFn(
         workspaceId,
         {

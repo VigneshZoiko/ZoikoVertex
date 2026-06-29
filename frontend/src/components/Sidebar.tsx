@@ -316,35 +316,43 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 
-  // ── Evidence Layer — audit, forensic, vault ───────────────────────────────
+  // ── Evidence Layer — M1 Audit Trail · M2 Forensic Hub · M3 Evidence Vault · M4 Identity Ledger ──
   {
     id: "evidence",
     label: "Evidence Layer",
     icon: FileSearch,
     items: [
       {
-        name: "Activity Log",
+        name: "Audit Trail",
         href: "/evidence/audit-trail",
-        // Tamper-evident records — auditors primary, validators (evidence read)
         icon: FileSearch,
+        // M1 — Immutable hash-chained timeline. What happened?
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR"],
         plan: "audit_trail" as Feature,
+      },
+      {
+        name: "Forensic Hub",
+        href: "/evidence/forensic-hub",
+        icon: Fingerprint,
+        // M2 — Investigation of flagged / escalated events. What can we reconstruct?
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
+        plan: "forensic_hub" as Feature,
       },
       {
         name: "Evidence Vault",
         href: "/evidence/evidence-vault",
         icon: Archive,
-        // Evidence items, legal holds, packages — auditors and compliance only
+        // M3 — Snapshots, outputs, approvals, artifacts. What's the proof?
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"],
         plan: "evidence_vault" as Feature,
       },
       {
-        name: "Investigations",
-        href: "/evidence/forensic-hub",
-        icon: Fingerprint,
-        // Case investigation center — auditors, compliance, security
+        name: "Identity Ledger",
+        href: "/evidence/identity-ledger",
+        icon: Users,
+        // M4 — Actor registry, delegations, break-glass. Who acted?
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
-        plan: "forensic_hub" as Feature,
+        plan: "evidence_vault" as Feature,
       },
     ],
   },

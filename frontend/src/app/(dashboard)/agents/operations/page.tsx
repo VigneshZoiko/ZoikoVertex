@@ -90,6 +90,8 @@ interface AgentRun {
   // human who approved it from the Approval Console.
   posted_by?: string | null;
   posted_by_type?: "agent" | "manual" | null;
+  task_id?: string;
+  post_id?: string;
 }
 
 interface RunEvent {
@@ -273,14 +275,23 @@ function PolicyBadge({ result }: { result: string }) {
   );
 }
 
-function EvidenceBadge({ status }: { status: string }) {
+const TERMINAL_STATUSES = new Set(["COMPLETED", "FAILED", "QUARANTINED", "STOPPED", "CANCELLED"]);
+
+function EvidenceBadge({ status, runStatus }: { status: string; runStatus?: string }) {
   const key = String(status || "").toUpperCase();
-  // Normalize case before lookup so lower-case backend values match. Unknown or
-  // empty values fall back to a humanized label + neutral dot so the indicator
-  // always shows something legible instead of raw text or a blank cell.
+  const isTerminal = runStatus ? TERMINAL_STATUSES.has(runStatus.toUpperCase()) : false;
+  // Show "No Evidence" when: status is empty, or run is done but evidence is still stuck at CAPTURING/PENDING
+  if (!key || (isTerminal && (key === "CAPTURING" || key === "PENDING"))) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-foreground-muted">
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-500 shrink-0" />
+        No Evidence
+      </span>
+    );
+  }
   const cfg =
     EVIDENCE_CONFIG[key] ||
-    { label: status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—", color: "text-foreground-muted", dot: "bg-gray-400" };
+    { label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), color: "text-foreground-muted", dot: "bg-gray-400" };
   return (
     <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium ${cfg.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} shrink-0`} />
@@ -525,8 +536,8 @@ function RunDetailDrawer({
             <h3 className="text-base font-bold text-foreground truncate">{run.agent_name}</h3>
             <p className="text-xs text-foreground-muted truncate mt-0.5">{run.task_objective || run.workflow_name}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] font-mono text-foreground-muted bg-card px-1.5 py-0.5 rounded">{shortId(run.id)}</span>
-              <CopyButton text={run.id} />
+              <span className="text-[10px] font-mono text-foreground-muted bg-card px-1.5 py-0.5 rounded">{run.post_id || run.task_id || run.id}</span>
+              <CopyButton text={run.post_id || run.task_id || run.id} />
               {run.environment && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface text-foreground-muted border border-border">{run.environment}</span>
               )}
@@ -1349,6 +1360,20 @@ export default function AgentOperationsPage() {
     }
   };
 
+  // Direct delete (no confirmation modal)
+  const handleDeleteRun = async (runId: string) => {
+    setActionLoading(runId);
+    try {
+      await api.deleteRun(runId);
+      await fetchData();
+      flashNotice("Operation removed.");
+    } catch {
+      setError("Failed to remove operation. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Doc 6 §2/§10: resolve a queue item with a recorded resolution note.
   const handleQueueResolve = async (item: QueueItem) => {
     const notes = window.prompt("Resolution note (recorded on the queue item):", "");
@@ -1668,25 +1693,25 @@ export default function AgentOperationsPage() {
             /* ── List View ── */
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 items-center border-b border-border text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
                 <span>Posted By</span>
+                <span>Actions</span>
               </div>
               <div className="divide-y divide-border">
                 {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-foreground-muted", bg: "bg-surface", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   return (
-                    <div key={run.id} onClick={() => handleViewRun(run)} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-3.5 items-start hover:bg-surface-hover transition-colors cursor-pointer ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-start transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <SeverityDot severity={statusCfg.severity} />
-                          <span className="text-sm font-semibold text-foreground truncate">{run.agent_name}</span>
-                          <span className="text-[10px] font-mono text-foreground-muted shrink-0">{shortId(run.id)}</span>
-                          <CopyButton text={run.id} />
+                          <span className="text-sm font-semibold text-foreground font-mono truncate">{run.post_id || run.task_id || run.id}</span>
+                          <CopyButton text={run.post_id || run.task_id || run.id} />
                         </div>
                         <p className="text-xs text-foreground-muted truncate pl-4">{run.task_objective || run.workflow_name}</p>
                         <div className="flex items-center gap-2 mt-1 pl-4 flex-wrap">
@@ -1711,19 +1736,46 @@ export default function AgentOperationsPage() {
                             <span className="line-clamp-2">{run.next_action}</span>
                           </span>
                         ) : (
-                          <EvidenceBadge status={run.evidence_status} />
+                          <EvidenceBadge status={run.evidence_status} runStatus={run.status} />
                         )}
                       </div>
-                      {/* Posted By — agent (auto-published) or the human approver */}
+                      {/* Posted By — show submitter immediately; always show Agent for publisher runs */}
                       <div>
-                        {run.posted_by ? (
-                          <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${run.posted_by_type === "manual" ? "text-indigo-400" : "text-emerald-400"}`} title={run.posted_by_type === "manual" ? "Approved from the Approval Console" : "Auto-published by agent"}>
-                            {run.posted_by_type === "manual" ? <UserCheck className="w-3 h-3 shrink-0" /> : <Bot className="w-3 h-3 shrink-0" />}
-                            <span className="truncate">{run.posted_by}</span>
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-foreground-muted">—</span>
-                        )}
+                        {(() => {
+                          const submitter = run.owner_name || null;
+                          // For publisher agent runs the agent IS the processor — show "Agent"
+                          // even before posted_by is confirmed by the intent reaching APPROVED state.
+                          const isPublisherRun = run.agent_type === "publisher" || run.posted_by_type === "agent";
+                          const approver = run.posted_by_type === "manual"
+                            ? run.posted_by
+                            : (isPublisherRun ? "Agent" : null);
+                          const same = submitter && approver && submitter.toLowerCase() === approver.toLowerCase();
+                          const label = approver
+                            ? (same || !submitter ? approver : `${submitter} | ${approver}`)
+                            : (submitter || null);
+                          if (!label) return <span className="text-[11px] text-foreground-muted">—</span>;
+                          const isManual = run.posted_by_type === "manual";
+                          const hasApprover = !!approver;
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${hasApprover ? (isManual ? "text-indigo-400" : "text-emerald-400") : "text-foreground-muted"}`}>
+                              {hasApprover
+                                ? (isManual ? <UserCheck className="w-3 h-3 shrink-0" /> : <Bot className="w-3 h-3 shrink-0" />)
+                                : <Users className="w-3 h-3 shrink-0" />}
+                              <span className="truncate">{label}</span>
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      {/* Remove */}
+                      <div className="flex items-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteRun(run.id); }}
+                          title="Remove operation"
+                          className="p-1.5 rounded-lg text-foreground-muted hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          disabled={actionLoading === run.id}
+                        >
+                          {actionLoading === run.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
                       </div>
                     </div>
                   );
@@ -1749,7 +1801,7 @@ export default function AgentOperationsPage() {
                     </div>
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <PolicyBadge result={run.policy_result} />
-                      <EvidenceBadge status={run.evidence_status} />
+                      <EvidenceBadge status={run.evidence_status} runStatus={run.status} />
                       {sla.label && <span className={`text-[10px] font-medium ${sla.overdue ? "text-rose-400" : "text-foreground-muted"}`}>{sla.label}</span>}
                     </div>
                     <div className="flex items-center justify-between">
@@ -1758,8 +1810,13 @@ export default function AgentOperationsPage() {
                         {run.channel && <><span>·</span><span>{run.channel}</span></>}
                         <span>·</span><span>{timeAgo(run.last_event_at)}</span>
                       </div>
-                      <button onClick={() => handleViewRun(run)} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-                        <Eye className="w-3.5 h-3.5" /> View
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRun(run.id); }}
+                        title="Remove operation"
+                        className="p-1.5 rounded-lg text-foreground-muted hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                        disabled={actionLoading === run.id}
+                      >
+                        {actionLoading === run.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>
@@ -1889,29 +1946,6 @@ export default function AgentOperationsPage() {
 
 
 
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          RUN DETAIL DRAWER
-      ══════════════════════════════════════════════════════════════════════ */}
-      {selectedRun && (
-        <RunDetailDrawer
-          run={selectedRun}
-          detail={runDetail}
-          timeline={runTimeline}
-          loadingDetail={loadingDetail}
-          loadingTimeline={loadingTimeline}
-          onClose={() => { setSelectedRun(null); setRunDetail(null); setRunTimeline([]); }}
-          onExportEvidence={(bundleId) => setEvidenceExportBundleId(bundleId)}
-          exportEvidenceLoading={evidenceExportLoading}
-          onApproveOutput={handleApproveOutput}
-          onRejectOutput={handleRejectOutput}
-          onRequestOutputChanges={handleRequestOutputChanges}
-          onExportSnapshot={handleExportSnapshot}
-          onEscalateForReview={handleEscalateForReview}
-          onRunPolicyCheck={handleRunPolicyCheck}
-          policyCheckLoading={policyCheckLoading}
-        />
-      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           CONFIRM ACTION MODAL

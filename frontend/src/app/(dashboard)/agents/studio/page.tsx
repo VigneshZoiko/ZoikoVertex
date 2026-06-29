@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ElementType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
   BrainCircuit,
-  ChevronRight,
-  Eye,
+  Check,
+  Copy,
   FileCheck,
   Filter,
   FolderKanban,
@@ -29,11 +29,8 @@ import {
   Archive,
   X,
 } from "lucide-react";
-import StatusBadge from "@/components/ui/StatusBadge";
 import CreateAgentWizard from "@/components/agents/CreateAgentWizard";
 import CertificationSandbox from "@/components/agents/CertificationSandbox";
-import AgentDetailsDrawer from "@/components/agents/AgentDetailsDrawer";
-import KillSwitchModal from "@/components/agents/KillSwitchModal";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import { AUTONOMY_COLOR } from "@/lib/agentAuthority";
@@ -148,6 +145,89 @@ function normalizeText(value?: string | null) {
   return (value || "").toLowerCase();
 }
 
+const AGENT_TYPE_STYLE: Record<string, { icon: ElementType; avatarBg: string; textCls: string; chipBg: string; label: string }> = {
+  content:     { icon: BrainCircuit, avatarBg: "bg-indigo-600",  textCls: "text-indigo-400",  chipBg: "bg-indigo-500/10",  label: "Content" },
+  drafting:    { icon: BrainCircuit, avatarBg: "bg-indigo-600",  textCls: "text-indigo-400",  chipBg: "bg-indigo-500/10",  label: "Content" },
+  safety:      { icon: ShieldCheck,  avatarBg: "bg-emerald-600", textCls: "text-emerald-400", chipBg: "bg-emerald-500/10", label: "Safety" },
+  compliance:  { icon: ShieldCheck,  avatarBg: "bg-emerald-600", textCls: "text-emerald-400", chipBg: "bg-emerald-500/10", label: "Safety" },
+  governance:  { icon: Shield,       avatarBg: "bg-amber-600",   textCls: "text-amber-400",   chipBg: "bg-amber-500/10",   label: "Governance" },
+  publisher:   { icon: Globe,        avatarBg: "bg-violet-600",  textCls: "text-violet-400",  chipBg: "bg-violet-500/10",  label: "Publisher" },
+  performance: { icon: Zap,          avatarBg: "bg-orange-600",  textCls: "text-orange-400",  chipBg: "bg-orange-500/10",  label: "Performance" },
+  research:    { icon: Search,       avatarBg: "bg-sky-600",     textCls: "text-sky-400",     chipBg: "bg-sky-500/10",     label: "Research" },
+};
+
+function getTypeStyle(type: string) {
+  const key = (type || "").toLowerCase().split(/[\s_-]/)[0];
+  return AGENT_TYPE_STYLE[key] || { icon: Bot, avatarBg: "bg-slate-600", textCls: "text-[var(--foreground-muted)]", chipBg: "bg-[var(--background)]", label: type || "Unknown" };
+}
+
+const STATUS_META: Record<string, { dot: string; ring?: string; textCls: string }> = {
+  DRAFT:                { dot: "bg-slate-400",                              textCls: "text-slate-400" },
+  PENDING_CERTIFICATION:{ dot: "bg-amber-400",                              textCls: "text-amber-400" },
+  IN_REVIEW:            { dot: "bg-sky-400",                                textCls: "text-sky-400" },
+  APPROVED:             { dot: "bg-emerald-400",                            textCls: "text-emerald-400" },
+  ACTIVE:               { dot: "bg-emerald-400", ring: "ring-2 ring-emerald-400/30 ring-offset-1 ring-offset-transparent", textCls: "text-emerald-400" },
+  PAUSED:               { dot: "bg-amber-400",                              textCls: "text-amber-400" },
+  RESTRICTED:           { dot: "bg-rose-500",                               textCls: "text-rose-400" },
+  SUSPENDED:            { dot: "bg-rose-400",                               textCls: "text-rose-400" },
+  RETIRED:              { dot: "bg-slate-500",                              textCls: "text-slate-500" },
+};
+
+function AgentStatusBadge({ status }: { status: string }) {
+  const key = (status || "").toUpperCase();
+  const meta = STATUS_META[key] || { dot: "bg-slate-400", textCls: "text-foreground-muted" };
+  const label = STATUS_LABELS[key] || status || "—";
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot} ${meta.ring ?? ""}`} />
+      <span className={`text-xs font-medium ${meta.textCls}`}>{label}</span>
+    </div>
+  );
+}
+
+function AgentTypeBadge({ ts }: { ts: ReturnType<typeof getTypeStyle> }) {
+  const TypeIcon = ts.icon;
+  return (
+    <div className={`inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 ${ts.chipBg}`}>
+      <TypeIcon className={`h-3 w-3 shrink-0 ${ts.textCls}`} />
+      <span className={`text-[11px] font-medium ${ts.textCls}`}>{ts.label}</span>
+    </div>
+  );
+}
+
+function AgentAvatar({ ts }: { ts: ReturnType<typeof getTypeStyle> }) {
+  const TypeIcon = ts.icon;
+  return (
+    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ts.avatarBg}`}>
+      <TypeIcon className="h-4 w-4 text-white" />
+    </div>
+  );
+}
+
+function AgentIdCell({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const short = id.slice(0, 8);
+  const copy = (e: { stopPropagation(): void }) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <div className="group/id flex items-center gap-1">
+      <span className="font-mono text-xs text-[var(--foreground-muted)]">{short}</span>
+      <button
+        onClick={copy}
+        title="Copy full ID"
+        className="rounded p-0.5 text-foreground-muted opacity-0 transition group-hover/id:opacity-100 hover:text-foreground"
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+      </button>
+    </div>
+  );
+}
+
 export default function StudioPage() {
   const { role } = useRoleContext();
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -169,8 +249,6 @@ export default function StudioPage() {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isKillSwitchOpen, setIsKillSwitchOpen] = useState(false);
   const [importTemplateData, setImportTemplateData] = useState<Record<string, unknown> | undefined>(undefined);
   const importFileRef = useRef<HTMLInputElement>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -220,7 +298,6 @@ export default function StudioPage() {
         persistDismissed(next);
         return next;
       });
-      if (selectedAgent?.id === agent.id) setIsDetailsOpen(false);
     },
     [persistDismissed, selectedAgent],
   );
@@ -379,10 +456,6 @@ export default function StudioPage() {
     );
   }, []);
 
-  const openAgent = useCallback((agent: Agent) => {
-    setSelectedAgent(agent);
-    setIsDetailsOpen(true);
-  }, []);
 
   const openSandbox = useCallback((agent: Agent) => {
     setSelectedAgent(agent);
@@ -838,18 +911,7 @@ export default function StudioPage() {
         />
       )}
 
-      <AgentDetailsDrawer
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-        agent={selectedAgent as any}
-        onUpdate={() => fetchAgents(workspaceId)}
-      />
 
-      <KillSwitchModal
-        isOpen={isKillSwitchOpen}
-        onClose={() => setIsKillSwitchOpen(false)}
-        onActivated={() => fetchAgents(workspaceId)}
-      />
 
       {/* ── Header Command Bar ── */}
       <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-6 shadow-sm">
@@ -882,13 +944,6 @@ export default function StudioPage() {
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
-              </button>
-              <button
-                onClick={() => setIsKillSwitchOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
-              >
-                <ShieldAlert className="h-4 w-4" />
-                Kill Switch
               </button>
               {/* "Hire New Agent" removed — the Studio is a fixed catalog of the
                   6 governed post-validation agents. New agents are not created here. */}
@@ -1027,530 +1082,88 @@ export default function StudioPage() {
           </button>
         </div>
       ) : viewMode === "table" ? (
-        /* ── Table View ── */
-        <div className="overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--surface)]">
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed divide-y divide-[var(--card-border)]">
-              <colgroup>
-                <col className="w-[15%]" />
-                <col className="w-[24%]" />
-                <col className="w-[11%]" />
-                <col className="w-[12%]" />
-                <col className="w-[14%]" />
-                <col className="w-[9%]" />
-                <col className="w-[15%]" />
-              </colgroup>
-              <thead className="bg-[var(--background)]">
-                <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
-                  {/* Columns: Agent Identity | Type & Purpose | Status | Scores | Scope | Activity | Controls */}
-                  <th className="px-4 py-3">Agent Identity</th>
-                  <th className="px-4 py-3">Type &amp; Purpose</th>
-                  <th className="px-4 py-3">Status &amp; Risk</th>
-                  <th className="px-4 py-3">Governance Scores</th>
-                  <th className="px-4 py-3">Scope &amp; Bindings</th>
-                  <th className="px-4 py-3">Activity</th>
-                  <th className="px-4 py-3 text-right">Controls</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--card-border)]">
-                {filteredAgents.map((agent) => {
-                  const readiness = getReadiness(agent);
-                  const nextAction = getNextAction(agent);
-                  const isBusy = Boolean(actionLoading[agent.id]);
-                  const isRetired = agent.status === "RETIRED";
+        /* ── Table View — Core Identity columns ── */
+        <div className="overflow-hidden rounded-2xl border border-card-border bg-surface">
+          {/* Header */}
+          <div className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 border-b border-card-border bg-background px-6 py-3">
+            {["Agent", "ID", "Type", "Status", "Description"].map((h) => (
+              <span key={h} className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground-muted">{h}</span>
+            ))}
+          </div>
 
-                  return (
-                    <tr
-                      key={agent.id}
-                      className={`align-top transition hover:bg-[var(--background)]/70 ${
-                        isRetired ? "opacity-60" : ""
-                      }`}
-                    >
-                      {/* Agent Identity */}
-                      <td className="px-4 py-3.5 align-top">
-                        <button
-                          onClick={() => openAgent(agent)}
-                          className="text-left"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5 rounded-2xl bg-indigo-500/10 p-2.5 text-indigo-500">
-                              <BrainCircuit className="h-4 w-4" />
-                            </div>
-                            <div className="space-y-1">
-                              <div className="text-sm font-semibold text-[var(--foreground)] hover:text-indigo-500">
-                                {agent.name}
-                              </div>
-                              <div className="font-mono text-[10px] text-[var(--foreground-muted)]">
-                                {agent.id.slice(0, 8)}…
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      </td>
+          {/* Rows */}
+          <div className="divide-y divide-card-border">
+            {filteredAgents.map((agent) => {
+              const ts = getTypeStyle(agent.type);
+              return (
+                <div
+                  key={agent.id}
+                  className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 px-6 py-4 transition-colors hover:bg-background"
+                >
+                  {/* 1 — Avatar + Name */}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AgentAvatar ts={ts} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{agent.name}</p>
+                    </div>
+                  </div>
 
-                      {/* Type & Purpose — what this agent does, in one short sentence */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="space-y-1.5">
-                          <span className="inline-flex rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-500">
-                            {agent.type}
-                          </span>
-                          <div className="max-w-[340px] text-xs leading-relaxed text-[var(--foreground-muted)]">
-                            {agent.purpose ||
-                              "Validates a specific part of each post before publishing."}
-                          </div>
-                        </div>
-                      </td>
+                  {/* 2 — ID */}
+                  <AgentIdCell id={agent.id} />
 
-                      {/* Status & Risk */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="space-y-2">
-                          <StatusBadge status={agent.status} />
-                          <div className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
-                            {(agent.risk_level || "medium").toUpperCase()} risk
-                          </div>
+                  {/* 3 — Type */}
+                  <AgentTypeBadge ts={ts} />
 
-                          {/* Readiness bar */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px] text-[var(--foreground-muted)]">
-                              <span>Readiness</span>
-                              <span className="font-bold">{readiness}%</span>
-                            </div>
-                            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[var(--background)]">
-                              <div
-                                className={`h-full rounded-full ${
-                                  readiness >= 80
-                                    ? "bg-emerald-500"
-                                    : readiness >= 60
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
-                                }`}
-                                style={{ width: `${readiness}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </td>
+                  {/* 4 — Status */}
+                  <AgentStatusBadge status={agent.status} />
 
-                      {/* Governance Scores — Trust % + Faithfulness % */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="space-y-2">
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
-                              Trust Score
-                            </div>
-                            <div className="mt-0.5 flex items-center gap-2">
-                              <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--background)]">
-                                <div
-                                  className={`h-full rounded-full ${
-                                    agent.trust_score >= 0.8
-                                      ? "bg-emerald-500"
-                                      : agent.trust_score >= 0.6
-                                        ? "bg-amber-500"
-                                        : "bg-rose-500"
-                                  }`}
-                                  style={{
-                                    width: `${(agent.trust_score || 0) * 100}%`,
-                                  }}
-                                />
-                              </div>
-                              <span className="text-sm font-bold text-[var(--foreground)]">
-                                {formatPercent(agent.trust_score)}
-                              </span>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
-                              Faithfulness
-                            </div>
-                            <div className="mt-0.5 flex items-center gap-2">
-                              <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--background)]">
-                                <div
-                                  className={`h-full rounded-full ${
-                                    agent.faithfulness_score >= 0.85
-                                      ? "bg-emerald-500"
-                                      : "bg-amber-500"
-                                  }`}
-                                  style={{
-                                    width: `${
-                                      (agent.faithfulness_score || 0) * 100
-                                    }%`,
-                                  }}
-                                />
-                              </div>
-                              <span className="text-sm font-bold text-[var(--foreground)]">
-                                {formatPercent(agent.faithfulness_score)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Scope & Bindings */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="space-y-2 text-xs text-[var(--foreground-muted)]">
-                          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1">
-                            <FolderKanban className="h-3.5 w-3.5" />
-                            {getResourceCount(agent)} governed links
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(agent.linked_channels || []).length > 0 ? (
-                              (agent.linked_channels || [])
-                                .slice(0, 3)
-                                .map((ch) => (
-                                  <span
-                                    key={ch}
-                                    className="rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0.5 text-[10px] font-semibold text-[var(--foreground)]"
-                                  >
-                                    {ch}
-                                  </span>
-                                ))
-                            ) : (
-                              <span className="text-amber-500">
-                                No channel scope
-                              </span>
-                            )}
-                            {(agent.linked_channels || []).length > 3 && (
-                              <span className="rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0.5 text-[10px] font-semibold">
-                                +{(agent.linked_channels || []).length - 3}
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            Prompts: {agent.linked_prompts?.length || 0} ·
-                            Workflows: {agent.linked_workflows?.length || 0}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Activity — last activity + the recommended next action */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="space-y-2">
-                          <div className="text-xs text-[var(--foreground-muted)]">
-                            {agent.last_activity || "Not yet active"}
-                          </div>
-                          <div
-                            title={getNextActionDescription(agent)}
-                            className="inline-flex rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-500"
-                          >
-                            {nextAction}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Controls — Certify/Upgrade, View Details, Pause, etc.
-                          [&>button] makes every control button the same size
-                          (full column width, centered) without editing each one. */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="flex flex-col items-stretch gap-2 [&>button]:w-full [&>button]:justify-center [&>button]:whitespace-nowrap">
-                          {/* View Details → AgentDetailsDrawer */}
-                          <button
-                            onClick={() => openAgent(agent)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            View Details
-                          </button>
-
-                          {/* Request Approval — DRAFT or PENDING_CERTIFICATION */}
-                          {agent.status === "DRAFT" && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "approval")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <FileCheck className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "approval"
-                                ? "Requesting..."
-                                : "Request Approval"}
-                            </button>
-                          )}
-
-                          {/* Deploy — APPROVED (governance-gate pre-checked) */}
-                          {agent.status === "APPROVED" && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() =>
-                                checkGovernanceGatesAndDeploy(agent)
-                              }
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <PlayCircle className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "deploy"
-                                ? "Checking gates..."
-                                : "Deploy"}
-                            </button>
-                          )}
-
-                          {/* Pause ⇄ Start toggle — ACTIVE pauses; PAUSED or
-                              SUSPENDED (e.g. halted by the Kill Switch) starts */}
-                          {["ACTIVE", "PAUSED", "SUSPENDED"].includes(
-                            agent.status,
-                          ) &&
-                            (() => {
-                              const isRunning = agent.status === "ACTIVE";
-                              const toggleAction = isRunning ? "pause" : "resume";
-                              const busyThis =
-                                actionLoading[agent.id] === toggleAction;
-                              return (
-                                <button
-                                  role="switch"
-                                  aria-checked={isRunning}
-                                  disabled={!canManageAuthority || isBusy}
-                                  onClick={() =>
-                                    runAgentAction(agent, toggleAction)
-                                  }
-                                  className={`inline-flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                    isRunning
-                                      ? "bg-rose-500 hover:bg-rose-400"
-                                      : "bg-emerald-600 hover:bg-emerald-500"
-                                  }`}
-                                >
-                                  {/* track */}
-                                  <span
-                                    className={`relative inline-flex h-3.5 w-6 items-center rounded-full transition ${
-                                      isRunning ? "bg-white/30" : "bg-white/30"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`absolute h-2.5 w-2.5 rounded-full bg-white transition-all ${
-                                        isRunning ? "left-3" : "left-0.5"
-                                      }`}
-                                    />
-                                  </span>
-                                  {busyThis
-                                    ? isRunning
-                                      ? "Pausing..."
-                                      : "Starting..."
-                                    : isRunning
-                                      ? "Pause"
-                                      : "Start"}
-                                </button>
-                              );
-                            })()}
-
-                          {/* Rollback — ACTIVE or RESTRICTED */}
-                          {["ACTIVE", "RESTRICTED"].includes(agent.status) && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "rollback")}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-amber-500/30 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <RotateCcw className="h-3.5 w-3.5" />
-                              Rollback
-                            </button>
-                          )}
-
-                          {/* Run Safety Checks — DRAFT / PENDING_CERTIFICATION */}
-                          {["DRAFT", "PENDING_CERTIFICATION"].includes(
-                            agent.status,
-                          ) && (
-                            <button
-                              disabled={
-                                safetyCheckLoading === agent.id || isBusy
-                              }
-                              onClick={() => handleRunSafetyChecks(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/10 px-2.5 py-1.5 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                              {safetyCheckLoading === agent.id
-                                ? "Running..."
-                                : "Safety Check"}
-                            </button>
-                          )}
-
-                          {/* Export Evidence — ACTIVE agents */}
-                          {agent.status === "ACTIVE" && (
-                            <button
-                              disabled={evidenceExportLoading === agent.id}
-                              onClick={() => handleExportEvidence(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1.5 text-xs font-semibold text-indigo-400 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <Award className="h-3.5 w-3.5" />
-                              {evidenceExportLoading === agent.id
-                                ? "Exporting..."
-                                : "Export Evidence"}
-                            </button>
-                          )}
-
-                          {/* Clone — always available (creates new DRAFT) */}
-                          <button
-                            disabled={!canManageAuthority || isBusy}
-                            onClick={() => runAgentAction(agent, "clone")}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <ChevronRight className="h-3.5 w-3.5" />
-                            {actionLoading[agent.id] === "clone"
-                              ? "Cloning..."
-                              : "Clone"}
-                          </button>
-
-                          {/* Retire — not already retired */}
-                          {!isRetired && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "retire")}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <Archive className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "retire"
-                                ? "Retiring..."
-                                : "Retire"}
-                            </button>
-                          )}
-
-                          {/* Permanently delete — only for retired agents */}
-                          {isRetired && (
-                            <button
-                              onClick={() => runAgentAction(agent, "delete")}
-                              disabled={actionLoading[agent.id] === "delete"}
-                              title="Permanently delete from database"
-                              aria-label={`Delete ${agent.name} permanently`}
-                              className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "delete" ? "Deleting..." : "Remove"}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  {/* 5 — Description */}
+                  <p className="text-xs leading-relaxed text-foreground-muted">
+                    {agent.purpose || "—"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
-        /* ── Card View ── */
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredAgents.map((agent) => {
-            const readiness = getReadiness(agent);
-            const isRetired = agent.status === "RETIRED";
+        /* ── List View — Core Identity columns ── */
+        <div className="overflow-hidden rounded-2xl border border-card-border bg-surface">
+          <div className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 border-b border-card-border bg-background px-6 py-3">
+            {["Agent", "ID", "Type", "Status", "Description"].map((h) => (
+              <span key={h} className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground-muted">{h}</span>
+            ))}
+          </div>
 
-            return (
-              <div
-                key={agent.id}
-                className={`rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-5 ${
-                  isRetired ? "opacity-60" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-indigo-500/10 p-3 text-indigo-500">
-                      <BrainCircuit className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-[var(--foreground)]">
-                        {agent.name}
-                      </div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-[var(--foreground-muted)]">
-                        {agent.type}
-                      </div>
-                    </div>
+          <div className="divide-y divide-card-border">
+            {filteredAgents.map((agent) => {
+              const ts = getTypeStyle(agent.type);
+              return (
+                <div
+                  key={agent.id}
+                  className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 px-6 py-4 transition-colors hover:bg-background"
+                >
+                  {/* 1 — Avatar + Name */}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AgentAvatar ts={ts} />
+                    <p className="truncate text-sm font-semibold text-foreground">{agent.name}</p>
                   </div>
+
+                  {/* 2 — ID */}
+                  <AgentIdCell id={agent.id} />
+
+                  {/* 3 — Type */}
+                  <AgentTypeBadge ts={ts} />
+
+                  {/* 4 — Status */}
+                  <AgentStatusBadge status={agent.status} />
+
+                  {/* 5 — Description */}
+                  <p className="text-xs leading-relaxed text-foreground-muted">{agent.purpose || "—"}</p>
                 </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <StatusBadge status={agent.status} />
-                  <span className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
-                    {(agent.risk_level || "medium").toUpperCase()}
-                  </span>
-                </div>
-
-                <div className="mt-4 space-y-1.5 text-sm text-[var(--foreground-muted)]">
-                  <div className="inline-flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    {agent.primary_dri?.full_name || "Unassigned"}
-                  </div>
-                  <div>Brand: {agent.assigned_brand || "Not assigned"}</div>
-                  <div>
-                    Channels:{" "}
-                    {(agent.linked_channels || []).join(", ") || "None"}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>Trust: {formatPercent(agent.trust_score)}</span>
-                    <span>·</span>
-                    <span>
-                      Faithfulness: {formatPercent(agent.faithfulness_score)}
-                    </span>
-                  </div>
-                  <div>
-                    Last activity: {agent.last_activity || "Not yet active"}
-                  </div>
-                </div>
-
-                <div className="mt-3 space-y-1">
-                  <div className="flex justify-between text-[10px] text-[var(--foreground-muted)]">
-                    <span>Readiness</span>
-                    <span className="font-bold">{readiness}%</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--background)]">
-                    <div
-                      className={`h-full rounded-full ${
-                        readiness >= 80
-                          ? "bg-emerald-500"
-                          : readiness >= 60
-                            ? "bg-amber-500"
-                            : "bg-rose-500"
-                      }`}
-                      style={{ width: `${readiness}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <button
-                    onClick={() => openAgent(agent)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => runAgentAction(agent, "clone")}
-                    disabled={
-                      !canManageAuthority || Boolean(actionLoading[agent.id])
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                    {actionLoading[agent.id] === "clone"
-                      ? "Cloning..."
-                      : "Clone"}
-                  </button>
-                  {/* Retire — not already retired (card view) */}
-                  {!isRetired && (
-                    <button
-                      onClick={() => runAgentAction(agent, "retire")}
-                      disabled={
-                        !canManageAuthority || Boolean(actionLoading[agent.id])
-                      }
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                      {actionLoading[agent.id] === "retire"
-                        ? "Retiring..."
-                        : "Retire"}
-                    </button>
-                  )}
-
-                  {/* Permanently delete — only for retired agents */}
-                  {isRetired && (
-                    <button
-                      onClick={() => runAgentAction(agent, "delete")}
-                      disabled={actionLoading[agent.id] === "delete"}
-                      title="Permanently delete from database"
-                      aria-label={`Delete ${agent.name} permanently`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-[var(--background)] px-2.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-50"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      {actionLoading[agent.id] === "delete" ? "Deleting..." : "Remove"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 

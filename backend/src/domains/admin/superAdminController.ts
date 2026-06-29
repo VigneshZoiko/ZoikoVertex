@@ -452,9 +452,10 @@ export class SuperAdminController {
         .eq('id', orgId)
         .single();
 
+      // Update the workspace plan_type so auth middleware picks it up on next request
       await supabaseAdmin
         .from('workspaces')
-        .update({ status: 'ACTIVE' })
+        .update({ status: 'ACTIVE', plan_type: planType })
         .eq('id', orgId);
 
       if (ws?.org_id) {
@@ -469,6 +470,13 @@ export class SuperAdminController {
           .from('organizations')
           .update(updateData)
           .eq('id', ws.org_id);
+
+        // Also sync plan_type to all other workspaces in the same org
+        await supabaseAdmin
+          .from('workspaces')
+          .update({ plan_type: planType })
+          .eq('org_id', ws.org_id)
+          .neq('id', orgId);
       }
 
       res.json({ success: true, message: `Organization plan changed to ${planType}.` });

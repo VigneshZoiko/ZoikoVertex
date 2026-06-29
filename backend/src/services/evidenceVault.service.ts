@@ -1101,6 +1101,38 @@ export async function listHolds(filters: {
   return { holds: data || [], total: count || 0 };
 }
 
+export async function deleteHold(holdId: string, workspaceId: string): Promise<void> {
+  const { data: hold, error: fetchError } = await supabaseAdmin
+    .from('vault_holds')
+    .select('hold_id, scope_id, scope_type')
+    .eq('hold_id', holdId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!hold) throw Object.assign(new Error('Hold not found'), { statusCode: 404 });
+
+  // Remove hold reference from scoped vault items
+  if (hold.scope_id) {
+    const { data: item } = await supabaseAdmin
+      .from('vault_items')
+      .select('hold_ids')
+      .eq('id', hold.scope_id)
+      .maybeSingle();
+
+    if (item) {
+      const updatedIds = ((item as Record<string, unknown>).hold_ids as string[] || []).filter((id: string) => id !== holdId);
+      await supabaseAdmin
+        .from('vault_items')
+        .update({ hold_ids: updatedIds, legal_hold: updatedIds.length > 0, vault_state: updatedIds.length > 0 ? 'legal_hold' : 'preserved' })
+        .eq('id', hold.scope_id);
+    }
+  }
+
+  const { error } = await supabaseAdmin.from('vault_holds').delete().eq('hold_id', holdId).eq('workspace_id', workspaceId);
+  if (error) throw error;
+}
+
 // ─── Phase 2: Redaction Policies ─────────────────────────────────────────────────
 
 interface CreateRedactionPolicyParams {

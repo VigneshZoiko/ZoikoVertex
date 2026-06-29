@@ -397,7 +397,7 @@ async function persistActor(existing: IdentityActor | null, seed: ActorSeed, sna
   if (!existing) {
     const { data, error } = await supabaseAdmin
       .from('identity_actors')
-      .insert(payload)
+      .upsert(payload, { onConflict: 'actor_id' })
       .select()
       .single();
 
@@ -419,6 +419,44 @@ async function persistActor(existing: IdentityActor | null, seed: ActorSeed, sna
 async function createLedgerEntry(seed: ActorSeed, snapshotId: string): Promise<IdentityLedgerEntry> {
   const ledgerEntryId = generateOpaqueId('IDL');
 
+  // Get the previous entry's hash to link the chain
+  const { data: prevEntry } = await supabaseAdmin
+    .from('identity_ledger_entries')
+    .select('hash')
+    .eq('workspace_id', seed.workspace_id)
+    .order('timestamp_utc', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const prevHash: string | null = (prevEntry as Record<string, unknown> | null)?.hash as string | null ?? null;
+
+  const source = { source_type: seed.source_system, source_ref_id: seed.source_ref_id, actor_type: seed.actor_type };
+  const authority_change = { roles: seed.current_roles, permission_count: seed.current_permissions.length, authority_class: seed.authority_class };
+  const risk = { level: seed.risk_level, flags: seed.risk_flags };
+  const retention = { class: 'REGULATED', legal_hold: false };
+  const timestampUtc = seed.effective_from;
+
+  const entryHash = buildLedgerEntryHash({
+    tenant_id: seed.tenant_id,
+    workspace_id: String(seed.workspace_id),
+    data_residency: 'auto',
+    schema_version: '1.0',
+    entry_type: seed.entry_type,
+    entry_category: seed.entry_category,
+    timestamp_utc: timestampUtc,
+    actor_id: seed.actor_id,
+    actor_type: seed.actor_type,
+    source,
+    authority_change,
+    session_context: {},
+    approvals: [],
+    linked_authority_snapshot_id: snapshotId,
+    risk,
+    retention,
+    prev_hash: prevHash,
+  });
+
   const { data, error } = await supabaseAdmin
     .from('identity_ledger_entries')
     .insert({
@@ -429,30 +467,18 @@ async function createLedgerEntry(seed: ActorSeed, snapshotId: string): Promise<I
       schema_version: '1.0',
       entry_type: seed.entry_type,
       entry_category: seed.entry_category,
-      timestamp_utc: seed.effective_from,
+      timestamp_utc: timestampUtc,
       actor_id: seed.actor_id,
       actor_type: seed.actor_type,
-      source: {
-        source_type: seed.source_system,
-        source_ref_id: seed.source_ref_id,
-        actor_type: seed.actor_type,
-      },
-      authority_change: {
-        roles: seed.current_roles,
-        permission_count: seed.current_permissions.length,
-        authority_class: seed.authority_class,
-      },
+      source,
+      authority_change,
       session_context: {},
       approvals: [],
       linked_authority_snapshot_id: snapshotId,
-      risk: {
-        level: seed.risk_level,
-        flags: seed.risk_flags,
-      },
-      retention: {
-        class: 'REGULATED',
-        legal_hold: false,
-      },
+      risk,
+      retention,
+      hash: entryHash,
+      prev_hash: prevHash,
     })
     .select()
     .single();
@@ -910,35 +936,33 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
   if (membersError) throw membersError;
 
   for (const member of (members || []) as Array<Record<string, unknown>>) {
-    const { data: user } = await supabaseAdmin
-      .from('users')
-      .select('id, full_name, email, is_superadmin')
-      .eq('id', String(member.user_id))
-      .maybeSingle();
+    try {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email, is_superadmin')
+        .eq('id', String(member.user_id))
+        .maybeSingle();
 
-    await ensureSnapshotForSeed(buildHumanUserSeed(workspaceId, tenantId, member, user as Record<string, unknown> | null));
+      await ensureSnapshotForSeed(buildHumanUserSeed(workspaceId, tenantId, member, user as Record<string, unknown> | null));
+    } catch { /* skip this member, continue syncing others */ }
   }
 
-  const { data: agents, error: agentsError } = await supabaseAdmin
+  const { data: agents } = await supabaseAdmin
     .from('agents')
     .select('id, name, type, status, autonomy_level, trust_score, risk_tier, assigned_brand, platforms, markets, prompt_version, model_version, primary_dri_id, created_at, updated_at')
     .eq('workspace_id', workspaceId);
 
-  if (agentsError) throw agentsError;
-
   for (const agent of (agents || []) as Array<Record<string, unknown>>) {
-    await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent));
+    try { await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent)); } catch {}
   }
 
-  const { data: apiKeys, error: apiKeysError } = await supabaseAdmin
+  const { data: apiKeys } = await supabaseAdmin
     .from('api_keys')
     .select('id, workspace_id, name, key_prefix, scopes, is_active, expires_at, created_by, created_at, last_used_at')
     .eq('workspace_id', workspaceId);
 
-  if (apiKeysError) throw apiKeysError;
-
   for (const apiKey of (apiKeys || []) as Array<Record<string, unknown>>) {
-    await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey));
+    try { await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey)); } catch {}
   }
 }
 
@@ -988,11 +1012,8 @@ export async function listActors(params: {
   offset?: number;
   viewer: ViewerContext;
 }) {
-  let actors = await listActorsRaw(params.workspace_id);
-  if (actors.length === 0) {
-    await ensureWorkspaceReadModel(params.workspace_id, normalizeTenantId(params.tenant_id));
-    actors = await listActorsRaw(params.workspace_id);
-  }
+  await ensureWorkspaceReadModel(params.workspace_id, normalizeTenantId(params.tenant_id));
+  const actors = await listActorsRaw(params.workspace_id);
 
   const filtered = actors.filter(actor => {
     if (params.actor_type && actor.actor_type !== params.actor_type) return false;

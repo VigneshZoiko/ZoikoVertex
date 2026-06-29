@@ -1,7 +1,20 @@
 "use client";
 
-import React from 'react';
-import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause } from 'lucide-react';
+import React, { useState } from 'react';
+import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, Copy, Check } from 'lucide-react';
+
+function CopyBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      className="p-1 hover:bg-surface-hover rounded text--(--text-muted) hover:text-(--text-primary) transition-colors shrink-0"
+      title="Copy ID"
+    >
+      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+    </button>
+  );
+}
 
 interface Orchestration {
   id: string;
@@ -19,7 +32,8 @@ interface Orchestration {
   confidenceScore?: number;
   blocker?: string;
   sla?: string;
-  post?: { platform?: string; excerpt?: string };
+  post_id?: string;
+  post?: { id?: string; platform?: string; excerpt?: string };
   startedAt?: string;
   kbCollection?: string;
   reviewerName?: string;
@@ -164,8 +178,15 @@ export default function ActiveOrchestrations({
                 }`}
               >
                 <td className="px-5 py-4">
-                  <p className="font-medium text-[var(--text-primary)] truncate max-w-[160px]">{orch.workflowName}</p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-mono">{orch.id.slice(0, 8)}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-semibold text-sm text-(--text-primary) font-mono whitespace-nowrap">{orch.post?.id || orch.id}</p>
+                    <CopyBtn text={orch.post?.id || orch.id} />
+                  </div>
+                  {orch.post?.platform && (
+                    <span className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded-md bg-info-text/10 text-info-text border border-info-border/20 text-[9px] font-bold uppercase tracking-wide">
+                      {orch.post.platform}
+                    </span>
+                  )}
                 </td>
                 <td className="px-5 py-4">
                   <StatusBadge status={orch.status} />

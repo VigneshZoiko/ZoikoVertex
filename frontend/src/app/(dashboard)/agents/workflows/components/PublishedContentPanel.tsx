@@ -134,9 +134,11 @@ export default function PublishedContentPanel({
                       {item.platform}
                     </span>
                   )}
-                  <span className="px-1.5 py-0.5 rounded-md bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border)] text-[9px] font-semibold uppercase tracking-wide">
-                    {item.source === "schedule" ? "Scheduled" : "Published"}
-                  </span>
+                  {(item.source === "schedule" || item.status?.toUpperCase() === "PUBLISHED") && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-[var(--surface-hover)] text-[var(--text-secondary)] border border-[var(--border)] text-[9px] font-semibold uppercase tracking-wide">
+                      {item.source === "schedule" ? "Scheduled" : "Published"}
+                    </span>
+                  )}
                   {item.check && VERDICT_STYLES[item.check.verdict] && (
                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wide ${VERDICT_STYLES[item.check.verdict].cls}`}>
                       {VERDICT_STYLES[item.check.verdict].icon}
@@ -178,7 +180,7 @@ export default function PublishedContentPanel({
                 <div className="mt-1.5 flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
                   <span className="flex items-center gap-1 text-success-text">
                     <Bot className="w-3 h-3" />
-                    {item.agentName || "Unassigned agent"}
+                    Agent
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />

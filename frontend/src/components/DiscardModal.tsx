@@ -26,7 +26,6 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel,
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
-
   if (!isOpen) return null;
 
   return (

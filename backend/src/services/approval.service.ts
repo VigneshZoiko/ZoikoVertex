@@ -804,9 +804,18 @@ export async function returnToCreator(itemId: string, tenant_id: string, userId:
     decision: 'RETURNED_TO_CREATOR', reason, note,
   });
 
-  await supabaseAdmin.from('approval_items')
+  const { error: updateErr } = await supabaseAdmin.from('approval_items')
     .update({ approval_status: 'RETURNED_TO_CREATOR' })
     .eq('id', itemId);
+  if (updateErr) throw updateErr;
+
+  // Sync the underlying review_items entry so it appears in the creator's Returned Items page
+  if (item.source_module === 'review_queue' && item.source_entity_id) {
+    await supabaseAdmin.from('review_items')
+      .update({ status: 'AWAITING_REVISION', feedback: note || reason })
+      .eq('id', item.source_entity_id)
+      .eq('tenant_id', tenant_id);
+  }
 
   await createAuditLog({
     tenant_id, approval_item_id: itemId,

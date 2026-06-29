@@ -171,7 +171,7 @@ export const authenticate = async (
         .single(),
       supabaseAdmin
         .from("workspace_members")
-        .select("workspace_id, role, workspaces(plan_type, status, org_id)")
+        .select("workspace_id, role, workspaces(plan_type, status, org_id, organizations(plan_type))")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true })
         .limit(1)
@@ -188,7 +188,25 @@ export const authenticate = async (
       ? (Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces)
       : null;
 
-    const workspacePlan = ws?.plan_type ?? (isSuperAdmin ? "ENTERPRISE" : null);
+    // Take the higher-ranked of workspaces.plan_type vs organizations.plan_type.
+    // workspaces.plan_type defaults to FREE on creation; superadmin upgrades only
+    // update organizations.plan_type, so we must compare both and use the higher tier.
+    const PLAN_RANK_BE: Record<string, number> = { FREE: 0, STARTER: 1, GROWTH: 2, SCALE: 3, ENTERPRISE: 4 };
+    const planRank = (p: string | null | undefined) => PLAN_RANK_BE[(p ?? 'FREE').toUpperCase()] ?? 0;
+
+    const rawWsPlan  = ws?.plan_type ?? null;
+    const rawOrgPlan = (() => {
+      if (!ws) return null;
+      const org = (ws as any).organizations;
+      if (!org) return null;
+      return Array.isArray(org) ? (org[0]?.plan_type ?? null) : (org.plan_type ?? null);
+    })();
+
+    const workspacePlan = isSuperAdmin
+      ? "ENTERPRISE"
+      : planRank(rawOrgPlan) > planRank(rawWsPlan)
+        ? rawOrgPlan
+        : rawWsPlan;
     const workspaceStatus = ws?.status ?? null;
 
     // Track org activity (fire-and-forget, no await)
