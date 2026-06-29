@@ -1229,8 +1229,8 @@ export default function BillingPage() {
       {depositToast && mounted && createPortal(
         <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold ${
           depositToast.type === "success"
-            ? "bg-success-bg border-success-border/30 text-success-text"
-            : "bg-error-bg border-error-border/30 text-error-text"
+            ? "bg-toast-success-bg border-success-border/30 text-toast-success-text"
+            : "bg-toast-error-bg border-error-border/30 text-toast-error-text"
         }`}>
           {depositToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span className="max-w-sm">{depositToast.msg}</span>
