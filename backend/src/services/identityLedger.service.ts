@@ -397,7 +397,7 @@ async function persistActor(existing: IdentityActor | null, seed: ActorSeed, sna
   if (!existing) {
     const { data, error } = await supabaseAdmin
       .from('identity_actors')
-      .insert(payload)
+      .upsert(payload, { onConflict: 'actor_id' })
       .select()
       .single();
 
@@ -910,35 +910,33 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
   if (membersError) throw membersError;
 
   for (const member of (members || []) as Array<Record<string, unknown>>) {
-    const { data: user } = await supabaseAdmin
-      .from('users')
-      .select('id, full_name, email, is_superadmin')
-      .eq('id', String(member.user_id))
-      .maybeSingle();
+    try {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email, is_superadmin')
+        .eq('id', String(member.user_id))
+        .maybeSingle();
 
-    await ensureSnapshotForSeed(buildHumanUserSeed(workspaceId, tenantId, member, user as Record<string, unknown> | null));
+      await ensureSnapshotForSeed(buildHumanUserSeed(workspaceId, tenantId, member, user as Record<string, unknown> | null));
+    } catch (_) { /* skip this member, continue syncing others */ }
   }
 
-  const { data: agents, error: agentsError } = await supabaseAdmin
+  const { data: agents } = await supabaseAdmin
     .from('agents')
     .select('id, name, type, status, autonomy_level, trust_score, risk_tier, assigned_brand, platforms, markets, prompt_version, model_version, primary_dri_id, created_at, updated_at')
     .eq('workspace_id', workspaceId);
 
-  if (agentsError) throw agentsError;
-
   for (const agent of (agents || []) as Array<Record<string, unknown>>) {
-    await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent));
+    try { await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent)); } catch (_) {}
   }
 
-  const { data: apiKeys, error: apiKeysError } = await supabaseAdmin
+  const { data: apiKeys } = await supabaseAdmin
     .from('api_keys')
     .select('id, workspace_id, name, key_prefix, scopes, is_active, expires_at, created_by, created_at, last_used_at')
     .eq('workspace_id', workspaceId);
 
-  if (apiKeysError) throw apiKeysError;
-
   for (const apiKey of (apiKeys || []) as Array<Record<string, unknown>>) {
-    await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey));
+    try { await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey)); } catch (_) {}
   }
 }
 
