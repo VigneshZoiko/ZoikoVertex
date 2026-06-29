@@ -16,9 +16,11 @@ const TABS = [
 ];
 
 const ACTOR_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
-  human:    { label: "HU", cls: "text-blue-400 border-blue-500/60" },
-  ai_agent: { label: "AI", cls: "text-purple-400 border-purple-500/60" },
-  system:   { label: "SY", cls: "text-foreground-muted border-border" },
+  human_user:      { label: "HU",  cls: "text-blue-400 border-blue-500/60" },
+  human:           { label: "HU",  cls: "text-blue-400 border-blue-500/60" },
+  ai_agent:        { label: "AI",  cls: "text-purple-400 border-purple-500/60" },
+  service_account: { label: "SER", cls: "text-yellow-400 border-yellow-500/60" },
+  system:          { label: "SY",  cls: "text-foreground-muted border-border" },
 };
 
 const STATE_PILL: Record<string, string> = {
