@@ -31,7 +31,7 @@
 
 @layer utilities {
   .zoiko-widget {
-    width: 420px;
+    width: 380px;
     max-width: calc(100vw - 12px);
     height: calc(100dvh - 12px);
     max-height: calc(100dvh - 12px);
@@ -99,7 +99,7 @@
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .zoiko-widget {
-    width: min(560px, calc(100vw - 40px));
+    width: min(400px, calc(100vw - 40px));
     height: min(800px, calc(100dvh - 40px));
     border-radius: 24px;
   }
@@ -107,7 +107,7 @@
 
 @media (min-width: 1025px) {
   .zoiko-widget {
-    width: 460px;
+    width: 380px;
     height: min(760px, calc(100dvh - 60px));
     border-radius: 24px;
   }
@@ -115,7 +115,7 @@
 
 @media (min-width: 1440px) {
   .zoiko-widget {
-    width: 500px;
+    width: 400px;
     height: min(800px, calc(100dvh - 80px));
   }
 }

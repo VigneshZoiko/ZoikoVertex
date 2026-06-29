@@ -74,13 +74,13 @@ export default function ChatHeader({
         {/* ✅ FIXED LOGO ONLY */}
         <div className="relative flex items-center ">
           {/* Desktop Logo */}
-          <div className="hidden lg:flex h-5 w-5 items-center justify-center rounded-[4px] bg-gradient-to-br from-[#2b9ad9] to-[#17337c]">
-            <span className="text-white text-[0.5rem] font-black leading-none">C</span>
+          <div className="hidden lg:flex h-8 w-8 items-center justify-center rounded-[4px] overflow-hidden">
+            <img src="/images/logo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           {/* Mobile / Tablet Logo */}
-          <div className="block lg:hidden h-8 w-8 rounded-full overflow-hidden border-2 border-[#2b9ad9] flex items-center justify-center bg-gradient-to-br from-[#2b9ad9] to-[#17337c]">
-            <span className="text-white text-[0.65rem] font-black">C</span>
+          <div className="block lg:hidden h-8 w-8 rounded-full overflow-hidden border-2 border-[#2b9ad9] flex items-center justify-center">
+            <img src="/images/logo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           {/* Indicator */}
@@ -94,7 +94,7 @@ export default function ChatHeader({
               isDark               ? "text-[#c8dafc]" : "text-[#0a2d5c]"
             }`}
           >
-            Custos
+            CUSTOS
           </span>
           <span
             className={`inline-flex w-fit items-center rounded-full px-2 py-[2px] text-[0.6rem] font-black uppercase tracking-wider leading-none ${

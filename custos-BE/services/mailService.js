@@ -41,7 +41,7 @@ const sendMail = async ({ to, from, subject, body, html }) => {
   if (!emailRegex.test(to)) throw new Error("Invalid recipient email");
   if (from && !emailRegex.test(from)) throw new Error("Invalid sender email");
 
-  const fromAddress = process.env.FROM_EMAIL || process.env.SMTP_USER;
+  const fromAddress = process.env.FROM_EMAIL || process.env.SMTP_USER || from;
   const textBody = body || "User has reported an issue. Please view this email in HTML format.";
   const htmlBody =
     html ||

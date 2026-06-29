@@ -103,7 +103,7 @@ export default function Composer({
             )}px`;
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Custos anything about ZoikoVertex..."
+          placeholder="Ask anything about ZoikoVertex..."
           rows={1}
           disabled={isTyping}
           className={`flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none disabled:opacity-50 ${
@@ -156,7 +156,7 @@ export default function Composer({
           isDark           ? "text-[#5a7da0]" : "text-[#5a7da0]"
         }`}
       >
-        Custos · ZoikoVertex AI · Source-grounded · Governed responses
+        ZoikoVertex AI · Source-grounded · Governed responses
       </p>
     </form>
   );

@@ -2,32 +2,13 @@ import { useState, useEffect } from "react";
 import ChatBotRoot from "../custos-FE/ChatBotRoot";
 
 const RobotIcon = ({ size = 30 }) => (
-  <svg
+  <img
+    src="/images/response-icon.jpg"
+    alt="Assistant"
     width={size}
-    height={30}
-    viewBox="0 0 64 64"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <circle cx="32" cy="11" r="3" fill="#fff" />
-    <line
-      x1="32"
-      y1="14"
-      x2="32"
-      y2="20"
-      stroke="#fff"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-    />
-    <rect x="14" y="20" width="36" height="26" rx="9" fill="#fff" />
-    <rect x="9" y="27" width="6" height="12" rx="2.5" fill="#fff" />
-    <rect x="49" y="27" width="6" height="12" rx="2.5" fill="#fff" />
-    <rect x="19" y="25" width="26" height="16" rx="5" fill="#1F6FEB" />
-    <ellipse cx="26" cy="33" rx="2.2" ry="3" fill="#fff" />
-    <ellipse cx="38" cy="33" rx="2.2" ry="3" fill="#fff" />
-    <path d="M28 46 L34 46 L34 53 Z" fill="#fff" />
-  </svg>
+    height={size}
+    style={{ borderRadius: "50%", objectFit: "cover" }}
+  />
 );
 
 const CloseIcon = () => (
@@ -115,11 +96,11 @@ export default function FloatingAssistantBot({ right = 24, bottom = 24 } = {}) {
           className="zt-chat-panel"
           style={{
             position: "fixed",
-            bottom: bottom - 80, // ← was bottom - 70, now sits above FAB properly
+            bottom: 104, // sits above FAB: 24 (fab offset) + 60 (fab height) + 20 (gap)
             right,
-            width: 460,
-            maxHeight: "calc(100vh - 100px)",
-            height: "calc(100vh - 100px)",
+            width: 380,
+            maxHeight: "calc(100vh - 128px)",
+            height: "calc(100vh - 128px)",
             borderRadius: 20,
             boxShadow:
               "0 16px 48px rgba(0,0,0,.3), 0 0 0 1px rgba(31,111,235,.15)",
