@@ -39,7 +39,7 @@ interface RunData {
   confidenceScore?: number;
   blocker?: string;
   sla?: string;
-  post?: { platform?: string; excerpt?: string };
+  post?: { id?: string; platform?: string; excerpt?: string };
   startedAt?: string;
   kbCollection?: string;
   reviewerName?: string;
@@ -281,7 +281,7 @@ export default function WorkflowRunDetailDrawer({
         return (
           <div className="rounded-xl border border-[var(--border)] p-4 space-y-0.5 bg-[var(--surface-hover)]/20">
             <DetailRow label="Workflow Name" value={safeStr(run.workflowName)} icon={<GitBranch className="w-3.5 h-3.5 text-info-text" />} />
-            <DetailRow label="Workflow ID" value={safeStr(run.id)} />
+            <DetailRow label="Post ID" value={safeStr(run.post?.id || run.id)} />
             <DetailRow
               label="Status"
               value={<span className={`inline-flex items-center gap-1.5 font-semibold ${STATUS_COLOR[run.status] || "text-[var(--text-primary)]"}`}>{STATUS_ICON[run.status] || null}{run.status}</span>}
@@ -473,7 +473,7 @@ export default function WorkflowRunDetailDrawer({
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1">Workflow Run Detail</p>
               <h2 className="text-base font-semibold text-[var(--text-primary)] leading-tight truncate">{run.workflowName}</h2>
-              <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-mono">{run.id}</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-mono">{run.post?.id || run.id}</p>
             </div>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0 mt-0.5">
               <XCircle className="w-4 h-4" />

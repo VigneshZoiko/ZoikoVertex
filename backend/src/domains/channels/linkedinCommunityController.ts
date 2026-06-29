@@ -351,7 +351,7 @@ export async function syncLinkedInComments(
       postsData = await v2Res.json();
       debug.push(`v2 ugcPosts succeeded`);
     } else {
-      const body = await v2Res.text().catch(() => '');
+      await v2Res.text().catch(() => '');
       const msg = typeof postsData.error.message === 'string' ? postsData.error.message : JSON.stringify(postsData.error);
       return { synced: 0, error: `LinkedIn posts fetch failed: REST=${postsData.error.status} v2=${v2Res.status} — ${msg}`, debug };
     }

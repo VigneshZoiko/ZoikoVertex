@@ -151,6 +151,7 @@ export async function recordPublishIntentRun(intent: {
   id: string;
   workspace_id: string | null;
   creator_id?: string | null;
+  creator_name?: string | null;
   content?: string | null;
   platform?: string | null;
   media_urls?: string[] | null;
@@ -192,6 +193,7 @@ export async function recordPublishIntentRun(intent: {
         status: initialRunStatus,
         severity: 'normal',
         owner_id: isUuid(intent.creator_id) ? intent.creator_id : null,
+        owner_name: intent.creator_name || null,
         priority: 3,
         policy_result: 'pending_review',
         evidence_status: 'capturing',
