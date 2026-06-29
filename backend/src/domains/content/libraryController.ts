@@ -8,6 +8,38 @@ import { v4 as uuidv4 } from 'uuid';
 import { trackUsage } from '../monitoring/usageController';
 import { createAuditEvent } from '../../services/auditTrail.service';
 import { createApprovalItem } from '../../services/approval.service';
+import { env } from '../../config/env';
+
+// Derive the Supabase project hostname from SUPABASE_URL for URL origin validation.
+// e.g. "https://abcxyz.supabase.co" → "abcxyz.supabase.co"
+const SUPABASE_HOST = (() => {
+  try { return new URL(env.SUPABASE_URL).hostname; } catch { return null; }
+})();
+
+function validateStorageUrls(urls: unknown): { ok: true; list: string[] } | { ok: false; error: string } {
+  if (!Array.isArray(urls) || urls.length === 0)
+    return { ok: false, error: 'urls must be a non-empty array' };
+  if (urls.length > 20)
+    return { ok: false, error: 'Maximum 20 URLs per asset' };
+  for (const u of urls) {
+    if (typeof u !== 'string') return { ok: false, error: 'Each URL must be a string' };
+    try {
+      const parsed = new URL(u);
+      // Must be https
+      if (parsed.protocol !== 'https:')
+        return { ok: false, error: `URL must use HTTPS: ${u}` };
+      // Must belong to this Supabase project
+      if (SUPABASE_HOST && parsed.hostname !== SUPABASE_HOST)
+        return { ok: false, error: `URL must be from this project's storage (${SUPABASE_HOST}): ${parsed.hostname}` };
+      // Must be a storage path (not an arbitrary endpoint)
+      if (!parsed.pathname.startsWith('/storage/v1/object/'))
+        return { ok: false, error: `URL is not a valid storage path: ${u}` };
+    } catch {
+      return { ok: false, error: `Invalid URL: ${u}` };
+    }
+  }
+  return { ok: true, list: urls as string[] };
+}
 
 /**
  * Extracts the storage object path from a Supabase Storage public URL.
@@ -251,9 +283,14 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (!title || !urls || !urls.length || !file_type) {
+    if (!title || !urls || !file_type) {
       return res.status(400).json({ error: 'Missing required fields: title, urls, file_type' });
     }
+
+    // Validate every URL belongs to this Supabase project and is a storage path
+    const urlCheck = validateStorageUrls(urls);
+    if (!urlCheck.ok) return res.status(400).json({ error: urlCheck.error });
+    const validatedUrls = urlCheck.list;
 
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
@@ -261,7 +298,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
     const mediaId = uuidv4();
 
     // Run the safety scan (pass mediaId so logs are linked)
-    const scan = await scanMediaUpload(title, urls, file_type, workspaceId, mediaId);
+    const scan = await scanMediaUpload(title, validatedUrls, file_type, workspaceId, mediaId);
 
     // Determine library status
     const libraryStatus = scan.safe ? 'available' : (scan.isVideo ? 'pending_review' : 'blocked');
@@ -273,8 +310,8 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
       .insert({
         id: mediaId,
         title,
-        urls,
-        url: urls[0],
+        urls: validatedUrls,
+        url: validatedUrls[0],
         file_type,
         uploader_id: userId,
         workspace_id: workspaceId,

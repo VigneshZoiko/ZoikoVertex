@@ -141,61 +141,65 @@ export default function CreatorUploadPage() {
     const ext = file.name.split('.').pop();
     const path = `library/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    return new Promise((resolve, reject) => {
-      supabase.storage.from('media').createSignedUploadUrl(path).then(({ data, error }) => {
-        if (error || !data) {
-          supabase.storage.from('media').upload(path, file, { upsert: true, cacheControl: '3600' }).then(({ error: upErr }) => {
-            if (upErr) {
-              const msg = (upErr as { message?: string }).message || 'Upload failed';
-              return reject(new Error(
-                msg.toLowerCase().includes('payload') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size')
-                  ? `File too large — run migration 10 to increase the storage bucket limit to 500 MB.`
-                  : `Upload failed: ${msg}`
-              ));
-            }
-            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
-            setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
-            resolve(publicUrl);
-          });
-          return;
-        }
+    // Try signed URL upload first (supports progress tracking)
+    const { data: signedData, error: signedErr } = await supabase.storage
+      .from('media')
+      .createSignedUploadUrl(path);
 
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener('progress', (ev) => {
-          if (ev.lengthComputable) {
-            const pct = Math.round((ev.loaded / ev.total) * 100);
-            setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: pct } : e));
-          }
-        });
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
-            setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
-            resolve(publicUrl);
-          } else {
-            let detail = xhr.statusText;
-            try {
-              const body = JSON.parse(xhr.responseText);
-              detail = body?.error || body?.message || detail;
-            } catch { /* non-JSON response */ }
-            const isTooLarge = xhr.status === 413 || detail.toLowerCase().includes('too large') || detail.toLowerCase().includes('size');
-            reject(new Error(
-              isTooLarge
-                ? `File too large — run migration 10 to increase the storage bucket limit to 500 MB.`
-                : `Upload failed (${xhr.status}): ${detail}`
-            ));
-          }
-        });
-        xhr.addEventListener('error', () => reject(new Error('Network error during upload — check your connection and try again.')));
-        xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — the file may be too large for your current connection speed.')));
-        xhr.timeout = 30 * 60 * 1000; // 30-minute timeout for large video files
-        xhr.open('PUT', data.signedUrl);
-        xhr.setRequestHeader('x-upsert', 'true');
-        const form = new FormData();
-        form.append('cacheControl', '3600');
-        form.append('', file);
-        xhr.send(form);
+    if (signedErr || !signedData) {
+      // Fallback: direct SDK upload (no progress bar but reliable)
+      const { error: upErr } = await supabase.storage
+        .from('media')
+        .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+      if (upErr) {
+        const msg = (upErr as { message?: string }).message || 'Upload failed';
+        const isTooLarge = msg.toLowerCase().includes('payload') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size');
+        throw new Error(isTooLarge
+          ? `File too large (${formatMB(file.size)} MB). Check the storage bucket file_size_limit in your Supabase dashboard.`
+          : `Upload failed: ${msg}`);
+      }
+      const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+      setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
+      return publicUrl;
+    }
+
+    // XHR upload to signed URL — gives real progress events
+    return new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (ev) => {
+        if (ev.lengthComputable) {
+          const pct = Math.round((ev.loaded / ev.total) * 100);
+          setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: pct } : e));
+        }
       });
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+          setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: 100, status: 'done', publicUrl } : e));
+          resolve(publicUrl);
+        } else {
+          let detail = xhr.statusText;
+          try {
+            const body = JSON.parse(xhr.responseText);
+            detail = body?.error || body?.message || detail;
+          } catch { /* non-JSON response */ }
+          const isTooLarge = xhr.status === 413 || detail.toLowerCase().includes('too large') || detail.toLowerCase().includes('size');
+          reject(new Error(isTooLarge
+            ? `File too large (${formatMB(file.size)} MB). Check the storage bucket file_size_limit in your Supabase dashboard.`
+            : `Upload failed (${xhr.status}): ${detail}`));
+        }
+      });
+      xhr.addEventListener('error', () => reject(new Error('Network error during upload — check your connection and try again.')));
+      xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — file may be too large for your connection speed.')));
+      xhr.timeout = 30 * 60 * 1000;
+      xhr.open('PUT', signedData.signedUrl);
+      // Set Content-Type so Supabase stores the correct MIME type (critical for video playback)
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.setRequestHeader('x-upsert', 'true');
+      const form = new FormData();
+      form.append('cacheControl', '3600');
+      form.append('', file, file.name);
+      xhr.send(form);
     });
   };
 
@@ -253,6 +257,10 @@ export default function CreatorUploadPage() {
           file_type: fileType,
           file_size_bytes: totalSizeBytes,
         });
+
+        if (result?.success === false || result?.error) {
+          throw new Error(typeof result.error === 'string' ? result.error : 'Upload registration failed. Check the browser console for details.');
+        }
 
         const n = entries.length;
         const filesLabel = `${n} file${n !== 1 ? 's' : ''}`;
