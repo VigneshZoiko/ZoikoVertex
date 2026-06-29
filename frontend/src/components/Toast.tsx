@@ -34,15 +34,15 @@ export default function Toast({ message, type, onClose, duration = 4500 }: Toast
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'
       } ${
         isSuccess
-          ? 'bg-[var(--success-bg)] border-[var(--success-border)]'
-          : 'bg-[var(--error-bg)] border-[var(--error-border)]'
+          ? 'bg-[var(--toast-success-bg)] border-[var(--success-border)]'
+          : 'bg-[var(--toast-error-bg)] border-[var(--error-border)]'
       }`}
     >
       {isSuccess
-        ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-[var(--success-text)]" />
-        : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-[var(--error-text)]" />
+        ? <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-[var(--toast-success-text)]" />
+        : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-[var(--toast-error-text)]" />
       }
-      <p className={`flex-1 text-sm font-medium leading-snug ${isSuccess ? 'text-[var(--success-text)]' : 'text-[var(--error-text)]'}`}>
+      <p className={`flex-1 text-sm font-medium leading-snug ${isSuccess ? 'text-[var(--toast-success-text)]' : 'text-[var(--toast-error-text)]'}`}>
         {message}
       </p>
       <button
@@ -50,13 +50,13 @@ export default function Toast({ message, type, onClose, duration = 4500 }: Toast
         className="shrink-0 opacity-50 hover:opacity-100 transition-opacity mt-0.5"
         aria-label="Close notification"
       >
-        <X className={`w-3.5 h-3.5 ${isSuccess ? 'text-[var(--success-text)]' : 'text-[var(--error-text)]'}`} />
+        <X className={`w-3.5 h-3.5 ${isSuccess ? 'text-[var(--toast-success-text)]' : 'text-[var(--toast-error-text)]'}`} />
       </button>
 
       {/* Progress bar */}
-      <div className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full overflow-hidden ${isSuccess ? 'bg-[var(--success-bg)]' : 'bg-[var(--error-bg)]'}`}>
+      <div className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full overflow-hidden ${isSuccess ? 'bg-[var(--toast-success-bg)]' : 'bg-[var(--toast-error-bg)]'}`}>
         <div
-          className={`h-full rounded-full ${isSuccess ? 'bg-[var(--success-text)]' : 'bg-[var(--error-text)]'}`}
+          className={`h-full rounded-full ${isSuccess ? 'bg-[var(--toast-success-text)]' : 'bg-[var(--toast-error-text)]'}`}
           style={{
             animation: `toast-shrink ${duration}ms linear forwards`,
           }}
