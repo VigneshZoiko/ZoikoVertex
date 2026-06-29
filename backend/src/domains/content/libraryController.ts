@@ -7,6 +7,7 @@ import { scanImage, type KeywordRule } from '../../modules/safety/imageScanner';
 import { v4 as uuidv4 } from 'uuid';
 import { trackUsage } from '../monitoring/usageController';
 import { createAuditEvent } from '../../services/auditTrail.service';
+import { preserveEvidence } from '../../services/evidenceVault.service';
 import { createApprovalItem } from '../../services/approval.service';
 import { env } from '../../config/env';
 
@@ -526,10 +527,10 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
 
     const isAdmin = ['ADMIN', 'MANAGER', 'WORKSPACE_OWNER'].includes(role ?? '');
 
-    // Fetch item to get storage paths before deleting
+    // Fetch item details (including name/type) before deleting for evidence trail
     let fetchQuery = supabaseAdmin
       .from('media_library')
-      .select('url, urls')
+      .select('url, urls, name, type, file_size_bytes, mime_type, uploader_id, created_at')
       .eq('id', id);
 
     if (!isSuper) {
@@ -561,6 +562,60 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
 
     const { error } = await query;
     if (error) throw error;
+
+    // Preserve evidence of deletion in Evidence Vault (fire-and-forget)
+    if (workspaceId) {
+      const payload = JSON.stringify({
+        action: 'media_deleted',
+        asset_id: id,
+        asset_name: item?.name || id,
+        asset_type: item?.type || 'unknown',
+        mime_type: item?.mime_type || null,
+        file_size_bytes: item?.file_size_bytes || 0,
+        uploader_id: item?.uploader_id || null,
+        created_at: item?.created_at || null,
+        deleted_by: userId,
+        deleted_at: new Date().toISOString(),
+      });
+      preserveEvidence({
+        workspace_id: workspaceId,
+        tenant_id: '00000000-0000-0000-0000-000000000000',
+        source_type: 'media_library',
+        source_id: String(id),
+        source_system: 'media_vault',
+        evidence_type: 'asset_deletion',
+        risk_level: 'medium',
+        sensitivity: 'internal',
+        preservation_reason: 'Media asset permanently deleted from library',
+        preserved_by: userId,
+        payload,
+        payload_size: payload.length,
+        mime_type: 'application/json',
+        retention_class: 'standard',
+        metadata: {
+          asset_id: id,
+          asset_name: item?.name || id,
+          asset_type: item?.type || 'unknown',
+          deleted_by: userId,
+          role,
+        },
+      }).catch(() => {});
+
+      createAuditEvent({
+        workspace_id: workspaceId,
+        event_category: 'content_lifecycle',
+        event_type: 'media_deleted',
+        event_title: 'Media Asset Deleted',
+        event_summary: `Media asset "${item?.name || String(id)}" deleted from library`,
+        actor: { actor_id: userId, actor_type: 'human_user' },
+        object: { object_type: 'media_asset', object_id: String(id) },
+        risk_level: 'medium',
+        status: 'success',
+        evidence_state: 'preserved',
+        retention_class: 'STANDARD',
+        correlation: {},
+      }).catch(() => {});
+    }
 
     // Clean up resource_usage so the Storage meter reflects the deletion (fire-and-forget)
     supabaseAdmin.from('resource_usage')
