@@ -208,7 +208,71 @@ export async function listAgentRuns(params: {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  const runs = await enrichRunsWithPostedBy(data || [], params.workspace_id);
+  const enriched = await enrichRunsWithPostedBy(data || [], params.workspace_id);
+
+  // For publisher-type runs, task_id IS the publish_intent.id — use it directly.
+  // For workflow-execution runs, task_id is the workflow_instance.id. Look up
+  // those instances and extract post_id from their trigger_source JSON so both
+  // Operations and Workflows pages show the same canonical publish_intent.id for
+  // the same post.
+  const workflowTaskIds = Array.from(
+    new Set(
+      enriched
+        .filter((r: any) => r.agent_type !== 'publisher' && isUuid(r.task_id))
+        .map((r: any) => r.task_id as string),
+    ),
+  );
+  const postIdByInstanceId = new Map<string, string>();
+  if (workflowTaskIds.length > 0) {
+    try {
+      const { data: instances } = await supabaseAdmin
+        .from('workflow_instances')
+        .select('id, trigger_source')
+        .in('id', workflowTaskIds)
+        .not('trigger_source', 'is', null);
+      for (const inst of instances || []) {
+        if (typeof inst.trigger_source !== 'string') continue;
+        try {
+          const meta = JSON.parse(inst.trigger_source);
+          if (meta?.src === 'publish_hub' && meta.post_id) {
+            postIdByInstanceId.set(inst.id, meta.post_id);
+          }
+        } catch { /* not our JSON */ }
+      }
+    } catch { /* non-blocking */ }
+  }
+
+  // Back-fill owner_name for runs where it was never stored (owner_id present but
+  // owner_name null). Batch-look up display names from the users table.
+  const missingNameIds = Array.from(
+    new Set(
+      enriched
+        .filter((r: any) => !r.owner_name && isUuid(r.owner_id))
+        .map((r: any) => r.owner_id as string),
+    ),
+  );
+  const ownerNameById = new Map<string, string>();
+  if (missingNameIds.length > 0) {
+    try {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', missingNameIds);
+      for (const u of users || []) {
+        ownerNameById.set(u.id, u.full_name || u.email || u.id);
+      }
+    } catch { /* non-blocking */ }
+  }
+
+  const runs = enriched.map((run: any) => ({
+    ...run,
+    owner_name: run.owner_name || ownerNameById.get(run.owner_id) || null,
+    post_id:
+      run.post_id ||
+      (run.agent_type === 'publisher' ? run.task_id : null) ||
+      postIdByInstanceId.get(run.task_id) ||
+      null,
+  }));
   return { runs, total: count || 0 };
 }
 

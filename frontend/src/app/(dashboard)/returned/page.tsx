@@ -250,11 +250,24 @@ function ApprovalCard({
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(true);
+
+  useEffect(() => {
+    api.get(`/api/v1/approvals-v2/items/${item.id}/decisions`)
+      .then(r => {
+        const decisions: Array<{ decision: string; decision_reason?: string; decision_note?: string }> = r.data || [];
+        const returned = decisions.find(d => d.decision === "RETURNED_TO_CREATOR");
+        setFeedback(returned?.decision_note || returned?.decision_reason || null);
+      })
+      .catch(() => {})
+      .finally(() => setFeedbackLoading(false));
+  }, [item.id]);
 
   const isPost = item.source_module === "publish" ||
     item.item_type?.toLowerCase().includes("post");
   const editHref = isPost && item.source_entity_id
-    ? `/publish?review_item_id=${item.source_entity_id}`
+    ? `/publish?review_item_id=${item.source_entity_id}${feedback ? `&suggestion=${encodeURIComponent(feedback)}` : ""}`
     : undefined;
   const editLabel = isPost ? "Edit Post" : "Edit Media";
 
@@ -275,17 +288,16 @@ function ApprovalCard({
     return (
       <div className="flex items-center gap-3 px-5 py-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm">
         <CheckCircle2 className="w-4 h-4 shrink-0" />
-        <span><span className="font-medium">{item.title}</span> resubmitted.</span>
+        <span><span className="font-medium">{item.title}</span> resubmitted — back in the approval queue.</span>
       </div>
     );
   }
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+      {/* Header */}
       <div className="flex items-start gap-4 p-4">
-        {/* Left accent */}
         <div className="mt-1 shrink-0 w-1.5 h-10 rounded-full bg-amber-500/60" />
-
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
@@ -313,14 +325,26 @@ function ApprovalCard({
               </span>
             </div>
           </div>
-
-          {item.next_action && (
-            <p className="mt-2 text-xs text-amber-400/80 flex items-center gap-1">
-              <ArrowRight className="w-3 h-3 shrink-0" />
-              Next: {item.next_action}
-            </p>
-          )}
         </div>
+      </div>
+
+      {/* Approver Feedback */}
+      <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]/60">
+        <div className="flex items-center gap-1.5 mb-2">
+          <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+          <span className="text-xs font-semibold text-amber-400">Approver Feedback</span>
+        </div>
+        {feedbackLoading ? (
+          <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+            <RefreshCcw className="w-3 h-3 animate-spin" /> Loading feedback…
+          </div>
+        ) : feedback ? (
+          <div className="text-xs text-[var(--foreground)] bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap">
+            {feedback}
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--foreground-muted)] italic">No written feedback left by approver.</p>
+        )}
       </div>
 
       {resubmitError && (
@@ -330,21 +354,25 @@ function ApprovalCard({
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
-        {editHref && (
-          <a href={editHref}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
-            <Pencil className="w-3.5 h-3.5" />
-            {editLabel}
-          </a>
-        )}
-        {item.source_entity_id && (
-          <button onClick={handleResubmit} disabled={resubmitting}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50">
-            {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-            Submit for Review
-          </button>
-        )}
+      {/* Actions */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
+        <p className="text-[10px] text-[var(--foreground-muted)]">Edit your post then resubmit for review.</p>
+        <div className="flex items-center gap-2 shrink-0">
+          {editHref && (
+            <a href={editHref}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
+              <Pencil className="w-3.5 h-3.5" />
+              {editLabel}
+            </a>
+          )}
+          {item.source_entity_id && (
+            <button onClick={handleResubmit} disabled={resubmitting}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50">
+              {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+              Resubmit
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -380,7 +408,7 @@ export default function ReturnedItemsPage() {
     try {
       const [rqRes, apRes] = await Promise.allSettled([
         api.get("/api/v1/review-queue?status=AWAITING_REVISION&submitted_by=me&limit=100"),
-        api.get("/api/v1/approvals-v2/items?submitted_by=me"),
+        api.get("/api/v1/approvals-v2/items?status=RETURNED_TO_CREATOR,CHANGES_REQUESTED&limit=100"),
       ]);
 
       if (rqRes.status === "fulfilled" && rqRes.value.success) {
@@ -388,7 +416,7 @@ export default function ReturnedItemsPage() {
       }
       if (apRes.status === "fulfilled" && apRes.value.success) {
         const all: ApprovalItem[] = apRes.value.data?.items || apRes.value.data || [];
-        setApprovalItems(all.filter(i => i.approval_status === "CHANGES_REQUESTED" || i.approval_status === "RETURNED_TO_CREATOR"));
+        setApprovalItems(all);
       }
     } catch (e: any) {
       setError(e.message || "Failed to load returned items.");

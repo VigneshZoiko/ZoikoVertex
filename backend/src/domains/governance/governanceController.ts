@@ -335,7 +335,8 @@ export const submitIntent = async (
 
     // Mirror each post into Agent Operations for policy checks (non-blocking).
     try {
-      await Promise.all(data.map((intent: any) => recordPublishIntentRun(intent)));
+      const creatorName = req.user?.full_name || req.user?.email?.split('@')[0] || null;
+      await Promise.all(data.map((intent: any) => recordPublishIntentRun({ ...intent, creator_name: creatorName })));
     } catch (err) {
       logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }

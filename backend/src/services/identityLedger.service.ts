@@ -944,7 +944,7 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
         .maybeSingle();
 
       await ensureSnapshotForSeed(buildHumanUserSeed(workspaceId, tenantId, member, user as Record<string, unknown> | null));
-    } catch (_) { /* skip this member, continue syncing others */ }
+    } catch { /* skip this member, continue syncing others */ }
   }
 
   const { data: agents } = await supabaseAdmin
@@ -953,7 +953,7 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
     .eq('workspace_id', workspaceId);
 
   for (const agent of (agents || []) as Array<Record<string, unknown>>) {
-    try { await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent)); } catch (_) {}
+    try { await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent)); } catch {}
   }
 
   const { data: apiKeys } = await supabaseAdmin
@@ -962,7 +962,7 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
     .eq('workspace_id', workspaceId);
 
   for (const apiKey of (apiKeys || []) as Array<Record<string, unknown>>) {
-    try { await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey)); } catch (_) {}
+    try { await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey)); } catch {}
   }
 }
 
