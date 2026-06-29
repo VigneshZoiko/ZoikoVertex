@@ -83,7 +83,7 @@ export default function FloatingAssistantBot({ right = 24, bottom = 24 } = {}) {
             position: "fixed",
             inset: 0,
             background: "rgba(0, 0, 0, 0.35)",
-            backdropFilter: "blur(0.5px)",
+            backdropFilter: "blur(5px)",
             WebkitBackdropFilter: "blur(5px)",
             zIndex: 8999,
           }}

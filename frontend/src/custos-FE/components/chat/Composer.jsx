@@ -132,13 +132,13 @@ export default function Composer({
           type="button"
           onClick={onClear}
           title="Clear chat"
-          className={`orbit-icon-button mb-0.5 h-8 w-8 flex-shrink-0 rounded-[11px] ${
+          className={`orbit-icon-button mb-0.5 h-8 w-8 flex-shrink-0 rounded-[11px] hover:text-red-500 ${
             isDark
               ? "text-[#7ac8f0] hover:bg-[rgba(23,51,124,0.3)]"
               : "text-[#1a5fa8] hover:bg-[rgba(43,154,217,0.12)]"
           }`}
         >
-          <HiOutlineTrash className="h-4 w-4 hover:text-red-500" />
+          <HiOutlineTrash className="h-4 w-4" />
         </button>
 
         <button

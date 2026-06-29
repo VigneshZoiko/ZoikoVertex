@@ -340,7 +340,7 @@ export default function ChatPage() {
   }, [messages, replaceMessages, theme, user]);
 
   const handleNewChat = useCallback(async () => {
-    if (sessionId) {
+    if (sessionId && user?.email) {
       await endChatSession(sessionId, user.email).catch(() => {});
     }
 
