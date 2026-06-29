@@ -18,7 +18,7 @@ import Composer from "../components/chat/Composer";
 import MailResponse from "../components/chat/MailResponse";
 
 const WELCOME_TEXT =
-  "Hi there! I'm Custos, your ZoikoVertex assistant.\n\nI'm here to help with platform governance, approval workflows, brand controls, pricing, security, trust docs, and anything else about ZoikoVertex.\n\nWhat can I help you with today?";
+  "Hi there! I'm your ZoikoVertex assistant.\n\nI'm here to help with platform governance, approval workflows, brand controls, pricing, security, trust docs, and anything else about ZoikoVertex.\n\nWhat can I help you with today?";
 
 function createWelcomeMessage(text = WELCOME_TEXT) {
   return {
@@ -261,7 +261,7 @@ export default function ChatPage() {
         setLatestBotId(botMsg.id);
         replaceMessages([...nextMessages, botMsg]);
       } catch {
-        toast.error("Couldn't reach Custos. Check your connection.");
+        toast.error("Couldn't reach the assistant. Check your connection.");
 
         const errMsg = normalizeMessage({
           id: `${Date.now()}-error`,
@@ -340,7 +340,7 @@ export default function ChatPage() {
   }, [messages, replaceMessages, theme, user]);
 
   const handleNewChat = useCallback(async () => {
-    if (sessionId) {
+    if (sessionId && user?.email) {
       await endChatSession(sessionId, user.email).catch(() => {});
     }
 
@@ -388,12 +388,12 @@ export default function ChatPage() {
 
   return (
     <div
-      className={`min-h-screen flex items-end justify-end px-3 py-4 sm:px-4 transition-colors duration-300 ${
+      className={`w-full h-full transition-colors duration-300 ${
         isDark         ? "bg-[rgba(10,22,40,1)]" : "bg-[rgba(240,248,255,1)]"
       }`}
     >
       <div
-        className={`w-full max-w-md flex flex-col h-[90vh] sm:h-[88vh] border rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
+        className={`w-full h-full flex flex-col border rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ${
           isDark
             ? "border-[rgba(43,154,217,0.12)] bg-[rgba(10,22,40,0.98)] shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
             : "border-[rgba(43,154,217,0.2)] bg-white shadow-[0_8px_40px_rgba(43,154,217,0.1)]"
