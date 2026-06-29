@@ -988,11 +988,8 @@ export async function listActors(params: {
   offset?: number;
   viewer: ViewerContext;
 }) {
-  let actors = await listActorsRaw(params.workspace_id);
-  if (actors.length === 0) {
-    await ensureWorkspaceReadModel(params.workspace_id, normalizeTenantId(params.tenant_id));
-    actors = await listActorsRaw(params.workspace_id);
-  }
+  await ensureWorkspaceReadModel(params.workspace_id, normalizeTenantId(params.tenant_id));
+  const actors = await listActorsRaw(params.workspace_id);
 
   const filtered = actors.filter(actor => {
     if (params.actor_type && actor.actor_type !== params.actor_type) return false;

@@ -102,7 +102,8 @@ export default function IdentityLedgerPage() {
     try {
       const res = await api.get("/api/identity-ledger/chain/verify");
       const d = res.data || res;
-      setChainResult({ ok: d.failed_blocks === 0, blocks: d.verified_blocks ?? 0 });
+      const brokenCount = Array.isArray(d.broken_links) ? d.broken_links.length : 0;
+      setChainResult({ ok: brokenCount === 0, blocks: d.verified_entry_count ?? 0 });
     } catch (e: any) { setError(e.message); }
     finally { setVerifying(false); }
   };
