@@ -291,13 +291,21 @@ export default function EvidenceVaultPage() {
                               : <span className="flex items-center gap-1 text-red-400 text-[11px]"><Lock className="w-3 h-3" /> Active</span>
                             }
                           </td>
-                          <td className="p-3">
+                          <td className="p-3 flex items-center gap-1.5">
                             {!hold.released && (
                               <button onClick={(e) => { e.stopPropagation(); setReleaseTarget(hold); }}
                                 className="px-2 py-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded hover:bg-amber-500/20">
                                 Release
                               </button>
                             )}
+                            <button onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!confirm(`Delete hold "${hold.matter_ref}"? This cannot be undone.`)) return;
+                              await api.delete(`/api/evidence-vault/holds/${hold.hold_id}`);
+                              fetchHolds();
+                            }} className="px-2 py-1 text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 rounded hover:bg-red-500/20">
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       );
