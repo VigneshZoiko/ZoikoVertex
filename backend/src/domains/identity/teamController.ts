@@ -5,6 +5,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
 import { createAuditEvent } from '../../services/auditTrail.service';
 import { syncActorAfterRoleChange } from '../../services/identityLedger.service';
+import { preserveEvidence } from '../../services/evidenceVault.service';
 
 export const listMembers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -299,6 +300,40 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       user_id: String(userId),
       new_role: role,
     }).catch(() => {});
+
+    // Preserve evidence of role change in Evidence Vault
+    const payload = JSON.stringify({
+      action: 'role_changed',
+      user_id: userId,
+      previous_role: memberData.role,
+      new_role: role,
+      changed_by: actorId,
+      changed_at: new Date().toISOString(),
+    });
+    preserveEvidence({
+      workspace_id: effectiveWsId,
+      tenant_id: effectiveWsId,
+      source_type: 'identity_proof',
+      source_id: String(userId),
+      source_system: 'team_management',
+      evidence_type: 'role_change',
+      risk_level: ['ADMIN', 'WORKSPACE_OWNER'].includes(role) ? 'high' : 'medium',
+      sensitivity: 'internal',
+      preservation_reason: `Role changed from ${memberData.role} to ${role} for user ${userId} by ${actorId}`,
+      preserved_by: actorId,
+      payload,
+      payload_size: payload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: {
+        user_id: userId,
+        previous_role: memberData.role,
+        new_role: role,
+        changed_by: actorId,
+      },
+    }).catch((err) => {
+      console.error('[Evidence] preserveEvidence failed for role change:', err?.message);
+    });
 
     res.json({ success: true, message: `Role updated to ${role}.` });
   } catch (error) {
