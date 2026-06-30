@@ -73,14 +73,18 @@ async function logIdentityLedgerAccess(params: {
   }
 }
 
+// Routine sync events — excluded from History view by default
+const NOISE_ENTRY_TYPES = ['identity.created', 'agent.created'];
+
 export async function listLedgerEntries(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
 
-    const { entry_type, limit, offset } = req.query as Record<string, string | undefined>;
+    const { entry_type, actor_id, all, limit, offset } = req.query as Record<string, string | undefined>;
     const lim = Math.min(parseInt(limit || '50', 10), 100);
     const off = parseInt(offset || '0', 10);
+    const showAll = all === 'true';
 
     let query = supabaseAdmin
       .from('identity_ledger_entries')
@@ -90,7 +94,14 @@ export async function listLedgerEntries(req: AuthRequest, res: Response, next: N
       .order('created_at', { ascending: false })
       .range(off, off + lim - 1);
 
-    if (entry_type) query = query.eq('entry_type', entry_type);
+    if (entry_type) {
+      query = query.eq('entry_type', entry_type);
+    } else if (!showAll) {
+      // By default exclude routine sync events so only meaningful events show
+      query = query.not('entry_type', 'in', `(${NOISE_ENTRY_TYPES.map(t => `"${t}"`).join(',')})`);
+    }
+
+    if (actor_id) query = query.eq('actor_id', actor_id);
 
     const { data, error, count } = await query;
     if (error) throw error;
