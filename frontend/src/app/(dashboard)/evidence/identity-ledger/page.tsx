@@ -79,7 +79,12 @@ export default function IdentityLedgerPage() {
       p.set("limit", "50");
       if (forceRefresh) p.set("refresh", "true");
       const res = await api.get(`/api/identity-ledger/actors?${p}`);
-      if (res.success) setActors(res.data || []);
+      if (res.success) {
+        const sorted = (res.data || []).sort((a: any, b: any) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        setActors(sorted);
+      }
     } catch (e: any) { setError(e.message); }
     finally { setActorsLoading(false); }
   }, [typeFilter, stateFilter]);
