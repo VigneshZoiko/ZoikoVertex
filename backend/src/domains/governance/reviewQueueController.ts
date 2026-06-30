@@ -229,7 +229,13 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       });
 
       if (item.source_module === 'media_library' && item.source_entity_id) {
-        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+        const approveUpdate: Record<string, unknown> = { status: 'available' };
+        const snapshotUrls = (item as any).content_snapshot?.urls;
+        if (Array.isArray(snapshotUrls) && snapshotUrls.length > 0) {
+          approveUpdate.urls = snapshotUrls;
+          approveUpdate.url = snapshotUrls[0];
+        }
+        await supabaseAdmin.from('media_library').update(approveUpdate).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
       await reviewEvidence.safeRecord('approve', () => reviewEvidence.recordApprove({ item, tenantId, workspaceId, userId, reason, note, auth }));
@@ -476,7 +482,13 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       });
 
       if (item.source_module === 'media_library' && item.source_entity_id) {
-        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+        const overrideUpdate: Record<string, unknown> = { status: 'available' };
+        const snapshotUrls = (item as any).content_snapshot?.urls;
+        if (Array.isArray(snapshotUrls) && snapshotUrls.length > 0) {
+          overrideUpdate.urls = snapshotUrls;
+          overrideUpdate.url = snapshotUrls[0];
+        }
+        await supabaseAdmin.from('media_library').update(overrideUpdate).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
       await reviewEvidence.safeRecord('override', () => reviewEvidence.recordOverride({ item, tenantId, workspaceId, userId, reason, note, auth }));
@@ -520,7 +532,13 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       });
 
       if (item.source_module === 'media_library' && item.source_entity_id) {
-        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+        const releaseUpdate: Record<string, unknown> = { status: 'available' };
+        const snapshotUrls = (item as any).content_snapshot?.urls;
+        if (Array.isArray(snapshotUrls) && snapshotUrls.length > 0) {
+          releaseUpdate.urls = snapshotUrls;
+          releaseUpdate.url = snapshotUrls[0];
+        }
+        await supabaseAdmin.from('media_library').update(releaseUpdate).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
       }
 
       await reviewEvidence.safeRecord('release', () => reviewEvidence.recordRelease({ item, tenantId, workspaceId, userId, reason, note, auth }));
