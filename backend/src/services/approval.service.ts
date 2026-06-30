@@ -242,8 +242,10 @@ export async function getApprovalStats(tenant_id: string) {
 
 // ─── Eligibility ──────────────────────────────────────────────────────────
 
+const ADMIN_LEVEL_ROLES = new Set(['ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN']);
+
 export function calculateEligibility(item: ApprovalItem, userId: string, role: string, isSuperAdmin: boolean): EligibilityStatus {
-  if (isSuperAdmin) return 'APPROVAL_ELIGIBLE';
+  if (isSuperAdmin || ADMIN_LEVEL_ROLES.has(role)) return 'APPROVAL_ELIGIBLE';
 
   const terminalStatuses: ApprovalItemStatus[] = ['APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED', 'ARCHIVED'];
   if (terminalStatuses.includes(item.approval_status)) return 'ALREADY_DECIDED';
@@ -444,27 +446,30 @@ export async function requestChanges(itemId: string, tenant_id: string, userId: 
 
   if (!instruction) throw new Error('Change request requires an instruction');
 
-  const decision = await recordDecision({
+  // Update status first — this is the critical operation
+  const { error: updateErr } = await supabaseAdmin.from('approval_items')
+    .update({ approval_status: 'CHANGES_REQUESTED' })
+    .eq('id', itemId);
+  if (updateErr) throw updateErr;
+
+  // Record decision non-blocking — best-effort audit trail; don't let it block the status update
+  recordDecision({
     approval_item_id: itemId, approver_id: userId,
     decision: 'CHANGES_REQUESTED',
     reason: instruction, note,
     condition_owner: ownerId, condition_due_at: dueAt,
-  });
+  }).then((decision) => {
+    broadcastWebhookEvent(item.workspace_id, 'approval.changes_requested', {
+      approval_item_id: itemId, instruction, decision_id: decision.id,
+    }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
+  }).catch((err) => logger.warn({ error: String(err) }, 'requestChanges: recordDecision failed (non-blocking)'));
 
-  await supabaseAdmin.from('approval_items')
-    .update({ approval_status: 'CHANGES_REQUESTED' })
-    .eq('id', itemId);
-
-  await createAuditLog({
+  createAuditLog({
     tenant_id, approval_item_id: itemId,
     action: `item.changes_requested by ${userId}`,
     previous_value: item.approval_status, new_value: 'CHANGES_REQUESTED',
     performed_by: userId,
-  });
-
-  broadcastWebhookEvent(item.workspace_id, 'approval.changes_requested', {
-    approval_item_id: itemId, instruction, decision_id: decision.id,
-  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
+  }).catch(() => {});
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
@@ -799,15 +804,17 @@ export async function returnToCreator(itemId: string, tenant_id: string, userId:
   if (!item) throw new Error('Approval item not found');
   if (!reason) throw new Error('Return to creator requires a reason');
 
-  const decision = await recordDecision({
-    approval_item_id: itemId, approver_id: userId,
-    decision: 'RETURNED_TO_CREATOR', reason, note,
-  });
-
+  // Update status first — critical operation
   const { error: updateErr } = await supabaseAdmin.from('approval_items')
-    .update({ approval_status: 'RETURNED_TO_CREATOR' })
+    .update({ approval_status: 'CHANGES_REQUESTED' })
     .eq('id', itemId);
   if (updateErr) throw updateErr;
+
+  // Record decision non-blocking — audit trail only
+  const decision = await recordDecision({
+    approval_item_id: itemId, approver_id: userId,
+    decision: 'CHANGES_REQUESTED', reason, note,
+  }).catch((err) => { logger.warn({ error: String(err) }, 'returnToCreator: recordDecision failed (non-blocking)'); return { id: 'unknown' }; });
 
   // Sync the underlying review_items entry so it appears in the creator's Returned Items page
   if (item.source_module === 'review_queue' && item.source_entity_id) {
@@ -817,12 +824,27 @@ export async function returnToCreator(itemId: string, tenant_id: string, userId:
       .eq('tenant_id', tenant_id);
   }
 
-  await createAuditLog({
+  // Notify the creator so they know to check /returned
+  if (item.submitted_by) {
+    supabaseAdmin.from('notifications').insert({
+      id: uuidv4(),
+      user_id: item.submitted_by,
+      title: '🔄 Item Returned — Changes Required',
+      body: `Your submission "${item.title}" was returned by an approver with feedback: ${note || reason}. Please review and resubmit.`,
+      type: 'GOVERNANCE',
+      link: '/returned',
+      read: false,
+    }).then(({ error }) => {
+      if (error) logger.warn({ error: String(error) }, 'returnToCreator notification failed (non-blocking)');
+    }, (err) => logger.warn({ error: String(err) }, 'returnToCreator notification failed (non-blocking)'));
+  }
+
+  createAuditLog({
     tenant_id, approval_item_id: itemId,
     action: `item.returned_to_creator by ${userId}`,
-    previous_value: item.approval_status, new_value: 'RETURNED_TO_CREATOR',
+    previous_value: item.approval_status, new_value: 'CHANGES_REQUESTED',
     performed_by: userId,
-  });
+  }).catch(() => {});
 
   broadcastWebhookEvent(item.workspace_id, 'approval.returned_to_creator', {
     approval_item_id: itemId, reason, decision_id: decision.id,

@@ -1309,7 +1309,7 @@ app.post('/api/v1/approvals/items/:id/action', authenticate, deprecate, scopeGua
 
 // ─── Approval Workbench Routes (v2 — Full 3-Panel Wireframe) ────────────
 app.post('/api/v1/approvals-v2/items', authenticate, acctWrite, scopeGuard('write:governance', '*'), createApprovalItem);
-app.get('/api/v1/approvals-v2/items', authenticate, acctView, scopeGuard('read:governance', '*'), listApprovalItems);
+app.get('/api/v1/approvals-v2/items', authenticate, returnedView, scopeGuard('read:governance', '*'), listApprovalItems);
 app.get('/api/v1/approvals-v2/items/:id', authenticate, acctView, scopeGuard('read:governance', '*'), getV2ApprovalItem);
 app.get('/api/v1/approvals-v2/stats', authenticate, acctView, scopeGuard('read:governance', '*'), getV2ApprovalStats);
 app.get('/api/v1/approvals-v2/items/:id/eligibility', authenticate, acctView, scopeGuard('read:governance', '*'), getApprovalEligibility);
