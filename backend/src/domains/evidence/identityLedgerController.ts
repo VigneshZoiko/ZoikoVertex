@@ -73,6 +73,34 @@ async function logIdentityLedgerAccess(params: {
   }
 }
 
+export async function listLedgerEntries(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const { entry_type, limit, offset } = req.query as Record<string, string | undefined>;
+    const lim = Math.min(parseInt(limit || '50', 10), 100);
+    const off = parseInt(offset || '0', 10);
+
+    let query = supabaseAdmin
+      .from('identity_ledger_entries')
+      .select('ledger_entry_id, entry_type, entry_category, timestamp_utc, created_at, actor_id, actor_type, authority_change, source, risk', { count: 'exact' })
+      .eq('workspace_id', workspaceId)
+      .order('timestamp_utc', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(off, off + lim - 1);
+
+    if (entry_type) query = query.eq('entry_type', entry_type);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [], total: count || 0 });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function listActors(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;

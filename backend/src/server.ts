@@ -142,6 +142,7 @@ import {
   listTemplateVersions,
 } from './domains/evidence/evidenceVaultController';
 import {
+  listLedgerEntries as listIdentityLedgerEntries,
   listActors as listIdentityActors,
   getActor as getIdentityActor,
   getActorTimeline as getIdentityActorTimeline,
@@ -694,6 +695,7 @@ app.post('/api/evidence-vault/templates', authenticate, scopeGuard('write:govern
 app.get('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), listTemplateVersions);
 
 // Identity Ledger
+app.get('/api/identity-ledger/entries', authenticate, scopeGuard('read:governance', '*'), listIdentityLedgerEntries);
 app.get('/api/identity-ledger/actors', authenticate, scopeGuard('read:governance', '*'), listIdentityActors);
 app.get('/api/identity-ledger/actors/:actorId', authenticate, scopeGuard('read:governance', '*'), getIdentityActor);
 app.get('/api/identity-ledger/actors/:actorId/timeline', authenticate, scopeGuard('read:governance', '*'), getIdentityActorTimeline);
