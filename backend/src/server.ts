@@ -481,8 +481,8 @@ const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'CO
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN');
 // Allows content creators/publishers to read their own returned items from the review queue
 const returnedView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
-// Allows creators/publishers to write (resubmit) their own returned items
-const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
+// Allows creators to resubmit returned items AND reviewers to take actions (claim/approve/reject)
+const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN', 'REVIEWER', 'COMPLIANCE_REVIEWER', 'BRAND_REVIEWER', 'VALIDATOR', 'APPROVER', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
 
 app.post('/api/v1/ai/generate', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateContent);
 app.post('/api/v1/ai/generate-ad-copy', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateAdCopy);

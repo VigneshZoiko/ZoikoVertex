@@ -211,23 +211,8 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'APPROVED', reason, note, decided_by: userId,
       }, auth);
 
-      // Notify creator of approval
-      await supabaseAdmin.from('notifications').insert({
-        id: uuidv4(),
-        user_id: item.submitted_by,
-        title: '✅ Media Approved by Reviewer',
-        body: `Your media "${item.title}" has been reviewed and approved. ${note ? 'Reviewer note: ' + note : ''}`,
-        type: 'GOVERNANCE',
-        link: '/review-queue',
-        read: false,
-      });
-
-      await logReviewAuditEvent({
-        workspaceId: tenantId, userId, itemId: id, action: 'review.item.approved',
-        summary: `Review item "${item.title}" approved`,
-        itemType: item.item_type, riskLevel: item.risk_level,
-      });
-
+      // ── Critical: update media_library FIRST before any side-effects that could throw ──
+      // If notifications or audit events fail, the media asset must still become available.
       if (item.source_module === 'media_library' && item.source_entity_id) {
         const approveUpdate: Record<string, unknown> = { status: 'available' };
         const snapshotUrls = (item as any).content_snapshot?.urls;
@@ -235,8 +220,25 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
           approveUpdate.urls = snapshotUrls;
           approveUpdate.url = snapshotUrls[0];
         }
-        await supabaseAdmin.from('media_library').update(approveUpdate).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+        await supabaseAdmin.from('media_library').update(approveUpdate).eq('id', item.source_entity_id).eq('workspace_id', workspaceId);
       }
+
+      // Non-critical side-effects — fire-and-forget so a failure never prevents the response
+      supabaseAdmin.from('notifications').insert({
+        id: uuidv4(),
+        user_id: item.submitted_by,
+        title: '✅ Media Approved by Reviewer',
+        body: `Your media "${item.title}" has been reviewed and approved. ${note ? 'Reviewer note: ' + note : ''}`,
+        type: 'GOVERNANCE',
+        link: '/review-queue',
+        read: false,
+      }).then(undefined, () => {});
+
+      logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.approved',
+        summary: `Review item "${item.title}" approved`,
+        itemType: item.item_type, riskLevel: item.risk_level,
+      }).catch(() => {});
 
       await reviewEvidence.safeRecord('approve', () => reviewEvidence.recordApprove({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
@@ -252,8 +254,12 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'REJECTED', reason, note, decided_by: userId,
       }, auth);
 
-      // Notify creator of rejection
-      await supabaseAdmin.from('notifications').insert({
+      // Critical: update media_library FIRST
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'blocked' }).eq('id', item.source_entity_id).eq('workspace_id', workspaceId);
+      }
+
+      supabaseAdmin.from('notifications').insert({
         id: uuidv4(),
         user_id: item.submitted_by,
         title: '❌ Media Rejected by Reviewer',
@@ -261,17 +267,13 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         type: 'GOVERNANCE',
         link: '/review-queue',
         read: false,
-      });
+      }).then(undefined, () => {});
 
-      await logReviewAuditEvent({
+      logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.rejected',
         summary: `Review item "${item.title}" rejected: ${reason}`,
         itemType: item.item_type, riskLevel: item.risk_level,
-      });
-
-      if (item.source_module === 'media_library' && item.source_entity_id) {
-        await supabaseAdmin.from('media_library').update({ status: 'blocked' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
-      }
+      }).catch(() => {});
 
       await reviewEvidence.safeRecord('reject', () => reviewEvidence.recordReject({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
@@ -475,12 +477,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         risk_acknowledgement: note, overridden_by: userId,
       }, auth);
 
-      await logReviewAuditEvent({
-        workspaceId: tenantId, userId, itemId: id, action: 'review.item.override',
-        summary: `Override applied to "${item.title}": ${reason}`,
-        itemType: item.item_type, riskLevel: item.risk_level,
-      });
-
+      // Critical: update media_library FIRST
       if (item.source_module === 'media_library' && item.source_entity_id) {
         const overrideUpdate: Record<string, unknown> = { status: 'available' };
         const snapshotUrls = (item as any).content_snapshot?.urls;
@@ -488,8 +485,14 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
           overrideUpdate.urls = snapshotUrls;
           overrideUpdate.url = snapshotUrls[0];
         }
-        await supabaseAdmin.from('media_library').update(overrideUpdate).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+        await supabaseAdmin.from('media_library').update(overrideUpdate).eq('id', item.source_entity_id).eq('workspace_id', workspaceId);
       }
+
+      logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.override',
+        summary: `Override applied to "${item.title}": ${reason}`,
+        itemType: item.item_type, riskLevel: item.risk_level,
+      }).catch(() => {});
 
       await reviewEvidence.safeRecord('override', () => reviewEvidence.recordOverride({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
@@ -526,11 +529,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'APPROVED', reason: 'Released to production', decided_by: userId,
       }, auth);
 
-      await logReviewAuditEvent({
-        workspaceId: tenantId, userId, itemId: id, action: 'review.item.released',
-        summary: `Review item "${item.title}" released`, itemType: item.item_type, riskLevel: item.risk_level,
-      });
-
+      // Critical: update media_library FIRST
       if (item.source_module === 'media_library' && item.source_entity_id) {
         const releaseUpdate: Record<string, unknown> = { status: 'available' };
         const snapshotUrls = (item as any).content_snapshot?.urls;
@@ -538,8 +537,13 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
           releaseUpdate.urls = snapshotUrls;
           releaseUpdate.url = snapshotUrls[0];
         }
-        await supabaseAdmin.from('media_library').update(releaseUpdate).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+        await supabaseAdmin.from('media_library').update(releaseUpdate).eq('id', item.source_entity_id).eq('workspace_id', workspaceId);
       }
+
+      logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.released',
+        summary: `Review item "${item.title}" released`, itemType: item.item_type, riskLevel: item.risk_level,
+      }).catch(() => {});
 
       await reviewEvidence.safeRecord('release', () => reviewEvidence.recordRelease({ item, tenantId, workspaceId, userId, reason, note, auth }));
       return res.json({ success: true, data: updated });
