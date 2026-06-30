@@ -584,7 +584,7 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
       preserveEvidence({
         workspace_id: workspaceId,
         tenant_id: workspaceId,
-        source_type: 'media_library',
+        source_type: 'file',
         source_id: String(id),
         source_system: 'media_vault',
         evidence_type: 'asset_deletion',
