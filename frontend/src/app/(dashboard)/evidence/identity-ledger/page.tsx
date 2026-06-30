@@ -70,13 +70,14 @@ export default function IdentityLedgerPage() {
   const [showAllEntries, setShowAllEntries] = useState(false);
   const [actorEntries, setActorEntries] = useState<Record<string, any[]>>({});
 
-  const fetchActors = useCallback(async () => {
+  const fetchActors = useCallback(async (forceRefresh = false) => {
     setActorsLoading(true);
     try {
       const p = new URLSearchParams();
       if (typeFilter) p.set("actor_type", typeFilter);
       if (stateFilter) p.set("state", stateFilter);
       p.set("limit", "50");
+      if (forceRefresh) p.set("refresh", "true");
       const res = await api.get(`/api/identity-ledger/actors?${p}`);
       if (res.success) setActors(res.data || []);
     } catch (e: any) { setError(e.message); }
@@ -151,10 +152,10 @@ export default function IdentityLedgerPage() {
   };
 
   const refresh = () => {
-    if (tab === "actors") fetchActors();
+    if (tab === "actors") fetchActors(true);
     else if (tab === "delegations") fetchDelegations();
     else if (tab === "break-glass") fetchBreakGlass();
-    else fetchEntries();
+    else fetchEntries(showAllEntries);
   };
 
   return (
@@ -308,7 +309,7 @@ export default function IdentityLedgerPage() {
                               <td colSpan={6} className="px-4 py-3 space-y-3">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                                   <div><p className="text-foreground-muted mb-1">Email</p><p className="text-foreground">{a.email || "—"}</p></div>
-                                  <div><p className="text-foreground-muted mb-1">Roles</p><p className="text-foreground">{(a.roles || []).join(", ") || "—"}</p></div>
+                                  <div><p className="text-foreground-muted mb-1">Roles</p><p className="text-foreground">{(a.current_roles || a.roles || []).join(", ") || "—"}</p></div>
                                   <div><p className="text-foreground-muted mb-1">Department</p><p className="text-foreground">{a.department || "—"}</p></div>
                                   <div><p className="text-foreground-muted mb-1">Last Active</p><p className="text-foreground">{a.last_active_at ? fmt(a.last_active_at) : "—"}</p></div>
                                 </div>
