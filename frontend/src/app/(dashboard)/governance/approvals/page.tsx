@@ -243,7 +243,7 @@ export default function ApprovalsPage() {
     { id: "m6", label: "Overdue",            count: stats?.counts.overdue             ?? 0, icon: AlertCircle,   color: "text-error-text",    filterTab: "overdue"   },
   ];
 
-  const handleAction = async (action: string, id: string, body?: Record<string, any>) => {
+  const handleAction = async (action: string, id: string, body?: Record<string, any>, successText?: string) => {
     try {
       let result;
       if (action === 'assign' || action === 'reassign') {
@@ -256,8 +256,8 @@ export default function ApprovalsPage() {
       if (result.success) {
         fetchItems();
         if (selectedId === id) fetchItemDetails(id);
-        setMessage({ type: "success", text: `${action.replace(/_/g, ' ')} completed` });
-        setTimeout(() => setMessage(null), 3000);
+        setMessage({ type: "success", text: successText || `${action.replace(/_/g, ' ')} completed` });
+        setTimeout(() => setMessage(null), 4000);
       } else {
         setMessage({ type: "error", text: result.error || `${action} failed` });
         setTimeout(() => setMessage(null), 5000);
@@ -909,7 +909,7 @@ export default function ApprovalsPage() {
                             disabled={!returnNoteText.trim()}
                             onClick={async () => {
                               if (!selectedId || !returnNoteText.trim()) return;
-                              await handleAction("return_to_creator", selectedId, { reason: returnNoteText.trim(), note: returnNoteText.trim() });
+                              await handleAction("return_to_creator", selectedId, { reason: returnNoteText.trim(), note: returnNoteText.trim() }, "Returned to publisher — item is now in Returned Items (/returned)");
                               setReturnPanelOpen(false);
                               setReturnNoteText("");
                             }}

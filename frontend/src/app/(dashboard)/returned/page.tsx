@@ -7,6 +7,7 @@ import {
   CheckCircle2, ArrowRight, Pencil, Send, MessageSquare, ExternalLink,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -252,22 +253,46 @@ function ApprovalCard({
   const [done, setDone] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(true);
+  const [postText, setPostText] = useState<string | null>(null);
+  const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     api.get(`/api/v1/approvals-v2/items/${item.id}/decisions`)
       .then(r => {
         const decisions: Array<{ decision: string; decision_reason?: string; decision_note?: string }> = r.data || [];
-        const returned = decisions.find(d => d.decision === "RETURNED_TO_CREATOR");
+        const returned = decisions.find(d =>
+          d.decision === "RETURNED_TO_CREATOR" || d.decision === "CHANGES_REQUESTED"
+        );
         setFeedback(returned?.decision_note || returned?.decision_reason || null);
       })
       .catch(() => {})
       .finally(() => setFeedbackLoading(false));
   }, [item.id]);
 
+  useEffect(() => {
+    if (!item.source_entity_id) return;
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from("publish_intents")
+          .select("content, media_url, media_urls")
+          .eq("id", item.source_entity_id)
+          .single();
+        if (!data) return;
+        setPostText(data.content || null);
+        const urls: string[] = Array.isArray(data.media_urls) && data.media_urls.length > 0
+          ? data.media_urls
+          : data.media_url ? [data.media_url] : [];
+        setPostImageUrl(urls[0] || null);
+      } catch { /* ignore */ }
+    })();
+  }, [item.source_entity_id]);
+
   const isPost = item.source_module === "publish" ||
     item.item_type?.toLowerCase().includes("post");
   const editHref = isPost && item.source_entity_id
-    ? `/publish?review_item_id=${item.source_entity_id}${feedback ? `&suggestion=${encodeURIComponent(feedback)}` : ""}`
+    ? `/publish?approval_source_id=${item.source_entity_id}&approval_item_id=${item.id}${feedback ? `&suggestion=${encodeURIComponent(feedback)}` : ""}`
     : undefined;
   const editLabel = isPost ? "Edit Post" : "Edit Media";
 
@@ -294,57 +319,116 @@ function ApprovalCard({
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-      {/* Header */}
-      <div className="flex items-start gap-4 p-4">
-        <div className="mt-1 shrink-0 w-1.5 h-10 rounded-full bg-amber-500/60" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <p className="font-semibold text-[var(--foreground)] text-sm truncate">{item.title}</p>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-xs text-[var(--foreground-muted)]">{item.item_type.replace(/_/g, " ")}</span>
-                {item.platform && (
-                  <>
-                    <span className="text-[var(--border)]">·</span>
-                    <span className={`text-xs font-medium ${PLATFORM_COLOR[platformKey] || "text-[var(--foreground-muted)]"}`}>
-                      {item.platform}
-                    </span>
-                  </>
-                )}
+    <div
+      className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden transition-all duration-300 ease-in-out"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Header — always visible; shrinks when not hovered */}
+      <div className={`flex items-center gap-3 transition-all duration-300 ease-in-out ${hovered ? "p-4" : "px-3 py-2"}`}>
+        <div className={`shrink-0 rounded-full bg-amber-500/60 transition-all duration-300 ${hovered ? "self-start mt-1 w-1.5 h-10" : "self-start mt-0.5 w-1 h-5"}`} />
+
+        {/* Left: title + meta */}
+        <div className="min-w-0 flex-1">
+          <p className={`font-semibold text-[var(--foreground)] truncate transition-all duration-300 ${hovered ? "text-sm" : "text-xs"}`}>
+            {item.title}
+          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-[var(--foreground-muted)]">{item.item_type.replace(/_/g, " ")}</span>
+            {item.platform && (
+              <>
                 <span className="text-[var(--border)]">·</span>
-                <span className="text-xs text-[var(--foreground-muted)]">{formatRelative(item.last_activity || item.created_at)}</span>
-              </div>
+                <span className={`text-[10px] font-medium ${PLATFORM_COLOR[platformKey] || "text-[var(--foreground-muted)]"}`}>
+                  {item.platform}
+                </span>
+              </>
+            )}
+            <span className="text-[var(--border)]">·</span>
+            <span className="text-[10px] text-[var(--foreground-muted)]">{formatRelative(item.last_activity || item.created_at)}</span>
+          </div>
+        </div>
+
+        {/* Right: feedback (default) or badges (hover) — side by side with title */}
+        <div className="shrink-0 max-w-[40%] overflow-hidden">
+          {/* Feedback — shown when not hovered */}
+          <div
+            className="transition-all duration-300 ease-in-out overflow-hidden"
+            style={{ maxWidth: hovered ? "0px" : "300px", opacity: hovered ? 0 : 1 }}
+          >
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="text-[10px] font-semibold text-amber-400 shrink-0">Feedback:</span>
+              {feedbackLoading ? (
+                <RefreshCcw className="w-2.5 h-2.5 animate-spin text-[var(--foreground-muted)]" />
+              ) : feedback ? (
+                <span className="text-[10px] text-[var(--foreground)] truncate max-w-[160px]">{feedback}</span>
+              ) : (
+                <span className="text-[10px] text-[var(--foreground-muted)] italic">No feedback.</span>
+              )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider ${RISK_CONFIG[riskKey] || RISK_CONFIG.LOW}`}>
-                {riskKey}
-              </span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider bg-amber-500/10 text-amber-400 border-amber-500/20">
-                Returned from Approval
-              </span>
-            </div>
+          </div>
+
+          {/* Badges — shown when hovered */}
+          <div
+            className="transition-all duration-300 ease-in-out overflow-hidden flex items-center gap-1.5"
+            style={{ maxWidth: hovered ? "300px" : "0px", opacity: hovered ? 1 : 0 }}
+          >
+            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border uppercase tracking-wider whitespace-nowrap ${RISK_CONFIG[riskKey] || RISK_CONFIG.LOW}`}>
+              {riskKey}
+            </span>
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full border uppercase tracking-wider bg-amber-500/10 text-amber-400 border-amber-500/20 whitespace-nowrap">
+              Returned
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Approver Feedback */}
-      <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]/60">
-        <div className="flex items-center gap-1.5 mb-2">
-          <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-xs font-semibold text-amber-400">Approver Feedback</span>
+      {/* Hover: 2-column (post content + feedback) — expands on hover */}
+      <div
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ maxHeight: hovered ? "480px" : "0px", opacity: hovered ? 1 : 0 }}
+      >
+        <div className="grid grid-cols-2 divide-x divide-[var(--border)] border-t border-[var(--border)]">
+          {/* Left: Post Content */}
+          <div className="p-4 bg-[var(--surface)]/40 flex flex-col gap-3 min-w-0">
+            <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">Post Content</p>
+            {postImageUrl && (
+              <div className="rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center max-h-36">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={postImageUrl}
+                  alt="Post media"
+                  className="w-full h-full object-cover max-h-36"
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            )}
+            {postText ? (
+              <p className="text-xs text-[var(--foreground)] leading-relaxed line-clamp-5 whitespace-pre-wrap">{postText}</p>
+            ) : (
+              <p className="text-xs text-[var(--foreground-muted)] italic">No caption saved.</p>
+            )}
+          </div>
+
+          {/* Right: Approver Feedback */}
+          <div className="p-4 bg-[var(--surface)]/60 flex flex-col gap-3 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">Approver Feedback</p>
+            </div>
+            {feedbackLoading ? (
+              <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                <RefreshCcw className="w-3 h-3 animate-spin" /> Loading feedback…
+              </div>
+            ) : feedback ? (
+              <div className="text-xs text-[var(--foreground)] bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 leading-relaxed whitespace-pre-wrap">
+                {feedback}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--foreground-muted)] italic">No written feedback left by approver.</p>
+            )}
+          </div>
         </div>
-        {feedbackLoading ? (
-          <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-            <RefreshCcw className="w-3 h-3 animate-spin" /> Loading feedback…
-          </div>
-        ) : feedback ? (
-          <div className="text-xs text-[var(--foreground)] bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap">
-            {feedback}
-          </div>
-        ) : (
-          <p className="text-xs text-[var(--foreground-muted)] italic">No written feedback left by approver.</p>
-        )}
       </div>
 
       {resubmitError && (
@@ -355,8 +439,8 @@ function ApprovalCard({
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
-        <p className="text-[10px] text-[var(--foreground-muted)]">Edit your post then resubmit for review.</p>
+      <div className={`flex items-center justify-between gap-2 px-3 bg-[var(--surface)] border-t border-[var(--border)] transition-all duration-300 ${hovered ? "py-2.5" : "py-1.5"}`}>
+        <p className="text-[10px] text-[var(--foreground-muted)]">Edit &amp; resubmit, or dismiss this card.</p>
         <div className="flex items-center gap-2 shrink-0">
           {editHref && (
             <a href={editHref}
@@ -365,13 +449,11 @@ function ApprovalCard({
               {editLabel}
             </a>
           )}
-          {item.source_entity_id && (
-            <button onClick={handleResubmit} disabled={resubmitting}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50">
-              {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-              Resubmit
-            </button>
-          )}
+          <button onClick={handleResubmit} disabled={resubmitting}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50">
+            {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+            Dismiss
+          </button>
         </div>
       </div>
     </div>
@@ -408,15 +490,20 @@ export default function ReturnedItemsPage() {
     try {
       const [rqRes, apRes] = await Promise.allSettled([
         api.get("/api/v1/review-queue?status=AWAITING_REVISION&submitted_by=me&limit=100"),
-        api.get("/api/v1/approvals-v2/items?status=RETURNED_TO_CREATOR,CHANGES_REQUESTED&limit=100"),
+        api.get("/api/v1/approvals-v2/items?status=CHANGES_REQUESTED&submitted_by=me&limit=100"),
       ]);
 
       if (rqRes.status === "fulfilled" && rqRes.value.success) {
         setReviewItems(rqRes.value.items || []);
       }
+
       if (apRes.status === "fulfilled" && apRes.value.success) {
-        const all: ApprovalItem[] = apRes.value.data?.items || apRes.value.data || [];
-        setApprovalItems(all);
+        const items: ApprovalItem[] = Array.isArray(apRes.value.data)
+          ? apRes.value.data
+          : (apRes.value.data?.items ?? []);
+        setApprovalItems(items);
+      } else {
+        setError("Could not load items from Approval Console.");
       }
     } catch (e: any) {
       setError(e.message || "Failed to load returned items.");
@@ -436,12 +523,10 @@ export default function ReturnedItemsPage() {
   }, []);
 
   const handleResubmitApproval = useCallback(async (approvalId: string) => {
-    const item = approvalItems.find(i => i.id === approvalId);
-    if (!item?.source_entity_id) throw new Error('Cannot resubmit — missing source item reference');
-    const res = await api.post(`/api/v1/review-queue/items/${item.source_entity_id}/action`, { action: "resubmit" });
-    if (!res.success) throw new Error(res.error || 'Resubmit failed');
+    const res = await api.post(`/api/v1/approvals-v2/items/${approvalId}/action`, { action: 'cancel' });
+    if (!res.success) throw new Error(res.error || 'Failed to dismiss item');
     setApprovalItems(prev => prev.filter(i => i.id !== approvalId));
-  }, [approvalItems]);
+  }, []);
 
   const totalReturned = reviewItems.length + approvalItems.length;
 

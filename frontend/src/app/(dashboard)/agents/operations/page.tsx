@@ -1739,31 +1739,49 @@ export default function AgentOperationsPage() {
                           <EvidenceBadge status={run.evidence_status} runStatus={run.status} />
                         )}
                       </div>
-                      {/* Posted By — show submitter immediately; always show Agent for publisher runs */}
+                      {/* Posted By — 4 scenarios:
+                          1. Auto-posted by agent (100% safe)  → publisher | Agent       (emerald)
+                          2. Returned / blocked (no approval)  → publisher only           (muted)
+                          3. Approved by different person       → publisher | approver     (indigo)
+                          4. Publisher approved own post        → publisher only           (muted) */}
                       <div>
                         {(() => {
-                          const submitter = run.owner_name || null;
-                          // For publisher agent runs the agent IS the processor — show "Agent"
-                          // even before posted_by is confirmed by the intent reaching APPROVED state.
-                          const isPublisherRun = run.agent_type === "publisher" || run.posted_by_type === "agent";
-                          const approver = run.posted_by_type === "manual"
-                            ? run.posted_by
-                            : (isPublisherRun ? "Agent" : null);
-                          const same = submitter && approver && submitter.toLowerCase() === approver.toLowerCase();
-                          const label = approver
-                            ? (same || !submitter ? approver : `${submitter} | ${approver}`)
-                            : (submitter || null);
-                          if (!label) return <span className="text-[11px] text-foreground-muted">—</span>;
-                          const isManual = run.posted_by_type === "manual";
-                          const hasApprover = !!approver;
-                          return (
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${hasApprover ? (isManual ? "text-indigo-400" : "text-emerald-400") : "text-foreground-muted"}`}>
-                              {hasApprover
-                                ? (isManual ? <UserCheck className="w-3 h-3 shrink-0" /> : <Bot className="w-3 h-3 shrink-0" />)
-                                : <Users className="w-3 h-3 shrink-0" />}
-                              <span className="truncate">{label}</span>
-                            </span>
-                          );
+                          const publisher = run.owner_name || null;
+                          const type = run.posted_by_type;
+                          const approverName = run.posted_by || null;
+                          const sameAsSelf = publisher && approverName &&
+                            publisher.toLowerCase() === approverName.toLowerCase();
+
+                          // Scenario 1: agent auto-posted
+                          if (type === "agent") {
+                            const label = publisher ? `${publisher} | Agent` : "Agent";
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+                                <Bot className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{label}</span>
+                              </span>
+                            );
+                          }
+                          // Scenario 3: approved by a different person
+                          if (type === "manual" && approverName && !sameAsSelf) {
+                            const label = publisher ? `${publisher} | ${approverName}` : approverName;
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-400">
+                                <UserCheck className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{label}</span>
+                              </span>
+                            );
+                          }
+                          // Scenario 4: approved by same person, or Scenario 2: returned/pending
+                          if (publisher) {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-foreground-muted">
+                                <Users className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{publisher}</span>
+                              </span>
+                            );
+                          }
+                          return <span className="text-[11px] text-foreground-muted">—</span>;
                         })()}
                       </div>
                       {/* Remove */}

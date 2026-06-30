@@ -1,11 +1,13 @@
+'use client';
 import React from 'react';
-import { ImageIcon, Video, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { FolderOpen, X } from 'lucide-react';
 import Image from 'next/image';
 
 interface MediaUploaderProps {
   mediaPreview: string | null;
   mediaType?: string;
-  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClear: () => void;
 }
 
@@ -14,29 +16,30 @@ const VIDEO_EXT = /\.(mp4|mov|webm|avi|mkv|m4v|ogv)(\?.*)?$/i;
 const MediaUploader: React.FC<MediaUploaderProps> = ({
   mediaPreview,
   mediaType,
-  onUpload,
-  onClear
+  onClear,
 }) => {
+  const router = useRouter();
+
   const isVideo =
     mediaType?.startsWith('video') ||
     (!mediaType && !!mediaPreview && VIDEO_EXT.test(mediaPreview));
 
   return (
-    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
-      <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">Media Assets</h2>
+    <div className="bg-card border border-border rounded-2xl p-6">
+      <h2 className="text-lg font-bold text-foreground mb-4">Media Assets</h2>
 
       {!mediaPreview ? (
-        <label className="w-full h-48 border-2 border-dashed border-[var(--border)] hover:border-info-border hover:bg-info-bg rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
-          <div className="flex items-center gap-4 mb-2">
-            <ImageIcon className="w-6 h-6 text-[var(--foreground-muted)]" />
-            <Video className="w-6 h-6 text-[var(--foreground-muted)]" />
-          </div>
-          <span className="text-sm font-medium text-[var(--foreground)]">Click to upload Image or Video</span>
-          <span className="text-xs text-[var(--foreground-muted)] mt-1">MP4, MOV, JPG, PNG (Max 50MB)</span>
-          <input type="file" className="hidden" accept="image/*,video/*" onChange={onUpload} />
-        </label>
+        <button
+          type="button"
+          onClick={() => router.push('/library')}
+          className="w-full h-48 border-2 border-dashed border-border hover:border-info-border hover:bg-info-bg rounded-xl flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer"
+        >
+          <FolderOpen className="w-7 h-7 text-foreground-muted" />
+          <span className="text-sm font-medium text-foreground-muted">Select from Media Vault</span>
+          <span className="text-xs text-(--foreground-muted)/60">Click to open the Media Vault and pick an asset</span>
+        </button>
       ) : (
-        <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-[var(--border)]">
+        <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-border">
           {isVideo ? (
             <video src={mediaPreview} controls className="max-h-full max-w-full w-full h-full object-contain" />
           ) : (

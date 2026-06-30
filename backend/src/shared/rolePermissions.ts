@@ -33,7 +33,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'risk:view', 'risk:manage', 'audit:view', 'evidence:view',
     'prompt.edit.any',
     'rules:view', 'rules:manage', 'autonomy:view', 'autonomy:manage',
-    'queue:view', 'validation:view', 'approvals:view', 'quality:view', 'exceptions:view',
+    'queue:view', 'validation:view', 'approvals:view', 'approvals:manage', 'quality:view', 'exceptions:view',
     'agents:view', 'brand:view', 'brand-library:view', 'support:view',
   ],
   AGENT_ARCHITECT: [
