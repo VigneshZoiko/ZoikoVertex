@@ -59,6 +59,7 @@ export default function Composer({
             : "bg-[rgba(43,154,217,0.1)] text-[#1a5fa8]"
         }`}>
           {isImageFile && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={attachedFile.url}
               alt={attachedFile.name}

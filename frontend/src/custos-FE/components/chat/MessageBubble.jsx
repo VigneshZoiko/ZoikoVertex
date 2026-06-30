@@ -72,6 +72,7 @@ function FileAttachment({ file, isDark }) {
   if (isImage) {
     return (
       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block mt-1.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={fileUrl}
           alt={file.name}
@@ -199,6 +200,7 @@ export default function MessageBubble({
         <div className="relative h-8 w-8">
           <div className="h-8 w-8 rounded-full bg-[#e6f4f7] flex items-center justify-center overflow-hidden border-2 border-[#4db8ff]">
             <span className="text-[0.72rem] font-semibold text-[#1d4e61]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/images/response-icon.jpg" alt="" className="h-full w-full object-contain" />
             </span>
           </div>
@@ -289,6 +291,7 @@ export default function MessageBubble({
                 : "border border-[rgba(43,154,217,0.3)] bg-[rgba(43,154,217,0.1)] text-[#1a5fa8]"
             }`}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/avatar.svg"
               alt="User avatar"

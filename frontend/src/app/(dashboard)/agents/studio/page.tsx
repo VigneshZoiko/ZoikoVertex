@@ -299,7 +299,7 @@ export default function StudioPage() {
         return next;
       });
     },
-    [persistDismissed, selectedAgent],
+    [persistDismissed],
   );
 
   const restoreDismissedAgents = useCallback(() => {

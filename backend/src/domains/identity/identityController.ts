@@ -47,31 +47,52 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
       return res.status(400).json({ error: 'Workspace context missing. Please reload and try again.' });
     }
 
-    // 1. Create user with email auto-confirmed so they can log in immediately with the temp password
-    const { data: createData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name },
-    });
+    // 1. Check if this user already exists in the system (by email in public.users)
+    //    If they do, reuse their existing ID — don't try to re-create them in Auth.
+    //    This allows adding an existing user from another workspace to this workspace.
+    const { data: existingUser } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
 
-    if (authError) {
-      if (authError.message?.toLowerCase().includes('already been registered')) {
-        return res.status(409).json({ error: 'A user with this email already exists.' });
+    let userId: string;
+
+    if (existingUser) {
+      // User exists globally — check if they are already in THIS workspace
+      const { data: existingMember } = await supabaseAdmin
+        .from('workspace_members')
+        .select('user_id')
+        .eq('workspace_id', workspace_id)
+        .eq('user_id', existingUser.id)
+        .maybeSingle();
+
+      if (existingMember) {
+        return res.status(409).json({ error: 'This user is already a member of this workspace.' });
       }
-      throw authError;
+
+      userId = existingUser.id;
+    } else {
+      // New user — create in Supabase Auth
+      const { data: createData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name },
+      });
+
+      if (authError) throw authError;
+      userId = createData.user.id;
     }
 
-    const userId = createData.user.id;
-
-    // 2. Ensure user exists in public.users
+    // 2. Ensure user record exists in public.users (safe upsert)
     const { error: userError } = await supabaseAdmin
       .from('users')
       .upsert({ id: userId, email, full_name: full_name ?? email.split('@')[0] });
 
     if (userError) throw userError;
 
-    // 3. Set role in workspace_members
+    // 3. Add role in workspace_members
     const { error: memberError } = await supabaseAdmin
       .from('workspace_members')
       .upsert({ workspace_id, user_id: userId, role });

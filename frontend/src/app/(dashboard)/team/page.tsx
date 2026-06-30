@@ -308,7 +308,7 @@ export default function TeamPage() {
                             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] bg-[var(--surface)]/60 border-b border-[var(--border)]/50">
                               {group}
                             </div>
-                            {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id)).map(r => {
+                            {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER" && (isSuperAdmin || r.id !== "ADMIN")).map(r => {
                               const locked = isRoleLocked(r.id);
                               const reqPlan = locked ? getRequiredPlan(r.id) : null;
                               const isOwner = r.id === "WORKSPACE_OWNER";
@@ -525,7 +525,7 @@ export default function TeamPage() {
                                     {ROLE_GROUPS.map(({ group, roles: groupRoles }) => (
                                       <div key={group}>
                                         <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] bg-[var(--surface)]/60 border-b border-[var(--border)]/50">{group}</div>
-                                        {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER").map(r => {
+                                        {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER" && (isSuperAdmin || r.id !== "ADMIN")).map(r => {
                                           const locked = isRoleLocked(r.id);
                                           return (
                                             <button

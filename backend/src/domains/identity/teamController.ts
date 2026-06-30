@@ -253,6 +253,12 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       return res.status(400).json({ error: 'Cannot change the role of a Workspace Owner' });
     }
 
+    // Privilege escalation guard: only superadmins can assign ADMIN or WORKSPACE_OWNER
+    const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER', 'ADMIN']);
+    if (!isSuperAdmin && ESCALATION_ROLES.has(role)) {
+      return res.status(403).json({ error: 'Forbidden: Cannot assign ' + role + ' role' });
+    }
+
     let updateQuery = supabaseAdmin
       .from('workspace_members')
       .update({ role })

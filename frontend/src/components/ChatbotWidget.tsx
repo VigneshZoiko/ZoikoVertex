@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import ChatBotRoot from "../custos-FE/ChatBotRoot";
 
 const RobotIcon = ({ size = 30 }) => (
-  <img
+  <Image
     src="/images/response-icon.jpg"
     alt="Assistant"
     width={size}
