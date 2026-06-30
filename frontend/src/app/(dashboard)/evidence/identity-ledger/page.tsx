@@ -108,7 +108,7 @@ export default function IdentityLedgerPage() {
       const res = await api.get(`/api/identity-ledger/entries?limit=50${all ? "&all=true" : ""}`);
       if (res.success) {
         const sorted = (res.data || []).sort((a: any, b: any) =>
-          new Date(b.timestamp_utc || b.created_at).getTime() - new Date(a.timestamp_utc || a.created_at).getTime()
+          new Date(a.timestamp_utc || a.created_at).getTime() - new Date(b.timestamp_utc || b.created_at).getTime()
         );
         setEntries(sorted);
         setEntriesTotal(res.total || 0);
