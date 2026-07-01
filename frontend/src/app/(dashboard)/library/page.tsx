@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Search, Filter, Image as ImageIcon, Video as VideoIcon,
-  ExternalLink, Send, Trash2, Loader2, User, Calendar, Eye, X
+  ExternalLink, Send, Trash2, Loader2, User, Calendar, Eye, X,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ export default function MediaLibraryPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [deleteAsset, setDeleteAsset] = useState<{id: string, title: string} | null>(null);
   const [previewAsset, setPreviewAsset] = useState<LibraryAsset | null>(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
     const fetchUserContext = async () => {
@@ -242,7 +244,7 @@ export default function MediaLibraryPage() {
                 {/* Overlay on hover */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6 gap-2">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setPreviewAsset(asset); }}
+                    onClick={(e) => { e.stopPropagation(); setPreviewAsset(asset); setPreviewIndex(0); }}
                     className="w-full bg-black/60 backdrop-blur-sm text-white border border-white/20 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-black/80 hover:border-white/40 transition-all transform translate-y-4 group-hover:translate-y-0 duration-300"
                   >
                     <Eye className="w-4 h-4" />
@@ -300,22 +302,67 @@ export default function MediaLibraryPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="rounded-2xl overflow-hidden flex items-center justify-center w-full bg-black/40 border border-white/10 shadow-2xl min-h-[200px]">
-              <MediaPreview
-                src={previewAsset.url}
-                alt={previewAsset.title}
-                type={previewAsset.file_type === 'video' ? 'video' : 'image'}
-                className="max-w-full max-h-[65vh] w-full"
-                fit="contain"
-                controls={previewAsset.file_type === 'video'}
-                autoPlay={previewAsset.file_type === 'video'}
-              />
-            </div>
+
+            {/* Carousel */}
+            {(() => {
+              const allUrls = previewAsset.urls?.length ? previewAsset.urls : [previewAsset.url];
+              const total = allUrls.length;
+              const currentSrc = allUrls[previewIndex];
+              return (
+                <div className="relative rounded-2xl overflow-hidden flex items-center justify-center w-full bg-black/40 border border-white/10 shadow-2xl min-h-50">
+                  <MediaPreview
+                    key={currentSrc}
+                    src={currentSrc}
+                    alt={`${previewAsset.title} ${previewIndex + 1} of ${total}`}
+                    type={previewAsset.file_type === 'video' ? 'video' : 'image'}
+                    className="max-w-full max-h-[65vh] w-full"
+                    fit="contain"
+                    controls={previewAsset.file_type === 'video'}
+                    autoPlay={previewAsset.file_type === 'video'}
+                  />
+
+                  {/* Prev / Next arrows */}
+                  {total > 1 && (
+                    <>
+                      <button
+                        onClick={() => setPreviewIndex(i => (i - 1 + total) % total)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+                      <button
+                        onClick={() => setPreviewIndex(i => (i + 1) % total)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+
+                      {/* Dot indicators */}
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                        {allUrls.map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setPreviewIndex(idx)}
+                            className={`rounded-full transition-all ${idx === previewIndex ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/40 hover:bg-white/70'}`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Counter */}
+                      <div className="absolute top-3 right-3 bg-black/60 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {previewIndex + 1} / {total}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="w-full mt-4 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center text-white bg-[#111] p-5 rounded-2xl border border-white/10 shadow-xl">
               <div className="flex-1 min-w-0 pr-4">
                 <h2 className="text-xl font-bold truncate">{previewAsset.title}</h2>
                 <p className="text-xs text-[#888] mt-1.5 truncate">
-                   {previewAsset.file_type.toUpperCase()} • Uploaded by {previewAsset.uploader?.full_name || 'Unknown'}
+                  {previewAsset.file_type.toUpperCase()} • {(previewAsset.urls?.length ?? 1) > 1 ? `${previewAsset.urls.length} images` : ''} Uploaded by {previewAsset.uploader?.full_name || 'Unknown'}
                 </p>
               </div>
               {userRole !== 'VIEWER' && (

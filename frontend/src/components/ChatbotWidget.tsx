@@ -42,6 +42,13 @@ export default function FloatingAssistantBot({ right = 24, bottom = 24 } = {}) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen]);
 
+  // Open via custom event dispatched from the Support page
+  useEffect(() => {
+    const handleToggle = () => setIsOpen(true);
+    window.addEventListener("toggle-chatbot", handleToggle);
+    return () => window.removeEventListener("toggle-chatbot", handleToggle);
+  }, []);
+
   return (
     <>
       <style>{`

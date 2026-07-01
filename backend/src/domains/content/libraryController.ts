@@ -4,6 +4,7 @@ import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { moderate } from '../../modules/safety/moderationService';
 import { scanImage, type KeywordRule } from '../../modules/safety/imageScanner';
+import { scanAudioVideo } from '../../modules/safety/audioVideoScanner';
 import { v4 as uuidv4 } from 'uuid';
 import { trackUsage } from '../monitoring/usageController';
 import { createAuditEvent } from '../../services/auditTrail.service';
@@ -132,6 +133,7 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
 interface ScanResult {
   safe: boolean;
   isVideo: boolean;
+  isAudio: boolean;
   needsReview?: boolean; // true = REQUEST_REVIEW (pending), false/undefined = BLOCK (rejected)
   reason?: string;
   violations?: string[];
@@ -146,13 +148,57 @@ async function scanMediaUpload(
   mediaId: string,
 ): Promise<ScanResult> {
   const imageScanNotes: string[] = [];
+  const isAudioType = file_type.startsWith('audio/') || file_type === 'audio';
+  const isVideoType = file_type.startsWith('video/') || file_type === 'video' || file_type === 'mixed';
+
+  // ── Audio: AI transcription + text moderation (can pass, block, or review) ─
+  if (isAudioType) {
+    logger.info({ title, file_type }, '[LibraryScan] Audio upload — running Whisper transcription scan');
+    imageScanNotes.push('[AUDIO] Running AI transcription + text moderation scan via Groq Whisper.');
+
+    const primaryUrl = urls[0];
+    const audioResult = await scanAudioVideo(primaryUrl, [], mediaId, workspaceId);
+    imageScanNotes.push(...audioResult.notes);
+
+    if (audioResult.skipped) {
+      // Transcription unavailable — route to human reviewer
+      imageScanNotes.push('[AUDIO] Transcription skipped — routing to Review Queue for human check.');
+      return {
+        safe: false,
+        isVideo: false,
+        isAudio: true,
+        needsReview: true,
+        reason: audioResult.reason || 'Audio transcription unavailable — routed for human review.',
+        violations: ['audio_review_required'],
+        imageScanNotes,
+      };
+    }
+
+    if (audioResult.violations.length > 0) {
+      const first = audioResult.violations[0];
+      return {
+        safe: false,
+        isVideo: false,
+        isAudio: true,
+        needsReview: first.action === 'REQUEST_REVIEW',
+        reason: first.description,
+        violations: audioResult.violations.map(v => v.category),
+        imageScanNotes,
+      };
+    }
+
+    // Transcript is clean
+    imageScanNotes.push('[AUDIO] Transcript passed all safety checks.');
+    return { safe: true, isVideo: false, isAudio: true, imageScanNotes };
+  }
 
   // ── Video: always route to human reviewer, never auto-block ──────────────
-  if (file_type.startsWith('video/') || file_type === 'video' || file_type === 'mixed') {
+  if (isVideoType) {
     logger.info({ title, file_type }, '[LibraryScan] Video upload — routing to reviewer');
     return {
       safe: false,
       isVideo: true,
+      isAudio: false,
       reason: 'Video content requires human review before publishing.',
       violations: ['video_review_required'],
       imageScanNotes: ['[VIDEO] Routed directly to Review Queue — video content is not auto-scanned.'],
@@ -274,7 +320,7 @@ async function scanMediaUpload(
     }
   }
 
-  return { safe: true, isVideo: false, imageScanNotes };
+  return { safe: true, isVideo: false, isAudio: false, imageScanNotes };
 }
 
 /**
@@ -382,9 +428,11 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
     if (!scan.safe) {
       const reviewTitle = scan.isVideo
         ? `[VIDEO REVIEW] ${title}`
-        : scan.needsReview
-          ? `[NEEDS REVIEW] ${title}`
-          : `[BLOCKED] ${title}`;
+        : scan.isAudio && scan.needsReview
+          ? `[AUDIO REVIEW] ${title}`
+          : scan.needsReview
+            ? `[NEEDS REVIEW] ${title}`
+            : `[BLOCKED] ${title}`;
 
       // ── 1. Review Queue (most critical for UX — runs first, isolated) ────────
       try {
@@ -398,7 +446,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           title: reviewTitle,
           content_snapshot: { title, urls: validatedUrls, file_type, reason: scan.reason },
           submitted_by: userId,
-          priority: scan.isVideo ? 'NORMAL' : 'HIGH',
+          priority: (scan.isVideo || (scan.isAudio && scan.needsReview)) ? 'NORMAL' : 'HIGH',
           risk_level: scan.needsReview ? 'MEDIUM' : 'HIGH',
           status: 'PENDING_REVIEW',
           submitted_at: new Date().toISOString(),
@@ -416,19 +464,19 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           validation_item_id: validationItemId,
           run_by: userId,
           run_status: 'COMPLETED',
-          result_summary: scan.isVideo ? 'Video routed to human reviewer' : 'Blocked on upload safety scan',
+          result_summary: scan.isVideo ? 'Video routed to human reviewer' : scan.isAudio && scan.needsReview ? 'Audio routed to human reviewer' : 'Blocked on upload safety scan',
           started_at: new Date().toISOString(),
           completed_at: new Date().toISOString(),
         });
         await supabaseAdmin.from('validation_rule_results').insert({
           id: uuidv4(),
           validation_run_id: runId,
-          rule_name: scan.isVideo ? 'Video Review Policy' : 'Automated Media Safety Scan',
+          rule_name: scan.isVideo ? 'Video Review Policy' : scan.isAudio ? 'Audio AI Safety Scan' : 'Automated Media Safety Scan',
           rule_category: 'policy_rules',
-          result: scan.isVideo ? 'FAILED' : 'BLOCKED',
+          result: (scan.isVideo || (scan.isAudio && scan.needsReview)) ? 'FAILED' : 'BLOCKED',
           severity: 'HIGH',
           explanation: scan.reason || 'Content requires review.',
-          override_eligible: scan.isVideo,
+          override_eligible: scan.isVideo || (scan.isAudio && !!scan.needsReview),
           manual_check_required: true,
         });
       } catch (runErr) {
@@ -455,14 +503,18 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
       try {
         const notifTitle = scan.isVideo
           ? '📹 Video Sent for Review'
-          : scan.needsReview
-            ? '🔍 Media Flagged for Review'
-            : '🚫 Media Blocked';
+          : scan.isAudio && scan.needsReview
+            ? '🎵 Audio Sent for Review'
+            : scan.needsReview
+              ? '🔍 Media Flagged for Review'
+              : '🚫 Media Blocked';
         const notifBody = scan.isVideo
           ? `Your video "${title}" has been sent to the Review Queue. A reviewer will approve or reject it before it can be published.`
-          : scan.needsReview
-            ? `Your media "${title}" was flagged for review: ${scan.reason}. A reviewer will check it before it appears in the library.`
-            : `Your media "${title}" was blocked: ${scan.reason}. It violates content policy and cannot be published.`;
+          : scan.isAudio && scan.needsReview
+            ? `Your audio file "${title}" was sent to the Review Queue: ${scan.reason}. A reviewer will check it before it appears in the library.`
+            : scan.needsReview
+              ? `Your media "${title}" was flagged for review: ${scan.reason}. A reviewer will check it before it appears in the library.`
+              : `Your media "${title}" was blocked: ${scan.reason}. It violates content policy and cannot be published.`;
         await supabaseAdmin.from('notifications').insert({
           id: uuidv4(),
           user_id: userId,
@@ -482,13 +534,13 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           workspace_id: workspaceId,
           tenant_id: workspaceId,
           event_category: 'content_lifecycle',
-          event_type: scan.isVideo ? 'media.video_pending_review' : 'media.safety_violation',
-          event_title: scan.isVideo ? `Video Upload Pending Review: ${title}` : `Media Safety Violation: ${title}`,
+          event_type: scan.isVideo ? 'media.video_pending_review' : scan.isAudio && scan.needsReview ? 'media.audio_pending_review' : 'media.safety_violation',
+          event_title: scan.isVideo ? `Video Upload Pending Review: ${title}` : scan.isAudio && scan.needsReview ? `Audio Upload Pending Review: ${title}` : `Media Safety Violation: ${title}`,
           event_summary: scan.reason || 'Content flagged by automated safety scanner and routed to review queue.',
           actor: { actor_id: userId, actor_type: 'human' },
           object: { object_type: 'media_asset', object_id: mediaId },
-          risk_level: scan.isVideo ? 'medium' : 'high',
-          status: scan.isVideo ? 'pending' : 'blocked',
+          risk_level: (scan.isVideo || (scan.isAudio && scan.needsReview)) ? 'medium' : 'high',
+          status: (scan.isVideo || (scan.isAudio && scan.needsReview)) ? 'pending' : 'blocked',
           evidence_state: 'not_preserved',
           retention_class: 'STANDARD',
         } as any);
@@ -501,6 +553,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
       mediaId,
       status: libraryStatus,
       isVideo: scan.isVideo,
+      isAudio: scan.isAudio,
       safe: scan.safe,
       reason: scan.reason,
     }, '[Library] Asset processed');

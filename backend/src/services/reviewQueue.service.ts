@@ -158,7 +158,6 @@ export async function updateReviewItemStatus(params: {
 }, auth?: AuthContext) {
   requireAnyPermission(auth, 'queue:manage');
   const updateFields: Record<string, unknown> = { status: params.status, updated_at: new Date().toISOString() };
-
   if (params.status === 'IN_REVIEW') updateFields.reviewed_at = new Date().toISOString();
   if (params.status === 'APPROVED') updateFields.approved_at = new Date().toISOString();
   if (params.status === 'REJECTED') updateFields.rejected_at = new Date().toISOString();

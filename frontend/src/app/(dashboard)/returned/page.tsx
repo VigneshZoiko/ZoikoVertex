@@ -84,6 +84,13 @@ const PLATFORM_COLOR: Record<string, string> = {
   tiktok: "text-purple-400",
 };
 
+function detectMediaType(url: string): "image" | "video" | "audio" {
+  const clean = url.toLowerCase().split("?")[0];
+  if (/\.(mp4|mov|avi|webm|mkv|m4v)$/.test(clean)) return "video";
+  if (/\.(mp3|wav|ogg|aac|m4a|flac|opus)$/.test(clean)) return "audio";
+  return "image";
+}
+
 // ── Review Queue Card ──────────────────────────────────────────────────────
 
 function ReviewCard({
@@ -98,6 +105,7 @@ function ReviewCard({
   const [resubmitting, setResubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     api.get(`/api/v1/review-queue/items/${item.id}/notes`)
@@ -121,115 +129,166 @@ function ReviewCard({
 
   const platformKey = (item.platform || "").toLowerCase();
   const riskKey = (item.risk_level || "LOW").toUpperCase();
-  const isPost = item.source_module === "publish" ||
-    item.item_type?.toLowerCase().includes("post");
-  const editHref = isPost
-    ? `/publish?review_item_id=${item.id}`
-    : `/library/upload?review_item_id=${item.id}`;
+  const mediaUrls: string[] = Array.isArray(item.content_snapshot?.urls) ? item.content_snapshot.urls : [];
+  const caption = item.content_snapshot?.copy || "";
+  const isPost = item.source_module === "publish" || item.item_type?.toLowerCase().includes("post");
+  const editHref = isPost ? `/publish?review_item_id=${item.id}` : `/library/upload?review_item_id=${item.id}`;
   const editLabel = isPost ? "Edit Post" : "Edit Media";
 
   if (done) {
     return (
       <div className="flex items-center gap-3 px-5 py-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm">
         <CheckCircle2 className="w-4 h-4 shrink-0" />
-        <span>
-          <span className="font-medium">{item.title}</span> resubmitted — back in the review queue.
-        </span>
+        <span><span className="font-medium">{item.title}</span> resubmitted — back in the review queue.</span>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-      {/* Header */}
-      <div className="flex items-start gap-4 p-4">
-        <div className="mt-1 shrink-0 w-1.5 h-10 rounded-full bg-orange-500/60" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <p className="font-semibold text-[var(--foreground)] text-sm truncate">{item.title}</p>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-xs text-[var(--foreground-muted)]">{item.item_type.replace(/_/g, " ")}</span>
-                {item.platform && (
-                  <>
-                    <span className="text-[var(--border)]">·</span>
-                    <span className={`text-xs font-medium ${PLATFORM_COLOR[platformKey] || "text-[var(--foreground-muted)]"}`}>
-                      {item.platform}
-                    </span>
-                  </>
-                )}
+    <div
+      className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden transition-all duration-300 ease-in-out"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Header — always compact */}
+      <div className="flex items-center gap-3 px-3 py-2">
+        <div className="shrink-0 rounded-full bg-orange-500/60 self-start mt-0.5 w-1 h-5" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-[var(--foreground)] truncate text-xs">{item.title}</p>
+          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-[var(--foreground-muted)]">{item.item_type.replace(/_/g, " ")}</span>
+            {item.platform && (
+              <>
                 <span className="text-[var(--border)]">·</span>
-                <span className="text-xs text-[var(--foreground-muted)]">{formatRelative(item.submitted_at)}</span>
+                <span className={`text-[10px] font-medium ${PLATFORM_COLOR[platformKey] || "text-[var(--foreground-muted)]"}`}>{item.platform}</span>
+              </>
+            )}
+            <span className="text-[var(--border)]">·</span>
+            <span className="text-[10px] text-[var(--foreground-muted)]">{formatRelative(item.submitted_at)}</span>
+          </div>
+        </div>
+
+        {/* Right: note preview (collapsed) ↔ badges (hovered) */}
+        <div className="shrink-0 max-w-[40%] overflow-hidden">
+          {/* Note preview — shown when not hovered */}
+          <div
+            className="transition-all duration-300 ease-in-out overflow-hidden"
+            style={{ maxWidth: hovered ? "0px" : "300px", opacity: hovered ? 0 : 1 }}
+          >
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3 h-3 text-orange-400 shrink-0" />
+              <span className="text-[10px] font-semibold text-orange-400 shrink-0">Notes:</span>
+              {notesLoading ? (
+                <RefreshCcw className="w-2.5 h-2.5 animate-spin text-[var(--foreground-muted)]" />
+              ) : notes.length > 0 ? (
+                <span className="text-[10px] text-[var(--foreground)] truncate max-w-[160px]">{notes[0].note_body}</span>
+              ) : (
+                <span className="text-[10px] text-[var(--foreground-muted)] italic">No notes.</span>
+              )}
+            </div>
+          </div>
+
+          {/* Badges — shown when hovered */}
+          <div
+            className="transition-all duration-300 ease-in-out overflow-hidden flex items-center gap-1.5"
+            style={{ maxWidth: hovered ? "300px" : "0px", opacity: hovered ? 1 : 0 }}
+          >
+            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border uppercase tracking-wider whitespace-nowrap ${RISK_CONFIG[riskKey] || RISK_CONFIG.LOW}`}>{riskKey}</span>
+            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full border uppercase tracking-wider bg-orange-500/10 text-orange-400 border-orange-500/20 whitespace-nowrap">Returned</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hover: exactly 2 layers */}
+      <div
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ maxHeight: hovered ? "420px" : "0px", opacity: hovered ? 1 : 0 }}
+      >
+        <div className="flex flex-col divide-y divide-[var(--border)] border-t border-[var(--border)]">
+
+          {/* Layer 1 — Post Content: media + caption */}
+          <div className="p-3 bg-[var(--surface)]/40 flex flex-row gap-3 min-w-0">
+            {mediaUrls.length > 0 && (
+              <div className="flex flex-row gap-1.5 shrink-0 overflow-x-auto max-w-[55%]">
+                {mediaUrls.map((url, i) => {
+                  const type = detectMediaType(url);
+                  if (type === "video") return (
+                    <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-black shrink-0 w-[120px] h-[90px]">
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <video src={url} controls className="w-full h-full object-contain" />
+                    </div>
+                  );
+                  if (type === "audio") return (
+                    <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 shrink-0 w-[120px] flex flex-col justify-center gap-1">
+                      <span className="text-[10px] text-[var(--foreground-muted)] font-medium truncate">Audio {mediaUrls.length > 1 ? i + 1 : ""}</span>
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <audio src={url} controls className="w-full h-7" />
+                    </div>
+                  );
+                  return (
+                    <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)] shrink-0 w-[120px] h-[90px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider ${RISK_CONFIG[riskKey] || RISK_CONFIG.LOW}`}>
-                {riskKey}
-              </span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wider bg-orange-500/10 text-orange-400 border-orange-500/20">
-                Returned
-              </span>
+            )}
+            <div className="flex-1 min-w-0 flex flex-col gap-1 justify-start">
+              <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Caption</p>
+              {caption ? (
+                <p className="text-xs text-[var(--foreground)] leading-relaxed line-clamp-5 whitespace-pre-wrap">{caption}</p>
+              ) : (
+                <p className="text-xs text-[var(--foreground-muted)] italic">No caption saved.</p>
+              )}
             </div>
           </div>
-          {item.content_snapshot?.copy && (
-            <p className="mt-2 text-xs text-[var(--foreground-muted)] line-clamp-2">
-              {item.content_snapshot.copy}
-            </p>
-          )}
+
+          {/* Layer 2 — Reviewer Notes */}
+          <div className="px-3 py-2.5 bg-[var(--surface)]/60 flex flex-row gap-3 items-start min-w-0">
+            <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+              <MessageSquare className="w-3.5 h-3.5 text-orange-400" />
+              <p className="text-[10px] font-semibold text-orange-400 uppercase tracking-wider whitespace-nowrap">Reviewer Notes</p>
+            </div>
+            <div className="flex-1 min-w-0">
+              {notesLoading ? (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                  <RefreshCcw className="w-3 h-3 animate-spin" /> Loading…
+                </div>
+              ) : notes.length === 0 ? (
+                <p className="text-xs text-[var(--foreground-muted)] italic">No revision notes left by reviewer.</p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {notes.map(n => (
+                    <p key={n.id} className="text-xs text-[var(--foreground)] bg-orange-500/5 border border-orange-500/10 rounded-lg px-2.5 py-1.5 leading-relaxed line-clamp-2">
+                      <span className="text-[var(--foreground-muted)] mr-1.5">{formatRelative(n.created_at)}</span>
+                      {n.note_body}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* Reviewer notes — always visible */}
-      <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]/60">
-        <div className="flex items-center gap-1.5 mb-2">
-          <MessageSquare className="w-3.5 h-3.5 text-orange-400" />
-          <span className="text-xs font-semibold text-orange-400">Reviewer Notes</span>
-        </div>
-        {notesLoading ? (
-          <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-            <RefreshCcw className="w-3 h-3 animate-spin" /> Loading notes…
-          </div>
-        ) : notes.length === 0 ? (
-          <p className="text-xs text-[var(--foreground-muted)] italic">No revision notes left by reviewer.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {notes.map(n => (
-              <li key={n.id} className="text-xs text-[var(--foreground)] bg-orange-500/5 border border-orange-500/10 rounded-lg px-3 py-2">
-                <span className="text-[var(--foreground-muted)] mr-2">{formatRelative(n.created_at)}</span>
-                {n.note_body}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Error */}
       {resubmitError && (
-        <div className="flex items-start gap-2 px-4 py-2.5 bg-red-500/5 border-t border-red-500/20 text-xs text-red-400">
+        <div className="flex items-start gap-2 px-3 py-2 bg-red-500/5 border-t border-red-500/20 text-xs text-red-400">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <span>{resubmitError}</span>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-2 px-4 py-3 bg-[var(--surface)] border-t border-[var(--border)]">
-        <a
-          href={editHref}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          {editLabel}
+      <div className="flex items-center justify-end gap-2 px-3 py-2 bg-[var(--surface)] border-t border-[var(--border)]">
+        <a href={editHref}
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
+          <Pencil className="w-3.5 h-3.5" />{editLabel}
         </a>
-        <button
-          onClick={handleResubmit}
-          disabled={resubmitting}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
-        >
-          {resubmitting ? (
-            <RefreshCcw className="w-3 h-3 animate-spin" />
-          ) : (
-            <Send className="w-3 h-3" />
-          )}
+        <button onClick={handleResubmit} disabled={resubmitting}
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50">
+          {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
           Submit for Review
         </button>
       </div>
@@ -254,7 +313,7 @@ function ApprovalCard({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(true);
   const [postText, setPostText] = useState<string | null>(null);
-  const [postImageUrl, setPostImageUrl] = useState<string | null>(null);
+  const [postMediaUrls, setPostMediaUrls] = useState<string[]>([]);
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
@@ -284,7 +343,7 @@ function ApprovalCard({
         const urls: string[] = Array.isArray(data.media_urls) && data.media_urls.length > 0
           ? data.media_urls
           : data.media_url ? [data.media_url] : [];
-        setPostImageUrl(urls[0] || null);
+        setPostMediaUrls(urls);
       } catch { /* ignore */ }
     })();
   }, [item.source_entity_id]);
@@ -324,13 +383,13 @@ function ApprovalCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Header — always visible; shrinks when not hovered */}
-      <div className={`flex items-center gap-3 transition-all duration-300 ease-in-out ${hovered ? "p-4" : "px-3 py-2"}`}>
-        <div className={`shrink-0 rounded-full bg-amber-500/60 transition-all duration-300 ${hovered ? "self-start mt-1 w-1.5 h-10" : "self-start mt-0.5 w-1 h-5"}`} />
+      {/* Header — always compact */}
+      <div className="flex items-center gap-3 px-3 py-2 transition-all duration-300 ease-in-out">
+        <div className="shrink-0 rounded-full bg-amber-500/60 self-start mt-0.5 w-1 h-5" />
 
         {/* Left: title + meta */}
         <div className="min-w-0 flex-1">
-          <p className={`font-semibold text-[var(--foreground)] truncate transition-all duration-300 ${hovered ? "text-sm" : "text-xs"}`}>
+          <p className="font-semibold text-[var(--foreground)] truncate text-xs">
             {item.title}
           </p>
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
@@ -383,51 +442,77 @@ function ApprovalCard({
         </div>
       </div>
 
-      {/* Hover: 2-column (post content + feedback) — expands on hover */}
+      {/* Hover: 2-layer (post content on top, feedback below) */}
       <div
         className="overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ maxHeight: hovered ? "480px" : "0px", opacity: hovered ? 1 : 0 }}
+        style={{ maxHeight: hovered ? "420px" : "0px", opacity: hovered ? 1 : 0 }}
       >
-        <div className="grid grid-cols-2 divide-x divide-[var(--border)] border-t border-[var(--border)]">
-          {/* Left: Post Content */}
-          <div className="p-4 bg-[var(--surface)]/40 flex flex-col gap-3 min-w-0">
-            <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">Post Content</p>
-            {postImageUrl && (
-              <div className="rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center max-h-36">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={postImageUrl}
-                  alt="Post media"
-                  className="w-full h-full object-cover max-h-36"
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
+        <div className="flex flex-col divide-y divide-[var(--border)] border-t border-[var(--border)]">
+
+          {/* Layer 1 — Post Content: media thumbnails beside text */}
+          <div className="p-3 bg-[var(--surface)]/40 flex flex-row gap-3 min-w-0">
+            {/* Media thumbnails */}
+            {postMediaUrls.length > 0 && (
+              <div className="flex flex-row gap-1.5 shrink-0 overflow-x-auto max-w-[55%]">
+                {postMediaUrls.map((url, i) => {
+                  const type = detectMediaType(url);
+                  if (type === "video") return (
+                    <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-black shrink-0 w-[120px] h-[90px]">
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <video src={url} controls className="w-full h-full object-contain" />
+                    </div>
+                  );
+                  if (type === "audio") return (
+                    <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 shrink-0 w-[120px] flex flex-col justify-center gap-1">
+                      <span className="text-[10px] text-[var(--foreground-muted)] font-medium truncate">Audio {postMediaUrls.length > 1 ? i + 1 : ""}</span>
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <audio src={url} controls className="w-full h-7" />
+                    </div>
+                  );
+                  return (
+                    <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)] shrink-0 w-[120px] h-[90px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Media ${i + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
-            {postText ? (
-              <p className="text-xs text-[var(--foreground)] leading-relaxed line-clamp-5 whitespace-pre-wrap">{postText}</p>
-            ) : (
-              <p className="text-xs text-[var(--foreground-muted)] italic">No caption saved.</p>
-            )}
+            {/* Post text */}
+            <div className="flex-1 min-w-0 flex flex-col gap-1 justify-start">
+              <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Caption</p>
+              {postText ? (
+                <p className="text-xs text-[var(--foreground)] leading-relaxed line-clamp-5 whitespace-pre-wrap">{postText}</p>
+              ) : (
+                <p className="text-xs text-[var(--foreground-muted)] italic">No caption saved.</p>
+              )}
+            </div>
           </div>
 
-          {/* Right: Approver Feedback */}
-          <div className="p-4 bg-[var(--surface)]/60 flex flex-col gap-3 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">Approver Feedback</p>
+          {/* Layer 2 — Approver Feedback */}
+          <div className="px-3 py-2.5 bg-[var(--surface)]/60 flex flex-row gap-3 items-start min-w-0">
+            <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+              <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+              <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider whitespace-nowrap">Approver Feedback</p>
             </div>
-            {feedbackLoading ? (
-              <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
-                <RefreshCcw className="w-3 h-3 animate-spin" /> Loading feedback…
-              </div>
-            ) : feedback ? (
-              <div className="text-xs text-[var(--foreground)] bg-amber-500/5 border border-amber-500/15 rounded-lg px-3 py-2.5 leading-relaxed whitespace-pre-wrap">
-                {feedback}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--foreground-muted)] italic">No written feedback left by approver.</p>
-            )}
+            <div className="flex-1 min-w-0">
+              {feedbackLoading ? (
+                <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)]">
+                  <RefreshCcw className="w-3 h-3 animate-spin" /> Loading…
+                </div>
+              ) : feedback ? (
+                <p className="text-xs text-[var(--foreground)] bg-amber-500/5 border border-amber-500/15 rounded-lg px-2.5 py-1.5 leading-relaxed line-clamp-3">{feedback}</p>
+              ) : (
+                <p className="text-xs text-[var(--foreground-muted)] italic">No written feedback left by approver.</p>
+              )}
+            </div>
           </div>
+
         </div>
       </div>
 
@@ -438,23 +523,18 @@ function ApprovalCard({
         </div>
       )}
 
-      {/* Actions */}
-      <div className={`flex items-center justify-between gap-2 px-3 bg-[var(--surface)] border-t border-[var(--border)] transition-all duration-300 ${hovered ? "py-2.5" : "py-1.5"}`}>
-        <p className="text-[10px] text-[var(--foreground-muted)]">Edit &amp; resubmit, or dismiss this card.</p>
-        <div className="flex items-center gap-2 shrink-0">
-          {editHref && (
-            <a href={editHref}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
-              <Pencil className="w-3.5 h-3.5" />
-              {editLabel}
-            </a>
-          )}
-          <button onClick={handleResubmit} disabled={resubmitting}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50">
-            {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-            Dismiss
-          </button>
-        </div>
+      <div className="flex items-center justify-end gap-2 px-3 py-2 bg-[var(--surface)] border-t border-[var(--border)]">
+        {editHref && (
+          <a href={editHref}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
+            <Pencil className="w-3.5 h-3.5" />{editLabel}
+          </a>
+        )}
+        <button onClick={handleResubmit} disabled={resubmitting}
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50">
+          {resubmitting ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+          Dismiss
+        </button>
       </div>
     </div>
   );
@@ -503,7 +583,8 @@ export default function ReturnedItemsPage() {
           : (apRes.value.data?.items ?? []);
         setApprovalItems(items);
       } else {
-        setError("Could not load items from Approval Console.");
+        const errMsg = apRes.status === "fulfilled" ? (apRes.value?.error || "Could not load items from Approval Console.") : "Failed to reach Approval Console.";
+        setError(errMsg);
       }
     } catch (e: any) {
       setError(e.message || "Failed to load returned items.");

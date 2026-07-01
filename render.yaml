@@ -43,7 +43,7 @@ services:
       - key: AI_PROVIDER
         value: groq
       - key: AI_API_KEY
-        sync: false
+        sync: false     
       - key: AI_MODEL
         value: llama-3.3-70b-versatile
 
