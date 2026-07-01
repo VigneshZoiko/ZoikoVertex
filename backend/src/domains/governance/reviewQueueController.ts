@@ -99,10 +99,7 @@ export async function listItems(req: AuthRequest, res: Response, next: NextFunct
       offset: q.offset ? parseInt(q.offset, 10) : undefined,
     });
 
-    let rawItems: any[] = (result as any).items || [];
-    if (q.submitted_by === 'me') {
-      rawItems = rawItems.filter((i: any) => i.submitted_by === userId);
-    }
+    const rawItems: any[] = (result as any).items || [];
     const userIds = [...new Set(rawItems.map((i: any) => i.submitted_by).filter(Boolean))] as string[];
     const userMap = await resolveUserInfo(userIds);
     const enrichedItems = rawItems.map((i: any) => ({
@@ -289,23 +286,22 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'REVISION_REQUESTED', reason, note, decided_by: userId,
       }, auth);
 
-      // Save note to review_notes so creator can see it on /returned
       await supabaseAdmin.from('review_notes').insert({
         review_item_id: id,
         note_body: note,
         created_by: userId,
       });
 
-      // Notify creator with revision instructions
-      await supabaseAdmin.from('notifications').insert({
+      // Notify creator with revision instructions (non-critical)
+      supabaseAdmin.from('notifications').insert({
         id: uuidv4(),
         user_id: item.submitted_by,
-        title: '🔄 Media Returned — Revision Required',
-        body: `Your media "${item.title}" was returned by the reviewer with revision instructions: ${note}. Please correct and resubmit.`,
+        title: '🔄 Post Returned — Revision Required',
+        body: `Your submission "${item.title}" was returned by the reviewer with instructions: ${note}. Go to Returned Items to view and resubmit.`,
         type: 'GOVERNANCE',
         link: '/returned',
         read: false,
-      });
+      }).then(undefined, () => {});
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.revision_requested',

@@ -317,18 +317,48 @@ function PostPreview({
           </p>
         )}
 
-        {/* Media */}
-        <MediaPreview
-          src={currentMedia}
-          alt="preview"
-          type={isVideoMedia(currentMedia) ? "video" : "image"}
-          className={`w-full ${isInstagram ? 'aspect-square' : 'aspect-video'}`}
-          fit="cover"
-          controls={isVideoMedia(currentMedia)}
-          muted
-          playsInline
-          expandable={isVideoMedia(currentMedia)}
-        />
+        {/* Media — flexible container, no forced aspect ratio so nothing is cropped */}
+        {currentMedia ? (
+          isVideoMedia(currentMedia) ? (
+            <div className="w-full bg-black">
+              <MediaPreview
+                src={currentMedia}
+                alt="preview"
+                type="video"
+                className="w-full aspect-video"
+                fit="contain"
+                controls
+                muted
+                playsInline
+                expandable
+              />
+            </div>
+          ) : (
+            <div className="w-full bg-black flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={currentMedia}
+                alt="preview"
+                className="w-full h-auto max-h-[480px] object-contain block"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          )
+        ) : (
+          <div className="w-full aspect-video flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[var(--surface)] to-[var(--background)] border-y border-[var(--border)]">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--card)] border border-[var(--border)] flex items-center justify-center shadow-inner">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--foreground-muted)] opacity-50">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
+            <div className="text-center px-4">
+              <p className="text-xs font-semibold text-[var(--foreground-muted)] opacity-70">No media selected</p>
+              <p className="text-[11px] text-[var(--foreground-muted)] opacity-40 mt-0.5">Add an image or video to preview</p>
+            </div>
+          </div>
+        )}
 
         {/* ── Facebook action bar ── */}
         {isFacebook && (
@@ -670,10 +700,13 @@ function PublishPageInner() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const assetUrls = searchParams.get('assetUrls');
-  const assetUrl  = searchParams.get('assetUrl');
-  const assetType = searchParams.get('assetType');
-  const assetTitle = searchParams.get('assetTitle');
+  const assetUrls   = searchParams.get('assetUrls');
+  const assetUrl    = searchParams.get('assetUrl');
+  const assetType   = searchParams.get('assetType');
+  const assetTitle  = searchParams.get('assetTitle');
+  const captionParam   = searchParams.get('caption');
+  const accountIdsParam = searchParams.get('accountIds');
+  const draftIdParam   = searchParams.get('draftId');
   const reviewItemId = searchParams.get('review_item_id');
   // Approval Console returned items use this param (source_entity_id = publish_intent id)
   const approvalSourceId = searchParams.get('approval_source_id');
@@ -705,8 +738,17 @@ function PublishPageInner() {
       setMediaPreview(assetUrl);
     }
     if (assetTitle && !topic) setTopic(assetTitle);
+    // Restore caption/description from draft
+    if (captionParam) setDescription(captionParam);
+    // Restore selected accounts from draft
+    if (accountIdsParam) {
+      try {
+        const ids: string[] = JSON.parse(accountIdsParam);
+        if (ids.length > 0) setSelectedAccountIds(ids);
+      } catch {}
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetUrls, assetUrl, assetTitle]);
+  }, [assetUrls, assetUrl, assetTitle, captionParam, accountIdsParam]);
 
   // Prefill all fields when editing a returned review-queue post
   useEffect(() => {

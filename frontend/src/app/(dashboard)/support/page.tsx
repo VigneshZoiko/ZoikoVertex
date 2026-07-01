@@ -66,7 +66,7 @@ export default function SupportPage() {
           <MessageSquare className="w-5 h-5 text-[var(--accent)] mb-2" />
           <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Live Chat</h3>
           <p className="text-xs text-[var(--foreground-muted)] mb-2">Available Mon–Fri</p>
-          <button onClick={() => window.dispatchEvent(new Event('toggle-chatbot'))} className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
+          <button onClick={() => window.dispatchEvent(new Event('toggle-chatbot'))} className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1 cursor-pointer">
             Open Chat Portal <ExternalLink className="w-3 h-3" />
           </button>
         </div>

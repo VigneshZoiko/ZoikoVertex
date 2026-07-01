@@ -1707,6 +1707,8 @@ import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
 import { startSlaBreachWorker } from './workers/slaBreachWorker';
 import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWorker';
+import { supabaseAdmin } from './shared/supabase';
+import { AGENT_CATALOG } from './modules/prompts/validation/registry';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1738,6 +1740,19 @@ try {
     initOrgInactivityWorker();
     startSlaBreachWorker();
     initEvidenceIntelligenceWorker();
+
+    // Governed validation agents must always be ACTIVE (Live).
+    // If any were paused via the UI restore them automatically on every boot.
+    const governedNames = AGENT_CATALOG.map((a) => a.name);
+    supabaseAdmin
+      .from('agents')
+      .update({ status: 'ACTIVE', updated_at: new Date().toISOString() })
+      .in('name', governedNames)
+      .neq('status', 'ACTIVE')
+      .then(({ error }) => {
+        if (error) logger.warn({ err: error.message }, '[startup] Could not restore governed agents to ACTIVE');
+        else logger.info('[startup] Governed validation agents verified ACTIVE');
+      }, (err) => logger.warn({ err }, '[startup] Could not restore governed agents to ACTIVE'));
   });
 
   server.on('error', (err: Error & { code?: string }) => {
