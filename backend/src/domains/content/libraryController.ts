@@ -232,6 +232,7 @@ async function scanMediaUpload(
         return {
           safe: false,
           isVideo: false,
+          isAudio: false,
           reason: `Title contains ${kr.action === 'BLOCK' ? 'blocked' : 'review-required'} keyword: "${kw}"`,
           violations: ['blocked_word'],
           imageScanNotes: [`[TITLE] Keyword match: "${kw}" (action: ${kr.action})`],
@@ -251,6 +252,7 @@ async function scanMediaUpload(
     return {
       safe: false,
       isVideo: false,
+      isAudio: false,
       reason: `Title failed safety check: ${textViolations.join(', ')}`,
       violations: textViolations,
       imageScanNotes: [`[TITLE] Safety categories triggered: ${textViolations.join(', ')}`],
@@ -296,6 +298,7 @@ async function scanMediaUpload(
             return {
               safe: false,
               isVideo: false,
+              isAudio: false,
               needsReview: false,
               reason: `${label}: ${v.description}`,
               violations: [v.category],
@@ -306,6 +309,7 @@ async function scanMediaUpload(
             return {
               safe: false,
               isVideo: false,
+              isAudio: false,
               needsReview: true,
               reason: `${label} flagged for review: ${v.description}`,
               violations: [v.category],
