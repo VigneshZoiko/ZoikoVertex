@@ -301,6 +301,7 @@ async function checkExpiredForensicCases(workspaceId: string, retentionMonths: n
 // ⏳ analytics_events — NO TABLE EXISTS in any migration file.
 // Analytics retention is tracked in the UI but cannot be enforced until an
 // analytics data table is created. Skipped with a logged notice.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function checkExpiredAnalytics(workspaceId: string) {
   logger.info({ workspaceId }, '[retention] Analytics retention skipped — no analytics_events table exists yet');
   return { category: 'analytics', deleted: 0, held: 0, retentionMonths: 24, skipped: true as const };
@@ -309,6 +310,7 @@ async function checkExpiredAnalytics(workspaceId: string) {
 // ⏳ wallet_transactions — has wallet_id (NOT workspace_id), so per-workspace
 // deletion requires a join through the wallets table. Skipped until proper
 // workspace-scoped billing retention can be implemented.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function checkExpiredBillingRecords(workspaceId: string) {
   logger.info({ workspaceId }, '[retention] Billing retention skipped — wallet_transactions lacks workspace_id column; requires wallet join');
   return { category: 'billing', deleted: 0, held: 0, retentionMonths: 84, skipped: true as const };

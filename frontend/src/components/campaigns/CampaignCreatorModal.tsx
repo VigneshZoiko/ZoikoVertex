@@ -157,8 +157,8 @@ const Field = React.memo(function Field({ label, hint, children }: { label: stri
 const Radio = React.memo(function Radio({ value, checked, onChange, label, desc }: { value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer group py-1">
-      <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-white" : "border-border group-hover:border-zinc-400"}`}>
-        {checked && <div className="w-2 h-2 rounded-full bg-white" />}
+      <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-foreground" : "border-border group-hover:border-foreground-muted"}`}>
+        {checked && <div className="w-2 h-2 rounded-full bg-foreground" />}
       </div>
       <input type="radio" className="hidden" value={value} checked={checked} onChange={onChange} />
       <div>

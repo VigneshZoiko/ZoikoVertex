@@ -68,11 +68,6 @@ export default function PrivacyDataPage() {
   const [runningRetention, setRunningRetention] = useState(false);
   const [runMessage, setRunMessage] = useState<string | null>(null);
 
-  // Load retention logs on mount
-  useEffect(() => {
-    fetchRetentionLogs();
-  }, []);
-
   const fetchRetentionLogs = async () => {
     setLogsLoading(true);
     try {
@@ -86,6 +81,11 @@ export default function PrivacyDataPage() {
       setLogsLoading(false);
     }
   };
+
+  // Load retention logs on mount
+  useEffect(() => {
+    fetchRetentionLogs();
+  }, []);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
