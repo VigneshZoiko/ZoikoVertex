@@ -792,7 +792,15 @@ export async function verifyChainIntegrity(
     // Sort by block_number within the chain
     chainEvents.sort((a, b) => a.block_number - b.block_number);
 
-    let prevHash: string | null = null;
+    // Build a lookup of block_number → hash so we can verify each block
+    // against its direct predecessor (matching SQL verify_audit_chain behaviour).
+    // This avoids false positives when workspace chains contain gaps caused by
+    // the transition from a global block sequence to a per-chain sequence.
+    const blockHashMap = new Map<number, string | null>();
+    for (const ev of chainEvents) {
+      blockHashMap.set(ev.block_number, ev.hash);
+    }
+
     for (const event of chainEvents) {
       if (start_block !== undefined && event.block_number < start_block) continue;
       if (end_block !== undefined && event.block_number > end_block) continue;
@@ -801,14 +809,22 @@ export async function verifyChainIntegrity(
       let errorMessage: string | null = null;
 
       if (event.block_number === 1) {
+        // True genesis block must have null prev_hash
         if (event.prev_hash !== null) {
           chainVerified = false;
           errorMessage = 'Genesis block has non-null prev_hash';
         }
       } else {
-        if (event.prev_hash !== prevHash) {
-          chainVerified = false;
-          errorMessage = `prev_hash mismatch at block ${event.block_number}`;
+        const predecessorHash = blockHashMap.get(event.block_number - 1);
+        if (predecessorHash === undefined) {
+          // No direct predecessor in this chain — treat as a local anchor (segment start).
+          // This happens when workspace chains have a gap from the old global sequence.
+          // We trust the anchor; we can only verify continuity from here forward.
+        } else {
+          if (event.prev_hash !== predecessorHash) {
+            chainVerified = false;
+            errorMessage = `prev_hash mismatch at block ${event.block_number}`;
+          }
         }
       }
 
@@ -820,8 +836,6 @@ export async function verifyChainIntegrity(
         chain_verified: chainVerified,
         error_message: errorMessage,
       });
-
-      prevHash = event.hash;
     }
   }
 

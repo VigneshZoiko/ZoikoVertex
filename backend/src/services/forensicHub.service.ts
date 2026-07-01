@@ -630,7 +630,7 @@ export async function createCase(params: {
       status: 'new',
       source: params.source || 'manual',
       source_event_ids: params.source_event_ids || [],
-      owner_user_id: params.owner_user_id || null,
+      owner_user_id: params.owner_user_id || params.actor_id,
       sla_due_at: params.sla_due_at || calculateSlaDueAt(params.severity || 'medium'),
       tenant_id: params.tenant_id || params.workspace_id,
     })
