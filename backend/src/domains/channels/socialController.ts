@@ -1011,7 +1011,7 @@ async function notifyAccountConnected(workspaceId: string, platform: string, acc
 /**
  * Sends in-app notification to workspace admins when a social account is disconnected.
  */
-async function notifyAccountDisconnected(workspaceId: string, accountId: string): Promise<void> {
+async function notifyAccountDisconnected(workspaceId: string, _accountId: string): Promise<void> {
   const admins = await getWorkspaceAdmins(workspaceId);
   await createNotifications(
     admins,
