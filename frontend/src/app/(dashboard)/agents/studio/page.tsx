@@ -1,33 +1,41 @@
 "use client";
 
-import { type ElementType, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Bell,
+  BookOpen,
   Bot,
   BrainCircuit,
   Check,
+  CheckSquare,
   Copy,
-  FileCheck,
-  Filter,
-  FolderKanban,
   Globe,
-  Grid2X2,
-  LayoutList,
-  PauseCircle,
-  PlayCircle,
+  Image as ImageIcon,
+  Lock,
+  MessageSquare,
   RefreshCw,
+  RotateCcw,
   Search,
+  Send,
+  Settings,
   Shield,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Upload,
-  User,
   Zap,
   Award,
-  RotateCcw,
   Archive,
+  PlayCircle,
+  PauseCircle,
+  User,
   X,
+  Filter,
+  FolderKanban,
+  Grid2X2,
+  LayoutList,
+  FileCheck,
+  Sparkles,
 } from "lucide-react";
 import CreateAgentWizard from "@/components/agents/CreateAgentWizard";
 import CertificationSandbox from "@/components/agents/CertificationSandbox";
@@ -60,23 +68,12 @@ interface Agent {
   backup_dri?: Person | null;
   last_activity?: string | null;
   created_at: string;
-  runtime_controls?: {
-    environment?: string;
-  } | null;
+  runtime_controls?: { environment?: string } | null;
 }
 
-// All lifecycle states from spec
 const STATUS_OPTIONS = [
-  "",
-  "DRAFT",
-  "PENDING_CERTIFICATION",
-  "IN_REVIEW",
-  "APPROVED",
-  "ACTIVE",
-  "PAUSED",
-  "RESTRICTED",
-  "SUSPENDED",
-  "RETIRED",
+  "", "DRAFT", "PENDING_CERTIFICATION", "IN_REVIEW", "APPROVED",
+  "ACTIVE", "PAUSED", "RESTRICTED", "SUSPENDED", "RETIRED",
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -93,141 +90,150 @@ const STATUS_LABELS: Record<string, string> = {
 
 const RISK_OPTIONS = ["", "low", "medium", "high", "critical"];
 
-// 8 required templates from spec Section 12
 const AGENT_TEMPLATES = [
-  {
-    title: "Content Drafting Agent",
-    description:
-      "Draft posts, captions, outlines, newsletters, and campaign copy. No external action. Brand approval required before use in workflow.",
-  },
-  {
-    title: "Compliance Review Agent",
-    description:
-      "Check claims, prohibited language, source support, risk, and policy fit. Governance-owned; cannot approve its own output as final.",
-  },
-  {
-    title: "Scheduling Recommendation Agent",
-    description:
-      "Recommend timing and sequencing. No posting unless approved by campaign owner. Humans stay in control.",
-  },
-  {
-    title: "Content Research Agent",
-    description:
-      "Read approved knowledge, analyze sources, produce briefs. No publishing. Compliance review required for regulated categories.",
-  },
-  {
-    title: "Social Response Agent",
-    description:
-      "Draft replies and escalation recommendations. No auto-reply by default. Human review required.",
-  },
-  {
-    title: "Performance Insight Agent",
-    description:
-      "Analyze campaign results and propose optimizations. Read-only analytics; no budget or publishing control.",
-  },
-  {
-    title: "SMB Starter Agent",
-    description:
-      "Simple draft, schedule recommendation, and brand-safe social posts for small teams. Low setup friction; no unsafe auto-publish.",
-  },
-  {
-    title: "Enterprise Governance Agent",
-    description:
-      "Cross-brand policy review, evidence bundling, and risk reporting. Restricted to governance roles; full evidence capture required.",
-  },
+  { title: "Content Drafting Agent", description: "Draft posts, captions, outlines, newsletters, and campaign copy." },
+  { title: "Compliance Review Agent", description: "Check claims, prohibited language, source support, risk, and policy fit." },
+  { title: "Scheduling Recommendation Agent", description: "Recommend timing and sequencing. No posting unless approved." },
+  { title: "Content Research Agent", description: "Read approved knowledge, analyze sources, produce briefs." },
+  { title: "Social Response Agent", description: "Draft replies and escalation recommendations. Human review required." },
+  { title: "Performance Insight Agent", description: "Analyze campaign results and propose optimizations." },
+  { title: "SMB Starter Agent", description: "Simple draft, schedule recommendation, and brand-safe social posts." },
+  { title: "Enterprise Governance Agent", description: "Cross-brand policy review, evidence bundling, and risk reporting." },
 ];
 
-function formatPercent(value?: number) {
-  return `${Math.round((value || 0) * 100)}%`;
+// ── Validation Pipeline ─────────────────────────────────────────────────────
+const PIPELINE_STEPS = [
+  { title: "Policy Check",        desc: "Blocks unsafe content, routes high-risk domains",      icon: Shield,      bg: "bg-amber-500/20",   iconCls: "text-amber-400" },
+  { title: "General Content",     desc: "Flags claims that need proof",                          icon: MessageSquare, bg: "bg-violet-500/20", iconCls: "text-violet-400" },
+  { title: "Evidence / KB",       desc: "Confirms claims against approved sources",              icon: BookOpen,    bg: "bg-orange-500/20",  iconCls: "text-orange-400" },
+  { title: "Image Validation",    desc: "Scans images for unsafe content and text",              icon: ImageIcon,   bg: "bg-teal-500/20",    iconCls: "text-teal-400" },
+  { title: "Platform Compliance", desc: "Checks limits per platform",                            icon: CheckSquare, bg: "bg-emerald-500/20", iconCls: "text-emerald-400" },
+  { title: "Published",           desc: "Live on platform",                                      icon: Send,        bg: "bg-indigo-500/20",  iconCls: "text-indigo-400" },
+];
+
+// ── Group helpers ───────────────────────────────────────────────────────────
+type GroupKey = "governance" | "content" | "safety";
+
+function getGroupCategory(type: string, name: string): GroupKey {
+  const t = (type + " " + name).toLowerCase();
+  if (t.includes("content") || t.includes("draft") || t.includes("research")) return "content";
+  if (
+    t.includes("safety") || t.includes("image") || t.includes("platform") ||
+    t.includes("validation") || t.includes("scan")
+  ) return "safety";
+  return "governance";
+}
+
+const GROUP_META: Record<GroupKey, { dot: string; label: string; desc: string }> = {
+  governance: { dot: "bg-amber-400",   label: "Governance", desc: "Policy enforcement & evidence checks" },
+  content:    { dot: "bg-violet-400",  label: "Content",    desc: "Reads and interprets what's being posted" },
+  safety:     { dot: "bg-emerald-400", label: "Safety",     desc: "Media scans & platform limits" },
+};
+
+const CARD_STYLE: Record<GroupKey, { border: string; iconBg: string; iconCls: string; typeCls: string }> = {
+  governance: { border: "border-l-amber-500",   iconBg: "bg-amber-500/15",   iconCls: "text-amber-400",   typeCls: "text-amber-500" },
+  content:    { border: "border-l-violet-500",  iconBg: "bg-violet-500/15",  iconCls: "text-violet-400",  typeCls: "text-violet-500" },
+  safety:     { border: "border-l-emerald-500", iconBg: "bg-emerald-500/15", iconCls: "text-emerald-400", typeCls: "text-emerald-500" },
+};
+
+function renderAgentIcon(type: string, name: string, className: string) {
+  const t = (type + " " + name).toLowerCase();
+  if (t.includes("image") || t.includes("scan") || t.includes("visual") || t.includes("validation"))
+    return <ImageIcon className={className} />;
+  if (t.includes("platform") || t.includes("compliance") || t.includes("approval"))
+    return <CheckSquare className={className} />;
+  if (t.includes("evidence") || t.includes("kb") || t.includes("knowledge"))
+    return <BookOpen className={className} />;
+  if (t.includes("content") || t.includes("draft") || t.includes("general"))
+    return <MessageSquare className={className} />;
+  return <Shield className={className} />;
+}
+
+// ── Trust Score Ring ────────────────────────────────────────────────────────
+function TrustScoreRing({ percent }: { percent: number }) {
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(percent, 100) / 100) * circ;
+  return (
+    <svg width="88" height="88" viewBox="0 0 88 88" className="shrink-0">
+      <circle cx="44" cy="44" r={r} fill="none" stroke="rgba(6,182,212,0.15)" strokeWidth="7" />
+      <circle
+        cx="44" cy="44" r={r} fill="none"
+        stroke="#06b6d4" strokeWidth="7"
+        strokeLinecap="round"
+        strokeDasharray={`${circ}`}
+        strokeDashoffset={`${offset}`}
+        transform="rotate(-90 44 44)"
+      />
+      <text x="44" y="44" textAnchor="middle" dominantBaseline="central"
+        fill="white" fontSize="15" fontWeight="700" fontFamily="inherit">
+        {percent}%
+      </text>
+    </svg>
+  );
+}
+
+// ── Agent Card (Figma design) ───────────────────────────────────────────────
+function AgentCard({
+  agent, group, onSandbox, onSafetyCheck,
+}: {
+  agent: Agent;
+  group: GroupKey;
+  onSandbox: (a: Agent) => void;
+  onSafetyCheck: (a: Agent) => void;
+}) {
+  const cs = CARD_STYLE[group];
+  const isLive = agent.status === "ACTIVE";
+  const short = agent.id.slice(0, 8);
+
+  return (
+    <div className={`flex flex-col rounded-xl border border-[var(--card-border)] bg-[var(--surface)] border-l-4 ${cs.border} overflow-hidden`}>
+      <div className="flex flex-col gap-3 p-4 flex-1">
+        {/* Name row */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${cs.iconBg}`}>
+              {renderAgentIcon(agent.type, agent.name, `h-4 w-4 ${cs.iconCls}`)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--foreground)] truncate">{agent.name}</p>
+              <p className="font-mono text-[11px] text-[var(--foreground-muted)]">{short}</p>
+            </div>
+          </div>
+          {isLive ? (
+            <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] font-semibold text-emerald-400">Live</span>
+            </div>
+          ) : (
+            <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--background)] px-2.5 py-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--foreground-muted)]" />
+              <span className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                {STATUS_LABELS[agent.status] || agent.status}
+              </span>
+            </div>
+          )}
+        </div>
+        {/* Description */}
+        <p className="text-xs leading-relaxed text-[var(--foreground-muted)] line-clamp-3">
+          {agent.purpose || "—"}
+        </p>
+      </div>
+      {/* Footer */}
+      <div className="border-t border-[var(--border)] px-4 py-2.5">
+        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${cs.typeCls}`}>
+          {GROUP_META[group].label}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function normalizeText(value?: string | null) {
   return (value || "").toLowerCase();
 }
 
-const AGENT_TYPE_STYLE: Record<string, { icon: ElementType; avatarBg: string; textCls: string; chipBg: string; label: string }> = {
-  content:     { icon: BrainCircuit, avatarBg: "bg-indigo-600",  textCls: "text-indigo-400",  chipBg: "bg-indigo-500/10",  label: "Content" },
-  drafting:    { icon: BrainCircuit, avatarBg: "bg-indigo-600",  textCls: "text-indigo-400",  chipBg: "bg-indigo-500/10",  label: "Content" },
-  safety:      { icon: ShieldCheck,  avatarBg: "bg-emerald-600", textCls: "text-emerald-400", chipBg: "bg-emerald-500/10", label: "Safety" },
-  compliance:  { icon: ShieldCheck,  avatarBg: "bg-emerald-600", textCls: "text-emerald-400", chipBg: "bg-emerald-500/10", label: "Safety" },
-  governance:  { icon: Shield,       avatarBg: "bg-amber-600",   textCls: "text-amber-400",   chipBg: "bg-amber-500/10",   label: "Governance" },
-  publisher:   { icon: Globe,        avatarBg: "bg-violet-600",  textCls: "text-violet-400",  chipBg: "bg-violet-500/10",  label: "Publisher" },
-  performance: { icon: Zap,          avatarBg: "bg-orange-600",  textCls: "text-orange-400",  chipBg: "bg-orange-500/10",  label: "Performance" },
-  research:    { icon: Search,       avatarBg: "bg-sky-600",     textCls: "text-sky-400",     chipBg: "bg-sky-500/10",     label: "Research" },
-};
-
-function getTypeStyle(type: string) {
-  const key = (type || "").toLowerCase().split(/[\s_-]/)[0];
-  return AGENT_TYPE_STYLE[key] || { icon: Bot, avatarBg: "bg-slate-600", textCls: "text-[var(--foreground-muted)]", chipBg: "bg-[var(--background)]", label: type || "Unknown" };
-}
-
-const STATUS_META: Record<string, { dot: string; ring?: string; textCls: string }> = {
-  DRAFT:                { dot: "bg-slate-400",                              textCls: "text-slate-400" },
-  PENDING_CERTIFICATION:{ dot: "bg-amber-400",                              textCls: "text-amber-400" },
-  IN_REVIEW:            { dot: "bg-sky-400",                                textCls: "text-sky-400" },
-  APPROVED:             { dot: "bg-emerald-400",                            textCls: "text-emerald-400" },
-  ACTIVE:               { dot: "bg-emerald-400", ring: "ring-2 ring-emerald-400/30 ring-offset-1 ring-offset-transparent", textCls: "text-emerald-400" },
-  PAUSED:               { dot: "bg-amber-400",                              textCls: "text-amber-400" },
-  RESTRICTED:           { dot: "bg-rose-500",                               textCls: "text-rose-400" },
-  SUSPENDED:            { dot: "bg-rose-400",                               textCls: "text-rose-400" },
-  RETIRED:              { dot: "bg-slate-500",                              textCls: "text-slate-500" },
-};
-
-function AgentStatusBadge({ status }: { status: string }) {
-  const key = (status || "").toUpperCase();
-  const meta = STATUS_META[key] || { dot: "bg-slate-400", textCls: "text-foreground-muted" };
-  const label = STATUS_LABELS[key] || status || "—";
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot} ${meta.ring ?? ""}`} />
-      <span className={`text-xs font-medium ${meta.textCls}`}>{label}</span>
-    </div>
-  );
-}
-
-function AgentTypeBadge({ ts }: { ts: ReturnType<typeof getTypeStyle> }) {
-  const TypeIcon = ts.icon;
-  return (
-    <div className={`inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 ${ts.chipBg}`}>
-      <TypeIcon className={`h-3 w-3 shrink-0 ${ts.textCls}`} />
-      <span className={`text-[11px] font-medium ${ts.textCls}`}>{ts.label}</span>
-    </div>
-  );
-}
-
-function AgentAvatar({ ts }: { ts: ReturnType<typeof getTypeStyle> }) {
-  const TypeIcon = ts.icon;
-  return (
-    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ts.avatarBg}`}>
-      <TypeIcon className="h-4 w-4 text-white" />
-    </div>
-  );
-}
-
-function AgentIdCell({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
-  const short = id.slice(0, 8);
-  const copy = (e: { stopPropagation(): void }) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(id).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <div className="group/id flex items-center gap-1">
-      <span className="font-mono text-xs text-[var(--foreground-muted)]">{short}</span>
-      <button
-        onClick={copy}
-        title="Copy full ID"
-        className="rounded p-0.5 text-foreground-muted opacity-0 transition group-hover/id:opacity-100 hover:text-foreground"
-      >
-        {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-      </button>
-    </div>
-  );
-}
-
+// ── Main Page ───────────────────────────────────────────────────────────────
 export default function StudioPage() {
   const { role } = useRoleContext();
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -239,144 +245,75 @@ export default function StudioPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
-  const [brandFilter, setBrandFilter] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState("");
-  const [channelFilter, setChannelFilter] = useState("");
-  const [workflowFilter, setWorkflowFilter] = useState("");
-  const [knowledgeFilter, setKnowledgeFilter] = useState("");
   const [environmentFilter, setEnvironmentFilter] = useState("");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [activeGroup, setActiveGroup] = useState<"all" | GroupKey>("all");
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [importTemplateData, setImportTemplateData] = useState<Record<string, unknown> | undefined>(undefined);
   const importFileRef = useRef<HTMLInputElement>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [actionLoading, setActionLoading] = useState<Record<string, string>>(
-    {},
-  );
-  const [safetyCheckLoading, setSafetyCheckLoading] = useState<string | null>(
-    null,
-  );
-  const [evidenceExportLoading, setEvidenceExportLoading] = useState<
-    string | null
-  >(null);
+  const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
+  const [safetyCheckLoading, setSafetyCheckLoading] = useState<string | null>(null);
 
-  // ── Dismissed retired agents. Retirement preserves the audit record in the
-  //    DB (Doc 5 §5/§14 — retired agents must never be hard-deleted), but an
-  //    operator may want to clear a retired agent's disabled card out of their
-  //    view. We track dismissed IDs client-side and persist them so the view
-  //    stays clean across reloads. They reappear via the RETIRED status filter
-  //    or "Show dismissed".
   const DISMISSED_KEY = "zv:dismissedRetiredAgents";
   const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
     try {
       const raw = window.localStorage.getItem(DISMISSED_KEY);
       return raw ? (JSON.parse(raw) as string[]) : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   });
 
   const persistDismissed = useCallback((ids: string[]) => {
     if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
-    } catch {
-      // localStorage unavailable (private mode / quota) — dismiss stays
-      // in-memory for this session only.
-    }
+    try { window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
   }, []);
 
-  const dismissRetiredAgent = useCallback(
-    (agent: Agent) => {
-      if (agent.status !== "RETIRED") return;
-      setDismissedIds((current) => {
-        if (current.includes(agent.id)) return current;
-        const next = [...current, agent.id];
-        persistDismissed(next);
-        return next;
-      });
-    },
-    [persistDismissed],
-  );
-
-  const restoreDismissedAgents = useCallback(() => {
-    setDismissedIds([]);
-    persistDismissed([]);
-  }, [persistDismissed]);
-
   const normalizedRole = (role || "").toUpperCase();
-  const canManageAuthority =
-    isSuperadmin ||
-    [
-      "ADMIN",
-      "WORKSPACE_OWNER",
-      "AGENT_ARCHITECT",
-      "GOVERNANCE_ADMIN",
-    ].includes(normalizedRole);
+  const canManageAuthority = isSuperadmin ||
+    ["ADMIN", "WORKSPACE_OWNER", "AGENT_ARCHITECT", "GOVERNANCE_ADMIN"].includes(normalizedRole);
 
-  const fetchAgents = useCallback(
-    async (
-      targetWorkspaceId?: string | null,
-      options?: { silent?: boolean },
-    ) => {
-      const activeWorkspace = targetWorkspaceId || workspaceId;
-      // Silent refresh (after an action) updates data in place without the
-      // full-page loading skeleton, so cloning/retiring/etc. don't visually
-      // reload the entire UI.
-      const silent = options?.silent === true;
-      try {
-        if (!silent) setLoading(true);
-        setError(null);
-        if (!activeWorkspace && !isSuperadmin) {
-          setAgents([]);
-          setError("Workspace context is not available yet for Agent Studio.");
-          return;
-        }
-        const params = new URLSearchParams();
-        if (activeWorkspace) params.set("workspaceId", activeWorkspace);
-        if (statusFilter) params.set("status", statusFilter);
-        if (riskFilter) params.set("risk_level", riskFilter);
-        const qs = params.toString();
-        const result = await api.get(`/api/v1/agents${qs ? `?${qs}` : ""}`);
-        if (result.success && Array.isArray(result.data)) {
-          setAgents(result.data);
-        } else {
-          setError(
-            typeof result.error === "string"
-              ? result.error
-              : "Unable to load the governed agent catalog.",
-          );
-          setAgents([]);
-        }
-      } catch {
-        setError(
-          "Live agent registry unavailable. Check your authentication and backend connection.",
-        );
+  const fetchAgents = useCallback(async (
+    targetWorkspaceId?: string | null,
+    options?: { silent?: boolean },
+  ) => {
+    const activeWorkspace = targetWorkspaceId || workspaceId;
+    const silent = options?.silent === true;
+    try {
+      if (!silent) setLoading(true);
+      setError(null);
+      if (!activeWorkspace && !isSuperadmin) {
         setAgents([]);
-      } finally {
-        if (!silent) setLoading(false);
+        return;
       }
-    },
-    [workspaceId, statusFilter, riskFilter, isSuperadmin],
-  );
+      const params = new URLSearchParams();
+      if (activeWorkspace) params.set("workspaceId", activeWorkspace);
+      if (statusFilter) params.set("status", statusFilter);
+      if (riskFilter) params.set("risk_level", riskFilter);
+      const qs = params.toString();
+      const result = await api.get(`/api/v1/agents${qs ? `?${qs}` : ""}`);
+      if (result.success && Array.isArray(result.data)) {
+        setAgents(result.data);
+      } else {
+        setError(typeof result.error === "string" ? result.error : "Unable to load the governed agent catalog.");
+        setAgents([]);
+      }
+    } catch {
+      setError("Live agent registry unavailable. Check your authentication and backend connection.");
+      setAgents([]);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [workspaceId, statusFilter, riskFilter, isSuperadmin]);
 
   useEffect(() => {
     const init = async () => {
       try {
         const context = await api.get("/api/v1/user/context");
-        const nextWorkspaceId = context?.data?.workspace_id || null;
-        const nextIsSuperadmin = Boolean(context?.data?.is_superadmin);
-        setWorkspaceId(nextWorkspaceId);
-        setIsSuperadmin(nextIsSuperadmin);
-        // Note: the secondary useEffect below triggers fetchAgents once the
-        // workspaceId / isSuperadmin state has settled, so we don't need to
-        // call it directly here (which would use a stale closure).
+        setWorkspaceId(context?.data?.workspace_id || null);
+        setIsSuperadmin(Boolean(context?.data?.is_superadmin));
       } catch {
         setError("Unable to load workspace context for Agent Studio.");
-        setAgents([]);
         setLoading(false);
       }
     };
@@ -387,460 +324,159 @@ export default function StudioPage() {
     if (workspaceId || isSuperadmin) fetchAgents(workspaceId);
   }, [workspaceId, isSuperadmin, statusFilter, riskFilter, fetchAgents]);
 
-  const getAutonomyStyle = useCallback((level: string) => {
-    const color = AUTONOMY_COLOR[level] || AUTONOMY_COLOR.L0;
-    return `${color.text} ${color.bg} ${color.border}`;
-  }, []);
-
-  // Production readiness checklist — 10 mandatory gates
   const getReadiness = useCallback((agent: Agent) => {
     const checks = [
-      Boolean(agent.primary_dri),
-      Boolean(agent.backup_dri),
-      Boolean(agent.assigned_brand),
-      Boolean(agent.linked_prompts?.length),
-      Boolean(agent.linked_workflows?.length),
-      Boolean(agent.linked_knowledge_sources?.length),
-      Boolean(agent.linked_channels?.length),
-      (agent.trust_score || 0) >= 0.7,
-      (agent.faithfulness_score || 0) >= 0.85,
+      Boolean(agent.primary_dri), Boolean(agent.backup_dri), Boolean(agent.assigned_brand),
+      Boolean(agent.linked_prompts?.length), Boolean(agent.linked_workflows?.length),
+      Boolean(agent.linked_knowledge_sources?.length), Boolean(agent.linked_channels?.length),
+      (agent.trust_score || 0) >= 0.7, (agent.faithfulness_score || 0) >= 0.85,
       agent.status !== "RETIRED" && agent.status !== "DRAFT",
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, []);
-
-  // Next action per lifecycle state (spec Section 5 + 6.1)
-  const getNextAction = useCallback(
-    (agent: Agent) => {
-      if (agent.status === "DRAFT") return "Complete Setup";
-      if (agent.status === "PENDING_CERTIFICATION") return "Run Certification";
-      if (agent.status === "IN_REVIEW") return "Await Approval";
-      if (agent.status === "APPROVED") return "Deploy";
-      if (agent.status === "PAUSED") return "Resume";
-      if (agent.status === "RESTRICTED" || agent.status === "SUSPENDED")
-        return "Review Alert";
-      if (agent.status === "RETIRED") return "Clone";
-      if (getReadiness(agent) < 80) return "Run Tests";
-      if (agent.status === "ACTIVE") return "Export Evidence";
-      return "Open Agent";
-    },
-    [getReadiness],
-  );
-
-  const getNextActionDescription = useCallback((agent: Agent) => {
-    if (agent.status === "DRAFT")
-      return "Complete identity, bindings, and sandbox tests before submitting for certification.";
-    if (agent.status === "PENDING_CERTIFICATION")
-      return "Run the Certification Sandbox to build a trust score before submitting for approval.";
-    if (agent.status === "IN_REVIEW")
-      return "Approvers, governance evidence, and compliance checks are pending.";
-    if (agent.status === "APPROVED")
-      return "Deployment is allowed within the selected environment.";
-    if (agent.status === "ACTIVE")
-      return "Monitor runtime posture and preserve evidence continuity.";
-    if (agent.status === "PAUSED")
-      return "Resume only after the triggering concern is resolved.";
-    if (["RESTRICTED", "SUSPENDED"].includes(agent.status))
-      return "Investigate risk signals and review the full evidence trail.";
-    if (agent.status === "RETIRED")
-      return "This agent is archived. Clone it to create a new governed draft.";
-    return "Review the agent profile and address any incomplete governance setup items.";
-  }, []);
-
-  const getResourceCount = useCallback((agent: Agent) => {
-    return (
-      (agent.linked_prompts?.length || 0) +
-      (agent.linked_workflows?.length || 0) +
-      (agent.linked_policies?.length || 0) +
-      (agent.linked_knowledge_sources?.length || 0)
-    );
-  }, []);
-
 
   const openSandbox = useCallback((agent: Agent) => {
     setSelectedAgent(agent);
     setIsSandboxOpen(true);
   }, []);
 
-  // ── Evidence Export — /api/v1/agents/:id/evidence ──────────────────────────
-  const handleExportEvidence = async (agent: Agent) => {
-    setEvidenceExportLoading(agent.id);
-    setError(null);
-    try {
-      const res = await api.get(`/api/v1/agents/${agent.id}/evidence`);
-      if (res.success) {
-        // Backend returns `data` as an array of evidence bundles. Surface the
-        // most recent bundle's id (first item, ordered DESC server-side) or a
-        // count fallback when the array is empty.
-        const bundles = Array.isArray(res.data) ? res.data : [];
-        const headline =
-          bundles[0]?.bundle_id ||
-          bundles[0]?.id ||
-          (bundles.length > 0 ? `${bundles.length} bundles` : "generated");
-        setSuccessMsg(
-          `Evidence bundle exported for "${agent.name}". Bundle ID: ${headline}`,
-        );
-        setTimeout(() => setSuccessMsg(null), 6000);
-      } else {
-        setError(
-          `Evidence export failed for "${agent.name}". Check your permissions.`,
-        );
-      }
-    } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : `Evidence export failed for "${agent.name}".`;
-      setError(msg);
-    } finally {
-      setEvidenceExportLoading(null);
-    }
-  };
-
-  // ── Safety Check Runner — /api/v1/agents/:id/safety-checks/run ─────────────
   const handleRunSafetyChecks = async (agent: Agent) => {
     setSafetyCheckLoading(agent.id);
     setError(null);
     try {
-      const res = await api.post(
-        `/api/v1/agents/${agent.id}/safety-checks/run`,
-        {
-          content:
-            agent.purpose ||
-            `${agent.name} safety verification run from Agent Studio.`,
-        },
-      );
+      const res = await api.post(`/api/v1/agents/${agent.id}/safety-checks/run`, {
+        content: agent.purpose || `${agent.name} safety verification run from Agent Studio.`,
+      });
       if (res.success) {
-        setSuccessMsg(
-          `Safety checks initiated for "${agent.name}". Results will update in the agent profile.`,
-        );
+        setSuccessMsg(`Safety checks initiated for "${agent.name}".`);
         setTimeout(() => setSuccessMsg(null), 6000);
         await fetchAgents(workspaceId, { silent: true });
       } else {
         setError(`Safety check failed to start for "${agent.name}".`);
       }
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : `Safety check error for "${agent.name}".`;
-      setError(msg);
+      setError(err instanceof Error ? err.message : `Safety check error for "${agent.name}".`);
     } finally {
       setSafetyCheckLoading(null);
     }
   };
 
-  // ── Governance Gate Pre-Deploy Check — /api/v1/agents/:id/governance-gates ─
   const checkGovernanceGatesAndDeploy = async (agent: Agent) => {
     setActionLoading((c) => ({ ...c, [agent.id]: "deploy" }));
     setError(null);
     try {
-      // Step 1: Validate governance gates before deploy — gate API failure MUST block deploy
       let gatesRes: Awaited<ReturnType<typeof api.get>> | null = null;
-      try {
-        gatesRes = await api.get(`/api/v1/agents/${agent.id}/governance-gates`);
-      } catch {
-        setError(
-          "Governance-gate check failed. Cannot proceed with deploy until gates are verifiable.",
-        );
-        return;
-      }
+      try { gatesRes = await api.get(`/api/v1/agents/${agent.id}/governance-gates`); }
+      catch { setError("Governance-gate check failed. Cannot proceed with deploy."); return; }
       if (gatesRes?.data) {
-        const gates = gatesRes.data;
-        const blockingFailed = (gates.failed_gates || []).filter(
-          (g: { blocking: boolean }) => g.blocking,
-        );
+        const blockingFailed = (gatesRes.data.failed_gates || []).filter((g: { blocking: boolean }) => g.blocking);
         if (blockingFailed.length > 0) {
-          const gateNames = blockingFailed
-            .map((g: { name: string }) => g.name)
-            .join(", ");
-          setError(
-            `Deploy blocked: ${blockingFailed.length} governance gate(s) failed — ${gateNames}. Resolve before deploying.`,
-          );
+          setError(`Deploy blocked: ${blockingFailed.length} governance gate(s) failed.`);
           return;
         }
       }
-      // Step 2: Proceed with deploy
-      const env =
-        environmentFilter ||
-        agent.runtime_controls?.environment ||
-        "production";
+      const env = environmentFilter || agent.runtime_controls?.environment || "production";
       await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId, { silent: true });
     } catch (deployErr) {
-      const msg =
-        deployErr instanceof Error
-          ? deployErr.message
-          : `Deploy failed for "${agent.name}".`;
-      setError(msg);
+      setError(deployErr instanceof Error ? deployErr.message : `Deploy failed for "${agent.name}".`);
     } finally {
-      setActionLoading((c) => {
-        const n = { ...c };
-        delete n[agent.id];
-        return n;
-      });
+      setActionLoading((c) => { const n = { ...c }; delete n[agent.id]; return n; });
     }
   };
 
   const runAgentAction = async (
     agent: Agent,
-    action:
-      | "approval"
-      | "deploy"
-      | "pause"
-      | "resume"
-      | "retire"
-      | "clone"
-      | "rollback"
-      | "delete",
+    action: "approval" | "deploy" | "pause" | "resume" | "retire" | "clone" | "rollback" | "delete",
   ) => {
     try {
-      setActionLoading((current) => ({ ...current, [agent.id]: action }));
+      setActionLoading((c) => ({ ...c, [agent.id]: action }));
       let result;
-
       if (action === "rollback") {
         const versionsRes = await api.get(`/api/v1/agents/${agent.id}/versions`);
-        const versions = Array.isArray(versionsRes?.versions)
-          ? versionsRes.versions
-          : [];
-        const targetVersion = versions[0]?.id;
-
-        if (!targetVersion) {
-          setError(
-            `Rollback unavailable for "${agent.name}" because no prior version history exists yet.`,
-          );
-          return;
-        }
-
-        result = await api.post(`/api/v1/agents/${agent.id}/rollback`, {
-          version_id: targetVersion,
-        });
+        const versions = Array.isArray(versionsRes?.versions) ? versionsRes.versions : [];
+        if (!versions[0]?.id) { setError(`Rollback unavailable for "${agent.name}".`); return; }
+        result = await api.post(`/api/v1/agents/${agent.id}/rollback`, { version_id: versions[0].id });
       } else if (action === "approval") {
-        result = await api.post(`/api/v1/agents/${agent.id}/approval/request`, {
-          notes: `Approval requested from Agent Studio for ${agent.name}.`,
-        });
+        result = await api.post(`/api/v1/agents/${agent.id}/approval/request`, { notes: `Approval requested for ${agent.name}.` });
       } else if (action === "deploy") {
-        result = await api.post(`/api/v1/agents/${agent.id}/deploy`, {
-          environment:
-            environmentFilter ||
-            agent.runtime_controls?.environment ||
-            "production",
-        });
+        result = await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: environmentFilter || agent.runtime_controls?.environment || "production" });
       } else if (action === "pause") {
-        result = await api.post(`/api/v1/agents/${agent.id}/pause`, {
-          reason: `Paused from Agent Studio for ${agent.name}.`,
-        });
+        result = await api.post(`/api/v1/agents/${agent.id}/pause`, { reason: `Paused from Agent Studio.` });
       } else if (action === "resume") {
-        result = await api.post(`/api/v1/agents/${agent.id}/resume`, {
-          reason: `Resumed from Agent Studio for ${agent.name}.`,
-        });
+        result = await api.post(`/api/v1/agents/${agent.id}/resume`, { reason: `Resumed from Agent Studio.` });
       } else if (action === "retire") {
-        result = await api.post(`/api/v1/agents/${agent.id}/retire`, {
-          reason: `Retired from Agent Studio for ${agent.name}.`,
-        });
+        result = await api.post(`/api/v1/agents/${agent.id}/retire`, { reason: `Retired from Agent Studio.` });
       } else if (action === "delete") {
-        if (!window.confirm(`Permanently delete "${agent.name}" from the database? This cannot be undone.`)) return;
+        if (!window.confirm(`Permanently delete "${agent.name}"?`)) return;
         result = await api.delete(`/api/v1/agents/${agent.id}`);
       } else {
         result = await api.post(`/api/v1/agents/${agent.id}/clone`, {});
       }
-
       if (!result?.success) {
-        setError(
-          typeof result?.error === "string"
-            ? result.error
-            : `Unable to ${action} ${agent.name}.`,
-        );
+        setError(typeof result?.error === "string" ? result.error : `Unable to ${action} ${agent.name}.`);
         return;
       }
-
-      const actionMessages: Record<string, string> = {
-        approval: `"${agent.name}" was submitted into the approval workflow.`,
+      const msgs: Record<string, string> = {
+        approval: `"${agent.name}" submitted into the approval workflow.`,
         deploy: `"${agent.name}" deployed successfully.`,
         pause: `"${agent.name}" is now paused.`,
         resume: `"${agent.name}" resumed successfully.`,
         retire: `"${agent.name}" was retired and preserved for audit.`,
         clone: `"${agent.name}" was cloned into a new draft.`,
-        rollback: `"${agent.name}" rolled back to the latest approved version snapshot.`,
+        rollback: `"${agent.name}" rolled back to the latest approved version.`,
         delete: `"${agent.name}" permanently deleted.`,
       };
-      setSuccessMsg(actionMessages[action]);
+      setSuccessMsg(msgs[action]);
       setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId, { silent: true });
-      if (selectedAgent?.id === agent.id) {
-        setSelectedAgent((current) =>
-          current
-            ? {
-                ...current,
-                status:
-                  action === "pause"
-                    ? "PAUSED"
-                    : action === "resume"
-                      ? "ACTIVE"
-                    : action === "retire"
-                      ? "RETIRED"
-                      : current.status,
-              }
-            : current,
-        );
-      }
     } catch (actionError) {
-      const message =
-        actionError instanceof Error
-          ? actionError.message
-          : `Unable to ${action} ${agent.name}.`;
-      setError(message);
+      setError(actionError instanceof Error ? actionError.message : `Unable to ${action} ${agent.name}.`);
     } finally {
-      setActionLoading((current) => {
-        const next = { ...current };
-        delete next[agent.id];
-        return next;
-      });
+      setActionLoading((c) => { const n = { ...c }; delete n[agent.id]; return n; });
     }
   };
 
-  const hasFilters = Boolean(
-    searchTerm ||
-    statusFilter ||
-    riskFilter ||
-    brandFilter ||
-    ownerFilter ||
-    channelFilter ||
-    workflowFilter ||
-    knowledgeFilter ||
-    environmentFilter,
-  );
-
-  const brandOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(agents.map((a) => a.assigned_brand).filter(Boolean)),
-      ) as string[],
-    [agents],
-  );
-
-  const ownerOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(agents.map((a) => a.primary_dri?.full_name).filter(Boolean)),
-      ) as string[],
-    [agents],
-  );
-
-  const channelOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(agents.flatMap((a) => a.linked_channels || [])),
-      ).sort(),
-    [agents],
-  );
-
-  const workflowOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(agents.flatMap((a) => a.linked_workflows || [])),
-      ).sort(),
-    [agents],
-  );
-
-  const knowledgeOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(agents.flatMap((a) => a.linked_knowledge_sources || [])),
-      ).sort(),
-    [agents],
-  );
-
-  const filteredAgents = useMemo(() => {
-    return agents.filter((agent) => {
-      // Hide retired agents the operator has dismissed from their view.
-      // They remain in the DB and return via the RETIRED filter / "Show dismissed".
-      if (dismissedIds.includes(agent.id)) return false;
-      const matchesSearch =
-        !searchTerm ||
-        normalizeText(agent.name).includes(normalizeText(searchTerm)) ||
-        normalizeText(agent.type).includes(normalizeText(searchTerm)) ||
-        normalizeText(agent.primary_dri?.full_name).includes(
-          normalizeText(searchTerm),
-        ) ||
-        normalizeText(agent.assigned_brand).includes(normalizeText(searchTerm));
-      // Defensive case-insensitive match: agent.status may be stored as
-      // uppercase or lowercase depending on which code path created the row.
-      const matchesStatus =
-        !statusFilter ||
-        String(agent.status || "").toUpperCase() === statusFilter.toUpperCase();
-      const matchesRisk =
-        !riskFilter || normalizeText(agent.risk_level) === riskFilter;
-      const matchesBrand = !brandFilter || agent.assigned_brand === brandFilter;
-      const matchesOwner =
-        !ownerFilter || agent.primary_dri?.full_name === ownerFilter;
-      const matchesChannel =
-        !channelFilter || (agent.linked_channels || []).includes(channelFilter);
-      const matchesWorkflow =
-        !workflowFilter ||
-        (agent.linked_workflows || []).includes(workflowFilter);
-      const matchesKnowledge =
-        !knowledgeFilter ||
-        (agent.linked_knowledge_sources || []).includes(knowledgeFilter);
-      const matchesEnvironment =
-        !environmentFilter ||
-        agent.runtime_controls?.environment === environmentFilter;
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesRisk &&
-        matchesBrand &&
-        matchesOwner &&
-        matchesChannel &&
-        matchesWorkflow &&
-        matchesKnowledge &&
-        matchesEnvironment
-      );
-    });
-  }, [
-    agents,
-    brandFilter,
-    channelFilter,
-    dismissedIds,
-    environmentFilter,
-    knowledgeFilter,
-    ownerFilter,
-    riskFilter,
-    searchTerm,
-    statusFilter,
-    workflowFilter,
-  ]);
-
-  // Summary stats — spec Section 3: Active Agents | Certifications | Avg Trust Score | Risk Alerts
+  // ── Derived data ──────────────────────────────────────────────────────────
   const summary = useMemo(() => {
     const active = agents.filter((a) => a.status === "ACTIVE").length;
-    const certified = agents.filter((a) =>
-      ["APPROVED", "ACTIVE"].includes(a.status),
-    ).length;
-    const riskAlerts = agents.filter((a) =>
-      ["RESTRICTED", "SUSPENDED", "IN_REVIEW", "PAUSED"].includes(a.status),
-    ).length;
-    const avgTrust = agents.length
-      ? `${Math.round(
-          (agents.reduce((sum, a) => sum + (a.trust_score || 0), 0) /
-            agents.length) *
-            100,
-        )}%`
-      : "—";
-    const governanceDebt = agents.filter((a) => getReadiness(a) < 80).length;
-    return { active, certified, riskAlerts, avgTrust, governanceDebt };
-  }, [agents, getReadiness]);
+    const certified = agents.filter((a) => ["APPROVED", "ACTIVE"].includes(a.status)).length;
+    const riskAlerts = agents.filter((a) => ["RESTRICTED", "SUSPENDED", "IN_REVIEW", "PAUSED"].includes(a.status)).length;
+    const avgTrustPct = agents.length
+      ? Math.round((agents.reduce((s, a) => s + (a.trust_score || 0), 0) / agents.length) * 100)
+      : 0;
+    return { active, certified, riskAlerts, avgTrustPct };
+  }, [agents]);
 
+  const groupedAgents = useMemo(() => {
+    const search = searchTerm.toLowerCase();
+    const base = agents.filter((a) => {
+      if (dismissedIds.includes(a.id)) return false;
+      if (!search) return true;
+      return (
+        normalizeText(a.name).includes(search) ||
+        normalizeText(a.purpose).includes(search) ||
+        normalizeText(a.type).includes(search)
+      );
+    });
+    const governance = base.filter((a) => getGroupCategory(a.type, a.name) === "governance");
+    const content    = base.filter((a) => getGroupCategory(a.type, a.name) === "content");
+    const safety     = base.filter((a) => getGroupCategory(a.type, a.name) === "safety");
+    return { governance, content, safety, all: base };
+  }, [agents, searchTerm, dismissedIds]);
+
+  const visibleGroups: GroupKey[] = activeGroup === "all"
+    ? (["governance", "content", "safety"] as GroupKey[])
+    : [activeGroup];
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-5 mx-auto max-w-[1850px] space-y-5">
-      {/* Hidden file input for Import Template */}
+      {/* Hidden file input */}
       <input
-        ref={importFileRef}
-        type="file"
-        accept=".json"
-        className="hidden"
+        ref={importFileRef} type="file" accept=".json" className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (!file) return;
@@ -848,17 +484,14 @@ export default function StudioPage() {
           reader.onload = (ev) => {
             try {
               const parsed = JSON.parse(ev.target?.result as string);
-              if (typeof parsed !== "object" || Array.isArray(parsed)) {
-                throw new Error("Template must be a JSON object.");
-              }
+              if (typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Template must be a JSON object.");
               setImportTemplateData(parsed);
               setIsWizardOpen(true);
-            } catch (err: any) {
-              setError(`Invalid template file: ${err?.message || "Not valid JSON."}`);
+            } catch (err: unknown) {
+              setError(`Invalid template file: ${err instanceof Error ? err.message : "Not valid JSON."}`);
             }
           };
           reader.readAsText(file);
-          // Reset so the same file can be re-imported
           e.target.value = "";
         }}
       />
@@ -872,8 +505,6 @@ export default function StudioPage() {
 
       {selectedAgent && isSandboxOpen && (
         <CertificationSandbox
-          // Fresh instance per agent (and per open) so one agent's sandbox
-          // run never leaks into another's — internal run state is reset.
           key={selectedAgent.id}
           isOpen={isSandboxOpen}
           onClose={() => setIsSandboxOpen(false)}
@@ -881,292 +512,218 @@ export default function StudioPage() {
           agentName={selectedAgent.name}
           currentLevel={selectedAgent.autonomy_level}
           onCertified={(newLevel, newTrustScore, newFaithfulnessScore) => {
-            // Optimistic local update — works even when backend is mock/unavailable
-            setAgents((prev) =>
-              prev.map((a) =>
-                a.id === selectedAgent?.id
-                  ? {
-                      ...a,
-                      autonomy_level: newLevel,
-                      trust_score: newTrustScore,
-                      faithfulness_score: newFaithfulnessScore,
-                    }
-                  : a,
-              ),
-            );
-            // Also update selectedAgent so AgentDetailsDrawer reflects the change immediately
-            setSelectedAgent((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    autonomy_level: newLevel,
-                    trust_score: newTrustScore,
-                    faithfulness_score: newFaithfulnessScore,
-                  }
-                : prev,
-            );
-            // Then re-fetch in background to sync with server
+            setAgents((prev) => prev.map((a) =>
+              a.id === selectedAgent?.id
+                ? { ...a, autonomy_level: newLevel, trust_score: newTrustScore, faithfulness_score: newFaithfulnessScore }
+                : a,
+            ));
+            setSelectedAgent((prev) => prev ? { ...prev, autonomy_level: newLevel, trust_score: newTrustScore, faithfulness_score: newFaithfulnessScore } : prev);
             fetchAgents(workspaceId);
           }}
         />
       )}
 
-
-
-      {/* ── Header Command Bar ── */}
-      <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-6 shadow-sm">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-indigo-500">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Authority Layer
-              </div>
-              <div className="flex items-center gap-3">
-                <Bot className="h-8 w-8 text-indigo-500" />
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
-                    Agent Studio
-                  </h1>
-                  <p className="text-sm text-[var(--foreground-muted)]">
-                    Governed identity, certification, runtime control, and
-                    evidence for every agent in this workspace.
-                  </p>
-                </div>
-              </div>
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/25 bg-teal-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-teal-400">
+            AUTHORITY LAYER
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/10">
+              <Lock className="h-5 w-5 text-teal-400" />
             </div>
-
-            {/* Action buttons — Kill Switch, Refresh, Import Template (Hire removed: fixed 6-agent catalog) */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => fetchAgents(workspaceId)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
-              {/* "Hire New Agent" removed — the Studio is a fixed catalog of the
-                  6 governed post-validation agents. New agents are not created here. */}
-              <button
-                onClick={() => importFileRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
-                title="Import an agent template JSON file"
-              >
-                <Upload className="h-4 w-4" />
-                Import Template
-              </button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">Agent Studio</h1>
+              <p className="text-sm text-[var(--foreground-muted)]">
+                Governed identity, certification, runtime control, and evidence for every agent in this workspace.
+              </p>
             </div>
           </div>
-
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-1">
+          <button
+            onClick={() => fetchAgents(workspaceId)}
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-teal-500/30 hover:text-teal-400"
+          >
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </button>
         </div>
       </div>
 
+      {/* ── Alerts ── */}
       {error && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-500">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError(null)}><X className="h-4 w-4" /></button>
+        </div>
+      )}
+      {successMsg && (
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+          <Check className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{successMsg}</span>
         </div>
       )}
 
-      {/* ── Stats Row — spec: Active Agents | Certifications | Avg Trust Score | Risk Alerts ── */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: "Active Agents",
-            value: summary.active,
-            icon: PlayCircle,
-            tone: "text-emerald-500",
-            border: "border-emerald-500/10",
-            bg: "bg-emerald-500/5",
-          },
-          {
-            label: "Certifications",
-            value: summary.certified,
-            icon: Award,
-            tone: "text-indigo-500",
-            border: "border-indigo-500/10",
-            bg: "bg-indigo-500/5",
-          },
-          {
-            label: "Avg Trust Score",
-            value: summary.avgTrust,
-            icon: ShieldCheck,
-            tone: "text-sky-500",
-            border: "border-sky-500/10",
-            bg: "bg-sky-500/5",
-          },
-          {
-            label: "Risk Alerts",
-            value: summary.riskAlerts,
-            icon: ShieldAlert,
-            tone: "text-rose-500",
-            border: "border-rose-500/10",
-            bg: "bg-rose-500/5",
-          },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className={`rounded-3xl border ${card.border} ${card.bg} p-5`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">
-                  {card.label}
-                </div>
-                <div className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-                  {card.value}
-                </div>
-              </div>
-              <div
-                className={`rounded-2xl bg-[var(--background)] p-3 ${card.tone}`}
-              >
-                <card.icon className="h-5 w-5" />
-              </div>
-            </div>
+      {/* ── Stats Row ── */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {/* Trust Score Ring */}
+        <div className="flex items-center gap-5 rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
+          <TrustScoreRing percent={summary.avgTrustPct} />
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">AVG TRUST SCORE</div>
+            <div className="mt-1 text-sm text-[var(--foreground-muted)]">Across {summary.certified} certified agents</div>
           </div>
-        ))}
+        </div>
+        {/* Active Agents */}
+        <div className="flex flex-col justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">ACTIVE AGENTS</div>
+          <div className="mt-2 text-4xl font-bold text-[var(--foreground)]">{summary.active}</div>
+          <div className="mt-1 text-sm text-[var(--foreground-muted)]">All running live</div>
+        </div>
+        {/* Certifications */}
+        <div className="flex flex-col justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">CERTIFICATIONS</div>
+          <div className="mt-2 text-4xl font-bold text-[var(--foreground)]">{summary.certified}</div>
+          <div className="mt-1 text-sm text-[var(--foreground-muted)]">Up to date</div>
+        </div>
+        {/* Risk Alerts */}
+        <div className="flex flex-col justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] p-5">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--foreground-muted)]">RISK ALERTS</div>
+          <div className="mt-2 text-4xl font-bold text-[var(--foreground)]">{summary.riskAlerts}</div>
+          <div className={`mt-1 flex items-center gap-1.5 text-sm ${summary.riskAlerts === 0 ? "text-emerald-400" : "text-rose-400"}`}>
+            {summary.riskAlerts === 0 && <Check className="h-3.5 w-3.5" />}
+            {summary.riskAlerts === 0 ? "Nothing needs attention" : `${summary.riskAlerts} item${summary.riskAlerts !== 1 ? "s" : ""} need attention`}
+          </div>
+        </div>
       </div>
 
-      {/* ── Agent Catalog ── */}
-      {loading ? (
-        <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-8">
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((row) => (
-              <div
-                key={row}
-                className="h-16 animate-pulse rounded-2xl bg-[var(--background)]"
-              />
-            ))}
-          </div>
+      {/* ── Validation Pipeline ── */}
+      <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--surface)] p-6">
+        <div className="mb-6 flex items-baseline gap-2">
+          <span className="text-sm font-semibold text-[var(--foreground)]">Validation pipeline</span>
+          <span className="text-sm text-[var(--foreground-muted)]">— the order a post typically clears before it publishes</span>
         </div>
-      ) : filteredAgents.length === 0 ? (
-        /* ── Empty State — spec Section 11 + 8 required templates ── */
-        <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-500">
-            <Bot className="h-8 w-8" />
-          </div>
-          <h2 className="mt-5 text-2xl font-bold text-[var(--foreground)]">
-            {agents.length === 0
-              ? "Build your first governed agent"
-              : "No agents match the current filters"}
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-[var(--foreground-muted)]">
-            {agents.length === 0
-              ? "Agent Studio is the governed workspace for creating, certifying, approving, deploying, pausing, retiring, and evidencing AI agents. Start from a safe template — every agent must have an owner, approved prompt, workflow assignment, and evidence trail before going live."
-              : "Try adjusting the authority filters to see the governed validation agents."}
-          </p>
-          <div className="mx-auto mt-8 grid max-w-5xl gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {AGENT_TEMPLATES.slice(0, 8).map((t) => (
-              <div
-                key={t.title}
-                className="rounded-3xl border border-[var(--card-border)] bg-[var(--background)] p-5 text-left"
-              >
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
-                  Template
+        <div className="flex items-start">
+          {PIPELINE_STEPS.map((step, i) => (
+            <div key={step.title} className="flex flex-1 items-start">
+              <div className="flex flex-1 flex-col items-center gap-2 px-1 text-center">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${step.bg}`}>
+                  <step.icon className={`h-5 w-5 ${step.iconCls}`} />
                 </div>
-                <div className="mt-4 text-sm font-bold text-[var(--foreground)]">
-                  {t.title}
-                </div>
-                <p className="mt-2 text-xs text-[var(--foreground-muted)]">
-                  {t.description}
-                </p>
+                <span className="text-xs font-semibold leading-tight text-[var(--foreground)]">{step.title}</span>
+                <span className="text-[11px] leading-snug text-[var(--foreground-muted)]">{step.desc}</span>
               </div>
-            ))}
-          </div>
-          <button
-            onClick={() => fetchAgents(workspaceId)}
-            className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh Catalog
-          </button>
+              {i < PIPELINE_STEPS.length - 1 && (
+                <span className="mt-4 shrink-0 text-sm text-[var(--foreground-muted)]">—</span>
+              )}
+            </div>
+          ))}
         </div>
-      ) : viewMode === "table" ? (
-        /* ── Table View — Core Identity columns ── */
-        <div className="overflow-hidden rounded-2xl border border-card-border bg-surface">
-          {/* Header */}
-          <div className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 border-b border-card-border bg-background px-6 py-3">
-            {["Agent", "ID", "Type", "Status", "Description"].map((h) => (
-              <span key={h} className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground-muted">{h}</span>
-            ))}
-          </div>
+      </div>
 
-          {/* Rows */}
-          <div className="divide-y divide-card-border">
-            {filteredAgents.map((agent) => {
-              const ts = getTypeStyle(agent.type);
-              return (
-                <div
-                  key={agent.id}
-                  className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 px-6 py-4 transition-colors hover:bg-background"
-                >
-                  {/* 1 — Avatar + Name */}
-                  <div className="flex min-w-0 items-center gap-3">
-                    <AgentAvatar ts={ts} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{agent.name}</p>
-                    </div>
+      {/* ── Tab filters + Search ── */}
+      <div className="flex flex-wrap items-center gap-2">
+          {/* All agents pill */}
+          <button
+            onClick={() => setActiveGroup("all")}
+            className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              activeGroup === "all"
+                ? "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]"
+                : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-teal-400 inline-block" />
+            All agents · {groupedAgents.all.length}
+          </button>
+          {(["governance", "content", "safety"] as GroupKey[]).map((g) => (
+            <button
+              key={g}
+              onClick={() => setActiveGroup(g)}
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                activeGroup === g
+                  ? "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]"
+                  : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full inline-block ${GROUP_META[g].dot}`} />
+              {GROUP_META[g].label} · {groupedAgents[g].length}
+            </button>
+          ))}
+      </div>
+
+      {/* ── Agent Groups ── */}
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-40 animate-pulse rounded-2xl bg-[var(--surface)]" />
+          ))}
+        </div>
+      ) : groupedAgents.all.length === 0 ? (
+        /* Empty State */
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-12 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/10">
+            <Bot className="h-7 w-7 text-teal-400" />
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-[var(--foreground)]">
+            {agents.length === 0 ? "No governed agents yet" : "No agents match your search"}
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-[var(--foreground-muted)]">
+            {agents.length === 0
+              ? "Import a template to get started, or check your backend connection."
+              : "Try a different search term or clear the filter."}
+          </p>
+          {agents.length === 0 && (
+            <div className="mx-auto mt-8 grid max-w-4xl gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {AGENT_TEMPLATES.slice(0, 8).map((t) => (
+                <div key={t.title} className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-4 text-left">
+                  <div className="inline-flex items-center rounded-full border border-teal-500/20 bg-teal-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-teal-400">
+                    Template
                   </div>
-
-                  {/* 2 — ID */}
-                  <AgentIdCell id={agent.id} />
-
-                  {/* 3 — Type */}
-                  <AgentTypeBadge ts={ts} />
-
-                  {/* 4 — Status */}
-                  <AgentStatusBadge status={agent.status} />
-
-                  {/* 5 — Description */}
-                  <p className="text-xs leading-relaxed text-foreground-muted">
-                    {agent.purpose || "—"}
-                  </p>
+                  <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">{t.title}</p>
+                  <p className="mt-1.5 text-xs text-[var(--foreground-muted)]">{t.description}</p>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
-        /* ── List View — Core Identity columns ── */
-        <div className="overflow-hidden rounded-2xl border border-card-border bg-surface">
-          <div className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 border-b border-card-border bg-background px-6 py-3">
-            {["Agent", "ID", "Type", "Status", "Description"].map((h) => (
-              <span key={h} className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground-muted">{h}</span>
-            ))}
-          </div>
-
-          <div className="divide-y divide-card-border">
-            {filteredAgents.map((agent) => {
-              const ts = getTypeStyle(agent.type);
-              return (
-                <div
-                  key={agent.id}
-                  className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 px-6 py-4 transition-colors hover:bg-background"
-                >
-                  {/* 1 — Avatar + Name */}
-                  <div className="flex min-w-0 items-center gap-3">
-                    <AgentAvatar ts={ts} />
-                    <p className="truncate text-sm font-semibold text-foreground">{agent.name}</p>
+        <div className="space-y-8">
+          {visibleGroups.map((g) => {
+            const list = groupedAgents[g];
+            if (list.length === 0) return null;
+            const meta = GROUP_META[g];
+            return (
+              <div key={g} className="space-y-3">
+                {/* Group header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
+                    <span className="text-sm font-semibold text-[var(--foreground)]">{meta.label}</span>
+                    <span className="text-sm text-[var(--foreground-muted)]">
+                      {list.length} agent{list.length !== 1 ? "s" : ""}
+                    </span>
                   </div>
-
-                  {/* 2 — ID */}
-                  <AgentIdCell id={agent.id} />
-
-                  {/* 3 — Type */}
-                  <AgentTypeBadge ts={ts} />
-
-                  {/* 4 — Status */}
-                  <AgentStatusBadge status={agent.status} />
-
-                  {/* 5 — Description */}
-                  <p className="text-xs leading-relaxed text-foreground-muted">{agent.purpose || "—"}</p>
+                  <span className="text-sm text-[var(--foreground-muted)]">{meta.desc}</span>
                 </div>
-              );
-            })}
-          </div>
+                {/* Cards */}
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                  {list.map((agent) => (
+                    <AgentCard
+                      key={agent.id}
+                      agent={agent}
+                      group={g}
+                      onSandbox={openSandbox}
+                      onSafetyCheck={handleRunSafetyChecks}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-
     </div>
   );
 }
