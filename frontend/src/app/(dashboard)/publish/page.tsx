@@ -335,6 +335,7 @@ function PostPreview({
             </div>
           ) : (
             <div className="w-full bg-black flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={currentMedia}
                 alt="preview"

@@ -214,14 +214,12 @@ function ReviewCard({
                   const type = detectMediaType(url);
                   if (type === "video") return (
                     <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-black shrink-0 w-[120px] h-[90px]">
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                       <video src={url} controls className="w-full h-full object-contain" />
                     </div>
                   );
                   if (type === "audio") return (
                     <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 shrink-0 w-[120px] flex flex-col justify-center gap-1">
                       <span className="text-[10px] text-[var(--foreground-muted)] font-medium truncate">Audio {mediaUrls.length > 1 ? i + 1 : ""}</span>
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                       <audio src={url} controls className="w-full h-7" />
                     </div>
                   );
@@ -457,14 +455,12 @@ function ApprovalCard({
                   const type = detectMediaType(url);
                   if (type === "video") return (
                     <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-black shrink-0 w-[120px] h-[90px]">
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                       <video src={url} controls className="w-full h-full object-contain" />
                     </div>
                   );
                   if (type === "audio") return (
                     <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 shrink-0 w-[120px] flex flex-col justify-center gap-1">
                       <span className="text-[10px] text-[var(--foreground-muted)] font-medium truncate">Audio {postMediaUrls.length > 1 ? i + 1 : ""}</span>
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                       <audio src={url} controls className="w-full h-7" />
                     </div>
                   );
