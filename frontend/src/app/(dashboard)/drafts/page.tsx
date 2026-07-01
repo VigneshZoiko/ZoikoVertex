@@ -214,7 +214,7 @@ function DraftCard({
             </button>
             <button
               onClick={() => onDelete(draft.id)}
-              title="Archive draft"
+              title="Delete draft"
               className="w-7 h-7 flex items-center justify-center rounded-lg bg-error-text/10 text-error-text hover:bg-error-text/20 transition-all"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -277,12 +277,12 @@ export default function DraftsPage() {
       const result = await api.delete(`/api/v1/drafts/${id}`);
       if (result.success) {
         setDrafts((prev) => prev.filter((d) => d.id !== id));
-        setMessage({ type: "success", text: "Draft archived" });
+        setMessage({ type: "success", text: "Draft deleted" });
       } else {
-        setMessage({ type: "error", text: result.error || "Failed to archive draft" });
+        setMessage({ type: "error", text: result.error || "Failed to delete draft" });
       }
     } catch {
-      setMessage({ type: "error", text: "Failed to archive draft" });
+      setMessage({ type: "error", text: "Failed to delete draft" });
     }
   };
 
@@ -330,7 +330,6 @@ export default function DraftsPage() {
   }
 
   const activeDrafts = filteredDrafts.filter((d) => d.status === "ACTIVE");
-  const archivedDrafts = filteredDrafts.filter((d) => d.status === "ARCHIVED");
 
   return (
     <div className="max-w-6xl mx-auto pb-20 px-4 sm:px-6">
@@ -346,8 +345,6 @@ export default function DraftsPage() {
             </h1>
             <p className="text-[var(--foreground-muted)] text-sm mt-1 font-medium">
               {activeDrafts.length} saved draft{activeDrafts.length !== 1 ? "s" : ""}
-              {archivedDrafts.length > 0 &&
-                ` · ${archivedDrafts.length} archived`}
             </p>
           </div>
         </div>
@@ -418,35 +415,10 @@ export default function DraftsPage() {
         </div>
       ) : (
         <>
-          {/* Active Drafts */}
           {activeDrafts.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Edit3 className="w-3.5 h-3.5" />
-                Active Drafts
-              </h2>
+            <div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeDrafts.map((draft) => (
-                  <DraftCard
-                    key={draft.id}
-                    draft={draft}
-                    onDelete={handleDelete}
-                    onLoadIntoPublisher={handleLoadIntoPublisher}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Archived Drafts */}
-          {archivedDrafts.length > 0 && (
-            <div>
-              <h2 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Archive className="w-3.5 h-3.5" />
-                Archived
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
-                {archivedDrafts.map((draft) => (
                   <DraftCard
                     key={draft.id}
                     draft={draft}
@@ -463,22 +435,4 @@ export default function DraftsPage() {
   );
 }
 
-// Needed for Archive icon in archived section
-function Archive({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <rect width="20" height="5" x="2" y="3" rx="1" />
-      <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-      <path d="M10 12h4" />
-    </svg>
-  );
-}
+

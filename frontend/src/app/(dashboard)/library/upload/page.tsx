@@ -6,6 +6,7 @@ import {
   Loader2, Image as ImageIcon, Video as VideoIcon,
   ArrowRight, ShieldCheck, X, Play, Film, FileImage,
   CloudUpload, Plus, RotateCcw, ArrowLeft, MessageSquare,
+  Music,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,6 +15,7 @@ import { api } from "@/lib/api";
 
 const MAX_IMAGE_MB = 50;
 const MAX_VIDEO_MB = 500;
+const MAX_AUDIO_MB = 50;
 
 interface FileEntry {
   file: File;
@@ -38,6 +40,7 @@ interface ReviewItem {
 }
 
 function isVideo(file: File) { return file.type.startsWith('video/'); }
+function isAudio(file: File) { return file.type.startsWith('audio/'); }
 function isVideoUrl(url: string) { return /\.(mp4|mov|webm|ogg|avi)(\?|$)/i.test(url); }
 function formatMB(bytes: number) { return (bytes / (1024 * 1024)).toFixed(1); }
 
@@ -45,11 +48,14 @@ function validateFile(file: File): string | null {
   if (isVideo(file)) {
     if (file.size > MAX_VIDEO_MB * 1024 * 1024)
       return `Video exceeds ${MAX_VIDEO_MB} MB limit (${formatMB(file.size)} MB)`;
+  } else if (isAudio(file)) {
+    if (file.size > MAX_AUDIO_MB * 1024 * 1024)
+      return `Audio exceeds ${MAX_AUDIO_MB} MB limit (${formatMB(file.size)} MB)`;
   } else if (file.type.startsWith('image/')) {
     if (file.size > MAX_IMAGE_MB * 1024 * 1024)
       return `Image exceeds ${MAX_IMAGE_MB} MB limit (${formatMB(file.size)} MB)`;
   } else {
-    return 'Only images and videos are supported';
+    return 'Only images, videos, and audio files are supported';
   }
   return null;
 }
@@ -206,7 +212,14 @@ export default function CreatorUploadPage() {
         // Normal library upload
         const hasVideo = entries.some(e => isVideo(e.file));
         const hasImage = entries.some(e => e.file.type.startsWith('image/'));
-        const fileType = hasVideo && hasImage ? 'mixed' : hasVideo ? 'video' : 'image';
+        const hasAudio = entries.some(e => isAudio(e.file));
+        const fileType = (hasVideo || hasImage) && hasAudio
+          ? 'mixed'
+          : hasVideo && hasImage
+            ? 'mixed'
+            : hasVideo ? 'video'
+            : hasAudio ? 'audio'
+            : 'image';
         const totalSizeBytes = entries.reduce((acc, e) => acc + e.file.size, 0);
 
         const result = await api.post('/api/v1/library/upload', {
@@ -238,8 +251,9 @@ export default function CreatorUploadPage() {
     }
   };
 
-  const imageCount = entries.filter(e => !isVideo(e.file)).length;
+  const imageCount = entries.filter(e => e.file.type.startsWith('image/')).length;
   const videoCount = entries.filter(e => isVideo(e.file)).length;
+  const audioCount = entries.filter(e => isAudio(e.file)).length;
   const keptCount = existingMedia.filter(m => m.kept).length;
 
   if (loadingReviewItem) {
@@ -268,15 +282,18 @@ export default function CreatorUploadPage() {
         <p className="text-[var(--foreground-muted)]">
           {isEditMode
             ? 'Replace the media, review the notes, then resubmit for review.'
-            : 'Upload images and videos for the team to pick and publish.'}
+            : 'Upload images, videos, and audio files for the team to pick and publish.'}
         </p>
         {!isEditMode && (
-          <div className="flex items-center gap-4 mt-3">
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
             <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
               <FileImage className="w-3.5 h-3.5 text-sky-400" /> Images up to {MAX_IMAGE_MB} MB
             </span>
             <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
               <Film className="w-3.5 h-3.5 text-violet-400" /> Videos up to {MAX_VIDEO_MB} MB
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
+              <Music className="w-3.5 h-3.5 text-emerald-400" /> Audio up to {MAX_AUDIO_MB} MB
             </span>
           </div>
         )}
@@ -413,7 +430,7 @@ export default function CreatorUploadPage() {
             >
               {entries.length === 0 && (
                 <label className="block p-14 text-center cursor-pointer">
-                  <input type="file" multiple onChange={handleFileInput} accept="image/*,video/*" className="sr-only" />
+                  <input type="file" multiple onChange={handleFileInput} accept="image/*,video/*,audio/*" className="sr-only" />
                   <div className="flex flex-col items-center">
                     <div className="w-16 h-16 bg-[var(--card)] rounded-2xl flex items-center justify-center mb-4 border border-[var(--border)]">
                       {isDragging ? <CloudUpload className="w-7 h-7 text-info-text" /> : <Upload className="w-7 h-7 text-[var(--foreground-muted)]" />}
@@ -421,13 +438,16 @@ export default function CreatorUploadPage() {
                     <p className="text-[var(--foreground)] font-semibold mb-1">
                       {isDragging ? 'Drop files here' : 'Drag & drop or click to browse'}
                     </p>
-                    <p className="text-[var(--foreground-muted)] text-sm">Images and videos — up to 500 MB per file</p>
-                    <div className="flex gap-3 mt-4">
+                    <p className="text-[var(--foreground-muted)] text-sm">Images, videos, and audio — up to 500 MB per video</p>
+                    <div className="flex gap-3 mt-4 flex-wrap justify-center">
                       <span className="flex items-center gap-1.5 text-xs bg-sky-500/10 text-sky-400 px-3 py-1.5 rounded-full border border-sky-500/20">
                         <ImageIcon className="w-3.5 h-3.5" /> Images
                       </span>
                       <span className="flex items-center gap-1.5 text-xs bg-violet-500/10 text-violet-400 px-3 py-1.5 rounded-full border border-violet-500/20">
                         <VideoIcon className="w-3.5 h-3.5" /> Videos
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                        <Music className="w-3.5 h-3.5" /> Audio
                       </span>
                     </div>
                   </div>
@@ -448,14 +468,21 @@ export default function CreatorUploadPage() {
                               </div>
                             </div>
                           </>
+                        ) : isAudio(entry.file) ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-emerald-900/60 to-black/80 gap-2 p-2">
+                            <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center border border-emerald-500/30">
+                              <Music className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <audio src={entry.previewUrl} controls className="w-full h-7 opacity-80" preload="metadata" />
+                          </div>
                         ) : (
                           <Image src={entry.previewUrl} alt={`Preview ${idx + 1}`} fill className="object-cover opacity-80" unoptimized />
                         )}
                         <div className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm ${
-                          isVideo(entry.file) ? 'bg-violet-600/80 text-foreground' : 'bg-sky-600/80 text-foreground'
+                          isVideo(entry.file) ? 'bg-violet-600/80 text-foreground' : isAudio(entry.file) ? 'bg-emerald-600/80 text-foreground' : 'bg-sky-600/80 text-foreground'
                         }`}>
-                          {isVideo(entry.file) ? <Film className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />}
-                          {isVideo(entry.file) ? 'VIDEO' : 'IMAGE'}
+                          {isVideo(entry.file) ? <Film className="w-2.5 h-2.5" /> : isAudio(entry.file) ? <Music className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />}
+                          {isVideo(entry.file) ? 'VIDEO' : isAudio(entry.file) ? 'AUDIO' : 'IMAGE'}
                         </div>
                         {!isUploading && (
                           <button
@@ -493,7 +520,7 @@ export default function CreatorUploadPage() {
 
                     {!isUploading && (
                       <label className="relative aspect-video rounded-xl border-2 border-dashed border-[var(--border)] hover:border-info-border bg-[var(--surface)] hover:bg-info-text/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group/add">
-                        <input type="file" multiple onChange={handleFileInput} accept="image/*,video/*" className="sr-only" />
+                        <input type="file" multiple onChange={handleFileInput} accept="image/*,video/*,audio/*" className="sr-only" />
                         <Plus className="w-6 h-6 text-[var(--foreground-muted)] group-hover/add:text-info-text transition-colors" />
                         <span className="text-xs text-[var(--foreground-muted)] group-hover/add:text-info-text transition-colors font-medium">Add more</span>
                       </label>
@@ -510,6 +537,11 @@ export default function CreatorUploadPage() {
                       {videoCount > 0 && (
                         <span className="flex items-center gap-1.5 text-violet-400">
                           <Film className="w-3.5 h-3.5" /> {videoCount} video{videoCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {audioCount > 0 && (
+                        <span className="flex items-center gap-1.5 text-emerald-400">
+                          <Music className="w-3.5 h-3.5" /> {audioCount} audio{audioCount !== 1 ? ' files' : ' file'}
                         </span>
                       )}
                     </div>

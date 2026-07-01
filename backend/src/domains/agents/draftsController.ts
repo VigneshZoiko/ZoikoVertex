@@ -293,16 +293,16 @@ export async function deleteDraft(req: AuthRequest, res: Response, next: NextFun
       return res.status(403).json({ success: false, error: 'Not authorized to delete this draft' });
     }
 
-    // Soft delete: set status to ARCHIVED
+    // Permanently delete the draft. Media in the media vault is preserved.
     const { error } = await supabaseAdmin
       .from('publish_drafts')
-      .update({ status: 'ARCHIVED', updated_at: new Date().toISOString() })
+      .delete()
       .eq('id', id);
 
     if (error) throw error;
 
-    logger.info({ draftId: id, userId }, 'Draft archived');
-    res.json({ success: true, message: 'Draft archived' });
+    logger.info({ draftId: id, userId }, 'Draft deleted');
+    res.json({ success: true, message: 'Draft deleted' });
   } catch (err) {
     next(err);
   }
