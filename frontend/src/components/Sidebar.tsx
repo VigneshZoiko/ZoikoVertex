@@ -311,14 +311,6 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
         plan: "governance" as Feature,
       },
-      {
-        name: "Brand Library",
-        href: "/governance/brand-library",
-        icon: BookMarked,
-        // Brand assets, standards, and guidelines — brand managers, governance
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"],
-        plan: "brand_standards" as Feature,
-      },
     ],
   },
 
@@ -468,14 +460,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Activity,
         // Platform health — admins and developers
         roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"],
-      },
-      {
-        name: "Crisis Console",
-        href: "/admin/crisis",
-        icon: AlertOctagon,
-        // Emergency response — governance, security, and admins
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","SECURITY_ADMIN"],
-        plan: "crisis_console" as Feature,
       },
       {
         name: "Support & Docs",
