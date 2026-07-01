@@ -38,6 +38,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/evidence/audit-trail',          roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'VALIDATOR', 'SUPERADMIN'],                                               plan: 'audit_trail' },
   { prefix: '/evidence/forensic-hub',         roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                          plan: 'forensic_hub' },
   { prefix: '/evidence/evidence-vault',       roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                                            plan: 'evidence_vault' },
+  { prefix: '/evidence/identity-ledger',     roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                            plan: 'identity_ledger' },
   { prefix: '/evidence',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                                            plan: 'evidence_vault' },
 
   // ── Safety Layer / Governance ─────────────────────────────────────────────

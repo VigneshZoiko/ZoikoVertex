@@ -884,10 +884,16 @@ function PublishPageInner() {
   }, [topic, description, contentType, isPlatformSpecific, platformCaptions, selectedUrls, mediaPreview, media, assetType, selectedAccountIds, platformPostTypes, aiTone, aiLength, aiStyleMode, aiAudience, useEmojis, metrics, setIsDirty]);
 
   // Register save-to-draft handler with DraftGuard context
+  // NOTE: no cleanup that sets to null - avoids race where ref is null
+  // between effect cycles when handleSaveToDrafts changes.
   useEffect(() => {
     setSaveDraftHandler(handleSaveToDrafts);
-    return () => setSaveDraftHandler(null);
   }, [handleSaveToDrafts, setSaveDraftHandler]);
+
+  // Unregister only on unmount, not on every dep change
+  useEffect(() => {
+    return () => setSaveDraftHandler(null);
+  }, [setSaveDraftHandler]);
 
 
   // Discard handler

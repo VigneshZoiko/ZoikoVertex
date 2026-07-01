@@ -253,6 +253,7 @@ import { enterpriseSignup } from './domains/identity/enterpriseSignupController'
 import { setupWorkspace, completeOnboarding } from './domains/identity/onboardingController';
 import { sendOtpCode, verifyOtpCode, resendOtpCode } from './modules/auth/otpController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
+import { getRetentionSettings, updateRetentionSettings, triggerRetentionRun, getRetentionLogs } from './domains/admin/retentionController';
 import { getSidebarCounts } from './domains/sidebar/sidebarController';
 import { listDrafts as listDraftPosts, getDraft as getDraftPost, saveDraft as saveDraftPost, updateDraft as updateDraftPost, deleteDraft as deleteDraftPost, getDraftCount } from "./domains/agents/draftsController";
 import { getCalendarEvents } from './domains/calendar/calendarController';
@@ -947,6 +948,13 @@ const workspaceGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN',
 app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, cache(60), getWorkspaceSettings);
 app.patch('/api/v1/workspace/settings', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateWorkspaceSettings);
 app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), exportWorkspaceData);
+
+// Retention Settings - Privacy & Data tab
+const privacyGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'PRIVACY_ADMIN', 'SECURITY_ADMIN', 'SUPERADMIN');
+app.get('/api/v1/retention/settings',  authenticate, privacyGuard, getRetentionSettings);
+app.put('/api/v1/retention/settings',  authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateRetentionSettings);
+app.post('/api/v1/retention/run-now',  authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), triggerRetentionRun);
+app.get('/api/v1/retention/logs',      authenticate, privacyGuard, getRetentionLogs);
 
 // Workflow RBAC guards
 const workflowView = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'SUPERADMIN');
@@ -1709,6 +1717,7 @@ import { startSlaBreachWorker } from './workers/slaBreachWorker';
 import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWorker';
 import { supabaseAdmin } from './shared/supabase';
 import { AGENT_CATALOG } from './modules/prompts/validation/registry';
+import { initRetentionWorker } from './workers/retentionWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1740,6 +1749,7 @@ try {
     initOrgInactivityWorker();
     startSlaBreachWorker();
     initEvidenceIntelligenceWorker();
+    initRetentionWorker();
 
     // Governed validation agents must always be ACTIVE (Live).
     // If any were paused via the UI restore them automatically on every boot.

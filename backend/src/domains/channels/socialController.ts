@@ -6,6 +6,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { createNotifications, getWorkspaceAdmins } from '../../services/inAppNotification.service';
 
 // CSRF nonce store for OAuth state verification (5 min TTL)
 const oauthNonces = new Map<string, { wsId: string; expiresAt: number; codeVerifier?: string }>();
@@ -172,6 +173,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           .upsert(facebookAccount, { onConflict: 'workspace_id,platform,account_handle' });
 
         broadcastWebhookEvent(workspaceId, 'account.connected', { platform: 'facebook', account_handle: facebookAccount.account_handle, account_name: facebookAccount.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+        notifyAccountConnected(workspaceId, 'Facebook', facebookAccount.account_name).catch(() => {});
 
         // 4c. Save Linked Instagram Account (if exists)
         if (pageDetails.instagram_business_account) {
@@ -199,6 +201,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           } else {
             logger.info(`[Social] Successfully connected Instagram: ${ig.username}`);
             broadcastWebhookEvent(workspaceId, 'account.connected', { platform: 'instagram', account_handle: ig.id, account_name: ig.username, connected_at: new Date().toISOString() }).catch(() => {});
+            notifyAccountConnected(workspaceId, 'Instagram', ig.username).catch(() => {});
           }
         }
       } catch (err) {
@@ -364,6 +367,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     if (dbError) throw dbError;
 
     broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+    notifyAccountConnected(workspaceId, 'LinkedIn', accountData.account_name).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=linkedin`);
 
@@ -420,6 +424,10 @@ export const saveLinkedInPages = async (req: Request, res: Response, next: NextF
 
     deleteSession(`lp_session:${session}`);
     logger.info(`[Social] Saved ${selectedPages.length} LinkedIn pages for workspace ${workspaceId}`);
+    // Notify admins about LinkedIn page connections
+    for (const page of selectedPages) {
+      notifyAccountConnected(workspaceId, 'LinkedIn', page.name).catch(() => {});
+    }
     res.json({ success: true, count: selectedPages.length });
   } catch (error) {
     next(error);
@@ -499,6 +507,7 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     if (dbError) throw dbError;
 
     broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+    notifyAccountConnected(workspaceId, 'Pinterest', accountData.account_name).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=pinterest`);
 
@@ -585,6 +594,7 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
     if (dbError) throw dbError;
 
     broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+    notifyAccountConnected(workspaceId, 'Threads', accountData.account_name).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=threads`);
 
@@ -706,6 +716,7 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
     if (dbError) throw dbError;
 
     broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+    notifyAccountConnected(workspaceId, 'Twitter', accountData.account_name).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=twitter`);
 
@@ -885,6 +896,7 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
     if (dbError) throw dbError;
 
     broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+    notifyAccountConnected(workspaceId, 'YouTube', (accountData.account_name as string) || 'YouTube Channel').catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=youtube`);
 
@@ -974,12 +986,41 @@ export const handleGoogleAdsCallback = async (req: Request, res: Response, next:
     if (dbError) throw dbError;
 
     logger.info(`[Social] Google Ads account connected for workspace ${workspaceId}`);
+    notifyAccountConnected(workspaceId, 'Google Ads', (accountData.account_name as string) || 'Google Ads Account').catch(() => {});
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=googleads`);
 
   } catch (error) {
     next(error);
   }
 };
+
+/**
+ * Sends in-app notification to workspace admins when a social account is connected.
+ */
+async function notifyAccountConnected(workspaceId: string, platform: string, accountName: string): Promise<void> {
+  const admins = await getWorkspaceAdmins(workspaceId);
+  await createNotifications(
+    admins,
+    '🔗 Social Account Connected',
+    `A new ${platform} account "${accountName}" has been linked to your workspace.`,
+    'INFO',
+    '/accounts',
+  );
+}
+
+/**
+ * Sends in-app notification to workspace admins when a social account is disconnected.
+ */
+async function notifyAccountDisconnected(workspaceId: string, accountId: string): Promise<void> {
+  const admins = await getWorkspaceAdmins(workspaceId);
+  await createNotifications(
+    admins,
+    '🔌 Social Account Disconnected',
+    `A social account was disconnected from your workspace.`,
+    'WARNING',
+    '/accounts',
+  );
+}
 
 /**
  * Disconnects a social account
@@ -1021,6 +1062,9 @@ export const disconnectAccount = async (req: any, res: Response, next: NextFunct
     if (deleteError) throw deleteError;
 
     broadcastWebhookEvent(member.workspace_id, 'account.disconnected', { account_id: id, disconnected_by: userId, disconnected_at: new Date().toISOString() }).catch(() => {});
+
+    // Notify admins about disconnection
+    notifyAccountDisconnected(member.workspace_id, account.id || id).catch(() => {});
 
     logger.info(`[Social] Account ${id} disconnected by user ${userId}`);
     res.status(200).json({ success: true, message: 'Account disconnected successfully' });
