@@ -665,7 +665,7 @@ export default function ReviewQueuePage() {
                         <button
                           onClick={() => handleAction("claim")}
                           disabled={actionLoading !== null}
-                          className="w-full px-3 py-2 bg-white hover:bg-surface text-black text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          className="w-full px-3 py-2 bg-background-subtle hover:bg-surface-hover text-foreground text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                         >
                           {actionLoading === "claim" ? (
                             <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
@@ -682,14 +682,14 @@ export default function ReviewQueuePage() {
                               handleAction("approve", { reason: "Approved" })
                             }
                             disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-white hover:bg-surface text-black text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                          >
-                            {actionLoading === "approve" ? (
-                              <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            )}
-                            Approve
+                          className="w-full px-3 py-2 bg-background-subtle hover:bg-surface-hover text-foreground text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {actionLoading === "approve" ? (
+                            <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          )}
+                          Approve
                           </button>
                           <button
                             onClick={() => {
@@ -883,7 +883,7 @@ export default function ReviewQueuePage() {
                             })
                       }
                       disabled={!drawerText.trim() || actionLoading !== null}
-                      className="px-4 py-1.5 bg-white hover:bg-surface text-black text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
+                      className="px-4 py-1.5 bg-background-subtle hover:bg-surface-hover text-foreground text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
                     >
                       {showActionDrawer === "reject"
                         ? "Confirm Reject"
