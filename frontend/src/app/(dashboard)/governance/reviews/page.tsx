@@ -719,10 +719,10 @@ export default function ApprovalConsolePage() {
                       onClick={() =>
                         showActionDrawer === "reject"
                           ? handleAction("reject", { reason: drawerText })
-                          : handleAction("request_revision", { note: drawerText, reason: "Revision requested" })
+                          : handleAction("request_revision", { note: drawerText, reason: drawerText })
                       }
                       disabled={!drawerText.trim() || actionLoading !== null}
-                      className="px-4 py-1.5 bg-white hover:bg-zinc-100 text-black text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
+                      className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
                     >
                       {showActionDrawer === "reject" ? "Confirm Reject" : "Send to Creator"}
                     </button>

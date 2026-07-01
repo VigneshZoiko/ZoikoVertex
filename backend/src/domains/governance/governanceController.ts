@@ -335,7 +335,8 @@ export const submitIntent = async (
 
     // Mirror each post into Agent Operations for policy checks (non-blocking).
     try {
-      await Promise.all(data.map((intent: any) => recordPublishIntentRun(intent)));
+      const creatorName = req.user?.full_name || req.user?.email?.split('@')[0] || null;
+      await Promise.all(data.map((intent: any) => recordPublishIntentRun({ ...intent, creator_name: creatorName })));
     } catch (err) {
       logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }
@@ -970,6 +971,35 @@ export const reviewActionIntent = async (
     await recordReviewer(intentId, userId, reason);
     await syncWorkflowInstanceStatus(intentId, 'cancelled');
     await syncAgentRunFromIntent(intentId, 'RETURNED');
+
+    // Update the linked approval_item and record a decision so feedback appears in Returned Items
+    const { data: linkedItems } = await supabaseAdmin
+      .from('approval_items')
+      .select('id')
+      .eq('source_entity_id', intentId)
+      .in('approval_status', ['PENDING_APPROVAL', 'IN_REVIEW', 'ESCALATED', 'CHANGES_REQUESTED']);
+
+    if (linkedItems && linkedItems.length > 0) {
+      const approvalItemId = linkedItems[0].id;
+      await supabaseAdmin
+        .from('approval_items')
+        .update({ approval_status: 'CHANGES_REQUESTED' })
+        .eq('id', approvalItemId);
+
+      // Insert decision record so feedback shows in the Returned Items card
+      const { error: decisionErr } = await supabaseAdmin
+        .from('approval_decisions')
+        .insert({
+          id: randomUUID(),
+          approval_item_id: approvalItemId,
+          approver_id: userId,
+          decision: 'CHANGES_REQUESTED',
+          decision_reason: reason || null,
+          decision_note: reason || null,
+        });
+      if (decisionErr) logger.warn({ err: decisionErr.message }, '[review-action] decision record insert failed');
+    }
+
     return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
     next(error);

@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ElementType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
   BrainCircuit,
-  ChevronRight,
-  Eye,
+  Check,
+  Copy,
   FileCheck,
   Filter,
   FolderKanban,
@@ -29,10 +29,8 @@ import {
   Archive,
   X,
 } from "lucide-react";
-import StatusBadge from "@/components/ui/StatusBadge";
 import CreateAgentWizard from "@/components/agents/CreateAgentWizard";
 import CertificationSandbox from "@/components/agents/CertificationSandbox";
-import AgentDetailsDrawer from "@/components/agents/AgentDetailsDrawer";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import { AUTONOMY_COLOR } from "@/lib/agentAuthority";
@@ -147,6 +145,89 @@ function normalizeText(value?: string | null) {
   return (value || "").toLowerCase();
 }
 
+const AGENT_TYPE_STYLE: Record<string, { icon: ElementType; avatarBg: string; textCls: string; chipBg: string; label: string }> = {
+  content:     { icon: BrainCircuit, avatarBg: "bg-indigo-600",  textCls: "text-indigo-400",  chipBg: "bg-indigo-500/10",  label: "Content" },
+  drafting:    { icon: BrainCircuit, avatarBg: "bg-indigo-600",  textCls: "text-indigo-400",  chipBg: "bg-indigo-500/10",  label: "Content" },
+  safety:      { icon: ShieldCheck,  avatarBg: "bg-emerald-600", textCls: "text-emerald-400", chipBg: "bg-emerald-500/10", label: "Safety" },
+  compliance:  { icon: ShieldCheck,  avatarBg: "bg-emerald-600", textCls: "text-emerald-400", chipBg: "bg-emerald-500/10", label: "Safety" },
+  governance:  { icon: Shield,       avatarBg: "bg-amber-600",   textCls: "text-amber-400",   chipBg: "bg-amber-500/10",   label: "Governance" },
+  publisher:   { icon: Globe,        avatarBg: "bg-violet-600",  textCls: "text-violet-400",  chipBg: "bg-violet-500/10",  label: "Publisher" },
+  performance: { icon: Zap,          avatarBg: "bg-orange-600",  textCls: "text-orange-400",  chipBg: "bg-orange-500/10",  label: "Performance" },
+  research:    { icon: Search,       avatarBg: "bg-sky-600",     textCls: "text-sky-400",     chipBg: "bg-sky-500/10",     label: "Research" },
+};
+
+function getTypeStyle(type: string) {
+  const key = (type || "").toLowerCase().split(/[\s_-]/)[0];
+  return AGENT_TYPE_STYLE[key] || { icon: Bot, avatarBg: "bg-slate-600", textCls: "text-[var(--foreground-muted)]", chipBg: "bg-[var(--background)]", label: type || "Unknown" };
+}
+
+const STATUS_META: Record<string, { dot: string; ring?: string; textCls: string }> = {
+  DRAFT:                { dot: "bg-slate-400",                              textCls: "text-slate-400" },
+  PENDING_CERTIFICATION:{ dot: "bg-amber-400",                              textCls: "text-amber-400" },
+  IN_REVIEW:            { dot: "bg-sky-400",                                textCls: "text-sky-400" },
+  APPROVED:             { dot: "bg-emerald-400",                            textCls: "text-emerald-400" },
+  ACTIVE:               { dot: "bg-emerald-400", ring: "ring-2 ring-emerald-400/30 ring-offset-1 ring-offset-transparent", textCls: "text-emerald-400" },
+  PAUSED:               { dot: "bg-amber-400",                              textCls: "text-amber-400" },
+  RESTRICTED:           { dot: "bg-rose-500",                               textCls: "text-rose-400" },
+  SUSPENDED:            { dot: "bg-rose-400",                               textCls: "text-rose-400" },
+  RETIRED:              { dot: "bg-slate-500",                              textCls: "text-slate-500" },
+};
+
+function AgentStatusBadge({ status }: { status: string }) {
+  const key = (status || "").toUpperCase();
+  const meta = STATUS_META[key] || { dot: "bg-slate-400", textCls: "text-foreground-muted" };
+  const label = STATUS_LABELS[key] || status || "—";
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot} ${meta.ring ?? ""}`} />
+      <span className={`text-xs font-medium ${meta.textCls}`}>{label}</span>
+    </div>
+  );
+}
+
+function AgentTypeBadge({ ts }: { ts: ReturnType<typeof getTypeStyle> }) {
+  const TypeIcon = ts.icon;
+  return (
+    <div className={`inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 ${ts.chipBg}`}>
+      <TypeIcon className={`h-3 w-3 shrink-0 ${ts.textCls}`} />
+      <span className={`text-[11px] font-medium ${ts.textCls}`}>{ts.label}</span>
+    </div>
+  );
+}
+
+function AgentAvatar({ ts }: { ts: ReturnType<typeof getTypeStyle> }) {
+  const TypeIcon = ts.icon;
+  return (
+    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ts.avatarBg}`}>
+      <TypeIcon className="h-4 w-4 text-white" />
+    </div>
+  );
+}
+
+function AgentIdCell({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const short = id.slice(0, 8);
+  const copy = (e: { stopPropagation(): void }) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <div className="group/id flex items-center gap-1">
+      <span className="font-mono text-xs text-[var(--foreground-muted)]">{short}</span>
+      <button
+        onClick={copy}
+        title="Copy full ID"
+        className="rounded p-0.5 text-foreground-muted opacity-0 transition group-hover/id:opacity-100 hover:text-foreground"
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+      </button>
+    </div>
+  );
+}
+
 export default function StudioPage() {
   const { role } = useRoleContext();
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -168,7 +249,6 @@ export default function StudioPage() {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [importTemplateData, setImportTemplateData] = useState<Record<string, unknown> | undefined>(undefined);
   const importFileRef = useRef<HTMLInputElement>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -218,9 +298,8 @@ export default function StudioPage() {
         persistDismissed(next);
         return next;
       });
-      if (selectedAgent?.id === agent.id) setIsDetailsOpen(false);
     },
-    [persistDismissed, selectedAgent],
+    [persistDismissed],
   );
 
   const restoreDismissedAgents = useCallback(() => {
@@ -377,10 +456,6 @@ export default function StudioPage() {
     );
   }, []);
 
-  const openAgent = useCallback((agent: Agent) => {
-    setSelectedAgent(agent);
-    setIsDetailsOpen(true);
-  }, []);
 
   const openSandbox = useCallback((agent: Agent) => {
     setSelectedAgent(agent);
@@ -836,12 +911,6 @@ export default function StudioPage() {
         />
       )}
 
-      <AgentDetailsDrawer
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-        agent={selectedAgent as any}
-        onUpdate={() => fetchAgents(workspaceId)}
-      />
 
 
       {/* ── Header Command Bar ── */}
@@ -1013,113 +1082,87 @@ export default function StudioPage() {
           </button>
         </div>
       ) : viewMode === "table" ? (
-        /* ── Table View ── */
-        <div className="overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--surface)]">
+        /* ── Table View — Core Identity columns ── */
+        <div className="overflow-hidden rounded-2xl border border-card-border bg-surface">
           {/* Header */}
-          <div className="grid grid-cols-[2fr_3fr_180px_120px] items-center gap-4 border-b border-[var(--card-border)] bg-[var(--background)] px-5 py-3">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Name</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Purpose</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Last Run</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Actions</span>
+          <div className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 border-b border-card-border bg-background px-6 py-3">
+            {["Agent", "ID", "Type", "Status", "Description"].map((h) => (
+              <span key={h} className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground-muted">{h}</span>
+            ))}
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-[var(--card-border)]">
-            {filteredAgents.map((agent) => (
-              <div
-                key={agent.id}
-                className="grid grid-cols-[2fr_3fr_180px_120px] items-center gap-4 px-5 py-3.5 transition hover:bg-[var(--background)]/60"
-              >
-                {/* Name + type */}
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="shrink-0 rounded-xl bg-indigo-500/10 p-2 text-indigo-500">
-                    <BrainCircuit className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[var(--foreground)]">
-                      {agent.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.15em] text-[var(--foreground-muted)]">
-                      {agent.type}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Purpose */}
-                <p className="line-clamp-1 text-xs text-[var(--foreground-muted)]">
-                  {agent.purpose || "—"}
-                </p>
-
-                {/* Last Run */}
-                <span className="text-xs text-[var(--foreground-muted)]">
-                  {agent.last_activity || "Never"}
-                </span>
-
-                {/* Actions — View Details only */}
-                <button
-                  onClick={() => openAgent(agent)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+          <div className="divide-y divide-card-border">
+            {filteredAgents.map((agent) => {
+              const ts = getTypeStyle(agent.type);
+              return (
+                <div
+                  key={agent.id}
+                  className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 px-6 py-4 transition-colors hover:bg-background"
                 >
-                  <Eye className="h-3.5 w-3.5" />
-                  View Details
-                </button>
-              </div>
-            ))}
+                  {/* 1 — Avatar + Name */}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AgentAvatar ts={ts} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{agent.name}</p>
+                    </div>
+                  </div>
+
+                  {/* 2 — ID */}
+                  <AgentIdCell id={agent.id} />
+
+                  {/* 3 — Type */}
+                  <AgentTypeBadge ts={ts} />
+
+                  {/* 4 — Status */}
+                  <AgentStatusBadge status={agent.status} />
+
+                  {/* 5 — Description */}
+                  <p className="text-xs leading-relaxed text-foreground-muted">
+                    {agent.purpose || "—"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
-        /* ── Minimal List View ── */
-        <div className="overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--surface)]">
-          {/* Column headers */}
-          <div className="grid grid-cols-[2fr_3fr_180px_120px] gap-4 border-b border-[var(--card-border)] px-5 py-2.5">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Name</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Purpose</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Last Run</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--foreground-muted)]">Actions</span>
+        /* ── List View — Core Identity columns ── */
+        <div className="overflow-hidden rounded-2xl border border-card-border bg-surface">
+          <div className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 border-b border-card-border bg-background px-6 py-3">
+            {["Agent", "ID", "Type", "Status", "Description"].map((h) => (
+              <span key={h} className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground-muted">{h}</span>
+            ))}
           </div>
 
-          {/* Rows */}
-          <div className="divide-y divide-[var(--card-border)]">
-            {filteredAgents.map((agent) => (
-              <div
-                key={agent.id}
-                className="grid grid-cols-[2fr_3fr_180px_120px] items-center gap-4 px-5 py-3.5 transition hover:bg-[var(--background)]"
-              >
-                {/* Name */}
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <div className="shrink-0 rounded-lg bg-indigo-500/10 p-1.5 text-indigo-500">
-                    <BrainCircuit className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[var(--foreground)]">
-                      {agent.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.15em] text-[var(--foreground-muted)]">
-                      {agent.type}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Purpose */}
-                <p className="line-clamp-1 text-xs text-[var(--foreground-muted)]">
-                  {agent.purpose || "—"}
-                </p>
-
-                {/* Last Run */}
-                <span className="text-xs text-[var(--foreground-muted)]">
-                  {agent.last_activity || "Never"}
-                </span>
-
-                {/* Actions */}
-                <button
-                  onClick={() => openAgent(agent)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+          <div className="divide-y divide-card-border">
+            {filteredAgents.map((agent) => {
+              const ts = getTypeStyle(agent.type);
+              return (
+                <div
+                  key={agent.id}
+                  className="grid grid-cols-[2.5fr_110px_150px_150px_3fr] items-center gap-6 px-6 py-4 transition-colors hover:bg-background"
                 >
-                  <Eye className="h-3 w-3" />
-                  View Details
-                </button>
-              </div>
-            ))}
+                  {/* 1 — Avatar + Name */}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AgentAvatar ts={ts} />
+                    <p className="truncate text-sm font-semibold text-foreground">{agent.name}</p>
+                  </div>
+
+                  {/* 2 — ID */}
+                  <AgentIdCell id={agent.id} />
+
+                  {/* 3 — Type */}
+                  <AgentTypeBadge ts={ts} />
+
+                  {/* 4 — Status */}
+                  <AgentStatusBadge status={agent.status} />
+
+                  {/* 5 — Description */}
+                  <p className="text-xs leading-relaxed text-foreground-muted">{agent.purpose || "—"}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

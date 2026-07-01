@@ -76,10 +76,13 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
 
   const intentById = new Map<string, any>();
   try {
+    // Note: no workspace_id filter here — task_ids already came from workspace-scoped
+    // agent_runs, so the IDs themselves are the scope guard. The workspace_id column
+    // may also be absent in some migration states; removing it prevents a silent
+    // catch that would leave intentById empty and break Posted By attribution.
     const { data } = await supabaseAdmin
       .from('publish_intents')
       .select('id, status, agent_id, reviewer_id')
-      .eq('workspace_id', workspaceId)
       .in('id', taskIds as string[]);
     for (const it of data || []) intentById.set(it.id, it);
   } catch { /* some task_ids aren't publish_intents — fine */ }
@@ -89,7 +92,6 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
     const { data } = await supabaseAdmin
       .from('publish_intents')
       .select('id, reviewed_at, reviewer_feedback')
-      .eq('workspace_id', workspaceId)
       .in('id', taskIds as string[]);
     for (const r of data || []) { const e = intentById.get(r.id); if (e) Object.assign(e, r); }
   } catch { /* columns not present in this env */ }
@@ -113,18 +115,37 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
     } catch { /* ignore */ }
   }
 
+  // Statuses where feedback exists but the post was NOT approved — just returned
+  const RETURNED_STATUSES = new Set(['RETURNED', 'AWAITING_REVISION', 'REJECTED', 'GOVERNANCE_BLOCKED']);
+
   return runs.map((run) => {
     const intent = isUuid(run.task_id) ? intentById.get(run.task_id) : undefined;
-    if (!intent) return run;
-    const manual = !!(intent.reviewed_at || intent.reviewer_feedback);
-    if (manual) {
-      const name = intent.reviewer_id ? userNameById.get(intent.reviewer_id) : undefined;
+    const intentStatus = String(intent?.status || '').toUpperCase();
+
+    // Primary signal: the publish_intent reached a posted state.
+    const isPostedByIntent = intent && POSTED_INTENT_STATUSES.has(intentStatus);
+    // Fallback signal: the run itself has output_status='posted' (set by syncAgentRunFromIntent
+    // when the intent was APPROVED/PUBLISHED). This catches cases where the intent lookup
+    // returns no rows (e.g. different workspace_id in older data).
+    const isPostedByRun = String(run.output_status || '').toLowerCase() === 'posted';
+    const isPosted = !!(isPostedByIntent || isPostedByRun);
+
+    const isReturned = intent && RETURNED_STATUSES.has(intentStatus);
+
+    // Only mark as manual-approved if the intent actually reached a posted state
+    // (not if it was just returned/rejected — those also set reviewer_feedback)
+    const manual = !isReturned && intent && !!(intent.reviewed_at || intent.reviewer_feedback);
+
+    if (manual && isPosted) {
+      // Approved by a human reviewer
+      const name = intent?.reviewer_id ? userNameById.get(intent.reviewer_id) : undefined;
       return { ...run, posted_by: name || 'Reviewer', posted_by_type: 'manual' as const };
     }
-    if (POSTED_INTENT_STATUSES.has(String(intent.status || '').toUpperCase())) {
-      const name = intent.agent_id ? agentNameById.get(intent.agent_id) : undefined;
-      return { ...run, posted_by: name || run.agent_name || 'Agent', posted_by_type: 'agent' as const };
+    if (isPosted && !manual) {
+      // Auto-posted by the agent after passing all checks
+      return { ...run, posted_by: 'Agent', posted_by_type: 'agent' as const };
     }
+    // Returned, blocked, or still pending — no posted_by
     return run;
   });
 }
@@ -208,7 +229,71 @@ export async function listAgentRuns(params: {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  const runs = await enrichRunsWithPostedBy(data || [], params.workspace_id);
+  const enriched = await enrichRunsWithPostedBy(data || [], params.workspace_id);
+
+  // For publisher-type runs, task_id IS the publish_intent.id — use it directly.
+  // For workflow-execution runs, task_id is the workflow_instance.id. Look up
+  // those instances and extract post_id from their trigger_source JSON so both
+  // Operations and Workflows pages show the same canonical publish_intent.id for
+  // the same post.
+  const workflowTaskIds = Array.from(
+    new Set(
+      enriched
+        .filter((r: any) => r.agent_type !== 'publisher' && isUuid(r.task_id))
+        .map((r: any) => r.task_id as string),
+    ),
+  );
+  const postIdByInstanceId = new Map<string, string>();
+  if (workflowTaskIds.length > 0) {
+    try {
+      const { data: instances } = await supabaseAdmin
+        .from('workflow_instances')
+        .select('id, trigger_source')
+        .in('id', workflowTaskIds)
+        .not('trigger_source', 'is', null);
+      for (const inst of instances || []) {
+        if (typeof inst.trigger_source !== 'string') continue;
+        try {
+          const meta = JSON.parse(inst.trigger_source);
+          if (meta?.src === 'publish_hub' && meta.post_id) {
+            postIdByInstanceId.set(inst.id, meta.post_id);
+          }
+        } catch { /* not our JSON */ }
+      }
+    } catch { /* non-blocking */ }
+  }
+
+  // Back-fill owner_name for runs where it was never stored (owner_id present but
+  // owner_name null). Batch-look up display names from the users table.
+  const missingNameIds = Array.from(
+    new Set(
+      enriched
+        .filter((r: any) => !r.owner_name && isUuid(r.owner_id))
+        .map((r: any) => r.owner_id as string),
+    ),
+  );
+  const ownerNameById = new Map<string, string>();
+  if (missingNameIds.length > 0) {
+    try {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', missingNameIds);
+      for (const u of users || []) {
+        ownerNameById.set(u.id, u.full_name || u.email || u.id);
+      }
+    } catch { /* non-blocking */ }
+  }
+
+  const runs = enriched.map((run: any) => ({
+    ...run,
+    owner_name: run.owner_name || ownerNameById.get(run.owner_id) || null,
+    post_id:
+      run.post_id ||
+      (run.agent_type === 'publisher' ? run.task_id : null) ||
+      postIdByInstanceId.get(run.task_id) ||
+      null,
+  }));
   return { runs, total: count || 0 };
 }
 

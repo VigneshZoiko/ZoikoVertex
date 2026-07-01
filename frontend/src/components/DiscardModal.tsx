@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Edit3, X } from "lucide-react";
+import { useEffect } from "react";
 import { Modal } from "@/components/ui/primitives";
 
 interface DiscardModalProps {
@@ -11,7 +12,20 @@ interface DiscardModalProps {
   onSaveDraft?: () => void;
 }
 
-export default function DiscardModal({ isOpen, onConfirm, onCancel, onSaveDraft }: DiscardModalProps) {
+export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel, onSaveDraft }: DiscardModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOpen, onCancel]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [isOpen]);
   if (!isOpen) return null;
 
   return (

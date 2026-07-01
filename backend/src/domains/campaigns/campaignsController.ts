@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { deleteMetaCampaign } from './metaCampaignPublisher';
 import { env } from '../../config/env';
+import { preserveEvidence } from '../../services/evidenceVault.service';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -444,6 +445,25 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       { name: data.name, campaign_type: data.campaign_type },
     );
 
+    const campaignPayload = JSON.stringify({ campaign_id: data.id, name: data.name, campaign_type: data.campaign_type, created_by: userId });
+    preserveEvidence({
+      workspace_id: workspaceId,
+      tenant_id: workspaceId,
+      source_type: 'audit_event',
+      source_id: String(data.id),
+      source_system: 'campaigns',
+      evidence_type: 'campaign_created',
+      risk_level: 'low',
+      sensitivity: 'internal',
+      preservation_reason: `Campaign "${data.name}" created by ${userId}`,
+      preserved_by: userId,
+      payload: campaignPayload,
+      payload_size: campaignPayload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: { campaign_id: data.id, name: data.name, campaign_type: data.campaign_type },
+    }).catch(() => {});
+
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 };
@@ -576,6 +596,26 @@ export const deleteCampaign = async (req: AuthRequest, res: Response, next: Next
       .eq('workspace_id', workspaceId);
 
     if (error) throw error;
+
+    const delPayload = JSON.stringify({ campaign_id: req.params.id, deleted_by: req.user?.id });
+    preserveEvidence({
+      workspace_id: workspaceId,
+      tenant_id: workspaceId,
+      source_type: 'audit_event',
+      source_id: String(req.params.id),
+      source_system: 'campaigns',
+      evidence_type: 'campaign_deleted',
+      risk_level: 'high',
+      sensitivity: 'internal',
+      preservation_reason: `Campaign ${req.params.id} deleted by ${req.user?.id}`,
+      preserved_by: req.user?.id || 'unknown',
+      payload: delPayload,
+      payload_size: delPayload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: { campaign_id: req.params.id },
+    }).catch(() => {});
+
     res.json({ success: true, message: 'Campaign deleted' });
   } catch (err) { next(err); }
 };

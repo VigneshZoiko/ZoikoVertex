@@ -73,6 +73,52 @@ async function logIdentityLedgerAccess(params: {
   }
 }
 
+// Routine sync events — excluded from History view by default
+const NOISE_ENTRY_TYPES = ['identity.created', 'agent.created'];
+
+const GLOBAL_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
+export async function listLedgerEntries(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const { entry_type, actor_id, all, limit, offset } = req.query as Record<string, string | undefined>;
+    const lim = Math.min(parseInt(limit || '50', 10), 100);
+    const off = parseInt(offset || '0', 10);
+    const showAll = all === 'true';
+
+    // Include both the user's workspace and the global workspace so
+    // superadmin-level actions (role changes, API key ops) are always visible
+    const workspaceFilter = workspaceId === GLOBAL_WORKSPACE_ID
+      ? `workspace_id.eq.${workspaceId}`
+      : `workspace_id.eq.${workspaceId},workspace_id.eq.${GLOBAL_WORKSPACE_ID}`;
+
+    let query = supabaseAdmin
+      .from('identity_ledger_entries')
+      .select('ledger_entry_id, entry_type, entry_category, timestamp_utc, created_at, actor_id, actor_type, authority_change, source, risk', { count: 'exact' })
+      .or(workspaceFilter)
+      .order('timestamp_utc', { ascending: true })
+      .order('created_at', { ascending: true })
+      .range(off, off + lim - 1);
+
+    if (entry_type) {
+      query = query.eq('entry_type', entry_type);
+    } else if (!showAll) {
+      query = query.not('entry_type', 'in', `(${NOISE_ENTRY_TYPES.map(t => `"${t}"`).join(',')})`);
+    }
+
+    if (actor_id) query = query.eq('actor_id', actor_id);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [], total: count || 0 });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function listActors(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;
@@ -80,7 +126,7 @@ export async function listActors(req: AuthRequest, res: Response, next: NextFunc
     if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
 
     const viewer = await getViewerContext(req);
-    const { actor_type, state, role, authority_class, risk_level, source, search, limit, offset } = req.query as Record<string, string | undefined>;
+    const { actor_type, state, role, authority_class, risk_level, source, search, limit, offset, refresh } = req.query as Record<string, string | undefined>;
 
     const result = await identityLedgerService.listActors({
       workspace_id: workspaceId,
@@ -94,6 +140,7 @@ export async function listActors(req: AuthRequest, res: Response, next: NextFunc
       limit: limit ? parseInt(limit, 10) : 50,
       offset: offset ? parseInt(offset, 10) : 0,
       viewer,
+      refresh: refresh === 'true',
     });
 
     logIdentityLedgerAccess({

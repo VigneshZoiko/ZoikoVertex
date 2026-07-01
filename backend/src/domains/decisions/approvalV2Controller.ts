@@ -94,6 +94,8 @@ export const createApprovalItem = async (req: AuthRequest, res: Response, next: 
   } catch (error) { next(error); }
 };
 
+const CREATOR_LEVEL_ROLES = new Set(['CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER']);
+
 export const listApprovalItems = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const tenantId = getTenantId(req);
@@ -104,6 +106,11 @@ export const listApprovalItems = async (req: AuthRequest, res: Response, next: N
 
     let submittedBy = queryStr(req, 'submitted_by');
     if (submittedBy === 'me') submittedBy = getUserId(req);
+
+    // Creator-level roles can only ever see their own items (security enforcement)
+    if (CREATOR_LEVEL_ROLES.has(role)) {
+      submittedBy = getUserId(req);
+    }
 
     const result = await approvalService.listApprovalItems({
       tenant_id: tenantId,
@@ -146,7 +153,8 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
     if (!item) return res.status(404).json({ error: 'Approval item not found' });
 
     const eligibility = approvalService.calculateEligibility(item, userId, role, isSuper);
-    if (eligibility !== 'APPROVAL_ELIGIBLE' && action !== 'cancel') {
+    // cancel and return_to_creator bypass eligibility — admins can always return or cancel any item
+    if (eligibility !== 'APPROVAL_ELIGIBLE' && action !== 'cancel' && action !== 'return_to_creator') {
       return res.status(403).json({ error: `Action not allowed: ${eligibility}` });
     }
 

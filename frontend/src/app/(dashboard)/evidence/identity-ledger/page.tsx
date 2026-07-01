@@ -4,15 +4,16 @@ import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import {
   Users, GitBranch, ShieldAlert, Plus, X, RefreshCw,
-  AlertTriangle, CheckCircle2, Shield, ChevronDown, ChevronUp,
+  AlertTriangle, CheckCircle2, Shield, ChevronDown, ChevronUp, History,
 } from "lucide-react";
 
-type TabId = "actors" | "delegations" | "break-glass";
+type TabId = "actors" | "delegations" | "break-glass" | "history";
 
 const TABS = [
   { id: "actors" as TabId,      label: "Actors",      icon: Users },
   { id: "delegations" as TabId, label: "Delegations", icon: GitBranch },
   { id: "break-glass" as TabId, label: "Break-Glass", icon: ShieldAlert },
+  { id: "history" as TabId,     label: "History",     icon: History },
 ];
 
 const ACTOR_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -62,15 +63,28 @@ export default function IdentityLedgerPage() {
   const [bgLoading, setBgLoading] = useState(false);
   const [showRequestBg, setShowRequestBg] = useState(false);
 
-  const fetchActors = useCallback(async () => {
+  // History (ledger entries)
+  const [entries, setEntries] = useState<any[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [entriesTotal, setEntriesTotal] = useState(0);
+  const [showAllEntries, setShowAllEntries] = useState(false);
+  const [actorEntries, setActorEntries] = useState<Record<string, any[]>>({});
+
+  const fetchActors = useCallback(async (forceRefresh = false) => {
     setActorsLoading(true);
     try {
       const p = new URLSearchParams();
       if (typeFilter) p.set("actor_type", typeFilter);
       if (stateFilter) p.set("state", stateFilter);
       p.set("limit", "50");
+      if (forceRefresh) p.set("refresh", "true");
       const res = await api.get(`/api/identity-ledger/actors?${p}`);
-      if (res.success) setActors(res.data || []);
+      if (res.success) {
+        const sorted = (res.data || []).sort((a: any, b: any) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        setActors(sorted);
+      }
     } catch (e: any) { setError(e.message); }
     finally { setActorsLoading(false); }
   }, [typeFilter, stateFilter]);
@@ -93,11 +107,29 @@ export default function IdentityLedgerPage() {
     finally { setBgLoading(false); }
   }, []);
 
+  const fetchEntries = useCallback(async (all = false) => {
+    setEntriesLoading(true);
+    try {
+      const res = await api.get(`/api/identity-ledger/entries?limit=50${all ? "&all=true" : ""}`);
+      if (res.success) { setEntries(res.data || []); setEntriesTotal(res.total || 0); }
+    } catch (e: any) { setError(e.message); }
+    finally { setEntriesLoading(false); }
+  }, []);
+
+  const fetchActorEntries = useCallback(async (actorId: string) => {
+    if (actorEntries[actorId]) return; // already loaded
+    try {
+      const res = await api.get(`/api/identity-ledger/entries?actor_id=${actorId}&limit=10`);
+      if (res.success) setActorEntries(prev => ({ ...prev, [actorId]: res.data || [] }));
+    } catch { /* non-blocking */ }
+  }, [actorEntries]);
+
   useEffect(() => {
     if (tab === "actors") fetchActors();
     else if (tab === "delegations") fetchDelegations();
-    else fetchBreakGlass();
-  }, [tab, fetchActors, fetchDelegations, fetchBreakGlass]);
+    else if (tab === "break-glass") fetchBreakGlass();
+    else fetchEntries(showAllEntries);
+  }, [tab, fetchActors, fetchDelegations, fetchBreakGlass, fetchEntries, showAllEntries]);
 
   const verifyChain = async () => {
     setVerifying(true);
@@ -125,9 +157,10 @@ export default function IdentityLedgerPage() {
   };
 
   const refresh = () => {
-    if (tab === "actors") fetchActors();
+    if (tab === "actors") fetchActors(true);
     else if (tab === "delegations") fetchDelegations();
-    else fetchBreakGlass();
+    else if (tab === "break-glass") fetchBreakGlass();
+    else fetchEntries(showAllEntries);
   };
 
   return (
@@ -278,13 +311,14 @@ export default function IdentityLedgerPage() {
                           </tr>
                           {expanded === a.id && (
                             <tr className="border-b border-border bg-surface-hover">
-                              <td colSpan={6} className="px-4 py-3">
+                              <td colSpan={6} className="px-4 py-3 space-y-3">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                                   <div><p className="text-foreground-muted mb-1">Email</p><p className="text-foreground">{a.email || "—"}</p></div>
-                                  <div><p className="text-foreground-muted mb-1">Roles</p><p className="text-foreground">{(a.roles || []).join(", ") || "—"}</p></div>
+                                  <div><p className="text-foreground-muted mb-1">Roles</p><p className="text-foreground">{(a.current_roles || a.roles || []).join(", ") || "—"}</p></div>
                                   <div><p className="text-foreground-muted mb-1">Department</p><p className="text-foreground">{a.department || "—"}</p></div>
                                   <div><p className="text-foreground-muted mb-1">Last Active</p><p className="text-foreground">{a.last_active_at ? fmt(a.last_active_at) : "—"}</p></div>
                                 </div>
+                                <ActorLedgerHistory actorId={a.actor_id} entries={actorEntries[a.actor_id]} onLoad={() => fetchActorEntries(a.actor_id)} />
                               </td>
                             </tr>
                           )}
@@ -430,6 +464,85 @@ export default function IdentityLedgerPage() {
         </>
       )}
 
+      {/* ── HISTORY ── */}
+      {tab === "history" && (
+        <div className="bg-surface border border-border rounded-xl overflow-hidden">
+          {entriesLoading ? (
+            <div className="p-10 text-center text-xs text-foreground-muted">Loading…</div>
+          ) : (
+            <>
+              <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                <span className="text-xs text-foreground-muted">{entriesTotal} entries</span>
+                <button
+                  onClick={() => setShowAllEntries(v => !v)}
+                  className="text-[10px] px-2 py-1 rounded border border-border text-foreground-muted hover:text-foreground hover:bg-surface-hover"
+                >
+                  {showAllEntries ? "Hide routine syncs" : "Show all (incl. routine syncs)"}
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[640px]">
+                  <thead>
+                    <tr className="border-b border-border text-foreground-muted bg-surface-hover">
+                      <th className="text-left p-3 font-medium">When</th>
+                      <th className="text-left p-3 font-medium">Event</th>
+                      <th className="text-left p-3 font-medium">Actor</th>
+                      <th className="text-left p-3 font-medium">Change</th>
+                      <th className="text-left p-3 font-medium">Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((e: any) => {
+                      const change = e.authority_change || {};
+                      const changeLabel = change.roles
+                        ? `→ ${change.roles.join(", ")}`
+                        : change.change
+                        ? change.change.replace(/_/g, " ")
+                        : change.key_name
+                        ? `Key: ${change.key_name}`
+                        : "—";
+                      return (
+                        <tr key={e.ledger_entry_id} className="border-b border-border last:border-0 hover:bg-surface-hover">
+                          <td className="p-3 text-foreground-muted whitespace-nowrap">
+                            {fmt(e.timestamp_utc || e.created_at)}
+                          </td>
+                          <td className="p-3">
+                            <span className="font-mono text-[10px] bg-surface-hover px-1.5 py-0.5 rounded text-blue-400 border border-blue-500/30">
+                              {e.entry_type}
+                            </span>
+                          </td>
+                          <td className="p-3 text-foreground-muted font-mono text-[10px] max-w-[120px] truncate" title={e.actor_id}>
+                            {e.actor_id?.substring(0, 12)}…
+                          </td>
+                          <td className="p-3 text-foreground-muted text-[11px]">{changeLabel}</td>
+                          <td className="p-3">
+                            <span className={`text-[10px] font-medium ${
+                              e.risk?.risk_level === "high" || e.risk?.level === "high"
+                                ? "text-red-400"
+                                : e.risk?.risk_level === "medium" || e.risk?.level === "medium"
+                                ? "text-orange-400"
+                                : "text-foreground-muted"
+                            }`}>
+                              {e.risk?.risk_level || e.risk?.level || "—"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {entries.length === 0 && (
+                      <tr><td colSpan={5} className="p-10 text-center text-foreground-muted">
+                        <History className="w-7 h-7 mx-auto mb-2 opacity-30" />
+                        <p>No ledger entries yet</p>
+                      </td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       {showCreateDelegation && (
         <CreateDelegationModal onClose={() => setShowCreateDelegation(false)} onDone={() => { setShowCreateDelegation(false); fetchDelegations(); }} />
@@ -437,6 +550,47 @@ export default function IdentityLedgerPage() {
       {showRequestBg && (
         <RequestBreakGlassModal onClose={() => setShowRequestBg(false)} onDone={() => { setShowRequestBg(false); fetchBreakGlass(); }} />
       )}
+    </div>
+  );
+}
+
+// ── Actor Ledger History (inline in expanded row) ─────────────────────────────
+function ActorLedgerHistory({ actorId, entries, onLoad }: { actorId: string; entries: any[] | undefined; onLoad: () => void }) {
+  const [loaded, setLoaded] = React.useState(false);
+  React.useEffect(() => { if (!loaded) { onLoad(); setLoaded(true); } }, [loaded, onLoad]);
+
+  const ENTRY_LABELS: Record<string, string> = {
+    'user.role_changed': 'Role Changed',
+    'api_key.revoked': 'API Key Revoked',
+    'actor.registered': 'Actor Registered',
+    'delegation.created': 'Delegation Created',
+    'delegation.revoked': 'Delegation Revoked',
+    'break_glass.requested': 'Break-Glass Requested',
+    'break_glass.activated': 'Break-Glass Activated',
+  };
+
+  if (!entries) return <p className="text-[10px] text-foreground-muted">Loading history…</p>;
+  if (entries.length === 0) return <p className="text-[10px] text-foreground-muted">No notable ledger events for this actor.</p>;
+
+  return (
+    <div>
+      <p className="text-[10px] font-medium text-foreground-muted mb-1.5 uppercase tracking-wide">Recent Activity</p>
+      <div className="space-y-1">
+        {entries.map((e: any) => {
+          const change = e.authority_change || {};
+          const detail = change.roles ? `→ ${change.roles.join(", ")}` : change.key_name ? `Key: ${change.key_name}` : change.change?.replace(/_/g, " ") || "";
+          return (
+            <div key={e.ledger_entry_id} className="flex items-center gap-2 text-[11px]">
+              <span className="text-foreground-muted whitespace-nowrap">{e.timestamp_utc ? new Date(e.timestamp_utc).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+              <span className="font-mono text-[10px] text-blue-400 bg-blue-500/10 px-1 rounded">{ENTRY_LABELS[e.entry_type] || e.entry_type}</span>
+              {detail && <span className="text-foreground-muted">{detail}</span>}
+              {(e.risk?.risk_level === "high" || e.risk?.level === "high") && (
+                <span className="text-[9px] text-red-400 border border-red-500/40 px-1 rounded">HIGH</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

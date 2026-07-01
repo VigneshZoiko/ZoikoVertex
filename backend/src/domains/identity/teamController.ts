@@ -4,6 +4,8 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
 import { createAuditEvent } from '../../services/auditTrail.service';
+import { syncActorAfterRoleChange } from '../../services/identityLedger.service';
+import { preserveEvidence } from '../../services/evidenceVault.service';
 
 export const listMembers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -252,6 +254,12 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       return res.status(400).json({ error: 'Cannot change the role of a Workspace Owner' });
     }
 
+    // Privilege escalation guard: only superadmins can assign ADMIN or WORKSPACE_OWNER
+    const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER', 'ADMIN']);
+    if (!isSuperAdmin && ESCALATION_ROLES.has(role)) {
+      return res.status(403).json({ error: 'Forbidden: Cannot assign ' + role + ' role' });
+    }
+
     let updateQuery = supabaseAdmin
       .from('workspace_members')
       .update({ role })
@@ -273,7 +281,7 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
     createAuditEvent({
       workspace_id: effectiveWsId,
       event_category: 'user_identity',
-      event_type: 'member_role_changed',
+      event_type: 'user.role_changed',
       event_title: 'Member Role Changed',
       event_summary: `Role changed from ${memberData.role} to ${role} for user ${userId}`,
       actor: { actor_id: actorId, actor_type: 'human_user' },
@@ -285,6 +293,47 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       retention_class: 'STANDARD',
       correlation: {},
     }).catch(() => {});
+
+    // Sync Identity Ledger so the new role is immediately reflected
+    syncActorAfterRoleChange({
+      workspace_id: effectiveWsId,
+      user_id: String(userId),
+      new_role: role,
+    }).catch(() => {});
+
+    // Preserve evidence of role change in Evidence Vault
+    const payload = JSON.stringify({
+      action: 'role_changed',
+      user_id: userId,
+      previous_role: memberData.role,
+      new_role: role,
+      changed_by: actorId,
+      changed_at: new Date().toISOString(),
+    });
+    preserveEvidence({
+      workspace_id: effectiveWsId,
+      tenant_id: effectiveWsId,
+      source_type: 'identity_proof',
+      source_id: String(userId),
+      source_system: 'team_management',
+      evidence_type: 'role_change',
+      risk_level: ['ADMIN', 'WORKSPACE_OWNER'].includes(role) ? 'high' : 'medium',
+      sensitivity: 'internal',
+      preservation_reason: `Role changed from ${memberData.role} to ${role} for user ${userId} by ${actorId}`,
+      preserved_by: actorId,
+      payload,
+      payload_size: payload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: {
+        user_id: userId,
+        previous_role: memberData.role,
+        new_role: role,
+        changed_by: actorId,
+      },
+    }).catch((err) => {
+      console.error('[Evidence] preserveEvidence failed for role change:', err?.message);
+    });
 
     res.json({ success: true, message: `Role updated to ${role}.` });
   } catch (error) {
@@ -359,6 +408,25 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
       evidence_state: 'not_preserved',
       retention_class: 'STANDARD',
       correlation: {},
+    }).catch(() => {});
+
+    const removalPayload = JSON.stringify({ removed_user_id: userId, name: displayName, email: userData?.email, removed_by: actorId, removed_at: new Date().toISOString() });
+    preserveEvidence({
+      workspace_id: deletedWsId,
+      tenant_id: deletedWsId,
+      source_type: 'identity_proof',
+      source_id: String(userId),
+      source_system: 'team_management',
+      evidence_type: 'member_removed',
+      risk_level: 'high',
+      sensitivity: 'internal',
+      preservation_reason: `Member ${displayName} (${userData?.email || userId}) removed from workspace by ${actorId}`,
+      preserved_by: actorId,
+      payload: removalPayload,
+      payload_size: removalPayload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: { removed_user_id: userId, removed_by: actorId },
     }).catch(() => {});
 
     res.json({ success: true, message: 'Member account permanently deleted.' });

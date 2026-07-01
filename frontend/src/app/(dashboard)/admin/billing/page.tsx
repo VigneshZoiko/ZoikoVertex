@@ -932,8 +932,8 @@ export default function BillingPage() {
                       { label: "Brands/Workspaces", value: PLAN_STATS[activePlan.id]?.brands   ?? "--" },
                       { label: "AI Agents",         value: PLAN_STATS[activePlan.id]?.agents   ?? "--" },
                     ].map(stat => (
-                      <div key={stat.label} className="bg-surface-hover rounded-lg px-3 py-2.5 border border-border">
-                        <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">{stat.label}</p>
+                      <div key={stat.label} className="bg-surface-hover rounded-lg px-3 py-2.5 border border-border overflow-hidden">
+                        <p className="text-[10px] text-foreground-muted uppercase tracking-wide leading-tight break-words mb-1">{stat.label}</p>
                         <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{stat.value}</p>
                       </div>
                     ))}
@@ -1229,8 +1229,8 @@ export default function BillingPage() {
       {depositToast && mounted && createPortal(
         <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold ${
           depositToast.type === "success"
-            ? "bg-success-text border-success-border/30 text-success-text"
-            : "bg-error-text border-error-border/30 text-error-text"
+            ? "bg-toast-success-bg border-success-border/30 text-toast-success-text"
+            : "bg-toast-error-bg border-error-border/30 text-toast-error-text"
         }`}>
           {depositToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span className="max-w-sm">{depositToast.msg}</span>

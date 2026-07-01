@@ -518,9 +518,9 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
           { label: "Rejected Today", value: rejectedToday, color: "text-rose-400" },
           { label: "Average Review Time", value: "—", color: "text-foreground-muted" },
         ].map((k) => (
-          <div key={k.label} className="bg-background border border-border rounded-2xl p-5 text-center">
+          <div key={k.label} className="bg-background border border-border rounded-2xl p-5 text-center overflow-hidden">
             <div className={`text-3xl font-black ${k.color}`}>{k.value}</div>
-            <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest mt-1">{k.label}</div>
+            <div className="text-[10px] font-black text-foreground-muted uppercase tracking-wide leading-tight break-words mt-1">{k.label}</div>
           </div>
         ))}
       </div>

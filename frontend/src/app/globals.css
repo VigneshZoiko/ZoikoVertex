@@ -49,6 +49,12 @@
   --info-bg: rgba(99, 102, 241, 0.08);
   --info-border: rgba(99, 102, 241, 0.2);
   --info-text: #6366F1;
+
+  /* Toast-specific (solid) */
+  --toast-success-bg: rgba(16, 185, 129, 0.88);
+  --toast-success-text: #ffffff;
+  --toast-error-bg: rgba(239, 68, 68, 0.88);
+  --toast-error-text: #ffffff;
 }
 
 /* Mobile — matches header's `h-14` (3.5rem = 56px) */
@@ -103,6 +109,12 @@
   --info-bg: rgba(32, 231, 242, 0.08);
   --info-border: rgba(32, 231, 242, 0.2);
   --info-text: #20E7F2;
+
+  /* Toast-specific (solid) */
+  --toast-success-bg: rgba(16, 185, 129, 0.82);
+  --toast-success-text: #ffffff;
+  --toast-error-bg: rgba(239, 68, 68, 0.82);
+  --toast-error-text: #ffffff;
 }
 
 /* ─── Tailwind v4 Theme Mapping ──────────────────────────────────────────── */
@@ -130,6 +142,10 @@
   --color-success-bg: var(--success-bg);
   --color-success-border: var(--success-border);
   --color-success-text: var(--success-text);
+  --color-toast-success-bg: var(--toast-success-bg);
+  --color-toast-success-text: var(--toast-success-text);
+  --color-toast-error-bg: var(--toast-error-bg);
+  --color-toast-error-text: var(--toast-error-text);
   --color-warning-bg: var(--warning-bg);
   --color-warning-border: var(--warning-border);
   --color-warning-text: var(--warning-text);

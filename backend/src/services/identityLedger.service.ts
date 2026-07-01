@@ -956,7 +956,7 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
     .eq('workspace_id', workspaceId);
 
   for (const agent of (agents || []) as Array<Record<string, unknown>>) {
-    try { await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent)); } catch (_) {}
+    try { await ensureSnapshotForSeed(buildAgentSeed(workspaceId, tenantId, agent)); } catch {}
   }
 
   const { data: apiKeys } = await supabaseAdmin
@@ -965,7 +965,7 @@ async function ensureWorkspaceReadModel(workspaceId: string, tenantId: string): 
     .eq('workspace_id', workspaceId);
 
   for (const apiKey of (apiKeys || []) as Array<Record<string, unknown>>) {
-    try { await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey)); } catch (_) {}
+    try { await ensureSnapshotForSeed(buildApiKeySeed(workspaceId, tenantId, apiKey)); } catch {}
   }
 }
 
@@ -1014,8 +1014,14 @@ export async function listActors(params: {
   limit?: number;
   offset?: number;
   viewer: ViewerContext;
+  refresh?: boolean;
 }) {
-  await ensureWorkspaceReadModel(params.workspace_id, normalizeTenantId(params.tenant_id));
+  // Only run the expensive sync when explicitly requested (?refresh=true).
+  // Normal reads go straight to identity_actors which is always up-to-date
+  // because role/membership changes write-through to the table.
+  if (params.refresh) {
+    await ensureWorkspaceReadModel(params.workspace_id, normalizeTenantId(params.tenant_id));
+  }
   const actors = await listActorsRaw(params.workspace_id);
 
   const filtered = actors.filter(actor => {
@@ -1046,6 +1052,35 @@ export async function listActors(params: {
     actors: paged.map(actor => applyActorFieldAccess(actor, params.viewer)),
     total: filtered.length,
   };
+}
+
+/**
+ * Called after a workspace role change so the Identity Ledger reflects the
+ * new role immediately (creates a new snapshot + ledger entry if role differs).
+ */
+export async function syncActorAfterRoleChange(params: {
+  workspace_id: string;
+  user_id: string;
+  new_role: string;
+}): Promise<void> {
+  const tenantId = normalizeTenantId(params.workspace_id);
+  const { data: user } = await supabaseAdmin
+    .from('users')
+    .select('id, full_name, email, is_superadmin')
+    .eq('id', params.user_id)
+    .maybeSingle();
+
+  const seed = buildHumanUserSeed(
+    params.workspace_id,
+    tenantId,
+    { user_id: params.user_id, role: params.new_role },
+    user as Record<string, unknown> | null,
+  );
+  // Override entry type to reflect this is a role change, not initial creation
+  seed.entry_type = 'user.role_changed';
+  seed.entry_category = 'identity_assertion';
+
+  await ensureSnapshotForSeed(seed);
 }
 
 export async function getActorDetail(params: {

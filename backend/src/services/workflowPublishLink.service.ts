@@ -407,6 +407,26 @@ export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<
       '[publish-link] linked post to Publishing Workflow',
     );
 
+    // Store the workflow instance ID on the linked agent_run so that the
+    // Operations page can display the same short ID as the Workflows page.
+    if (postId && instance?.id) {
+      try {
+        const { data: existingRun } = await supabaseAdmin
+          .from('agent_runs')
+          .select('id, metadata')
+          .eq('task_id', postId)
+          .maybeSingle();
+        if (existingRun?.id) {
+          await supabaseAdmin
+            .from('agent_runs')
+            .update({ metadata: { ...(existingRun.metadata || {}), workflow_instance_id: instance.id } })
+            .eq('id', existingRun.id);
+        }
+      } catch (metaErr) {
+        logger.warn({ err: metaErr }, '[publish-link] failed to store workflow_instance_id on agent_run (non-blocking)');
+      }
+    }
+
     // Mirror the agent check verdict onto the post's Operations run so a post
     // the workflow shows as Blocked / Needs-Review reads the same in Agent
     // Operations (status + the violation reason in the Evidence column).
@@ -632,14 +652,26 @@ function buildGovernanceReason(meta: any): string | undefined {
 }
 
 export function enrichPublishInstance(instance: any): any {
-  if (!instance || typeof instance.trigger_source !== 'string') return instance;
+  // Extract post_id from trigger_source JSON up-front so it is available on
+  // ALL early-return paths, not just the publish_hub success path.
+  let triggerPostId: string | null = null;
+  if (typeof instance?.trigger_source === 'string') {
+    try { triggerPostId = JSON.parse(instance.trigger_source)?.post_id ?? null; } catch {}
+  }
+  const resolvedPostId: string | null = instance?.post_id || triggerPostId || null;
+
+  if (!instance || typeof instance.trigger_source !== 'string') {
+    return { ...instance, post_id: resolvedPostId };
+  }
   let meta: any;
   try {
     meta = JSON.parse(instance.trigger_source);
   } catch {
-    return instance;
+    return { ...instance, post_id: resolvedPostId };
   }
-  if (!meta || meta.src !== 'publish_hub') return instance;
+  if (!meta || meta.src !== 'publish_hub') {
+    return { ...instance, post_id: resolvedPostId };
+  }
 
   // A publish-hub instance's real state is the agent's verdict, recorded in
   // meta.check at link time. Derive the display status from it so flagged
@@ -652,15 +684,15 @@ export function enrichPublishInstance(instance: any): any {
   // status is the source of truth — do NOT override it with the verdict frozen
   // at creation (that's what left approved runs stuck on "Waiting"). Only derive
   // the display status from the verdict while the run is still unresolved.
-  const decided = ['completed', 'failed', 'cancelled', 'blocked', 'running'].includes(
+  const decided = ['completed', 'cancelled', 'blocked', 'running'].includes(
     String(instance.status),
   );
   if (!decided) {
     if (verdict === 'block') displayStatus = 'blocked';
     else if (verdict === 'review') displayStatus = 'waiting_review';
-    else if (instance.status === 'paused') {
-      // Safe post that got swept into 'paused' — restore to its scheduled/queued
-      // or completed display state.
+    else if (verdict === 'safe') {
+      // Safe content that got swept into failed/paused — restore to its correct
+      // completed (or pending if scheduled) display state.
       displayStatus = meta.scheduled ? 'pending' : 'completed';
     }
   }
@@ -678,6 +710,7 @@ export function enrichPublishInstance(instance: any): any {
 
   return {
     ...instance,
+    post_id: resolvedPostId,
     status: displayStatus,
     assigned_agent_name: meta.agent_name || instance.assigned_agent_name,
     // Full validation chain (all agents the post went through) for the run detail.

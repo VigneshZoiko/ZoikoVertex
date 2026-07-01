@@ -223,6 +223,34 @@ export const createApiKey = async (req: AuthRequest, res: Response, next: NextFu
 
     if (error) throw error;
 
+    // Record API key creation in Identity Ledger
+    const now = new Date().toISOString();
+    const ledgerEntryId = `IDL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+    Promise.resolve(supabaseAdmin.from('identity_ledger_entries').insert({
+      ledger_entry_id: ledgerEntryId,
+      tenant_id: workspaceId,
+      workspace_id: workspaceId,
+      data_residency: 'auto',
+      schema_version: '1.0',
+      entry_type: 'api_key.created',
+      entry_category: 'access_change',
+      timestamp_utc: now,
+      actor_id: userId,
+      actor_type: 'human_user',
+      source: { source_system: 'api_key_management', action: 'create_api_key', api_key_id: data.id },
+      authority_change: {
+        change: 'api_key_created',
+        key_name: name.trim(),
+        key_prefix: prefix,
+        scopes,
+      },
+      session_context: {},
+      approvals: [],
+      linked_authority_snapshot_id: null,
+      risk: { risk_level: scopes.includes('*') ? 'high' : 'medium' },
+      retention: { class: 'STANDARD' },
+    })).catch((err: Error) => logger.error({ err }, '[IdentityLedger] Failed to record api_key.created'));
+
     // Return full key only on creation — never retrievable again
     res.status(201).json({ success: true, data: { ...data, full_key: fullKey } });
   } catch (err) {
@@ -233,9 +261,18 @@ export const createApiKey = async (req: AuthRequest, res: Response, next: NextFu
 export const revokeApiKey = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
+    const actorId = req.user?.id;
     if (!workspaceId) return next(makeError('No workspace context', 403));
 
     const { id } = req.params;
+
+    // Fetch key details before revoking for the ledger record
+    const { data: keyData } = await supabaseAdmin
+      .from('api_keys')
+      .select('id, name, key_prefix, created_at, created_by')
+      .eq('id', id)
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
 
     const { error } = await supabaseAdmin
       .from('api_keys')
@@ -244,6 +281,37 @@ export const revokeApiKey = async (req: AuthRequest, res: Response, next: NextFu
       .eq('workspace_id', workspaceId);
 
     if (error) throw error;
+
+    // Record in Identity Ledger
+    if (actorId && keyData) {
+      const now = new Date().toISOString();
+      const ledgerEntryId = `IDL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+      Promise.resolve(supabaseAdmin.from('identity_ledger_entries').insert({
+        ledger_entry_id: ledgerEntryId,
+        tenant_id: workspaceId,
+        workspace_id: workspaceId,
+        data_residency: 'auto',
+        schema_version: '1.0',
+        entry_type: 'api_key.revoked',
+        entry_category: 'access_change',
+        timestamp_utc: now,
+        actor_id: actorId,
+        actor_type: 'human_user',
+        source: { source_system: 'api_key_management', action: 'revoke_api_key', api_key_id: id },
+        authority_change: {
+          change: 'api_key_revoked',
+          key_name: keyData.name || keyData.key_prefix,
+          key_prefix: keyData.key_prefix,
+          originally_created_by: keyData.created_by,
+        },
+        session_context: {},
+        approvals: [],
+        linked_authority_snapshot_id: null,
+        risk: { risk_level: 'medium' },
+        retention: { class: 'STANDARD' },
+      })).catch((err: Error) => logger.error({ err }, '[IdentityLedger] Failed to record api_key.revoked'));
+    }
+
     res.json({ success: true });
   } catch (err) {
     next(err);

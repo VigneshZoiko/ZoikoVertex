@@ -72,6 +72,7 @@ function FileAttachment({ file, isDark }) {
   if (isImage) {
     return (
       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block mt-1.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={fileUrl}
           alt={file.name}
@@ -199,14 +200,15 @@ export default function MessageBubble({
         <div className="relative h-8 w-8">
           <div className="h-8 w-8 rounded-full bg-[#e6f4f7] flex items-center justify-center overflow-hidden border-2 border-[#4db8ff]">
             <span className="text-[0.72rem] font-semibold text-[#1d4e61]">
-              <img src="./response-icon.jpg" alt="" className="h-full w-full object-contain" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/response-icon.jpg" alt="" className="h-full w-full object-contain" />
             </span>
           </div>
         </div>
       )}
 
       <div
-        className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"} max-w-[78%]`}
+        className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"} max-w-[85%]`}
       >
         <div
           className={
@@ -229,28 +231,15 @@ export default function MessageBubble({
           {msg.file && <FileAttachment file={msg.file} isDark={isDark} />}
         </div>
 
-        {!isUser && !msg.typing && !animating && msg.source && (
+        {!isUser && !msg.typing && !animating && msg.source === "handoff" && (
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className={`rounded-full px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wider ${
-              msg.source === "ai"
-                ? isDark
-                  ? "bg-[rgba(168,85,247,0.15)] text-[#a855f7] border border-[rgba(168,85,247,0.3)]"
-                  : "bg-[rgba(168,85,247,0.1)] text-[#7c3aed] border border-[rgba(168,85,247,0.25)]"
-                : msg.source === "handoff"
-                  ? isDark
-                    ? "bg-[rgba(34,197,94,0.15)] text-[#22c55e] border border-[rgba(34,197,94,0.3)]"
-                    : "bg-[rgba(34,197,94,0.1)] text-[#15803d] border border-[rgba(34,197,94,0.25)]"
-                  : isDark
-                    ? "bg-[rgba(59,130,246,0.15)] text-[#3b82f6] border border-[rgba(59,130,246,0.3)]"
-                    : "bg-[rgba(59,130,246,0.1)] text-[#2563eb] border border-[rgba(59,130,246,0.25)]"
+              isDark
+                ? "bg-[rgba(34,197,94,0.15)] text-[#22c55e] border border-[rgba(34,197,94,0.3)]"
+                : "bg-[rgba(34,197,94,0.1)] text-[#15803d] border border-[rgba(34,197,94,0.25)]"
             }`}>
-              {msg.source === "ai" ? "AI" : msg.source === "handoff" ? "Handoff" : "Custos"}
+              Human Agent
             </span>
-            {msg.model && (
-              <span className={`text-[0.55rem] ${isDark ? "text-[#5a7da0]" : "text-[#6b8ba0]"}`}>
-                {msg.model}
-              </span>
-            )}
           </div>
         )}
 
@@ -302,8 +291,9 @@ export default function MessageBubble({
                 : "border border-[rgba(43,154,217,0.3)] bg-[rgba(43,154,217,0.1)] text-[#1a5fa8]"
             }`}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/avatar.svg"
+              src="/images/avatar.svg"
               alt="User avatar"
               className="h-full w-full object-contain"
             />

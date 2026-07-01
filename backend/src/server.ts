@@ -142,6 +142,7 @@ import {
   listTemplateVersions,
 } from './domains/evidence/evidenceVaultController';
 import {
+  listLedgerEntries as listIdentityLedgerEntries,
   listActors as listIdentityActors,
   getActor as getIdentityActor,
   getActorTimeline as getIdentityActorTimeline,
@@ -481,8 +482,8 @@ const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'CO
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN');
 // Allows content creators/publishers to read their own returned items from the review queue
 const returnedView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
-// Allows creators/publishers to write (resubmit) their own returned items
-const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
+// Allows creators to resubmit returned items AND reviewers to take actions (claim/approve/reject)
+const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'MANAGER', 'SECURITY_ADMIN', 'REVIEWER', 'COMPLIANCE_REVIEWER', 'BRAND_REVIEWER', 'VALIDATOR', 'APPROVER', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
 
 app.post('/api/v1/ai/generate', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateContent);
 app.post('/api/v1/ai/generate-ad-copy', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateAdCopy);
@@ -694,6 +695,7 @@ app.post('/api/evidence-vault/templates', authenticate, scopeGuard('write:govern
 app.get('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), listTemplateVersions);
 
 // Identity Ledger
+app.get('/api/identity-ledger/entries', authenticate, scopeGuard('read:governance', '*'), listIdentityLedgerEntries);
 app.get('/api/identity-ledger/actors', authenticate, scopeGuard('read:governance', '*'), listIdentityActors);
 app.get('/api/identity-ledger/actors/:actorId', authenticate, scopeGuard('read:governance', '*'), getIdentityActor);
 app.get('/api/identity-ledger/actors/:actorId/timeline', authenticate, scopeGuard('read:governance', '*'), getIdentityActorTimeline);
@@ -1307,7 +1309,7 @@ app.post('/api/v1/approvals/items/:id/action', authenticate, deprecate, scopeGua
 
 // ─── Approval Workbench Routes (v2 — Full 3-Panel Wireframe) ────────────
 app.post('/api/v1/approvals-v2/items', authenticate, acctWrite, scopeGuard('write:governance', '*'), createApprovalItem);
-app.get('/api/v1/approvals-v2/items', authenticate, acctView, scopeGuard('read:governance', '*'), listApprovalItems);
+app.get('/api/v1/approvals-v2/items', authenticate, returnedView, scopeGuard('read:governance', '*'), listApprovalItems);
 app.get('/api/v1/approvals-v2/items/:id', authenticate, acctView, scopeGuard('read:governance', '*'), getV2ApprovalItem);
 app.get('/api/v1/approvals-v2/stats', authenticate, acctView, scopeGuard('read:governance', '*'), getV2ApprovalStats);
 app.get('/api/v1/approvals-v2/items/:id/eligibility', authenticate, acctView, scopeGuard('read:governance', '*'), getApprovalEligibility);
@@ -1705,6 +1707,8 @@ import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
 import { startSlaBreachWorker } from './workers/slaBreachWorker';
 import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWorker';
+import { supabaseAdmin } from './shared/supabase';
+import { AGENT_CATALOG } from './modules/prompts/validation/registry';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1736,6 +1740,19 @@ try {
     initOrgInactivityWorker();
     startSlaBreachWorker();
     initEvidenceIntelligenceWorker();
+
+    // Governed validation agents must always be ACTIVE (Live).
+    // If any were paused via the UI restore them automatically on every boot.
+    const governedNames = AGENT_CATALOG.map((a) => a.name);
+    supabaseAdmin
+      .from('agents')
+      .update({ status: 'ACTIVE', updated_at: new Date().toISOString() })
+      .in('name', governedNames)
+      .neq('status', 'ACTIVE')
+      .then(({ error }) => {
+        if (error) logger.warn({ err: error.message }, '[startup] Could not restore governed agents to ACTIVE');
+        else logger.info('[startup] Governed validation agents verified ACTIVE');
+      }, (err) => logger.warn({ err }, '[startup] Could not restore governed agents to ACTIVE'));
   });
 
   server.on('error', (err: Error & { code?: string }) => {

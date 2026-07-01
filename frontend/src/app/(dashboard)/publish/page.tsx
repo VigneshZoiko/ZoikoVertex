@@ -317,18 +317,48 @@ function PostPreview({
           </p>
         )}
 
-        {/* Media */}
-        <MediaPreview
-          src={currentMedia}
-          alt="preview"
-          type={isVideoMedia(currentMedia) ? "video" : "image"}
-          className={`w-full ${isInstagram ? 'aspect-square' : 'aspect-video'}`}
-          fit="cover"
-          controls={isVideoMedia(currentMedia)}
-          muted
-          playsInline
-          expandable={isVideoMedia(currentMedia)}
-        />
+        {/* Media — flexible container, no forced aspect ratio so nothing is cropped */}
+        {currentMedia ? (
+          isVideoMedia(currentMedia) ? (
+            <div className="w-full bg-black">
+              <MediaPreview
+                src={currentMedia}
+                alt="preview"
+                type="video"
+                className="w-full aspect-video"
+                fit="contain"
+                controls
+                muted
+                playsInline
+                expandable
+              />
+            </div>
+          ) : (
+            <div className="w-full bg-black flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={currentMedia}
+                alt="preview"
+                className="w-full h-auto max-h-[480px] object-contain block"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          )
+        ) : (
+          <div className="w-full aspect-video flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[var(--surface)] to-[var(--background)] border-y border-[var(--border)]">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--card)] border border-[var(--border)] flex items-center justify-center shadow-inner">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--foreground-muted)] opacity-50">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
+            <div className="text-center px-4">
+              <p className="text-xs font-semibold text-[var(--foreground-muted)] opacity-70">No media selected</p>
+              <p className="text-[11px] text-[var(--foreground-muted)] opacity-40 mt-0.5">Add an image or video to preview</p>
+            </div>
+          </div>
+        )}
 
         {/* ── Facebook action bar ── */}
         {isFacebook && (
@@ -670,11 +700,18 @@ function PublishPageInner() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const assetUrls = searchParams.get('assetUrls');
-  const assetUrl  = searchParams.get('assetUrl');
-  const assetType = searchParams.get('assetType');
-  const assetTitle = searchParams.get('assetTitle');
+  const assetUrls   = searchParams.get('assetUrls');
+  const assetUrl    = searchParams.get('assetUrl');
+  const assetType   = searchParams.get('assetType');
+  const assetTitle  = searchParams.get('assetTitle');
+  const captionParam   = searchParams.get('caption');
+  const accountIdsParam = searchParams.get('accountIds');
+  const draftIdParam   = searchParams.get('draftId');
   const reviewItemId = searchParams.get('review_item_id');
+  // Approval Console returned items use this param (source_entity_id = publish_intent id)
+  const approvalSourceId = searchParams.get('approval_source_id');
+  const approvalItemId   = searchParams.get('approval_item_id');
+  const suggestionText   = searchParams.get('suggestion');
 
   useEffect(() => {
     const timers = pollTimers.current;
@@ -701,8 +738,17 @@ function PublishPageInner() {
       setMediaPreview(assetUrl);
     }
     if (assetTitle && !topic) setTopic(assetTitle);
+    // Restore caption/description from draft
+    if (captionParam) setDescription(captionParam);
+    // Restore selected accounts from draft
+    if (accountIdsParam) {
+      try {
+        const ids: string[] = JSON.parse(accountIdsParam);
+        if (ids.length > 0) setSelectedAccountIds(ids);
+      } catch {}
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetUrls, assetUrl, assetTitle]);
+  }, [assetUrls, assetUrl, assetTitle, captionParam, accountIdsParam]);
 
   // Prefill all fields when editing a returned review-queue post
   useEffect(() => {
@@ -747,6 +793,46 @@ function PublishPageInner() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewItemId]);
+
+  // Prefill all fields when editing a returned Approval-Console post
+  useEffect(() => {
+    if (!approvalSourceId) return;
+    let isMounted = true;
+    supabase
+      .from('publish_intents')
+      .select('id, content, media_url, media_urls, platform, target_account_ids')
+      .eq('id', approvalSourceId)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data || !isMounted) return;
+        // Caption — content is the resolved plain-text caption for this platform
+        if (data.content) {
+          setIsPlatformSpecific(false);
+          setDescription(data.content);
+          // If a platform is known, prime a platform-specific caption too
+          if (data.platform) {
+            setIsPlatformSpecific(true);
+            setPlatformCaptions({ [data.platform]: data.content });
+            setActivePlatformTab(data.platform);
+          }
+        }
+        // Media — prefer the full array, fall back to single URL
+        const urls: string[] = Array.isArray(data.media_urls) && data.media_urls.length > 0
+          ? data.media_urls
+          : data.media_url ? [data.media_url] : [];
+        if (urls.length > 0) {
+          setMediaUrls(urls);
+          setSelectedUrls(urls);
+          setMediaPreview(urls[0]);
+          setCarouselIndex(0);
+        }
+        // Target accounts
+        if (Array.isArray(data.target_account_ids) && data.target_account_ids.length > 0) {
+          setSelectedAccountIds(data.target_account_ids);
+        }
+      });
+    return () => { isMounted = false; };
+  }, [approvalSourceId]);
 
   // Mark draft as dirty whenever meaningful content exists
   useEffect(() => {
@@ -1459,6 +1545,11 @@ function PublishPageInner() {
       } else {
         const result = await api.post("/api/v1/governance/submit", payload);
 
+        // Cancel the old approval item so it no longer appears in Returned Items
+        if (approvalItemId) {
+          api.post(`/api/v1/approvals-v2/items/${approvalItemId}/action`, { action: 'cancel' }).catch(() => {});
+        }
+
         setMessage({
           type: "success",
           text: `Publishing ${result.count || ""} post${(result.count || 0) > 1 ? "s" : ""} to your selected accounts!`,
@@ -1862,17 +1953,18 @@ function PublishPageInner() {
         <div className="lg:col-span-7 space-y-4">
 
           {/* Returned-post edit mode banner */}
-          {reviewItemId && (
+          {(reviewItemId || approvalSourceId) && (
             <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 overflow-hidden">
               <div className="flex items-start gap-3 px-5 py-4 border-b border-orange-500/10">
                 <RotateCcw className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-orange-400">Editing Returned Post</p>
                   <p className="text-xs text-orange-300/70 mt-0.5 truncate">
-                    {reviewItem?.title || "Review item"} — make your changes then click Resubmit for Review
+                    {reviewItem?.title || "Post returned for changes"} — edit your content then resubmit
                   </p>
                 </div>
               </div>
+              {/* Review queue: show reviewer notes */}
               {reviewNotes.length > 0 && (
                 <div className="px-5 py-3 space-y-2">
                   <p className="text-[10px] font-bold text-orange-400/60 uppercase tracking-wider">
@@ -1886,6 +1978,17 @@ function PublishPageInner() {
                       {n.note_body}
                     </div>
                   ))}
+                </div>
+              )}
+              {/* Approval console: show approver feedback from URL */}
+              {approvalSourceId && suggestionText && (
+                <div className="px-5 py-3 space-y-2">
+                  <p className="text-[10px] font-bold text-orange-400/60 uppercase tracking-wider">
+                    Approver Feedback
+                  </p>
+                  <div className="text-xs text-[var(--foreground)] bg-orange-500/5 border border-orange-500/10 rounded-lg px-3 py-2 leading-relaxed">
+                    {suggestionText}
+                  </div>
                 </div>
               )}
             </div>
@@ -2460,25 +2563,27 @@ function PublishPageInner() {
             disabled={submitting || !canPublish}
             title={!canPublish ? "Your role cannot publish content" : undefined}
             className={`w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-              reviewItemId
+              (reviewItemId || approvalSourceId)
                 ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20"
                 : "bg-info-text text-foreground hover:bg-info-text"
             }`}
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : reviewItemId ? (
+            ) : (reviewItemId || approvalSourceId) ? (
               <RotateCcw className="w-4 h-4" />
             ) : (
               <Send className="w-4 h-4" />
             )}
             {submitting
-              ? (reviewItemId ? "Resubmitting…" : "Publishing…")
+              ? ((reviewItemId || approvalSourceId) ? "Resubmitting…" : "Publishing…")
               : reviewItemId
                 ? "Update & Resubmit for Review"
-                : activeRevisionId
-                  ? "Republish"
-                  : "Publish Now"}
+                : approvalSourceId
+                  ? "Apply Changes & Resubmit for Approval"
+                  : activeRevisionId
+                    ? "Republish"
+                    : "Publish Now"}
           </button>
           {/* Save to Drafts */}
           <button

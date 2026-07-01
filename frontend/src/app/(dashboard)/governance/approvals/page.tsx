@@ -200,6 +200,8 @@ export default function ApprovalsPage() {
   const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [returnPanelOpen, setReturnPanelOpen] = useState(false);
+  const [returnNoteText, setReturnNoteText] = useState("");
 
   // Per-item detail state
   const [selectedDecisions, setSelectedDecisions] = useState<ApprovalDecision[]>([]);
@@ -241,7 +243,7 @@ export default function ApprovalsPage() {
     { id: "m6", label: "Overdue",            count: stats?.counts.overdue             ?? 0, icon: AlertCircle,   color: "text-error-text",    filterTab: "overdue"   },
   ];
 
-  const handleAction = async (action: string, id: string, body?: Record<string, any>) => {
+  const handleAction = async (action: string, id: string, body?: Record<string, any>, successText?: string) => {
     try {
       let result;
       if (action === 'assign' || action === 'reassign') {
@@ -254,8 +256,8 @@ export default function ApprovalsPage() {
       if (result.success) {
         fetchItems();
         if (selectedId === id) fetchItemDetails(id);
-        setMessage({ type: "success", text: `${action.replace(/_/g, ' ')} completed` });
-        setTimeout(() => setMessage(null), 3000);
+        setMessage({ type: "success", text: successText || `${action.replace(/_/g, ' ')} completed` });
+        setTimeout(() => setMessage(null), 4000);
       } else {
         setMessage({ type: "error", text: result.error || `${action} failed` });
         setTimeout(() => setMessage(null), 5000);
@@ -325,6 +327,9 @@ export default function ApprovalsPage() {
       setSelectedEligibility("APPROVAL_ELIGIBLE");
       setSelectedAuditLog([]); setSelectedComments([]);
     }
+    // close return panel whenever the selected item changes
+    setReturnPanelOpen(false);
+    setReturnNoteText("");
   }, [selectedId, fetchItemDetails]);
 
   const dismissAlert = (id: string) => {
@@ -883,13 +888,45 @@ export default function ApprovalsPage() {
                     <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-warning-bg text-warning-text rounded-lg text-xs font-medium hover:bg-warning-text/25 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Request Changes
                     </button>
-                    <button onClick={() => {
-                      if (!selectedId) return;
-                      const r = window.prompt("Reason for returning to publisher:");
-                      if (r) handleAction("return_to_creator", selectedId, { reason: r, note: r });
-                    }} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
-                      <RotateCcw className="w-3.5 h-3.5" /> Return to Publisher
-                    </button>
+                    {returnPanelOpen ? (
+                      <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-2.5 space-y-2">
+                        <p className="text-[10px] font-semibold text-orange-300 uppercase tracking-wider">Feedback for creator</p>
+                        <textarea
+                          value={returnNoteText}
+                          onChange={e => setReturnNoteText(e.target.value)}
+                          placeholder="Describe what needs to be changed or improved…"
+                          rows={4}
+                          className="w-full rounded-lg border border-orange-500/20 bg-[#0a0a0a] px-2.5 py-2 text-xs text-white placeholder-[#555] resize-none focus:outline-none focus:border-orange-500/50"
+                        />
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => { setReturnPanelOpen(false); setReturnNoteText(""); }}
+                            className="flex-1 rounded-lg border border-[#2d2d2d] px-3 py-1.5 text-[10px] text-[#888] hover:text-white transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            disabled={!returnNoteText.trim()}
+                            onClick={async () => {
+                              if (!selectedId || !returnNoteText.trim()) return;
+                              await handleAction("return_to_creator", selectedId, { reason: returnNoteText.trim(), note: returnNoteText.trim() }, "Returned to publisher — item is now in Returned Items (/returned)");
+                              setReturnPanelOpen(false);
+                              setReturnNoteText("");
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-orange-500/20 px-3 py-1.5 text-[10px] font-semibold text-orange-300 hover:bg-orange-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <RotateCcw className="w-3 h-3" /> Send Return
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setReturnPanelOpen(true)}
+                        className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" /> Return to Publisher
+                      </button>
+                    )}
                     <button onClick={() => selectedId && handleAction("conditional_approval", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
                       <Flag className="w-3.5 h-3.5" /> Approve with Conditions
                     </button>

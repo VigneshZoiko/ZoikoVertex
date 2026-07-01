@@ -59,6 +59,7 @@ export default function Composer({
             : "bg-[rgba(43,154,217,0.1)] text-[#1a5fa8]"
         }`}>
           {isImageFile && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={attachedFile.url}
               alt={attachedFile.name}
@@ -103,7 +104,7 @@ export default function Composer({
             )}px`;
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Custos anything about ZoikoVertex..."
+          placeholder="Ask anything about ZoikoVertex..."
           rows={1}
           disabled={isTyping}
           className={`flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none disabled:opacity-50 ${
@@ -132,13 +133,13 @@ export default function Composer({
           type="button"
           onClick={onClear}
           title="Clear chat"
-          className={`orbit-icon-button mb-0.5 h-8 w-8 flex-shrink-0 rounded-[11px] ${
+          className={`orbit-icon-button mb-0.5 h-8 w-8 flex-shrink-0 rounded-[11px] hover:text-red-500 ${
             isDark
               ? "text-[#7ac8f0] hover:bg-[rgba(23,51,124,0.3)]"
               : "text-[#1a5fa8] hover:bg-[rgba(43,154,217,0.12)]"
           }`}
         >
-          <HiOutlineTrash className="h-4 w-4 hover:text-red-500" />
+          <HiOutlineTrash className="h-4 w-4" />
         </button>
 
         <button
@@ -156,7 +157,7 @@ export default function Composer({
           isDark           ? "text-[#5a7da0]" : "text-[#5a7da0]"
         }`}
       >
-        Custos · ZoikoVertex AI · Source-grounded · Governed responses
+        ZoikoVertex AI · Source-grounded · Governed responses
       </p>
     </form>
   );

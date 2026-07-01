@@ -8,6 +8,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
+import { preserveEvidence } from '../../services/evidenceVault.service';
 
 import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
 import { getSchedulerStats } from '../../workers/schedulerWorker';
@@ -395,6 +396,25 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
       // Scan the attached media on scheduled posts too.
       imageUrls: mediaUrl ? [mediaUrl] : [],
     }).catch((err) => logger.warn({ err }, '[Scheduler] workflow link failed (non-blocking)'));
+
+    const postPayload = JSON.stringify({ post_id: post.id, platform, scheduled_time: scheduledTime, campaign_id: campaignId || null, creator_id: creatorId });
+    preserveEvidence({
+      workspace_id: member.workspace_id,
+      tenant_id: member.workspace_id,
+      source_type: 'audit_event',
+      source_id: String(post.id),
+      source_system: 'scheduler',
+      evidence_type: 'post_scheduled',
+      risk_level: 'low',
+      sensitivity: 'internal',
+      preservation_reason: `Post scheduled on ${platform} at ${scheduledTime} by ${creatorId}`,
+      preserved_by: creatorId,
+      payload: postPayload,
+      payload_size: postPayload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: { post_id: post.id, platform, scheduled_time: scheduledTime },
+    }).catch(() => {});
 
     res.status(201).json({ success: true, post });
   } catch (error) {
