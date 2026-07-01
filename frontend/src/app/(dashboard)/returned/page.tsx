@@ -451,7 +451,6 @@ function ApprovalCard({
 
           {/* Layer 1 — Post Content: media thumbnails beside text */}
           <div className="p-3 bg-[var(--surface)]/40 flex flex-row gap-3 min-w-0">
-            {/* Media thumbnails */}
             {postMediaUrls.length > 0 && (
               <div className="flex flex-row gap-1.5 shrink-0 overflow-x-auto max-w-[55%]">
                 {postMediaUrls.map((url, i) => {
@@ -472,18 +471,13 @@ function ApprovalCard({
                   return (
                     <div key={i} className="rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)] shrink-0 w-[120px] h-[90px]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt={`Media ${i + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
+                      <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
                   );
                 })}
               </div>
             )}
-            {/* Post text */}
             <div className="flex-1 min-w-0 flex flex-col gap-1 justify-start">
               <p className="text-[10px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-0.5">Caption</p>
               {postText ? (

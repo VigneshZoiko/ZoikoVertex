@@ -76,6 +76,8 @@ async function logIdentityLedgerAccess(params: {
 // Routine sync events — excluded from History view by default
 const NOISE_ENTRY_TYPES = ['identity.created', 'agent.created'];
 
+const GLOBAL_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+
 export async function listLedgerEntries(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;
@@ -86,18 +88,23 @@ export async function listLedgerEntries(req: AuthRequest, res: Response, next: N
     const off = parseInt(offset || '0', 10);
     const showAll = all === 'true';
 
+    // Include both the user's workspace and the global workspace so
+    // superadmin-level actions (role changes, API key ops) are always visible
+    const workspaceFilter = workspaceId === GLOBAL_WORKSPACE_ID
+      ? `workspace_id.eq.${workspaceId}`
+      : `workspace_id.eq.${workspaceId},workspace_id.eq.${GLOBAL_WORKSPACE_ID}`;
+
     let query = supabaseAdmin
       .from('identity_ledger_entries')
       .select('ledger_entry_id, entry_type, entry_category, timestamp_utc, created_at, actor_id, actor_type, authority_change, source, risk', { count: 'exact' })
-      .eq('workspace_id', workspaceId)
-      .order('timestamp_utc', { ascending: false })
-      .order('created_at', { ascending: false })
+      .or(workspaceFilter)
+      .order('timestamp_utc', { ascending: true })
+      .order('created_at', { ascending: true })
       .range(off, off + lim - 1);
 
     if (entry_type) {
       query = query.eq('entry_type', entry_type);
     } else if (!showAll) {
-      // By default exclude routine sync events so only meaningful events show
       query = query.not('entry_type', 'in', `(${NOISE_ENTRY_TYPES.map(t => `"${t}"`).join(',')})`);
     }
 
