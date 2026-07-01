@@ -410,6 +410,25 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
       correlation: {},
     }).catch(() => {});
 
+    const removalPayload = JSON.stringify({ removed_user_id: userId, name: displayName, email: userData?.email, removed_by: actorId, removed_at: new Date().toISOString() });
+    preserveEvidence({
+      workspace_id: deletedWsId,
+      tenant_id: deletedWsId,
+      source_type: 'identity_proof',
+      source_id: String(userId),
+      source_system: 'team_management',
+      evidence_type: 'member_removed',
+      risk_level: 'high',
+      sensitivity: 'internal',
+      preservation_reason: `Member ${displayName} (${userData?.email || userId}) removed from workspace by ${actorId}`,
+      preserved_by: actorId,
+      payload: removalPayload,
+      payload_size: removalPayload.length,
+      mime_type: 'application/json',
+      retention_class: 'standard',
+      metadata: { removed_user_id: userId, removed_by: actorId },
+    }).catch(() => {});
+
     res.json({ success: true, message: 'Member account permanently deleted.' });
   } catch (error) {
     next(error);

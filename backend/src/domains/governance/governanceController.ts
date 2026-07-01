@@ -843,10 +843,60 @@ async function recordReviewer(intentId: string, reviewerId: string, reason?: str
   }
 }
 
-// Persist a notification to the post's creator. Best-effort: a notification
-// failure must never block the review decision. `type: 'POST_REJECTED'` is the
-// signal the bell/notification panel uses to render the red rejection card
-// (red heading + white reason).
+// ── In-App Notification Helpers ────────────────────────────────────────────
+// Every review decision notifies the creator AND workspace admins / governance
+// roles. A notification failure must never block the review decision.
+
+async function createNotification(
+  userId: string,
+  title: string,
+  body: string,
+  type: string,
+  link?: string
+): Promise<void> {
+  try {
+    await supabaseAdmin.from('notifications').insert({
+      id: randomUUID(),
+      user_id: userId,
+      title,
+      body,
+      type,
+      link: link || null,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    // notification failure must not block the review decision
+  }
+}
+
+async function notifyWorkspaceAdmins(
+  workspaceId: string,
+  title: string,
+  body: string,
+  type: string,
+  link?: string
+): Promise<void> {
+  try {
+    const { data: admins } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .in('role', ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN', 'SECURITY_ADMIN']);
+
+    if (!admins) return;
+    for (const admin of admins) {
+      if (admin.id) {
+        await createNotification(admin.id, title, body, type, link);
+      }
+    }
+  } catch {
+    // non-blocking
+  }
+}
+
+// `type: 'POST_REJECTED'` is the signal the bell/notification panel uses to
+// render the red rejection card (red heading + white reason).
 async function notifyCreatorRejected(
   creatorId: string | null | undefined,
   reason: string | null | undefined,
@@ -862,8 +912,7 @@ async function notifyCreatorRejected(
         ? reason.trim()
         : 'A reviewer rejected this post. No reason was provided.',
       type: 'POST_REJECTED',
-      // Deep-link straight to the Approval Console with this post focused; the
-      // console selects it and opens the Rejected / Returned container.
+      // Deep-link to the Approval Console with this post focused
       link: `/governance/reviews?item=${intentId}`,
       read: false,
       created_at: new Date().toISOString(),
@@ -872,6 +921,62 @@ async function notifyCreatorRejected(
     logger.warn(
       { err: err instanceof Error ? err.message : String(err), intentId },
       '[review-action] creator rejection notification skipped',
+    );
+  }
+}
+
+// Notify the creator that their post was returned for revision.
+async function notifyCreatorReturned(
+  creatorId: string | null | undefined,
+  reason: string | null | undefined,
+  intentId: string,
+): Promise<void> {
+  if (!creatorId) return;
+  try {
+    await supabaseAdmin.from('notifications').insert({
+      id: randomUUID(),
+      user_id: creatorId,
+      title: '🔄 Post Returned for Revision',
+      body: reason && reason.trim()
+        ? reason.trim()
+        : 'A reviewer returned your post for changes. No reason was provided.',
+      type: 'RETURNED',
+      link: `/publish?revisionId=${intentId}`,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), intentId },
+      '[review-action] creator return notification skipped',
+    );
+  }
+}
+
+// Notify the creator that their post was approved.
+async function notifyCreatorApproved(
+  creatorId: string | null | undefined,
+  intentId: string,
+  contentPreview?: string,
+): Promise<void> {
+  if (!creatorId) return;
+  try {
+    await supabaseAdmin.from('notifications').insert({
+      id: randomUUID(),
+      user_id: creatorId,
+      title: '✅ Post Approved',
+      body: contentPreview
+        ? `Your post was approved: "${contentPreview.slice(0, 120)}"`
+        : 'Your post has been approved and will be published.',
+      type: 'APPROVAL',
+      link: `/publish?revisionId=${intentId}`,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), intentId },
+      '[review-action] creator approval notification skipped',
     );
   }
 }
@@ -936,12 +1041,31 @@ export const reviewActionIntent = async (
         await recordReviewer(intentId, userId, reason);
         await syncWorkflowInstanceStatus(intentId, 'blocked');
         await syncAgentRunFromIntent(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`);
+        // Notify creator + admins about the block
+        await notifyCreatorRejected(intent.creator_id, `Blocked by Decision Engine: ${decision.decision_class}`, intentId);
+        await notifyWorkspaceAdmins(
+          workspaceId,
+          '⛔ Post Blocked by Decision Engine',
+          `Post "${(intent.content || '').slice(0, 80)}" was blocked by the Decision Engine after manual approval. Decision: ${decision.decision_class}`,
+          'ERROR',
+          `/governance/reviews?item=${intentId}`,
+        );
         return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
       }
       await setIntentStatus(intentId, 'APPROVED', reason || null, decision?.decision_id);
       await recordReviewer(intentId, userId, reason);
       await syncWorkflowInstanceStatus(intentId, 'completed');
       await syncAgentRunFromIntent(intentId, 'APPROVED');
+      // Notify creator that their post was approved
+      await notifyCreatorApproved(intent.creator_id, intentId, intent.content);
+      // Notify workspace admins about the approval
+      await notifyWorkspaceAdmins(
+        workspaceId,
+        '✅ Agent Post Approved',
+        `A reviewer approved the agent post "${(intent.content || '').slice(0, 80)}".`,
+        'APPROVAL',
+        `/governance/reviews?item=${intentId}`,
+      );
       internalEventBus.emit('execution.requested', { intentId, orgId: workspaceId });
       return res.status(200).json({ success: true, data: { status: 'APPROVED' } });
     }
@@ -959,7 +1083,16 @@ export const reviewActionIntent = async (
       await syncAgentRunFromIntent(intentId, 'REJECTED', reason ? `Rejected: ${reason}` : 'Rejected by reviewer');
       // Notify the post's creator (whoever they are) that it was rejected, with
       // the reviewer's reason. Persisted so it shows even if they were offline.
+      // Notify the post's creator that it was rejected
       await notifyCreatorRejected(intent.creator_id, reason, intentId);
+      // Notify workspace admins about the rejection
+      await notifyWorkspaceAdmins(
+        workspaceId,
+        '❌ Agent Post Rejected',
+        `An agent post was rejected: "${(intent.content || '').slice(0, 80)}". Reason: ${reason || 'No reason provided.'}`,
+        'GOVERNANCE',
+        `/governance/reviews?item=${intentId}`,
+      );
       return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
     }
 
@@ -1000,6 +1133,16 @@ export const reviewActionIntent = async (
       if (decisionErr) logger.warn({ err: decisionErr.message }, '[review-action] decision record insert failed');
     }
 
+    // Notify creator that their post was returned for revision
+    await notifyCreatorReturned(intent.creator_id, reason, intentId);
+    // Notify workspace admins about the return
+    await notifyWorkspaceAdmins(
+      workspaceId,
+      '🔄 Agent Post Returned for Revision',
+      `An agent post was returned for revision: "${(intent.content || '').slice(0, 80)}". Feedback: ${reason || 'No reason provided.'}`,
+      'GOVERNANCE',
+      `/governance/reviews?item=${intentId}`,
+    );
     return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
     next(error);

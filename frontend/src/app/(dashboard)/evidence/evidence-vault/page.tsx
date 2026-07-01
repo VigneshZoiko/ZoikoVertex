@@ -516,7 +516,7 @@ function ReleaseHoldModal({ hold, onClose, onDone }: { hold: any; onClose: () =>
         <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
         <div>
           <p className="font-medium">Requires authorization</p>
-          <p className="text-amber-400/70 mt-0.5">Releasing a hold is a permanent action that is immutably logged.</p>
+          <p className="text-amber-500 mt-0.5">Releasing a hold is a permanent action that is immutably logged.</p>
         </div>
       </div>
       <div className="p-3 bg-surface-hover rounded-lg mb-3 text-xs space-y-1">

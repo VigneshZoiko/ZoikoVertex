@@ -599,6 +599,22 @@ export async function getCase(caseId: string): Promise<ForensicCase | null> {
     .single();
 
   if (error || !data) return null;
+
+  // Backfill owner from the case creator action when owner_user_id is null
+  if (!data.owner_user_id) {
+    const { data: creatorAction } = await supabaseAdmin
+      .from('case_actions')
+      .select('actor_id')
+      .eq('case_id', caseId)
+      .eq('action_type', 'case_created')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+    if (creatorAction?.actor_id) {
+      data.owner_user_id = creatorAction.actor_id;
+    }
+  }
+
   return fromDb(data);
 }
 
@@ -610,6 +626,21 @@ export async function getCaseByCaseId(caseId: string): Promise<ForensicCase | nu
     .single();
 
   if (error || !data) return null;
+
+  if (!data.owner_user_id) {
+    const { data: creatorAction } = await supabaseAdmin
+      .from('case_actions')
+      .select('actor_id')
+      .eq('case_id', data.id)
+      .eq('action_type', 'case_created')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+    if (creatorAction?.actor_id) {
+      data.owner_user_id = creatorAction.actor_id;
+    }
+  }
+
   return fromDb(data);
 }
 
@@ -630,7 +661,7 @@ export async function createCase(params: {
       status: 'new',
       source: params.source || 'manual',
       source_event_ids: params.source_event_ids || [],
-      owner_user_id: params.owner_user_id || null,
+      owner_user_id: params.owner_user_id || params.actor_id,
       sla_due_at: params.sla_due_at || calculateSlaDueAt(params.severity || 'medium'),
       tenant_id: params.tenant_id || params.workspace_id,
     })

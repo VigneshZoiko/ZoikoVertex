@@ -12,7 +12,6 @@ import {
   Calendar,
   ClipboardCheck,
   ListChecks,
-  Gavel,
   AlertOctagon,
   Bot,
   Shield,
@@ -68,7 +67,6 @@ import { useSidebarCollapse } from "@/lib/hooks/useSidebarCollapse";
 import { type Feature } from "@/lib/planFeatures";
 import DiscardModal from "@/components/DiscardModal";
 import PlanUpgradeModal from "@/components/PlanUpgradeModal";
-import { ROLE_GROUP_MAPPING } from "@/lib/roles";
 
 /* ─────────────────────────────────────────────
    Types
@@ -218,7 +216,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: ListChecks,
         // Approval rule configuration — governance admin only
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
-        plan: "approvals" as Feature,
+        plan: "governance" as Feature,
       },
       {
         name: "Validation Desk",
@@ -311,12 +309,20 @@ const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardCheck,
         // Safety-layer approvals — governance and compliance
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
-        plan: "approvals" as Feature,
+        plan: "governance" as Feature,
+      },
+      {
+        name: "Brand Library",
+        href: "/governance/brand-library",
+        icon: BookMarked,
+        // Brand assets, standards, and guidelines — brand managers, governance
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"],
+        plan: "brand_standards" as Feature,
       },
     ],
   },
 
-  // ── Evidence Layer — M1 Audit Trail · M2 Forensic Hub · M3 Evidence Vault · M4 Identity Ledger ──
+  // ── Evidence Layer — M1 Audit Trail · M2 Forensic Hub · M3 Evidence Vault · M4 Identity Ledger · M5 Legal Holds ──
   {
     id: "evidence",
     label: "Evidence Layer",
@@ -352,7 +358,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Users,
         // M4 — Actor registry, delegations, break-glass. Who acted?
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
-        plan: "evidence_vault" as Feature,
+        plan: "identity_ledger" as Feature,
       },
     ],
   },
@@ -462,6 +468,14 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Activity,
         // Platform health — admins and developers
         roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"],
+      },
+      {
+        name: "Crisis Console",
+        href: "/admin/crisis",
+        icon: AlertOctagon,
+        // Emergency response — governance, security, and admins
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","SECURITY_ADMIN"],
+        plan: "crisis_console" as Feature,
       },
       {
         name: "Support & Docs",
@@ -677,10 +691,7 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
           return group.id !== "platform";
         }
 
-        const hasExplicitAccess = item.roles.includes(normalizedRole);
-        const hasGroupAccess =
-          ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
-        return hasExplicitAccess || hasGroupAccess;
+        return item.roles.includes(normalizedRole);
       }),
     })).filter((group) => group.items.length > 0);
   }, [isSuperAdmin, role, roleLoaded]);

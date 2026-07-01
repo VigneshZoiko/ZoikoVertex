@@ -42,6 +42,8 @@ function fmt(ts: string) {
   catch { return "—"; }
 }
 
+interface Member { id: string; full_name: string; email: string; }
+
 export default function ForensicHubPage() {
   const { hasRole, isLoading: rolesLoading } = useRoles();
   const router = useRouter();
@@ -50,13 +52,15 @@ export default function ForensicHubPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ case_type: "", title: "", severity: "medium" });
+  const [createForm, setCreateForm] = useState({ case_type: "", title: "", severity: "medium", owner_user_id: "" });
+  const [members, setMembers] = useState<Member[]>([]);
 
   const handleCreate = async () => {
     if (!createForm.case_type || !createForm.title) return;
     try {
-      const res = await api.post("/api/forensic/cases", createForm);
-      if (res.success) { setShowCreate(false); setCreateForm({ case_type: "", title: "", severity: "medium" }); fetchData(); }
+      const payload = { ...createForm, owner_user_id: createForm.owner_user_id || undefined };
+      const res = await api.post("/api/forensic/cases", payload);
+      if (res.success) { setShowCreate(false); setCreateForm({ case_type: "", title: "", severity: "medium", owner_user_id: "" }); fetchData(); }
     } catch (e: any) { setError(e?.message || "Create failed"); }
   };
 
@@ -74,6 +78,7 @@ export default function ForensicHubPage() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     fetchData();
+    api.get("/api/v1/team/members").then(res => { if (res.success) setMembers(res.data || []); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -141,6 +146,13 @@ export default function ForensicHubPage() {
             <option value="medium">Medium</option>
             <option value="high">High</option>
             <option value="critical">Critical</option>
+          </select>
+          <select value={createForm.owner_user_id} onChange={e => setCreateForm(p => ({ ...p, owner_user_id: e.target.value }))}
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground">
+            <option value="">Assign owner (optional — defaults to you)</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.full_name} — {m.email}</option>
+            ))}
           </select>
           <div className="flex gap-2 pt-1">
             <button onClick={handleCreate}

@@ -316,12 +316,16 @@ export const submitReviewDecision = async (req: AuthRequest, res: Response, next
     } catch { /* audit failure must not block the decision */ }
 
     // ── Notifications ──────────────────────────────────────────────────────
+    // Every decision notifies the creator AND workspace admins / governance roles.
+    // Deep-link URLs let the recipient navigate straight to the relevant context.
     const contentPreview = (intent.content || '(no content)').slice(0, 120);
     const creatorLink = `/publish?revisionId=${id}`;
-    const adminLink = '/review-queue';
+    const reviewerLink = `/governance/reviews?item=${id}`;
+    const reviewerName = req.user?.full_name || req.user?.email?.split('@')[0] || 'A reviewer';
 
     switch (decision) {
       case 'Approve':
+        // Notify creator — their content is approved
         await createNotification(
           intent.creator_id,
           '✅ Content Approved',
@@ -329,9 +333,18 @@ export const submitReviewDecision = async (req: AuthRequest, res: Response, next
           'APPROVAL',
           creatorLink,
         );
+        // Notify workspace admins — a review decision was made
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '✅ Content Approved',
+          `${reviewerName} approved content: "${contentPreview}"`,
+          'APPROVAL',
+          reviewerLink,
+        );
         break;
 
       case 'Reject':
+        // Notify creator — their content was rejected with a reason
         await createNotification(
           intent.creator_id,
           '❌ Content Rejected',
@@ -339,15 +352,32 @@ export const submitReviewDecision = async (req: AuthRequest, res: Response, next
           'GOVERNANCE',
           creatorLink,
         );
+        // Notify workspace admins — a rejection was issued
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '❌ Content Rejected',
+          `${reviewerName} rejected content: "${contentPreview}". Reason: ${rationale}`,
+          'GOVERNANCE',
+          reviewerLink,
+        );
         break;
 
       case 'Request Changes':
+        // Notify creator — changes are requested for their content
         await createNotification(
           intent.creator_id,
           '🔄 Changes Requested',
           `Changes requested for your content. Feedback: ${rationale}`,
           'GOVERNANCE',
           creatorLink,
+        );
+        // Notify workspace admins
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '🔄 Changes Requested',
+          `${reviewerName} requested changes on content: "${contentPreview}". Feedback: ${rationale}`,
+          'GOVERNANCE',
+          reviewerLink,
         );
         break;
 
@@ -364,9 +394,9 @@ export const submitReviewDecision = async (req: AuthRequest, res: Response, next
         await notifyWorkspaceAdmins(
           intent.workspace_id || workspaceId || '',
           '⏫ Escalation Requires Attention',
-          `Content "${contentPreview}" was escalated by a reviewer. Rationale: ${rationale}`,
+          `Content "${contentPreview}" was escalated by ${reviewerName}. Rationale: ${rationale}`,
           'GOVERNANCE',
-          adminLink,
+          reviewerLink,
         );
         break;
 
@@ -383,9 +413,9 @@ export const submitReviewDecision = async (req: AuthRequest, res: Response, next
         await notifyWorkspaceAdmins(
           intent.workspace_id || workspaceId || '',
           '🚨 Content Quarantined — Admin Action Required',
-          `Content "${contentPreview}" was quarantined. Reviewer notes: ${rationale}`,
+          `Content "${contentPreview}" was quarantined by ${reviewerName}. Reviewer notes: ${rationale}`,
           'ERROR',
-          adminLink,
+          reviewerLink,
         );
         break;
     }
