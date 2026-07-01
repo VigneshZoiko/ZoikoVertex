@@ -599,6 +599,22 @@ export async function getCase(caseId: string): Promise<ForensicCase | null> {
     .single();
 
   if (error || !data) return null;
+
+  // Backfill owner from the case creator action when owner_user_id is null
+  if (!data.owner_user_id) {
+    const { data: creatorAction } = await supabaseAdmin
+      .from('case_actions')
+      .select('actor_id')
+      .eq('case_id', caseId)
+      .eq('action_type', 'case_created')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+    if (creatorAction?.actor_id) {
+      data.owner_user_id = creatorAction.actor_id;
+    }
+  }
+
   return fromDb(data);
 }
 
@@ -610,6 +626,21 @@ export async function getCaseByCaseId(caseId: string): Promise<ForensicCase | nu
     .single();
 
   if (error || !data) return null;
+
+  if (!data.owner_user_id) {
+    const { data: creatorAction } = await supabaseAdmin
+      .from('case_actions')
+      .select('actor_id')
+      .eq('case_id', data.id)
+      .eq('action_type', 'case_created')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+    if (creatorAction?.actor_id) {
+      data.owner_user_id = creatorAction.actor_id;
+    }
+  }
+
   return fromDb(data);
 }
 

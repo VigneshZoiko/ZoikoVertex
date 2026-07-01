@@ -78,7 +78,7 @@ export default function ForensicHubPage() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     fetchData();
-    api.get("/api/team/members").then(res => { if (res.success) setMembers(res.data || []); }).catch(() => {});
+    api.get("/api/v1/team/members").then(res => { if (res.success) setMembers(res.data || []); }).catch(() => {});
   }, []);
 
   useEffect(() => {

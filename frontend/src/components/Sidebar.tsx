@@ -12,7 +12,6 @@ import {
   Calendar,
   ClipboardCheck,
   ListChecks,
-  Gavel,
   AlertOctagon,
   Bot,
   Shield,
@@ -360,14 +359,6 @@ const NAV_GROUPS: NavGroup[] = [
         // M4 — Actor registry, delegations, break-glass. Who acted?
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
         plan: "identity_ledger" as Feature,
-      },
-      {
-        name: "Legal Holds",
-        href: "/governance/legal",
-        icon: Gavel,
-        // M5 — Legal preservation locks on evidence and records
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"],
-        plan: "legal_holds" as Feature,
       },
     ],
   },
