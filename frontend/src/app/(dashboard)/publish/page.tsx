@@ -212,15 +212,18 @@ function PostPreview({
 
       {/* ── Pinterest preview ────────────────────────────────── */}
       {isPinterest && (
-        <div className="rounded-xl overflow-hidden bg-white text-zinc-900 max-w-[220px] mx-auto shadow-md">
+        <div className="rounded-xl overflow-hidden bg-white text-zinc-900 shadow-md">
           {/* Pin image */}
-          <div className="relative bg-zinc-100" style={{ aspectRatio: '2/3' }}>
+          <div
+            className={`relative mb-0.5 ${isVideoMedia(currentMedia) ? 'bg-black' : 'bg-zinc-100'}`}
+            style={isVideoMedia(currentMedia) ? undefined : { aspectRatio: '2/3' }}
+          >
             <MediaPreview
               src={currentMedia}
               alt="pin"
               type={isVideoMedia(currentMedia) ? "video" : "image"}
-              className="w-full h-full"
-              fit="cover"
+              className={isVideoMedia(currentMedia) ? "w-full aspect-video" : "w-full h-full"}
+              fit={isVideoMedia(currentMedia) ? "contain" : "cover"}
               controls={isVideoMedia(currentMedia)}
               muted
               playsInline
@@ -2023,10 +2026,6 @@ function PublishPageInner() {
                     Pack · {mediaUrls.length} files
                   </span>
                 )}
-                <button type="button" onClick={() => router.push('/library')}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-colors">
-                  Media Vault
-                </button>
               </div>
             </div>
 
