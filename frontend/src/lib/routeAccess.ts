@@ -20,10 +20,11 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/admin/privacy',                 roles: ['ADMIN', 'WORKSPACE_OWNER', 'PRIVACY_ADMIN', 'SUPERADMIN'] },
   { prefix: '/admin/status',                  roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
   { prefix: '/admin/notifications',           roles: ['ADMIN','WORKSPACE_OWNER','GOVERNANCE_ADMIN','AGENT_ARCHITECT','AGENT_OPERATOR','KNOWLEDGE_MANAGER','CAMPAIGN_MANAGER','CREATOR','REVIEWER','VALIDATOR','APPROVER','PUBLISHER','COMPLIANCE_REVIEWER','AUDITOR','SECURITY_ADMIN','PRIVACY_ADMIN','BRAND_REVIEWER','DEVELOPER','EXTERNAL_COLLABORATOR','VIEWER','SUPERADMIN'] },
+  { prefix: '/admin/settings',                roles: ['WORKSPACE_OWNER', 'SUPERADMIN'] },
   { prefix: '/admin',                         roles: ['ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'] },
 
   // ── Access Control ────────────────────────────────────────────────────────
-  { prefix: '/access',                        roles: ['ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'] },
+  { prefix: '/access',                        roles: ['WORKSPACE_OWNER', 'SUPERADMIN'] },
   { prefix: '/team',                          roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'] },
 
   // ── Infrastructure / Integrations ─────────────────────────────────────────
@@ -31,7 +32,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/integrations/data',             roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'],                                                                                                      plan: 'data_connectors' },
   { prefix: '/integrations/identity-ledger',  roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'AUDITOR', 'SUPERADMIN'],                                                                                           plan: 'identity_ledger' },
   { prefix: '/integrations/health',           roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
-  { prefix: '/accounts',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'PUBLISHER', 'CAMPAIGN_MANAGER', 'SUPERADMIN'] },
+  { prefix: '/accounts',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
   { prefix: '/resources',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
 
   // ── Evidence Layer ────────────────────────────────────────────────────────
@@ -43,25 +44,30 @@ export const ROUTE_RULES: RouteRule[] = [
 
   // ── Safety Layer / Governance ─────────────────────────────────────────────
   { prefix: '/governance/brand-library',      roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'BRAND_REVIEWER', 'SUPERADMIN'],                                                                               plan: 'brand_standards' },
+  { prefix: '/governance/safety',             roles: ['ADMIN', 'WORKSPACE_OWNER', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                                            plan: 'governance' },
+  { prefix: '/governance/reviews',            roles: ['ADMIN', 'WORKSPACE_OWNER', 'APPROVER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                                                                                          plan: 'governance' },
+  { prefix: '/governance/rules',              roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                                                                        plan: 'governance' },
   { prefix: '/governance/legal',              roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'SUPERADMIN'],                                                              plan: 'legal_holds' },
   { prefix: '/governance/forensic',           roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'SECURITY_ADMIN', 'SUPERADMIN'],                                           plan: 'forensic_hub' },
-  { prefix: '/governance',                    roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'BRAND_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'], plan: 'governance' },
+  { prefix: '/governance',                    roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'SUPERADMIN'], plan: 'governance' },
 
   // ── Admin / Crisis ────────────────────────────────────────────────────────
   { prefix: '/admin/crisis',                  roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                                              plan: 'crisis_console' },
 
   // ── Accountability Layer ──────────────────────────────────────────────────
-  { prefix: '/queue',                         roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'BRAND_REVIEWER', 'CAMPAIGN_MANAGER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],          plan: 'review_queue' },
+  { prefix: '/review-queue',                   roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'], plan: 'review_queue' },
   { prefix: '/validation',                    roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'VALIDATOR', 'APPROVER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                               plan: 'review_queue' },
 
   // ── Authority Layer / Agents ──────────────────────────────────────────────
   { prefix: '/agents',                        roles: ['AGENT_ARCHITECT', 'AGENT_OPERATOR', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'KNOWLEDGE_MANAGER', 'SUPERADMIN'],                                     plan: 'agents' },
 
   // ── Media Engine ──────────────────────────────────────────────────────────
-  { prefix: '/campaigns',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'PUBLISHER', 'REVIEWER', 'VIEWER', 'EXTERNAL_COLLABORATOR', 'SUPERADMIN'],                       plan: 'campaigns' },
+  { prefix: '/campaigns',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'PUBLISHER', 'VIEWER', 'EXTERNAL_COLLABORATOR', 'SUPERADMIN'],                       plan: 'campaigns' },
   { prefix: '/calendar',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'PUBLISHER', 'VIEWER', 'SUPERADMIN'],                                                            plan: 'calendar' },
-  { prefix: '/inbox',                         roles: ['ADMIN', 'WORKSPACE_OWNER', 'AGENT_OPERATOR', 'CAMPAIGN_MANAGER', 'PUBLISHER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                           plan: 'inbox' },
-  { prefix: '/publish',                       roles: ['PUBLISHER', 'CAMPAIGN_MANAGER', 'CREATOR', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                      plan: 'publishing' },
+  { prefix: '/inbox',                         roles: ['WORKSPACE_OWNER', 'PUBLISHER', 'SUPERADMIN'],                                           plan: 'inbox' },
+  { prefix: '/publish',                       roles: ['PUBLISHER', 'CAMPAIGN_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                      plan: 'publishing' },
+  { prefix: '/drafts',                        roles: ['ADMIN', 'WORKSPACE_OWNER', 'PUBLISHER', 'CAMPAIGN_MANAGER', 'CREATOR', 'SUPERADMIN'] },
+  { prefix: '/returned',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'] },
   { prefix: '/library/upload',                roles: ['CREATOR', 'CAMPAIGN_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'] },
 
   // ── Command ───────────────────────────────────────────────────────────────

@@ -156,8 +156,8 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Campaigns",
         href: "/campaigns",
         icon: FolderKanban,
-        // Campaigns — creators, reviewers, publishers, externals (assigned work)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","VIEWER","EXTERNAL_COLLABORATOR"],
+        // Campaigns — creators, publishers, externals (assigned work)
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER","EXTERNAL_COLLABORATOR"],
         plan: "campaigns" as Feature,
       },
       {
@@ -172,16 +172,16 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Inbox & Engagement",
         href: "/inbox",
         icon: Inbox,
-        // Social inbox — operators who manage live engagement
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER","GOVERNANCE_ADMIN"],
+        // Social inbox — publishers, workspace owners, and governance admins
+        roles: ["WORKSPACE_OWNER","PUBLISHER","GOVERNANCE_ADMIN"],
         plan: "inbox" as Feature,
       },
       {
         name: "Publishing Hub",
         href: "/publish",
         icon: Globe,
-        // Publishing execution — publishers, campaign managers, creators (status view)
-        roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER","CREATOR"],
+        // Publishing execution — publishers, campaign managers
+        roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER"],
         dirty: true,
         plan: "publishing" as Feature,
       },
@@ -231,7 +231,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/review-queue",
         icon: ClipboardList,
         // All review roles + compliance reviewers who need to monitor
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","CAMPAIGN_MANAGER","COMPLIANCE_REVIEWER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","COMPLIANCE_REVIEWER"],
         badge: true,
         plan: "review_queue" as Feature,
       },
@@ -365,8 +365,8 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Platform Accounts",
         href: "/accounts",
         icon: Link2,
-        // Social/platform connections — admins, devs, publishers, campaign managers
-        roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","PUBLISHER","CAMPAIGN_MANAGER"],
+        // Social/platform connections — admins, devs, publishers
+        roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","PUBLISHER"],
       },
       {
         name: "Data Connectors",
@@ -411,13 +411,13 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Roles & Units",
         href: "/access/roles",
         icon: Building2,
-        roles: ["ADMIN","WORKSPACE_OWNER"],
+        roles: ["WORKSPACE_OWNER"],
       },
       {
         name: "Organization Structure",
         href: "/access/organization",
         icon: GitBranch,
-        roles: ["ADMIN","WORKSPACE_OWNER"],
+        roles: ["WORKSPACE_OWNER"],
       },
     ],
   },
@@ -432,7 +432,7 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Workspace Settings",
         href: "/admin/settings",
         icon: Sliders,
-        roles: ["ADMIN","WORKSPACE_OWNER"],
+        roles: ["WORKSPACE_OWNER"],
       },
       {
         name: "Billing & Usage",
@@ -667,12 +667,13 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
         if (!role) return false;
         const normalizedRole = role.toUpperCase();
 
-        // ADMIN / WORKSPACE_OWNER see almost everything (except Platform Owner items)
-        if (
-          normalizedRole === "ADMIN" ||
-          normalizedRole === "WORKSPACE_OWNER"
-        ) {
+        // WORKSPACE_OWNER sees everything except the Platform Owner group
+        if (normalizedRole === "WORKSPACE_OWNER") {
           return group.id !== "platform";
+        }
+        // ADMIN sees everything except Platform Owner and items explicitly restricted to WORKSPACE_OWNER
+        if (normalizedRole === "ADMIN") {
+          return group.id !== "platform" && item.roles.includes("ADMIN");
         }
 
         return item.roles.includes(normalizedRole);
