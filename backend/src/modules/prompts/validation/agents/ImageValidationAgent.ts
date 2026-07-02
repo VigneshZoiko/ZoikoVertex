@@ -17,17 +17,24 @@ import { skippedFinding } from '../types';
 import { scanImage } from '../../../safety/imageScanner';
 import { loadKeywordRules } from './ApprovalRulesAgent';
 
+const isVideoUrl = (url: string): boolean => /\.(mp4|mov|webm|ogg|avi|mkv)(\?|$)/i.test(url);
+
 export class ImageValidationAgent implements ValidationAgent {
   readonly key = 'image_validation' as const;
   readonly label = 'Image Validation Agent';
   readonly artifact = 'image';
 
+  private stillImages(post: PostInput): string[] {
+    return Array.isArray(post.imageUrls) ? post.imageUrls.filter((u) => !isVideoUrl(u)) : [];
+  }
+
   appliesTo(post: PostInput): boolean {
-    return Array.isArray(post.imageUrls) && post.imageUrls.length > 0;
+    return this.stillImages(post).length > 0;
   }
 
   async run(post: PostInput): Promise<AgentFinding> {
-    if (!this.appliesTo(post)) {
+    const imageUrls = this.stillImages(post);
+    if (imageUrls.length === 0) {
       return skippedFinding(this, 'No images attached to the post.');
     }
 
@@ -40,7 +47,7 @@ export class ImageValidationAgent implements ValidationAgent {
     let skippedCount = 0;
 
     // Bound the number of images scanned per post to keep latency/cost sane.
-    for (const url of post.imageUrls.slice(0, 6)) {
+    for (const url of imageUrls.slice(0, 6)) {
       const result = await scanImage(url, keywordRules, undefined, post.workspaceId);
       if (result.skipped) {
         skippedCount += 1;
