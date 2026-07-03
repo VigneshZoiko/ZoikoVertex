@@ -5,6 +5,12 @@
   /* Layout dimensions */
   --app-header-height: 64px;
 
+  /* Chatbot widget stacking — kept below all drawers/modals/dropdowns (z 50+)
+     so those primary actions always render on top of the floating assistant. */
+  --z-chatbot-backdrop: 43;
+  --z-chatbot-fab: 45;
+  --z-chatbot-panel: 46;
+
   /* Light Mode */
   --background: #f4f4f5;
   --background-subtle: #ffffff;
@@ -184,7 +190,15 @@
 }
 
 html {
+  color-scheme: light dark;
+}
+
+html.dark {
   color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
 }
 
 ::placeholder {
