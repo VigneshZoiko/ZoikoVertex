@@ -1746,6 +1746,7 @@ import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWo
 import { supabaseAdmin } from './shared/supabase';
 import { AGENT_CATALOG } from './modules/prompts/validation/registry';
 import { initRetentionWorker } from './workers/retentionWorker';
+import { startTokenRefreshWorker } from './workers/tokenRefreshWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1778,6 +1779,7 @@ try {
     startSlaBreachWorker();
     initEvidenceIntelligenceWorker();
     initRetentionWorker();
+    startTokenRefreshWorker();
 
     // Ensure the media storage bucket exists with a 500 MB file-size limit.
     // Runs fire-and-forget on every boot so the limit is self-healing without

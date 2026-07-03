@@ -95,9 +95,9 @@ async function seed() {
 
       const notifs = [
         { user_id: uid, title: 'Welcome to ZoikoVertex', body: 'Your account is ready. Start exploring the governance dashboard.', type: 'SUCCESS', link: '/dashboard', read: true, created_at: new Date(Date.now() - 72 * 3600000).toISOString() },
-        { user_id: uid, title: 'Content Review Required', body: 'Your post "Scaling intelligence with ZoikoVertex" requires governance review.', type: 'GOVERNANCE', link: '/governance/approvals', read: false, created_at: new Date(Date.now() - 6 * 3600000).toISOString() },
+        { user_id: uid, title: 'Content Review Required', body: 'Your post "Scaling intelligence with ZoikoVertex" requires governance review.', type: 'GOVERNANCE', link: '/governance/reviews', read: false, created_at: new Date(Date.now() - 6 * 3600000).toISOString() },
         { user_id: uid, title: 'Policy Update: Financial Claims', body: 'A new Critical policy has been activated for Financial Claims compliance.', type: 'WARNING', link: '/governance/policies', read: false, created_at: new Date(Date.now() - 12 * 3600000).toISOString() },
-        { user_id: uid, title: 'Approval Granted', body: 'Your LinkedIn post has been approved and queued for publishing.', type: 'SUCCESS', link: '/governance/approvals', read: false, created_at: new Date(Date.now() - 24 * 3600000).toISOString() },
+        { user_id: uid, title: 'Approval Granted', body: 'Your LinkedIn post has been approved and queued for publishing.', type: 'SUCCESS', link: '/governance/reviews', read: false, created_at: new Date(Date.now() - 24 * 3600000).toISOString() },
         { user_id: uid, title: 'Agent Trust Alert: Content Oracle', body: 'Trust score dropped below 0.5. Review agent performance.', type: 'ERROR', link: '/studio', read: false, created_at: new Date(Date.now() - 36 * 3600000).toISOString() },
         { user_id: uid, title: 'Enforcement Event: Content Blocked', body: 'A publish attempt was blocked by policy RUL-COM-001 (Financial Claims).', type: 'GOVERNANCE', link: '/governance/policies', read: false, created_at: new Date(Date.now() - 48 * 3600000).toISOString() },
       ];

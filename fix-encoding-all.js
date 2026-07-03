@@ -55,3 +55,4 @@ targetDirs.forEach(dir => {
 });
 
 console.log('Total files fixed:', changedFiles);
+
