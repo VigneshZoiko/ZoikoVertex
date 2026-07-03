@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const LINK_HREFS: Record<string, string> = {
   "About ZoikoVertex": "/about",
@@ -89,10 +90,7 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
-              <span className="text-white font-black text-xl tracking-tight">
-                ZOIKO<span className="text-cyan-400">VERTEX</span>
-                <sup className="text-[10px] text-white/30 ml-0.5">™</sup>
-              </span>
+              <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} />
             </div>
             <p className="text-white/40 text-xs leading-relaxed mb-6">
               <span className="text-white/70 font-semibold">
