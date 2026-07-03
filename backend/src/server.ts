@@ -483,10 +483,6 @@ app.post('/api/v1/users/resend-verification', authenticate, resendVerificationEm
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'REVIEWER', 'SECURITY_ADMIN');
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN');
-// Allows content creators/publishers to read their own returned items from the review queue
-const returnedView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'REVIEWER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
-// Allows creators to resubmit returned items AND reviewers to take actions (claim/approve/reject)
-const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'REVIEWER', 'COMPLIANCE_REVIEWER', 'BRAND_REVIEWER', 'VALIDATOR', 'APPROVER', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
 
 // ─── Feature-level RBAC Guards (aligned to sidebar access spec) ─────────────
 const calendarGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','CAMPAIGN_MANAGER','CREATOR','PUBLISHER','VIEWER');
@@ -834,7 +830,7 @@ app.post('/api/v1/linkedin/:accountId/reply',      authenticate, newInboxGuard, 
 app.delete('/api/v1/linkedin/:accountId/comment',  authenticate, newInboxGuard, deleteLinkedInComment);
 
 // Campaigns & Projects Routes
-const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'EXTERNAL_COLLABORATOR, 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN'');
+const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'EXTERNAL_COLLABORATOR', 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN');
 const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
 // Launch guard relaxed to campaignWriteGuard while the campaign flow is being validated.
 // Restore the original APPROVER/FINAL_APPROVER restriction once governance is re-enabled.

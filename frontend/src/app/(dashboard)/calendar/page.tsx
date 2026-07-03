@@ -48,14 +48,14 @@ function statusBadgeClass(status: string): string {
 function intentLink(post: CalendarPost): string {
   if (post.status === "RETURNED") return "/publish";
   if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "/review-queue";
-  if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance";
+  if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "/governance/reviews";
   return "/publish";
 }
 
 function intentLinkLabel(post: CalendarPost): string {
   if (post.status === "RETURNED") return "Edit Revision in Publish Hub";
   if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "View in Review Queue";
-  if (post.status === "APPROVED") return "View in Approval Console";
+  if (post.status === "APPROVED" || post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "View in Governance Review";
   return "View in Publishing Hub";
 }
 
