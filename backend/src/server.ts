@@ -1720,6 +1720,7 @@ import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWo
 import { supabaseAdmin } from './shared/supabase';
 import { AGENT_CATALOG } from './modules/prompts/validation/registry';
 import { initRetentionWorker } from './workers/retentionWorker';
+import { startTokenRefreshWorker } from './workers/tokenRefreshWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1752,6 +1753,7 @@ try {
     startSlaBreachWorker();
     initEvidenceIntelligenceWorker();
     initRetentionWorker();
+    startTokenRefreshWorker();
 
     // Governed validation agents must always be ACTIVE (Live).
     // If any were paused via the UI restore them automatically on every boot.
