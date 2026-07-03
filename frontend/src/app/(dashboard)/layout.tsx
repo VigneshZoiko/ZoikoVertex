@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -27,12 +27,19 @@ export default function DashboardLayout({
   const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role, refresh } = useRoleContext();
   const { enabled: sidebarCollapseEnabled } = useSidebarCollapse();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [accessDenied, setAccessDenied] = useState<
+  // Computed synchronously each render — no useEffect → no one-frame flash of forbidden content
+  const accessDenied = useMemo<
     | { reason: 'role' }
     | { reason: 'plan'; requiredPlan: Plan; feature: Feature }
     | false
     | null
-  >(null);
+  >(() => {
+    if (isLoading) return null;
+    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return null;
+    if (role === null && !isSuperAdmin) return false; // let auth guard redirect to /login
+    const result = canAccess(pathname, role, isSuperAdmin, planType);
+    return result.allowed ? false : result;
+  }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);
   const verifyingRef    = useRef(false);
   const emailRetriedRef = useRef(false);
 
@@ -91,20 +98,6 @@ export default function DashboardLayout({
 
     doCheck();
   }, [isLoading, isSuperAdmin, orgStatus, router]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Role guard ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (isLoading) return;
-    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return;
-    if (role === null && !isSuperAdmin) {
-      // Loading finished but no role resolved (auth failure, backend unreachable, etc.).
-      // Unblock the skeleton so the auth guard can redirect to /login; don't show content.
-      setAccessDenied(false);
-      return;
-    }
-    const result = canAccess(pathname, role, isSuperAdmin, planType);
-    setAccessDenied(result.allowed ? false : result);
-  }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);
 
   // ── Loading skeleton — mimics sidebar + header + content so transition feels instant ──
   if (isLoading || accessDenied === null) {
