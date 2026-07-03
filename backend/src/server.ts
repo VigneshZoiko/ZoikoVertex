@@ -834,7 +834,7 @@ app.post('/api/v1/linkedin/:accountId/reply',      authenticate, newInboxGuard, 
 app.delete('/api/v1/linkedin/:accountId/comment',  authenticate, newInboxGuard, deleteLinkedInComment);
 
 // Campaigns & Projects Routes
-const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'EXTERNAL_COLLABORATOR, 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN'');
+const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'EXTERNAL_COLLABORATOR', 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN');
 const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
 // Launch guard relaxed to campaignWriteGuard while the campaign flow is being validated.
 // Restore the original APPROVER/FINAL_APPROVER restriction once governance is re-enabled.
