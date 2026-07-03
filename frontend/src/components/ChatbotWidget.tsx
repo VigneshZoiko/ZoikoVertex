@@ -93,7 +93,7 @@ export default function FloatingAssistantBot({ right = 24, bottom = 24 } = {}) {
             background: "rgba(0, 0, 0, 0.35)",
             backdropFilter: "blur(5px)",
             WebkitBackdropFilter: "blur(5px)",
-            zIndex: 8999,
+            zIndex: "var(--z-chatbot-backdrop)",
           }}
         />
       )}
@@ -112,7 +112,7 @@ export default function FloatingAssistantBot({ right = 24, bottom = 24 } = {}) {
             borderRadius: 20,
             boxShadow:
               "0 16px 48px rgba(0,0,0,.3), 0 0 0 1px rgba(31,111,235,.15)",
-            zIndex: 9001,
+            zIndex: "var(--z-chatbot-panel)",
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
@@ -146,7 +146,7 @@ export default function FloatingAssistantBot({ right = 24, bottom = 24 } = {}) {
           alignItems: "center",
           justifyContent: "center",
           padding: 0,
-          zIndex: 8000,
+          zIndex: "var(--z-chatbot-fab)",
         }}
       >
         {isOpen ? <CloseIcon /> : <RobotIcon size={32} />}

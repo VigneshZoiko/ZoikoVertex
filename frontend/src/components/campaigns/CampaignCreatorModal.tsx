@@ -177,8 +177,8 @@ const MessageDestPicker = React.memo(function MessageDestPicker({ msgDest, setMs
       <p className="text-xs font-semibold text-foreground-muted">Select destination</p>
       <div className="border border-border rounded-xl overflow-hidden divide-y divide-border">
         <label className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-hover/40 transition-colors">
-          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${msgDest === "messenger" ? "border-white" : "border-border"}`}>
-            {msgDest === "messenger" && <div className="w-2 h-2 rounded-full bg-white" />}
+          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${msgDest === "messenger" ? "border-foreground" : "border-border"}`}>
+            {msgDest === "messenger" && <div className="w-2 h-2 rounded-full bg-foreground" />}
           </div>
           <input type="radio" className="hidden" checked={msgDest === "messenger"} onChange={() => setMsgDest("messenger")} />
           <p className="text-sm text-foreground">Facebook Messenger</p>
@@ -2241,9 +2241,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                         }`}
                                       >
                                         <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
-                                          trackingPixel === px.id ? "border-white" : "border-border"
+                                          trackingPixel === px.id ? "border-foreground" : "border-border"
                                         }`}>
-                                          {trackingPixel === px.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                                          {trackingPixel === px.id && <div className="w-2 h-2 rounded-full bg-foreground" />}
                                         </div>
                                         <div className="min-w-0 flex-1">
                                           <p className="text-sm font-medium text-foreground truncate">{px.name}</p>
@@ -2391,8 +2391,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       <div className="flex gap-3">
                         {[{v:"daily",l:"Per day"},{v:"total",l:"Total"}].map(({v,l}) => (
                           <label key={v} className="flex items-center gap-1.5 cursor-pointer">
-                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${budgetType === v ? "border-white" : "border-border"}`}>
-                              {budgetType === v && <div className="w-2 h-2 rounded-full bg-white" />}
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${budgetType === v ? "border-foreground" : "border-border"}`}>
+                              {budgetType === v && <div className="w-2 h-2 rounded-full bg-foreground" />}
                             </div>
                             <input type="radio" className="hidden" checked={budgetType === v} onChange={() => setBudgetType(v as "daily"|"total")} />
                             <span className="text-sm text-foreground-muted">{l}</span>

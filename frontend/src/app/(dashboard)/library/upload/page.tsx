@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import * as tus from "tus-js-client";
 import {
   Upload, FileText, CheckCircle2, AlertCircle,
   Loader2, Image as ImageIcon, Video as VideoIcon,
@@ -12,6 +13,10 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { api } from "@/lib/api";
+
+// Files larger than this threshold use TUS resumable upload (Supabase standard endpoint caps at ~6 MB)
+const TUS_THRESHOLD_BYTES = 6 * 1024 * 1024; // 6 MB
+const TUS_CHUNK_BYTES = 6 * 1024 * 1024;     // 6 MB per chunk
 
 const MAX_IMAGE_MB = 50;
 const MAX_VIDEO_MB = 500;
@@ -147,19 +152,60 @@ export default function CreatorUploadPage() {
     const ext = file.name.split('.').pop();
     const path = `library/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    // Use SDK upload directly — reliable and stores the correct binary content.
-    // Signed-URL XHR was removed: Supabase's upload/sign endpoint does not behave
-    // like a standard S3 presigned PUT and corrupts stored files when used raw.
-    const { error: upErr } = await supabase.storage
-      .from('media')
-      .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+    if (file.size > TUS_THRESHOLD_BYTES) {
+      // ── Large file: TUS resumable upload (chunks of 6 MB, auto-retries) ──────
+      // Supabase's standard /storage/v1/object endpoint caps at ~6 MB per request.
+      // The resumable endpoint handles files up to 5 GB on Pro plans.
+      // Must use *.storage.supabase.co to bypass Kong proxy body-size limits.
+      await new Promise<void>((resolve, reject) => {
+        supabase.auth.getSession().then(({ data: sessionData }) => {
+          const token = sessionData?.session?.access_token;
+          if (!token) { reject(new Error('Not authenticated')); return; }
 
-    if (upErr) {
-      const msg = (upErr as { message?: string }).message || 'Upload failed';
-      const isTooLarge = msg.toLowerCase().includes('payload') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size');
-      throw new Error(isTooLarge
-        ? `File too large (${formatMB(file.size)} MB). Check the storage bucket file_size_limit in your Supabase dashboard.`
-        : `Upload failed: ${msg}`);
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+          const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+          // Use dedicated storage hostname (*.storage.supabase.co) to bypass Kong proxy body-size limits
+          // Fall back to the generic API hostname for local/self-hosted Supabase
+          const isManagedSupabase = supabaseUrl.includes('.supabase.co');
+          const storageEndpoint = isManagedSupabase
+            ? `https://${supabaseUrl.replace(/^https?:\/\//, '').split('.')[0]}.storage.supabase.co/storage/v1/upload/resumable`
+            : `${supabaseUrl}/storage/v1/upload/resumable`;
+          const upload = new tus.Upload(file, {
+            endpoint: storageEndpoint,
+            retryDelays: [0, 3000, 5000, 10000, 20000],
+            headers: {
+              authorization: `Bearer ${token}`,
+              apikey: supabaseAnonKey,
+              'x-upsert': 'true',
+            },
+            uploadDataDuringCreation: true, // Official Supabase TUS example requires this
+            removeFingerprintOnSuccess: true,
+            metadata: {
+              bucketName: 'media',
+              objectName: path,
+              contentType: file.type,
+              cacheControl: '3600',
+            },
+            chunkSize: TUS_CHUNK_BYTES,
+            onError: (err) => reject(new Error(`Upload failed: ${(err as Error).message ?? err}`)),
+            onProgress: (uploaded, total) => {
+              const pct = Math.round((uploaded / total) * 95); // cap at 95 until onSuccess
+              setEntries(prev => prev.map((e, i) => i === idx ? { ...e, progress: pct } : e));
+            },
+            onSuccess: () => resolve(),
+          });
+          upload.start();
+        }).catch(reject);
+      });
+    } else {
+      // ── Small file: standard SDK upload ───────────────────────────────────────
+      const { error: upErr } = await supabase.storage
+        .from('media')
+        .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+
+      if (upErr) {
+        throw new Error(`Upload failed: ${(upErr as { message?: string }).message ?? 'Unknown error'}`);
+      }
     }
 
     const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
