@@ -14,15 +14,15 @@ import { useRoleContext } from "@/lib/context/RoleContext";
 /* ── Plan → available roles ───────────────────────────────────────────────── */
 const PLAN_ROLES: Record<string, string[]> = {
   FREE: [
-    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
   ],
   GROWTH: [
-    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
     "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
     "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
   ],
   SCALE: [
-    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
     "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
     "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
     "AGENT_ARCHITECT", "GOVERNANCE_ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "ADMIN",
@@ -32,7 +32,7 @@ const PLAN_ROLES: Record<string, string[]> = {
     "AGENT_ARCHITECT", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER", "CAMPAIGN_MANAGER",
     "CREATOR", "BRAND_REVIEWER", "REVIEWER", "VALIDATOR", "APPROVER", "PUBLISHER",
     "COMPLIANCE_REVIEWER", "AUDITOR", "ANALYST", "PRIVACY_ADMIN", "DEVELOPER",
-    "EXTERNAL_COLLABORATOR", "VIEWER",
+    "VIEWER",
   ],
 };
 
@@ -45,7 +45,7 @@ const ROLE_GROUPS = [
   { group: "Build Control",      roles: ["WORKSPACE_OWNER","ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","DEVELOPER"] },
   { group: "Governance Control", roles: ["GOVERNANCE_ADMIN","SECURITY_ADMIN","PRIVACY_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"] },
   { group: "Output Control",     roles: ["BRAND_REVIEWER","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","ANALYST"] },
-  { group: "External",           roles: ["EXTERNAL_COLLABORATOR","VIEWER"] },
+  { group: "External",           roles: ["VIEWER"] },
 ];
 
 export default function TeamPage() {

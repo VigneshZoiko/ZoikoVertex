@@ -830,7 +830,7 @@ app.post('/api/v1/linkedin/:accountId/reply',      authenticate, newInboxGuard, 
 app.delete('/api/v1/linkedin/:accountId/comment',  authenticate, newInboxGuard, deleteLinkedInComment);
 
 // Campaigns & Projects Routes
-const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'ANALYST', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'EXTERNAL_COLLABORATOR', 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN');
+const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'ANALYST', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN');
 const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
 // Launch guard relaxed to campaignWriteGuard while the campaign flow is being validated.
 // Restore the original APPROVER/FINAL_APPROVER restriction once governance is re-enabled.
@@ -941,7 +941,7 @@ app.put('/api/v1/scheduler/posts/:id',   authenticate, planRateLimit('general'),
 app.delete('/api/v1/scheduler/posts/:id',authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), cancelScheduledPost);
 
 // Protected Library Routes
-const mediaReadGuard  = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','MANAGER','CREATOR','PUBLISHER','REVIEWER','AUDITOR','VIEWER','EXTERNAL_COLLABORATOR','SUPERADMIN');
+const mediaReadGuard  = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','MANAGER','CREATOR','PUBLISHER','REVIEWER','AUDITOR','VIEWER','SUPERADMIN');
 const mediaWriteGuard = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','SUPERADMIN');
 const mediaDeleteGuard = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','SUPERADMIN');
 app.get('/api/v1/library', authenticate, mediaReadGuard, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);

@@ -14,7 +14,7 @@ import { useRoleContext } from "@/lib/context/RoleContext";
 // Mirror backend guard role sets exactly
 const CAMPAIGN_ROLES = new Set([
   'ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','MANAGER','CREATOR','PUBLISHER',
-  'ANALYST','VIEWER','EXTERNAL_COLLABORATOR',
+  'ANALYST','VIEWER',
 ]);
 const REVIEW_ROLES = new Set([
   'ADMIN','WORKSPACE_OWNER','REVIEWER','VALIDATOR','APPROVER',

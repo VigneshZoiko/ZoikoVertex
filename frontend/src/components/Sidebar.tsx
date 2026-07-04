@@ -99,7 +99,7 @@ const ALL_ROLES = [
   "ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR",
   "KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","MANAGER","ANALYST","CREATOR","REVIEWER","VALIDATOR","APPROVER",
   "PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","SECURITY_ADMIN","PRIVACY_ADMIN",
-  "BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER",
+  "BRAND_REVIEWER","DEVELOPER","VIEWER",
 ] as const;
 
 const NAV_GROUPS: NavGroup[] = [
@@ -150,14 +150,14 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/library",
         icon: Database,
         // Asset library — creators, reviewers, publishers, auditors (read); managers (oversight)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","REVIEWER","AUDITOR","VIEWER","EXTERNAL_COLLABORATOR"],
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","REVIEWER","AUDITOR","VIEWER"],
       },
       {
         name: "Campaigns",
         href: "/campaigns",
         icon: FolderKanban,
         // Campaigns — creators, publishers, externals (assigned work); managers (oversight)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER","EXTERNAL_COLLABORATOR"],
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"],
         plan: "campaigns" as Feature,
       },
       {

@@ -152,14 +152,6 @@ export const ROLE_ARCHITECTURE = [
     responsibilities: ["API management", "Webhook configuration", "Integration diagnostics"]
   },
   {
-    id: "EXTERNAL_COLLABORATOR",
-    name: "External Partner",
-    category: "External",
-    layer: "Build",
-    description: "Restricted access for agencies or guest contractors with scoped workspace visibility.",
-    responsibilities: ["Contractor access", "Assigned tasks only", "External collaboration"]
-  },
-  {
     id: "VIEWER",
     name: "System Viewer",
     category: "Support",
@@ -281,9 +273,6 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'accounts:view','connectors:view','api:view','api:manage',
     'integrations:view','identity-ledger:view','audit:view','support:view',
   ],
-  EXTERNAL_COLLABORATOR: [
-    'dashboard:view','external:view','projects:view','campaigns:view','queue:view','support:view',
-  ],
   VIEWER: [
     'dashboard:view','analytics:view','projects:view','campaigns:view',
     'calendar:view','library:view','support:view',
@@ -294,13 +283,13 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
 export const ROLE_GROUP_MAPPING: Record<string, string[]> = {
   "platform": ["SUPERADMIN"],
   "command": ["ADMIN", "WORKSPACE_OWNER", "ANALYST", "CAMPAIGN_MANAGER", "AUDITOR", "GOVERNANCE_ADMIN"],
-  "media": ["ADMIN", "WORKSPACE_OWNER", "CREATOR", "PUBLISHER", "CAMPAIGN_MANAGER", "ANALYST", "VIEWER", "EXTERNAL_COLLABORATOR"],
+  "media": ["ADMIN", "WORKSPACE_OWNER", "CREATOR", "PUBLISHER", "CAMPAIGN_MANAGER", "ANALYST", "VIEWER"],
   "agents": ["ADMIN", "WORKSPACE_OWNER", "AGENT_ARCHITECT", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER", "GOVERNANCE_ADMIN"],
   "governance": ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "BRAND_REVIEWER"],
   "validation": ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER", "BRAND_REVIEWER", "CAMPAIGN_MANAGER"],
   "evidence": ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "DEVELOPER"],
   "integrations": ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER", "PUBLISHER", "AUDITOR"],
-  "access": ["ADMIN", "WORKSPACE_OWNER", "SECURITY_ADMIN", "EXTERNAL_COLLABORATOR"],
+  "access": ["ADMIN", "WORKSPACE_OWNER", "SECURITY_ADMIN"],
   "admin": ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "SECURITY_ADMIN", "PRIVACY_ADMIN"]
 };
 
