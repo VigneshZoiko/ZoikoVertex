@@ -124,9 +124,6 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'accounts:view', 'connectors:view', 'api:view', 'api:manage',
     'integrations:view', 'identity-ledger:view', 'audit:view', 'support:view',
   ],
-  EXTERNAL_COLLABORATOR: [
-    'dashboard:view', 'external:view', 'projects:view', 'queue:view', 'support:view',
-  ],
   VIEWER: [
     'dashboard:view', 'analytics:view', 'projects:view', 'campaigns:view',
     'calendar:view', 'library:view', 'support:view',

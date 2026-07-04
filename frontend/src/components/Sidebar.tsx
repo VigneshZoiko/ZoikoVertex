@@ -97,9 +97,9 @@ type NavGroup = {
 // Roles that see every item (convenience constant)
 const ALL_ROLES = [
   "ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR",
-  "KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER",
+  "KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","MANAGER","ANALYST","CREATOR","REVIEWER","VALIDATOR","APPROVER",
   "PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","SECURITY_ADMIN","PRIVACY_ADMIN",
-  "BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER",
+  "BRAND_REVIEWER","DEVELOPER","VIEWER",
 ] as const;
 
 const NAV_GROUPS: NavGroup[] = [
@@ -149,23 +149,23 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Media Vault",
         href: "/library",
         icon: Database,
-        // Asset library — creators, reviewers, publishers, auditors (read)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","VALIDATOR","AUDITOR","VIEWER","EXTERNAL_COLLABORATOR"],
+        // Asset library — creators, reviewers, publishers, auditors (read); managers (oversight)
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","REVIEWER","AUDITOR","VIEWER"],
       },
       {
         name: "Campaigns",
         href: "/campaigns",
         icon: FolderKanban,
-        // Campaigns — creators, publishers, externals (assigned work)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER","EXTERNAL_COLLABORATOR"],
+        // Campaigns — creators, publishers, externals (assigned work); managers (oversight)
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"],
         plan: "campaigns" as Feature,
       },
       {
         name: "Calendar",
         href: "/calendar",
         icon: Calendar,
-        // Publishing schedule — content operators only
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER"],
+        // Publishing schedule — content operators; managers (oversight)
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","VIEWER"],
         plan: "calendar" as Feature,
       },
       {
@@ -173,7 +173,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/inbox",
         icon: Inbox,
         // Social inbox — publishers, workspace owners, and governance admins
-        roles: ["WORKSPACE_OWNER","PUBLISHER","GOVERNANCE_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER"],
         plan: "inbox" as Feature,
       },
       {
@@ -181,7 +181,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/publish",
         icon: Globe,
         // Publishing execution — publishers, campaign managers
-        roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER","CREATOR"],
         dirty: true,
         plan: "publishing" as Feature,
       },
@@ -198,7 +198,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/returned",
         icon: RotateCcw,
         // Returned/revision-requested content — creators, publishers, admins
-        roles: ["ADMIN","WORKSPACE_OWNER","CREATOR","PUBLISHER","CAMPAIGN_MANAGER","GOVERNANCE_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","CREATOR","PUBLISHER","CAMPAIGN_MANAGER"],
         badge: true,
       },
     ],
@@ -223,15 +223,15 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/validation",
         icon: ClipboardCheck,
         // Higher-trust HITL validation — validators and approvers
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","APPROVER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","VALIDATOR","APPROVER"],
         plan: "review_queue" as Feature,
       },
       {
         name: "Review Queue",
         href: "/review-queue",
         icon: ClipboardList,
-        // All review roles + compliance reviewers who need to monitor
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","COMPLIANCE_REVIEWER"],
+        // All review roles + compliance reviewers + managers (can approve per backend)
+        roles: ["ADMIN","WORKSPACE_OWNER","MANAGER","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","COMPLIANCE_REVIEWER"],
         badge: true,
         plan: "review_queue" as Feature,
       },
@@ -248,24 +248,24 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Agent Studio",
         href: "/agents/studio",
         icon: Bot,
-        // Build/configure agents — architects, operators (monitor), governance (oversee)
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","AGENT_OPERATOR","GOVERNANCE_ADMIN"],
+        // Build/configure agents — architects (full), knowledge managers (read), governance (oversee)
+        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER"],
         plan: "agents" as Feature,
       },
       {
         name: "Agent Operations",
         href: "/agents/operations",
         icon: MonitorPlay,
-        // Run/supervise/pause agents — operators primary, architects secondary
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","AGENT_ARCHITECT","GOVERNANCE_ADMIN"],
+        // Run/supervise/pause agents — operators only; architects do not operate
+        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","GOVERNANCE_ADMIN"],
         plan: "agents" as Feature,
       },
       {
         name: "Workflows",
         href: "/agents/workflows",
         icon: GitBranch,
-        // Multi-agent orchestration — architects and operators
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","AGENT_OPERATOR","GOVERNANCE_ADMIN"],
+        // Multi-agent orchestration — architects design; operators do not configure workflows
+        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","GOVERNANCE_ADMIN"],
         plan: "agents" as Feature,
       },
       {
@@ -282,8 +282,8 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Knowledge Base",
         href: "/agents/knowledge",
         icon: BookOpen,
-        // RAG sources — knowledge manager primary, architects (read)
-        roles: ["ADMIN","WORKSPACE_OWNER","KNOWLEDGE_MANAGER","AGENT_ARCHITECT","GOVERNANCE_ADMIN"],
+        // RAG sources — knowledge manager primary, governance (oversee)
+        roles: ["ADMIN","WORKSPACE_OWNER","KNOWLEDGE_MANAGER","GOVERNANCE_ADMIN"],
         plan: "agents" as Feature,
       },
     ],
@@ -300,7 +300,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/governance/safety",
         icon: ShieldAlert,
         // Risk/safety monitoring — governance, compliance, security
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","BRAND_REVIEWER","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
         plan: "governance" as Feature,
       },
       {
@@ -308,7 +308,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/governance/reviews",
         icon: ClipboardCheck,
         // Safety-layer approvals — governance and compliance
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","APPROVER","COMPLIANCE_REVIEWER"],
         plan: "governance" as Feature,
       },
     ],
@@ -325,7 +325,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/evidence/audit-trail",
         icon: FileSearch,
         // M1 — Immutable hash-chained timeline. What happened?
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR"],
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR"],
         plan: "audit_trail" as Feature,
       },
       {
@@ -333,7 +333,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/evidence/forensic-hub",
         icon: Fingerprint,
         // M2 — Investigation of flagged / escalated events. What can we reconstruct?
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
         plan: "forensic_hub" as Feature,
       },
       {
@@ -341,7 +341,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/evidence/evidence-vault",
         icon: Archive,
         // M3 — Snapshots, outputs, approvals, artifacts. What's the proof?
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","AUDITOR","COMPLIANCE_REVIEWER"],
         plan: "evidence_vault" as Feature,
       },
       {
@@ -349,7 +349,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/evidence/identity-ledger",
         icon: Users,
         // M4 — Actor registry, delegations, break-glass. Who acted?
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","AUDITOR","COMPLIANCE_REVIEWER","SECURITY_ADMIN"],
         plan: "identity_ledger" as Feature,
       },
     ],
@@ -451,7 +451,7 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Notifications",
         href: "/admin/notifications",
         icon: Bell,
-        roles: [...ALL_ROLES],
+        roles: ["ADMIN","WORKSPACE_OWNER","VIEWER"],
         badge: false,
       },
       {
@@ -539,7 +539,12 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (roleLoading) return;
+    if (roleLoading) {
+      // A new login is in progress — reset so the skeleton shows instead of
+      // stale items from the previous session.
+      setRoleLoaded(false);
+      return;
+    }
     setRoleLoaded(true);
     // Only fetch when the role value itself changes, not on every roleLoading toggle.
     // The realtime channel below keeps the count live after the initial fetch.

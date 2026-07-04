@@ -44,12 +44,17 @@ export const errorHandler = (
 
   logger.error(logData);
 
+  // Supabase/PostgREST errors carry a numeric PG error code — safe to expose
+  const pgCode = (err as unknown as { code?: string; details?: string; hint?: string }).code;
+  const pgDetails = (err as unknown as { details?: string }).details;
+
   if (env.NODE_ENV === "production") {
     return res.status(statusCode).json({
       success: false,
       error: {
         message: "Internal Server Error",
-        code: "INTERNAL_ERROR",
+        code: pgCode || "INTERNAL_ERROR",
+        ...(pgDetails ? { detail: pgDetails } : {}),
       },
     });
   }

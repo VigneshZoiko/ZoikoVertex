@@ -80,6 +80,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isBackendOffline, setIsBackendOffline] = useState(false);
   const workspaceIdRef = useRef<string | null>(null);
+  // Generation counter — incremented on every new fetch. Stale in-flight fetches
+  // (e.g. from a previous user's session) are discarded when they resolve.
+  const fetchGenRef = useRef(0);
 
   // Seed from localStorage before first paint — eliminates skeleton flash on revisit
   useClientLayoutEffect(() => {
@@ -98,10 +101,16 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserRole = async (background = false) => {
+    // Stamp this invocation. Any older in-flight call that resolves later will see
+    // a mismatched generation and discard its result — prevents stale sessions from
+    // overwriting the freshly-logged-in user's role.
+    const gen = ++fetchGenRef.current;
+
     try {
       if (!background) setIsLoading(true);
 
       if (!isSupabaseReady) {
+        if (fetchGenRef.current !== gen) return;
         setRole(null);
         setIsSuperAdmin(false);
         setIsLoading(false);
@@ -114,6 +123,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       const user = sessionData?.session?.user;
 
       if (!user) {
+        if (fetchGenRef.current !== gen) return;
         setRole(null);
         setIsSuperAdmin(false);
         setIsLoading(false);
@@ -121,31 +131,39 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      let nextRole: string | null = null;
-      let nextIsSuperAdmin = false;
-
       const result = await api.get("/api/v1/user/context");
-      if (result.success) {
-        setIsBackendOffline(false);
-        if (result.data.role) { nextRole = result.data.role.toUpperCase(); setRole(nextRole); }
-        if (result.data.org_status) setOrgStatus(result.data.org_status);
-        if (result.data.workspace_status) setWorkspaceStatus(result.data.workspace_status);
-        if (result.data.org_name) setOrgName(result.data.org_name);
-        if (result.data.full_name) setFullName(result.data.full_name);
-        if (result.data.plan_type) setPlanType(result.data.plan_type);
-        if (result.data.premium_paid_until !== undefined) setPremiumPaidUntil(result.data.premium_paid_until);
-        if (result.data.is_superadmin) { nextIsSuperAdmin = true; setIsSuperAdmin(true); }
 
-        workspaceIdRef.current = result.data.workspace_id || null;
+      // Discard if a newer fetch has started (e.g. the previous user's TOKEN_REFRESHED
+      // race arriving after the current user's SIGNED_IN fetch completed)
+      if (fetchGenRef.current !== gen) return;
+
+      if (result.success) {
+        const d = result.data;
+        const nextRole = d.role ? (d.role as string).toUpperCase() : null;
+        const nextIsSuperAdmin = d.is_superadmin === true;
+
+        setIsBackendOffline(false);
+        // Always set ALL fields unconditionally so switching from a higher-privilege
+        // account to a lower one never leaves stale truthy values in state.
+        setRole(nextRole);
+        setOrgStatus(d.org_status ?? null);
+        setWorkspaceStatus(d.workspace_status ?? null);
+        setOrgName(d.org_name ?? null);
+        setFullName(d.full_name ?? null);
+        setPlanType(d.plan_type ?? null);
+        setPremiumPaidUntil(d.premium_paid_until ?? null);
+        setIsSuperAdmin(nextIsSuperAdmin);
+
+        workspaceIdRef.current = d.workspace_id || null;
 
         writeCache({
           role: nextRole,
-          orgStatus: result.data.org_status ?? null,
-          workspaceStatus: result.data.workspace_status ?? null,
-          orgName: result.data.org_name ?? null,
-          fullName: result.data.full_name ?? null,
-          planType: result.data.plan_type ?? null,
-          premiumPaidUntil: result.data.premium_paid_until ?? null,
+          orgStatus: d.org_status ?? null,
+          workspaceStatus: d.workspace_status ?? null,
+          orgName: d.org_name ?? null,
+          fullName: d.full_name ?? null,
+          planType: d.plan_type ?? null,
+          premiumPaidUntil: d.premium_paid_until ?? null,
           isSuperAdmin: nextIsSuperAdmin,
         });
       } else if (result.data?.code === 'ORG_DELETED') {
@@ -168,10 +186,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("Failed to fetch user role context:", err);
-      setIsBackendOffline(true);
-      if (!background) clearCache();
+      if (fetchGenRef.current === gen) {
+        setIsBackendOffline(true);
+        if (!background) clearCache();
+      }
     } finally {
-      if (!background) setIsLoading(false);
+      if (fetchGenRef.current === gen && !background) setIsLoading(false);
     }
   };
 
@@ -183,8 +203,17 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        // SIGNED_IN fires once after login — always refresh to pick up the new session
-        fetchUserRole(true);
+        // Reset ALL state before fetching so stale role UI never flashes for a
+        // different user. Show loading spinner until the new session resolves.
+        clearCache();
+        setRole(null);
+        setIsSuperAdmin(false);
+        setOrgStatus(null);
+        setOrgName(null);
+        setFullName(null);
+        setPlanType(null);
+        setPremiumPaidUntil(null);
+        fetchUserRole(false);
       } else if (event === 'TOKEN_REFRESHED') {
         // TOKEN_REFRESHED fires on tab re-focus / auto-renewal (up to once per hour).
         // Skip if the localStorage cache is still fresh — the user context hasn't changed.

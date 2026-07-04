@@ -483,27 +483,24 @@ app.post('/api/v1/users/resend-verification', authenticate, resendVerificationEm
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'REVIEWER', 'SECURITY_ADMIN');
 const acctWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN');
-// Allows content creators/publishers to read their own returned items from the review queue
-const returnedView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'REVIEWER', 'SECURITY_ADMIN', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
-// Allows creators to resubmit returned items AND reviewers to take actions (claim/approve/reject)
-const returnedWrite = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'REVIEWER', 'COMPLIANCE_REVIEWER', 'BRAND_REVIEWER', 'VALIDATOR', 'APPROVER', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER');
 
 // ─── Feature-level RBAC Guards (aligned to sidebar access spec) ─────────────
 const calendarGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','CAMPAIGN_MANAGER','CREATOR','PUBLISHER','VIEWER');
-const publishHubGuard        = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','CAMPAIGN_MANAGER','PUBLISHER');
-const reviewQueueReadGuard   = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','REVIEWER','VALIDATOR','APPROVER','BRAND_REVIEWER','COMPLIANCE_REVIEWER','CREATOR','PUBLISHER','CAMPAIGN_MANAGER');
-const reviewQueueActionGuard = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','REVIEWER','VALIDATOR','APPROVER','BRAND_REVIEWER','COMPLIANCE_REVIEWER');
+const publishHubGuard        = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','CAMPAIGN_MANAGER','CREATOR','PUBLISHER');
+const reviewQueueReadGuard   = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','MANAGER','REVIEWER','VALIDATOR','APPROVER','BRAND_REVIEWER','COMPLIANCE_REVIEWER');
+const reviewQueueActionGuard = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','MANAGER','REVIEWER','VALIDATOR','APPROVER','BRAND_REVIEWER','COMPLIANCE_REVIEWER');
 const validationDeskGuard    = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','VALIDATOR','APPROVER');
 const approvalConsoleGuard   = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','APPROVER','COMPLIANCE_REVIEWER');
 const safetyGuard            = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','BRAND_REVIEWER','COMPLIANCE_REVIEWER','SECURITY_ADMIN');
 const auditTrailGuard        = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN','KNOWLEDGE_MANAGER','VALIDATOR','COMPLIANCE_REVIEWER','AUDITOR');
+const accountsGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','DEVELOPER','PUBLISHER');
 const forensicHubGuard       = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','COMPLIANCE_REVIEWER','AUDITOR','SECURITY_ADMIN');
 const evidenceVaultGuard     = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','COMPLIANCE_REVIEWER','AUDITOR');
 const identityLedgerGuard    = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','COMPLIANCE_REVIEWER','AUDITOR','SECURITY_ADMIN');
 const knowledgeBaseGuard     = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN','KNOWLEDGE_MANAGER');
 const agentReadGuard         = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','KNOWLEDGE_MANAGER','AGENT_ARCHITECT','AGENT_OPERATOR');
 const agentStudioGuard       = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','AGENT_ARCHITECT');
-const agentOpsGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','AGENT_OPERATOR','AGENT_ARCHITECT');
+const agentOpsGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','AGENT_OPERATOR');
 const promptsGuard           = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN','AGENT_ARCHITECT');
 const govRulesGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN');
 const teamMgmtGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','SECURITY_ADMIN');
@@ -822,9 +819,9 @@ app.get('/api/auth/twitter/callback', handleTwitterCallback);
 app.get('/api/auth/youtube/callback', handleYoutubeCallback);
 app.get('/api/auth/googleads/callback', handleGoogleAdsCallback);
 // Protected Social/Account Routes
-app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
-app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
-app.post('/api/v1/accounts/linkedin/pages', authenticate, saveLinkedInPages);
+app.delete('/api/v1/accounts/:id', authenticate, accountsGuard, disconnectAccount);
+app.get('/api/v1/accounts/linkedin/pages', authenticate, accountsGuard, getLinkedInPagesSession);
+app.post('/api/v1/accounts/linkedin/pages', authenticate, accountsGuard, saveLinkedInPages);
 
 // LinkedIn Community Management Routes
 app.get('/api/v1/linkedin/:accountId/feed',        authenticate, newInboxGuard, getLinkedInPageFeed);
@@ -834,7 +831,7 @@ app.post('/api/v1/linkedin/:accountId/reply',      authenticate, newInboxGuard, 
 app.delete('/api/v1/linkedin/:accountId/comment',  authenticate, newInboxGuard, deleteLinkedInComment);
 
 // Campaigns & Projects Routes
-const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'EXTERNAL_COLLABORATOR, 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN'');
+const campaignGuard = requireRole('SUPERADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'ANALYST', 'REVIEWER', 'VIEWER', 'PUBLISHER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'APPROVER', 'VALIDATOR', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN');
 const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
 // Launch guard relaxed to campaignWriteGuard while the campaign flow is being validated.
 // Restore the original APPROVER/FINAL_APPROVER restriction once governance is re-enabled.
@@ -945,7 +942,7 @@ app.put('/api/v1/scheduler/posts/:id',   authenticate, planRateLimit('general'),
 app.delete('/api/v1/scheduler/posts/:id',authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), cancelScheduledPost);
 
 // Protected Library Routes
-const mediaReadGuard  = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','PUBLISHER','REVIEWER','VALIDATOR','AUDITOR','VIEWER','EXTERNAL_COLLABORATOR','GOVERNANCE_ADMIN','SUPERADMIN');
+const mediaReadGuard  = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','MANAGER','CREATOR','PUBLISHER','REVIEWER','AUDITOR','VIEWER','SUPERADMIN');
 const mediaWriteGuard = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','SUPERADMIN');
 const mediaDeleteGuard = requireRole('ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR','SUPERADMIN');
 app.get('/api/v1/library', authenticate, mediaReadGuard, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);
@@ -989,14 +986,14 @@ app.post('/api/v1/retention/run-now',  authenticate, requireRole('ADMIN', 'WORKS
 app.get('/api/v1/retention/logs',      authenticate, privacyDataGuard, getRetentionLogs);
 
 // Workflow RBAC guards
-const workflowView = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'SUPERADMIN');
+const workflowView = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'SUPERADMIN');
 const workflowWrite = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'SUPERADMIN');
 const workflowApprove = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'SUPERADMIN');
 const workflowAdmin = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
 
 // Workspace Settings Routes
 // Protected Account Routes
-app.get('/api/v1/accounts', authenticate, listAccounts);
+app.get('/api/v1/accounts', authenticate, accountsGuard, listAccounts);
 app.get('/api/v1/analytics/platform-reach', authenticate, getPlatformReach);
 
 // Protected Team Routes
