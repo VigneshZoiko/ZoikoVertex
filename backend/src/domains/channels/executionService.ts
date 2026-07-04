@@ -205,7 +205,7 @@ export class ExecutionService {
         '✅ Post Published',
         `Your post "${snippet}" was published successfully to ${intent.platform || 'social media'}.`,
         'SUCCESS',
-        `/governance/approvals`,
+        `/governance/reviews?item=${intent.id}`,
       );
     } else {
       await createNotifications(
@@ -213,7 +213,7 @@ export class ExecutionService {
         '❌ Post Failed',
         `Your post "${snippet}" failed to publish: ${firstError || 'Unknown error'}. Please check and retry.`,
         'ERROR',
-        `/governance/approvals`,
+        `/governance/reviews?item=${intent.id}`,
       );
     }
   }

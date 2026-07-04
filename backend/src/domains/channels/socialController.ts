@@ -184,7 +184,8 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
             account_name: ig.username,
             account_handle: ig.id,
             avatar_url: ig.profile_picture_url,
-            access_token: page.access_token,
+            access_token: page.access_token,     // Page Access Token (posts/inbox)
+            refresh_token: accessToken,           // Long-lived User Token — shares Meta's token-refresh path with Facebook
             status: 'active',
             token_expires_at: longLivedData.expires_in
               ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()

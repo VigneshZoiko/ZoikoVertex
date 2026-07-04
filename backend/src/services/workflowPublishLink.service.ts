@@ -858,9 +858,19 @@ export async function enrichInstancesWithReview(
     RETURNED: 'Returned to creator',
   };
 
+  // APPROVED/GOVERNANCE_BLOCKED can be reached either by a human review action
+  // (which stamps reviewer_id + reviewed_at/reviewer_feedback via recordReviewer
+  // in governanceController.ts) or by the governance agent deciding on its own
+  // at submit time / async re-evaluation. In the latter case reviewer_id still
+  // holds whoever was round-robin pre-assigned at intake (see submitPost) even
+  // though they never reviewed anything, so it must not be shown as the reviewer.
+  const AUTO_DECIDABLE_STATUSES = new Set(['APPROVED', 'GOVERNANCE_BLOCKED']);
+
   return enriched.map((inst) => {
     const intent = inst?.post?.id ? intentById.get(inst.post.id) : undefined;
-    const reviewer = intent?.reviewer_id ? userById.get(intent.reviewer_id) : undefined;
+    const hasHumanReview = !!(intent?.reviewed_at || intent?.reviewer_feedback);
+    const isAgentDecision = !!intent && AUTO_DECIDABLE_STATUSES.has(intent.status) && !hasHumanReview;
+    const reviewer = !isAgentDecision && intent?.reviewer_id ? userById.get(intent.reviewer_id) : undefined;
     const titles: string[] = Array.isArray(inst?.kbSourceTitles) ? inst.kbSourceTitles : [];
     const collections = Array.from(
       new Set(titles.map((t) => collectionByTitle.get(t)).filter(Boolean)),
@@ -872,8 +882,8 @@ export async function enrichInstancesWithReview(
     return {
       ...rest,
       kbCollection: collections.length > 0 ? collections.join(', ') : undefined,
-      reviewerName: reviewer?.name,
-      reviewerRole: reviewer?.role,
+      reviewerName: isAgentDecision ? 'Agent' : reviewer?.name,
+      reviewerRole: isAgentDecision ? 'AI Agent' : reviewer?.role,
       reviewDecision: intent?.status ? DECISION_LABEL[intent.status] : undefined,
       reviewComment: intent?.feedback || intent?.reviewer_feedback || undefined,
       reviewedAt: intent?.reviewed_at || undefined,
