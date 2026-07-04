@@ -1,37 +1,14 @@
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
-const sgMail = require("@sendgrid/mail");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const USE_SENDGRID = !!process.env.SENDGRID_API_KEY;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-if (USE_SENDGRID) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log("✅ Mail provider: SendGrid");
+if (resend) {
+  console.log("✅ Mail provider: Resend");
 } else {
-  // Local dev fallback — SMTP (nodemailer)
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-  });
-
-  transporter.verify((error) => {
-    if (error) {
-      console.warn("⚠️  SMTP unavailable (local dev only):", error.message);
-    } else {
-      console.log("✅ SMTP Server Ready");
-    }
-  });
-
-  module._smtpTransporter = transporter;
+  console.warn("⚠️  RESEND_API_KEY not configured — emails will not be sent");
 }
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,8 +18,10 @@ const sendMail = async ({ to, from, subject, body, html }) => {
   if (!emailRegex.test(to)) throw new Error("Invalid recipient email");
   if (from && !emailRegex.test(from)) throw new Error("Invalid sender email");
 
-  const fromAddress = process.env.FROM_EMAIL || process.env.SMTP_USER || from;
+  const fromAddress = process.env.FROM_EMAIL || from;
   if (!fromAddress) throw new Error("No sender email configured and no 'from' provided");
+  if (!resend) throw new Error("Mail service not configured (missing RESEND_API_KEY)");
+
   const textBody = body || "User has reported an issue. Please view this email in HTML format.";
   const htmlBody =
     html ||
@@ -51,25 +30,16 @@ const sendMail = async ({ to, from, subject, body, html }) => {
       <p>${textBody.replace(/\n/g, "<br/>")}</p>
     </div>`;
 
-  if (USE_SENDGRID) {
-    await sgMail.send({
-      to,
-      from: fromAddress,
-      replyTo: from || fromAddress,
-      subject,
-      text: textBody,
-      html: htmlBody,
-    });
-  } else {
-    await module._smtpTransporter.sendMail({
-      from: fromAddress,
-      replyTo: from,
-      to,
-      subject,
-      text: textBody,
-      html: htmlBody,
-    });
-  }
+  const { error } = await resend.emails.send({
+    from: fromAddress,
+    to,
+    replyTo: from || fromAddress,
+    subject,
+    text: textBody,
+    html: htmlBody,
+  });
+
+  if (error) throw new Error(error.message || "Failed to send email via Resend");
 };
 
 module.exports = { sendMail };
