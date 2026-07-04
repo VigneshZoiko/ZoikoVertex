@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Ties Tailwind's `dark:` variant to the app's manual .dark class toggle
+   instead of the OS prefers-color-scheme media query — without this,
+   `dark:*` utilities silently no-op whenever the OS scheme and the
+   in-app theme toggle disagree. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─── Semantic Design Tokens ─────────────────────────────────────────────── */
 :root {
   /* Layout dimensions */

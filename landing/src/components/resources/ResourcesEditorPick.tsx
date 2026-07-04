@@ -86,7 +86,7 @@ export default function ResourcesEditorPick() {
   }, []);
 
   return (
-    <section className="bg-[#F8FAFC] py-24 px-6">
+    <section id="resources" className="bg-[#F8FAFC] py-24 px-6" style={{ scrollMarginTop: 80 }}>
       <div ref={ref} className="max-w-[1200] mx-auto">
 
         {/* Header */}

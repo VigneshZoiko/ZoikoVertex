@@ -21,6 +21,7 @@ const SOLUTION_ITEMS = [
   { label: "Agency\nWorkflows", desc: "Multi-client\nisolation & control", href: "/solution#agency" },
   { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/solution#regulated" },
   { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/solution#marketing-ops" },
+  { label: "B2B SaaS", desc: "Governed marketing\nfor SaaS teams", href: "/b2b-saas" },
 ];
 
 const NAV_ITEMS = [
