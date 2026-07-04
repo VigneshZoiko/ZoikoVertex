@@ -49,7 +49,7 @@ export default function Hero() {
 
           <div className="flex flex-wrap gap-3 mb-8">
             <Link
-              href="/signup"
+              href="/request-demo"
               className="bg-cyan-400 hover:bg-cyan-300 text-black font-semibold px-8 py-3.5 rounded-full transition-all flex items-center gap-2.5"
             >
               <Activity className="w-4 h-4" />

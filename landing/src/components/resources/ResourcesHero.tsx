@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 
 const FILTER_TABS = ["All Formats", "Executive Brief", "Toolkit", "Guide", "Field Note"];
 
@@ -116,12 +115,12 @@ export default function ResourcesHero() {
           </p>
 
           <div className="flex items-center gap-3 flex-wrap mb-10">
-            <Link
-              href="/resources/library"
+            <a
+              href="#resources"
               className="flex items-center gap-2 bg-[#20E7F2] hover:bg-cyan-300 text-[#070D1F] text-sm font-bold px-6 py-3 rounded-lg transition-colors duration-300"
             >
               Explore Resources →
-            </Link>
+            </a>
             <button className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
               Access Trust Center
             </button>

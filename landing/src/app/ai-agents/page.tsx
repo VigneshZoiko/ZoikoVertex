@@ -54,13 +54,13 @@ function Hero() {
           </p>
           <div className="flex flex-wrap gap-3 mb-8">
             <Link
-              href="https://getzoikovertex.com/request-demo"
+              href="/request-demo"
               className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold px-7 py-3.5 rounded-xl transition-all flex items-center gap-2 text-sm"
             >
               <span>📅</span> Request a Demo
             </Link>
             <Link
-              href="https://getzoikovertex.com"
+              href="/"
               className="border border-white/20 hover:border-white/40 text-white font-semibold px-7 py-3.5 rounded-xl transition-all hover:bg-white/5 text-sm flex items-center gap-2"
             >
               <Shield className="w-4 h-4" /> Explore Governance
@@ -578,7 +578,7 @@ function PlanAccess() {
                   { label: "Command Brief", style: "border border-white/20 text-white/60" },
                 ].map((b, i) => (
                   <td key={b.label} className="px-4 py-4 text-center" style={i === 2 ? { backgroundColor: "#0C1A27" } : undefined}>
-                    <Link href="https://getzoikovertex.com/request-demo" className={`text-xs rounded-lg px-3 py-2 transition-all hover:opacity-80 ${b.style}`}>
+                    <Link href="/request-demo" className={`text-xs rounded-lg px-3 py-2 transition-all hover:opacity-80 ${b.style}`}>
                       {b.label}
                     </Link>
                   </td>
@@ -589,7 +589,7 @@ function PlanAccess() {
         </div>
 
         <div className="text-center mt-6">
-          <Link href="https://getzoikovertex.com" className="border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-sm rounded-xl px-6 py-3 transition-all inline-flex items-center gap-2">
+          <Link href="/" className="border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-sm rounded-xl px-6 py-3 transition-all inline-flex items-center gap-2">
             → View full plan comparison
           </Link>
         </div>

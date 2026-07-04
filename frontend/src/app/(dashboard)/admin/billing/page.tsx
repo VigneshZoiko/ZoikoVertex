@@ -934,7 +934,7 @@ export default function BillingPage() {
                     ].map(stat => (
                       <div key={stat.label} className="bg-surface-hover rounded-lg px-3 py-2.5 border border-border overflow-hidden">
                         <p className="text-[10px] text-foreground-muted uppercase tracking-wide leading-tight break-words mb-1">{stat.label}</p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{stat.value}</p>
+                        <p className="text-sm font-semibold text-foreground">{stat.value}</p>
                       </div>
                     ))}
                   </div>
