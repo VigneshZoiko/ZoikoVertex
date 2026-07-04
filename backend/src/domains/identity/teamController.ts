@@ -254,10 +254,25 @@ export const updateMemberRole = async (req: AuthRequest, res: Response, next: Ne
       return res.status(400).json({ error: 'Cannot change the role of a Workspace Owner' });
     }
 
-    // Privilege escalation guard: only superadmins can assign ADMIN or WORKSPACE_OWNER
-    const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER', 'ADMIN']);
-    if (!isSuperAdmin && ESCALATION_ROLES.has(role)) {
-      return res.status(403).json({ error: 'Forbidden: Cannot assign ' + role + ' role' });
+    // WORKSPACE_OWNER is always superadmin-only
+    if (!isSuperAdmin && role === 'WORKSPACE_OWNER') {
+      return res.status(403).json({ error: 'Forbidden: Cannot assign WORKSPACE_OWNER role' });
+    }
+
+    // Max-1 ADMIN rule: only one Admin per workspace.
+    // Skip the count if the member is already ADMIN (no-op change).
+    if (role === 'ADMIN' && memberData.role !== 'ADMIN') {
+      const targetWsId = workspaceId || (memberData as any).workspace_id;
+      const { count: adminCount } = await supabaseAdmin
+        .from('workspace_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('workspace_id', targetWsId)
+        .eq('role', 'ADMIN');
+      if ((adminCount ?? 0) >= 1) {
+        return res.status(409).json({
+          error: 'Only one Admin is allowed per workspace. Remove the existing Admin first.',
+        });
+      }
     }
 
     let updateQuery = supabaseAdmin

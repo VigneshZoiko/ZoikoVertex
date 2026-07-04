@@ -37,7 +37,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/resources',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
 
   // ── Evidence Layer ────────────────────────────────────────────────────────
-  { prefix: '/evidence/audit-trail',          roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'KNOWLEDGE_MANAGER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'VALIDATOR', 'SECURITY_ADMIN', 'SUPERADMIN'],     plan: 'audit_trail' },
+  { prefix: '/evidence/audit-trail',          roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'KNOWLEDGE_MANAGER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'VALIDATOR', 'SUPERADMIN'],                    plan: 'audit_trail' },
   { prefix: '/evidence/forensic-hub',         roles: ['ADMIN', 'WORKSPACE_OWNER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                           plan: 'forensic_hub' },
   { prefix: '/evidence/evidence-vault',       roles: ['ADMIN', 'WORKSPACE_OWNER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                                                                plan: 'evidence_vault' },
   { prefix: '/evidence/identity-ledger',      roles: ['ADMIN', 'WORKSPACE_OWNER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                              plan: 'identity_ledger' },
@@ -70,14 +70,14 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/agents',                        roles: ['AGENT_ARCHITECT', 'AGENT_OPERATOR', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                        plan: 'agents' },
 
   // ── Media Engine ──────────────────────────────────────────────────────────
-  { prefix: '/campaigns',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'PUBLISHER', 'ANALYST', 'VIEWER', 'EXTERNAL_COLLABORATOR', 'SUPERADMIN'],            plan: 'campaigns' },
+  { prefix: '/campaigns',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'PUBLISHER', 'ANALYST', 'VIEWER', 'SUPERADMIN'],            plan: 'campaigns' },
   { prefix: '/calendar',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'PUBLISHER', 'VIEWER', 'SUPERADMIN'],                                               plan: 'calendar' },
   { prefix: '/inbox',                         roles: ['ADMIN', 'WORKSPACE_OWNER', 'PUBLISHER', 'SUPERADMIN'],                                                                                                      plan: 'inbox' },
   { prefix: '/publish',                       roles: ['PUBLISHER', 'CAMPAIGN_MANAGER', 'CREATOR', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                       plan: 'publishing' },
   { prefix: '/drafts',                        roles: ['ADMIN', 'WORKSPACE_OWNER', 'PUBLISHER', 'CAMPAIGN_MANAGER', 'CREATOR', 'SUPERADMIN'] },
   { prefix: '/returned',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'CREATOR', 'PUBLISHER', 'CAMPAIGN_MANAGER', 'SUPERADMIN'] },
   { prefix: '/library/upload',                roles: ['CREATOR', 'CAMPAIGN_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'] },
-  { prefix: '/library',                       roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'PUBLISHER', 'REVIEWER', 'AUDITOR', 'VIEWER', 'EXTERNAL_COLLABORATOR', 'SUPERADMIN'] },
+  { prefix: '/library',                       roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'MANAGER', 'CREATOR', 'PUBLISHER', 'REVIEWER', 'AUDITOR', 'VIEWER', 'SUPERADMIN'] },
 
   // ── Command ───────────────────────────────────────────────────────────────
   { prefix: '/operations',                    roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AGENT_ARCHITECT', 'CAMPAIGN_MANAGER', 'PUBLISHER', 'SUPERADMIN'] },

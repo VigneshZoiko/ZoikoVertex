@@ -14,15 +14,15 @@ import { useRoleContext } from "@/lib/context/RoleContext";
 /* ── Plan → available roles ───────────────────────────────────────────────── */
 const PLAN_ROLES: Record<string, string[]> = {
   FREE: [
-    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
   ],
   GROWTH: [
-    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
     "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
     "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
   ],
   SCALE: [
-    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
     "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
     "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
     "AGENT_ARCHITECT", "GOVERNANCE_ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "ADMIN",
@@ -32,7 +32,7 @@ const PLAN_ROLES: Record<string, string[]> = {
     "AGENT_ARCHITECT", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER", "CAMPAIGN_MANAGER",
     "CREATOR", "BRAND_REVIEWER", "REVIEWER", "VALIDATOR", "APPROVER", "PUBLISHER",
     "COMPLIANCE_REVIEWER", "AUDITOR", "ANALYST", "PRIVACY_ADMIN", "DEVELOPER",
-    "EXTERNAL_COLLABORATOR", "VIEWER",
+    "VIEWER",
   ],
 };
 
@@ -45,7 +45,7 @@ const ROLE_GROUPS = [
   { group: "Build Control",      roles: ["WORKSPACE_OWNER","ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","DEVELOPER"] },
   { group: "Governance Control", roles: ["GOVERNANCE_ADMIN","SECURITY_ADMIN","PRIVACY_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"] },
   { group: "Output Control",     roles: ["BRAND_REVIEWER","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","ANALYST"] },
-  { group: "External",           roles: ["EXTERNAL_COLLABORATOR","VIEWER"] },
+  { group: "External",           roles: ["VIEWER"] },
 ];
 
 export default function TeamPage() {
@@ -143,6 +143,11 @@ export default function TeamPage() {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setEditingRoleFor(null);
+    // Pre-flight: block if trying to add a second Admin
+    if (newRole === "ADMIN" && members.filter(m => m.id !== userId && m.role === "ADMIN").length >= 1) {
+      setMessage({ type: "error", text: "Only one Admin is allowed per workspace. Remove the existing Admin first." });
+      return;
+    }
     setRoleChangeLoading(userId);
     try {
       const res = await api.patch(`/api/v1/team/members/${userId}/role`, { role: newRole });
@@ -163,6 +168,10 @@ export default function TeamPage() {
     e.preventDefault();
     if (!canManageMembers) return;
     if (password.length < 8) { setMessage({ type: "error", text: "Password must be at least 8 characters" }); return; }
+    if (role === "ADMIN" && adminCount >= 1) {
+      setMessage({ type: "error", text: "Only one Admin is allowed per workspace. Remove the existing Admin first." });
+      return;
+    }
     setFormLoading(true);
     setMessage(null);
     try {
@@ -225,6 +234,9 @@ export default function TeamPage() {
   };
 
   const canManageMembers = currentUserRole === "ADMIN" || currentUserRole === "WORKSPACE_OWNER" || isSuperAdmin;
+
+  // Max-1 ADMIN rule: drive locks and pre-flight checks from the live member list
+  const adminCount = members.filter(m => m.role === "ADMIN").length;
 
   if (loading) return <div className="text-[var(--foreground)] p-8">Loading...</div>;
 
@@ -308,10 +320,11 @@ export default function TeamPage() {
                             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] bg-[var(--surface)]/60 border-b border-[var(--border)]/50">
                               {group}
                             </div>
-                            {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER" && (isSuperAdmin || r.id !== "ADMIN")).map(r => {
-                              const locked = isRoleLocked(r.id);
-                              const reqPlan = locked ? getRequiredPlan(r.id) : null;
-                              const isOwner = r.id === "WORKSPACE_OWNER";
+                            {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER").map(r => {
+                              const planLocked = isRoleLocked(r.id);
+                              const adminFull  = r.id === "ADMIN" && adminCount >= 1;
+                              const locked = planLocked || adminFull;
+                              const reqPlan = planLocked ? getRequiredPlan(r.id) : null;
                               return (
                                 <button
                                   key={r.id}
@@ -326,13 +339,13 @@ export default function TeamPage() {
                                         : "hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
                                     }`}
                                 >
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{r.name}</span>
-                                    {isOwner && (
-                                      <span className="text-[9px] text-[var(--foreground-muted)]">Workspace-level only · Not Platform Owner</span>
-                                    )}
-                                  </div>
-                                  {locked ? (
+                                  <span className="font-medium">{r.name}</span>
+                                  {adminFull ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-error-text/80 bg-error-text/10 border border-error-border/20 rounded px-1.5 py-0.5 shrink-0">
+                                      <Lock className="w-2.5 h-2.5" />
+                                      Taken
+                                    </span>
+                                  ) : planLocked ? (
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-warning-text/80 bg-warning-text/10 border border-warning-border/20 rounded px-1.5 py-0.5 shrink-0">
                                       <Lock className="w-2.5 h-2.5" />
                                       {reqPlan}+
@@ -525,14 +538,17 @@ export default function TeamPage() {
                                     {ROLE_GROUPS.map(({ group, roles: groupRoles }) => (
                                       <div key={group}>
                                         <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] bg-[var(--surface)]/60 border-b border-[var(--border)]/50">{group}</div>
-                                        {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER" && (isSuperAdmin || r.id !== "ADMIN")).map(r => {
-                                          const locked = isRoleLocked(r.id);
+                                        {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id) && r.id !== "WORKSPACE_OWNER").map(r => {
+                                          const planLocked = isRoleLocked(r.id);
+                                          // Admin seat is taken if another member (not this one) is already ADMIN
+                                          const adminFull  = r.id === "ADMIN" && member.role !== "ADMIN" && members.filter(m => m.id !== member.id && m.role === "ADMIN").length >= 1;
+                                          const locked = planLocked || adminFull;
                                           return (
                                             <button
                                               key={r.id}
                                               type="button"
                                               disabled={locked}
-                                              onClick={() => handleRoleChange(member.id, r.id)}
+                                              onClick={() => { if (!locked) handleRoleChange(member.id, r.id); }}
                                               className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left transition-colors ${
                                                 locked ? "opacity-40 cursor-not-allowed" :
                                                 member.role === r.id ? "bg-info-text/15 text-info-text" :
@@ -541,7 +557,8 @@ export default function TeamPage() {
                                             >
                                               <span>{r.name}</span>
                                               {member.role === r.id && <Check className="w-3 h-3 text-info-text shrink-0" />}
-                                              {locked && <Lock className="w-2.5 h-2.5 text-warning-text/60 shrink-0" />}
+                                              {adminFull && <span className="text-[9px] text-error-text/70 font-bold">Taken</span>}
+                                              {planLocked && !adminFull && <Lock className="w-2.5 h-2.5 text-warning-text/60 shrink-0" />}
                                             </button>
                                           );
                                         })}

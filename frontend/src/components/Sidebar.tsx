@@ -99,7 +99,7 @@ const ALL_ROLES = [
   "ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR",
   "KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","MANAGER","ANALYST","CREATOR","REVIEWER","VALIDATOR","APPROVER",
   "PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","SECURITY_ADMIN","PRIVACY_ADMIN",
-  "BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER",
+  "BRAND_REVIEWER","DEVELOPER","VIEWER",
 ] as const;
 
 const NAV_GROUPS: NavGroup[] = [
@@ -150,14 +150,14 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/library",
         icon: Database,
         // Asset library — creators, reviewers, publishers, auditors (read); managers (oversight)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","REVIEWER","AUDITOR","VIEWER","EXTERNAL_COLLABORATOR"],
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","REVIEWER","AUDITOR","VIEWER"],
       },
       {
         name: "Campaigns",
         href: "/campaigns",
         icon: FolderKanban,
         // Campaigns — creators, publishers, externals (assigned work); managers (oversight)
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER","EXTERNAL_COLLABORATOR"],
+        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"],
         plan: "campaigns" as Feature,
       },
       {
@@ -325,7 +325,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/evidence/audit-trail",
         icon: FileSearch,
         // M1 — Immutable hash-chained timeline. What happened?
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR","SECURITY_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR"],
         plan: "audit_trail" as Feature,
       },
       {
@@ -539,7 +539,12 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (roleLoading) return;
+    if (roleLoading) {
+      // A new login is in progress — reset so the skeleton shows instead of
+      // stale items from the previous session.
+      setRoleLoaded(false);
+      return;
+    }
     setRoleLoaded(true);
     // Only fetch when the role value itself changes, not on every roleLoading toggle.
     // The realtime channel below keeps the count live after the initial fetch.
