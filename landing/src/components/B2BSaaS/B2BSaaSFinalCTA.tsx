@@ -9,13 +9,13 @@ export default function B2BSaaSFinalCTA() {
     <section className="relative overflow-hidden">
       <div className="absolute inset-0">
         <Image
-          src="/images/b2b-saas/above-footer-bg-v3.png"
+          src="/images/b2b-saas/above-footer-bg-v4.png"
           alt=""
           fill
-          className="object-cover opacity-20"
+          className="object-cover"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-[#0C1523]/90" />
+        <div className="absolute inset-0 bg-[#0C1523]/0" />
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-28 text-center">
