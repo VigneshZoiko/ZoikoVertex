@@ -4,7 +4,7 @@ import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 import { AutoCampaignBoostService } from '../campaigns/autoCampaignBoostService';
-import { createNotifications, getWorkspaceAdmins } from '../../services/inAppNotification.service';
+import { createNotifications } from '../../services/inAppNotification.service';
 
 // Per-platform carousel limits for organic posts
 const PLATFORM_CAROUSEL_LIMITS: Record<string, number> = {
@@ -151,57 +151,22 @@ export class ExecutionService {
   }
 
   /**
-   * Sends in-app notifications after a publish attempt completes.
-   * Notifies the creator, any reviewers/approvers who worked on this intent,
-   * and workspace admins.
+   * Sends an in-app notification to the post's creator after a publish
+   * attempt completes. Creator-only — admins/approvers get their own,
+   * distinctly-worded notification when a post first needs their approval
+   * (see governanceController.ts submitPost), not a copy of this one.
    */
   private static async sendPublishNotifications(
     intent: any,
     allSuccessful: boolean,
     firstError?: string,
   ): Promise<void> {
-    const workspaceId = intent.workspace_id;
+    if (!intent.creator_id) return;
     const snippet = (intent.content || '').substring(0, 120).replace(/\n/g, ' ');
-
-    // Collect all recipients (deduplicated)
-    const recipientSet = new Set<string>();
-
-    // 1. Always notify the creator
-    if (intent.creator_id) recipientSet.add(intent.creator_id);
-
-    // 2. Find workspace admins
-    const admins = await getWorkspaceAdmins(workspaceId);
-    for (const adminId of admins) recipientSet.add(adminId);
-
-    // 3. Find approvers from approval_v2 system — lookup approval_items
-    //    linked to this publish_intent, then find their decisions
-    try {
-      const { data: approvalItems } = await supabaseAdmin
-        .from('approval_items')
-        .select('id')
-        .eq('target_id', intent.id)
-        .eq('target_type', 'publish_intent');
-
-      if (approvalItems && approvalItems.length > 0) {
-        const approvalItemIds = approvalItems.map((a: any) => a.id);
-        const { data: approvalDecisions } = await supabaseAdmin
-          .from('approval_decisions')
-          .select('approver_id')
-          .in('approval_item_id', approvalItemIds);
-
-        if (approvalDecisions) {
-          for (const d of approvalDecisions) {
-            if (d.approver_id) recipientSet.add(d.approver_id);
-          }
-        }
-      }
-    } catch {
-      // Non-fatal — best-effort
-    }
 
     if (allSuccessful) {
       await createNotifications(
-        [...recipientSet],
+        [intent.creator_id],
         '✅ Post Published',
         `Your post "${snippet}" was published successfully to ${intent.platform || 'social media'}.`,
         'SUCCESS',
@@ -209,7 +174,7 @@ export class ExecutionService {
       );
     } else {
       await createNotifications(
-        [...recipientSet],
+        [intent.creator_id],
         '❌ Post Failed',
         `Your post "${snippet}" failed to publish: ${firstError || 'Unknown error'}. Please check and retry.`,
         'ERROR',

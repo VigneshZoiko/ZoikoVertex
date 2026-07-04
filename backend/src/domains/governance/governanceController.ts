@@ -334,8 +334,8 @@ export const submitIntent = async (
     }
 
     // Mirror each post into Agent Operations for policy checks (non-blocking).
+    const creatorName = req.user?.full_name || req.user?.email?.split('@')[0] || 'Someone';
     try {
-      const creatorName = req.user?.full_name || req.user?.email?.split('@')[0] || null;
       await Promise.all(data.map((intent: any) => recordPublishIntentRun({ ...intent, creator_name: creatorName })));
     } catch (err) {
       logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
@@ -360,6 +360,21 @@ export const submitIntent = async (
         logger.warn({ err: err instanceof Error ? err.message : String(err), intentId: intent.id }, '[Governance] approval_item bridge failed for intent');
       }
     }));
+
+    // Let admins/owners know a post is waiting on them — the only workspace-wide
+    // broadcast kept for the publish flow; every other per-post notification
+    // (published/failed/approved/rejected/returned) goes to the creator alone.
+    if (pendingPosts.length > 0) {
+      await notifyWorkspaceAdmins(
+        targetWorkspaceId,
+        '📝 Post Needs Your Approval',
+        pendingPosts.length === 1
+          ? `${creatorName} submitted a post that needs your approval to publish.`
+          : `${creatorName} submitted ${pendingPosts.length} posts that need your approval to publish.`,
+        'APPROVAL',
+        `/governance/reviews?item=${pendingPosts[0].id}`,
+      );
+    }
 
     // Auto-publish the 100%-clean, high-autonomy posts (status pre-set to
     // APPROVED above). Reuse the SAME governed path the manual approval flow
@@ -941,7 +956,7 @@ async function notifyCreatorReturned(
         ? reason.trim()
         : 'A reviewer returned your post for changes. No reason was provided.',
       type: 'RETURNED',
-      link: `/publish?revisionId=${intentId}`,
+      link: `/governance/reviews?item=${intentId}`,
       read: false,
       created_at: new Date().toISOString(),
     });
@@ -969,7 +984,7 @@ async function notifyCreatorApproved(
         ? `Your post was approved: "${contentPreview.slice(0, 120)}"`
         : 'Your post has been approved and will be published.',
       type: 'APPROVAL',
-      link: `/publish?revisionId=${intentId}`,
+      link: `/governance/reviews?item=${intentId}`,
       read: false,
       created_at: new Date().toISOString(),
     });
@@ -1041,15 +1056,8 @@ export const reviewActionIntent = async (
         await recordReviewer(intentId, userId, reason);
         await syncWorkflowInstanceStatus(intentId, 'blocked');
         await syncAgentRunFromIntent(intentId, 'GOVERNANCE_BLOCKED', `Blocked by Decision Engine: ${decision.decision_class}`);
-        // Notify creator + admins about the block
+        // Notify creator about the block
         await notifyCreatorRejected(intent.creator_id, `Blocked by Decision Engine: ${decision.decision_class}`, intentId);
-        await notifyWorkspaceAdmins(
-          workspaceId,
-          '⛔ Post Blocked by Decision Engine',
-          `Post "${(intent.content || '').slice(0, 80)}" was blocked by the Decision Engine after manual approval. Decision: ${decision.decision_class}`,
-          'ERROR',
-          `/governance/reviews?item=${intentId}`,
-        );
         return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
       }
       await setIntentStatus(intentId, 'APPROVED', reason || null, decision?.decision_id);
@@ -1058,14 +1066,6 @@ export const reviewActionIntent = async (
       await syncAgentRunFromIntent(intentId, 'APPROVED');
       // Notify creator that their post was approved
       await notifyCreatorApproved(intent.creator_id, intentId, intent.content);
-      // Notify workspace admins about the approval
-      await notifyWorkspaceAdmins(
-        workspaceId,
-        '✅ Agent Post Approved',
-        `A reviewer approved the agent post "${(intent.content || '').slice(0, 80)}".`,
-        'APPROVAL',
-        `/governance/reviews?item=${intentId}`,
-      );
       internalEventBus.emit('execution.requested', { intentId, orgId: workspaceId });
       return res.status(200).json({ success: true, data: { status: 'APPROVED' } });
     }
@@ -1085,14 +1085,6 @@ export const reviewActionIntent = async (
       // the reviewer's reason. Persisted so it shows even if they were offline.
       // Notify the post's creator that it was rejected
       await notifyCreatorRejected(intent.creator_id, reason, intentId);
-      // Notify workspace admins about the rejection
-      await notifyWorkspaceAdmins(
-        workspaceId,
-        '❌ Agent Post Rejected',
-        `An agent post was rejected: "${(intent.content || '').slice(0, 80)}". Reason: ${reason || 'No reason provided.'}`,
-        'GOVERNANCE',
-        `/governance/reviews?item=${intentId}`,
-      );
       return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
     }
 
@@ -1135,14 +1127,6 @@ export const reviewActionIntent = async (
 
     // Notify creator that their post was returned for revision
     await notifyCreatorReturned(intent.creator_id, reason, intentId);
-    // Notify workspace admins about the return
-    await notifyWorkspaceAdmins(
-      workspaceId,
-      '🔄 Agent Post Returned for Revision',
-      `An agent post was returned for revision: "${(intent.content || '').slice(0, 80)}". Feedback: ${reason || 'No reason provided.'}`,
-      'GOVERNANCE',
-      `/governance/reviews?item=${intentId}`,
-    );
     return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
     next(error);

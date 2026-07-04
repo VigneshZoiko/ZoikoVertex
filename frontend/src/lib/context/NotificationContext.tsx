@@ -256,7 +256,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                   category: 'WORKFLOW',
                   priority: newRow.status === 'RETURNED' ? 'HIGH' : 'MEDIUM',
                   actions: [
-                    { label: 'View Details', href: `/publish/${newRow.id}`, primary: true }
+                    { label: 'View Details', href: `/governance/reviews?item=${newRow.id}`, primary: true }
                   ]
                 });
               }

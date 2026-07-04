@@ -432,6 +432,35 @@ export default function KnowledgeBasePage() {
     }
   };
 
+  // ── AI-assisted governance classification ──────────────────
+  // Groq primary / Gemini optional fallback (backend). Result is stored in the
+  // source metadata and surfaced as a reminder in the source header. Declared
+  // above patchSourceTop so the content-save path below can trigger it.
+  const [classifying, setClassifying] = useState(false);
+  const autoClassified = useRef<Set<string>>(new Set());
+
+  const classifyGovernance = useCallback(
+    async (s: KBSource, opts?: { silent?: boolean }) => {
+      setClassifying(true);
+      try {
+        const r = await api.classifySourceGovernance(s.id);
+        if (r?.success) {
+          await refreshAll();
+          if (!opts?.silent) {
+            flash("ok", r.classified === false ? "AI check unavailable (no classifier configured)." : "AI governance check complete.");
+          }
+        } else if (!opts?.silent) {
+          flash("err", "AI governance check failed.");
+        }
+      } catch {
+        if (!opts?.silent) flash("err", "AI governance check failed.");
+      } finally {
+        setClassifying(false);
+      }
+    },
+    [refreshAll, flash],
+  );
+
   // Inline field saves (used by the file-style header + content editor).
   const patchSourceTop = useCallback(
     async (s: KBSource, top: Record<string, unknown>) => {
@@ -439,12 +468,18 @@ export default function KnowledgeBasePage() {
         const r = await api.updateKnowledgeSource(s.id, top);
         if (!r?.success) throw new Error("save failed");
         await refreshAll();
+        // Content just changed — re-run the AI governance check against the
+        // saved text now, instead of waiting for the source to be reopened.
+        if (typeof top.content === "string" && top.content.trim().length > 0) {
+          autoClassified.current.delete(s.id);
+          void classifyGovernance({ ...s, ...top } as KBSource, { silent: true });
+        }
       } catch {
         flash("err", "Could not save change.");
         throw new Error("save failed");
       }
     },
-    [refreshAll, flash],
+    [refreshAll, flash, classifyGovernance],
   );
 
   const patchSourceMeta = useCallback(
@@ -490,34 +525,6 @@ export default function KnowledgeBasePage() {
     [refreshAll, flash],
   );
 
-  // ── AI-assisted governance classification ──────────────────
-  // Groq primary / Gemini optional fallback (backend). Result is stored in the
-  // source metadata and surfaced as a reminder in the source header.
-  const [classifying, setClassifying] = useState(false);
-  const autoClassified = useRef<Set<string>>(new Set());
-
-  const classifyGovernance = useCallback(
-    async (s: KBSource, opts?: { silent?: boolean }) => {
-      setClassifying(true);
-      try {
-        const r = await api.classifySourceGovernance(s.id);
-        if (r?.success) {
-          await refreshAll();
-          if (!opts?.silent) {
-            flash("ok", r.classified === false ? "AI check unavailable (no classifier configured)." : "AI governance check complete.");
-          }
-        } else if (!opts?.silent) {
-          flash("err", "AI governance check failed.");
-        }
-      } catch {
-        if (!opts?.silent) flash("err", "AI governance check failed.");
-      } finally {
-        setClassifying(false);
-      }
-    },
-    [refreshAll, flash],
-  );
-
   // Admin / workspace owner resolves the category check: accept / keep / review.
   const decideGovernance = useCallback(
     async (s: KBSource, decision: "accept" | "keep" | "review", reason?: string) => {
@@ -545,6 +552,11 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     if (!selectedSource) return;
     if (getAiCategory(selectedSource)) return;
+    // Nothing to classify yet (e.g. a just-created draft) — skip without
+    // marking as attempted, so the check still runs once real content is
+    // saved (patchSourceTop re-triggers it directly; this is the fallback
+    // for content that already existed when the source was opened).
+    if (!selectedSource.content || !selectedSource.content.trim()) return;
     if (autoClassified.current.has(selectedSource.id)) return;
     autoClassified.current.add(selectedSource.id);
     void classifyGovernance(selectedSource, { silent: true });
