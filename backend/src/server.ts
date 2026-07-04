@@ -492,7 +492,8 @@ const reviewQueueActionGuard = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN
 const validationDeskGuard    = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','VALIDATOR','APPROVER');
 const approvalConsoleGuard   = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','APPROVER','COMPLIANCE_REVIEWER');
 const safetyGuard            = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','BRAND_REVIEWER','COMPLIANCE_REVIEWER','SECURITY_ADMIN');
-const auditTrailGuard        = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN','KNOWLEDGE_MANAGER','VALIDATOR','COMPLIANCE_REVIEWER','AUDITOR','SECURITY_ADMIN');
+const auditTrailGuard        = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN','KNOWLEDGE_MANAGER','VALIDATOR','COMPLIANCE_REVIEWER','AUDITOR');
+const accountsGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','DEVELOPER','PUBLISHER');
 const forensicHubGuard       = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','COMPLIANCE_REVIEWER','AUDITOR','SECURITY_ADMIN');
 const evidenceVaultGuard     = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','COMPLIANCE_REVIEWER','AUDITOR');
 const identityLedgerGuard    = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','COMPLIANCE_REVIEWER','AUDITOR','SECURITY_ADMIN');
@@ -818,9 +819,9 @@ app.get('/api/auth/twitter/callback', handleTwitterCallback);
 app.get('/api/auth/youtube/callback', handleYoutubeCallback);
 app.get('/api/auth/googleads/callback', handleGoogleAdsCallback);
 // Protected Social/Account Routes
-app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
-app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
-app.post('/api/v1/accounts/linkedin/pages', authenticate, saveLinkedInPages);
+app.delete('/api/v1/accounts/:id', authenticate, accountsGuard, disconnectAccount);
+app.get('/api/v1/accounts/linkedin/pages', authenticate, accountsGuard, getLinkedInPagesSession);
+app.post('/api/v1/accounts/linkedin/pages', authenticate, accountsGuard, saveLinkedInPages);
 
 // LinkedIn Community Management Routes
 app.get('/api/v1/linkedin/:accountId/feed',        authenticate, newInboxGuard, getLinkedInPageFeed);
@@ -992,7 +993,7 @@ const workflowAdmin = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
 
 // Workspace Settings Routes
 // Protected Account Routes
-app.get('/api/v1/accounts', authenticate, listAccounts);
+app.get('/api/v1/accounts', authenticate, accountsGuard, listAccounts);
 app.get('/api/v1/analytics/platform-reach', authenticate, getPlatformReach);
 
 // Protected Team Routes

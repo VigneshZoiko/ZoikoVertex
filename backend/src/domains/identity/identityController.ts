@@ -27,13 +27,14 @@ const ResendVerificationSchema = z.object({
 
 const IDENTITY_SERVICE = 'Identity';
 
-const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER', 'ADMIN']);
+// WORKSPACE_OWNER is always superadmin-only; ADMIN has its own max-1 rule below
+const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER']);
 
 export const provisionUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { email, password, full_name, role, workspace_id: bodyWorkspaceId } = ProvisionSchema.parse(req.body);
 
-    // Non-superadmins cannot create WORKSPACE_OWNER or ADMIN (privilege escalation)
+    // Non-superadmins cannot create WORKSPACE_OWNER (privilege escalation)
     if (!req.user?.is_superadmin && ESCALATION_ROLES.has(role)) {
       return res.status(403).json({ error: 'Forbidden: Cannot provision users with ' + role + ' role' });
     }
@@ -45,6 +46,22 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
 
     if (!workspace_id) {
       return res.status(400).json({ error: 'Workspace context missing. Please reload and try again.' });
+    }
+
+    // Max-1 ADMIN rule: a workspace may have at most one Admin at a time.
+    // If 0 admins exist anyone with provisioning rights can fill the seat;
+    // if 1 already exists the seat is taken — remove the current admin first.
+    if (role === 'ADMIN') {
+      const { count: adminCount } = await supabaseAdmin
+        .from('workspace_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('workspace_id', workspace_id)
+        .eq('role', 'ADMIN');
+      if ((adminCount ?? 0) >= 1) {
+        return res.status(409).json({
+          error: 'Only one Admin is allowed per workspace. Remove the existing Admin first.',
+        });
+      }
     }
 
     // 1. Check if this user already exists in the system (by email in public.users)
@@ -85,19 +102,32 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
       userId = createData.user.id;
     }
 
-    // 2. Ensure user record exists in public.users (safe upsert)
+    // 2. Ensure user record exists in public.users (safe upsert on PK)
     const { error: userError } = await supabaseAdmin
       .from('users')
-      .upsert({ id: userId, email, full_name: full_name ?? email.split('@')[0] });
+      .upsert(
+        { id: userId, email, full_name: full_name ?? email.split('@')[0] },
+        { onConflict: 'id' }
+      );
 
-    if (userError) throw userError;
+    if (userError) {
+      console.error('[provision] users upsert failed:', userError.message, userError.details, userError.hint);
+      throw userError;
+    }
 
-    // 3. Add role in workspace_members
+    // 3. Add role in workspace_members — must specify onConflict on the unique pair,
+    //    not the surrogate PK, so re-provisioning an existing member updates their role
     const { error: memberError } = await supabaseAdmin
       .from('workspace_members')
-      .upsert({ workspace_id, user_id: userId, role });
+      .upsert(
+        { workspace_id, user_id: userId, role },
+        { onConflict: 'workspace_id,user_id' }
+      );
 
-    if (memberError) throw memberError;
+    if (memberError) {
+      console.error('[provision] workspace_members upsert failed:', memberError.message, memberError.details, memberError.hint);
+      throw memberError;
+    }
 
     // 4. Send welcome email with credentials (fire-and-forget — don't fail provision if email fails)
     sendEmail({

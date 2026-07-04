@@ -325,7 +325,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/evidence/audit-trail",
         icon: FileSearch,
         // M1 — Immutable hash-chained timeline. What happened?
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR","SECURITY_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","VALIDATOR"],
         plan: "audit_trail" as Feature,
       },
       {
@@ -539,7 +539,12 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (roleLoading) return;
+    if (roleLoading) {
+      // A new login is in progress — reset so the skeleton shows instead of
+      // stale items from the previous session.
+      setRoleLoaded(false);
+      return;
+    }
     setRoleLoaded(true);
     // Only fetch when the role value itself changes, not on every roleLoading toggle.
     // The realtime channel below keeps the count live after the initial fetch.

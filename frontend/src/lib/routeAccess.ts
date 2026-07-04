@@ -37,7 +37,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/resources',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
 
   // ── Evidence Layer ────────────────────────────────────────────────────────
-  { prefix: '/evidence/audit-trail',          roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'KNOWLEDGE_MANAGER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'VALIDATOR', 'SECURITY_ADMIN', 'SUPERADMIN'],     plan: 'audit_trail' },
+  { prefix: '/evidence/audit-trail',          roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'KNOWLEDGE_MANAGER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'VALIDATOR', 'SUPERADMIN'],                    plan: 'audit_trail' },
   { prefix: '/evidence/forensic-hub',         roles: ['ADMIN', 'WORKSPACE_OWNER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                           plan: 'forensic_hub' },
   { prefix: '/evidence/evidence-vault',       roles: ['ADMIN', 'WORKSPACE_OWNER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                                                                plan: 'evidence_vault' },
   { prefix: '/evidence/identity-ledger',      roles: ['ADMIN', 'WORKSPACE_OWNER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                              plan: 'identity_ledger' },
