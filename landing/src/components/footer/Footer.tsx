@@ -2,11 +2,13 @@ import Link from "next/link";
 import Image from "next/image";
 
 const LINK_HREFS: Record<string, string> = {
-  "About ZoikoVertex": "/about",
+  "About ZoikoVertex": "https://www.zoikovertex.com/about",
   "Vision & Mission": "/vision-and-mission",
   "Security": "/security",
   "Privacy Policy": "/privacy",
   "Terms of Service": "/terms",
+  "Leadership": "https://www.zoikovertex.com/leadership",
+  "B2B SaaS": "/b2b-saas",
   "Platform Overview": "/platform",
   "Pricing": "/pricing",
 };
