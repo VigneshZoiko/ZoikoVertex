@@ -25,20 +25,11 @@ services:
       # Auth
       - key: JWT_SECRET
         sync: false
-      # Mail — SendGrid API (recommended for Render; SMTP is blocked)
-      - key: SENDGRID_API_KEY
+      # Mail — Resend API (SMTP is blocked on Render)
+      - key: RESEND_API_KEY
         sync: false
       - key: FROM_EMAIL
         value: info@zoikovertex.com
-      # SMTP fallback (local dev only — not used in production)
-      - key: SMTP_HOST
-        value: smtpout.secureserver.net
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_USER
-        value: info@zoikovertex.com
-      - key: SMTP_PASS
-        sync: false
       # AI
       - key: AI_PROVIDER
         value: groq
@@ -137,3 +128,8 @@ services:
       # Internal
       - key: INTERNAL_SERVICE_SECRET
         sync: false
+      # Mail — Resend API
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: "ZoikoVertex <noreply@zoikovertex.com>"
