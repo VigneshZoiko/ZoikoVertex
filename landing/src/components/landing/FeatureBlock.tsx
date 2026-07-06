@@ -69,7 +69,7 @@ export default function FeatureBlock() {
         <div className="relative">
           <div className="rounded-2xl overflow-hidden">
             <Image
-              src="/images/new_category_image.png"
+              src="/images/common/category-image.png"
               alt="Category"
               width={600}
               height={400}

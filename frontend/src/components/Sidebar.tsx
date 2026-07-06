@@ -711,7 +711,7 @@ function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
           <div className="flex items-center min-w-0">
             <div className={`rounded-full overflow-hidden shrink-0 relative border border-[var(--sidebar-border)] transition-all duration-300 ${isCollapsed ? "w-8 h-8" : "w-8 h-8"}`}>
               <Image
-                src="/images/vertex-logo-dark.jpeg"
+                src="/images/logos/vertex-logo-dark.jpeg"
                 alt="ZoikoVertex"
                 fill
                 sizes="32px"

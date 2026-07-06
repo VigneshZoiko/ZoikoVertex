@@ -68,7 +68,7 @@ export default function AboutGEI() {
         >
           {/* Background image */}
           <Image
-            src="/images/about-gei.webp"
+            src="/images/about/about-gei.webp"
             alt="GEI"
             fill
             className="object-cover"

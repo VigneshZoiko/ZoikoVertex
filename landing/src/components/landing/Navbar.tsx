@@ -16,7 +16,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center">
           <Image
-            src="/images/logo-wordmark.svg"
+            src="/images/logos/logo-wordmark.svg"
             alt="ZoikoVertex"
             width={235}
             height={36}

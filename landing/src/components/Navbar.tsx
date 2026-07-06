@@ -17,7 +17,7 @@ export default function Navbar() {
         <div className="flex items-center">
           <Link href="/">
             <Image
-              src="/images/logo-wordmark.svg"
+              src="/images/logos/logo-wordmark.svg"
               alt="ZoikoVertex"
               width={235}
               height={36}

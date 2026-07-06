@@ -201,7 +201,7 @@ export default function MessageBubble({
           <div className="h-8 w-8 rounded-full bg-[#e6f4f7] flex items-center justify-center overflow-hidden border-2 border-[#4db8ff]">
             <span className="text-[0.72rem] font-semibold text-[#1d4e61]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/response-icon.jpg" alt="" className="h-full w-full object-contain" />
+              <img src="/images/chatbot/response-icon.jpg" alt="" className="h-full w-full object-contain" />
             </span>
           </div>
         </div>
@@ -293,7 +293,7 @@ export default function MessageBubble({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/avatar.svg"
+              src="/images/chatbot/avatar.svg"
               alt="User avatar"
               className="h-full w-full object-contain"
             />

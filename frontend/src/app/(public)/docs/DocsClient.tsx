@@ -205,7 +205,7 @@ export default function DocsClient({ serializedSources }: { serializedSources: R
         {/* ── TOP NAV ── */}
         <header style={{ height: 58, flexShrink: 0, borderBottom: `1px solid ${C.border}`, background: C.bgDeep, display: "flex", alignItems: "center", zIndex: 50 }}>
           <div style={{ width: 232, flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "0 20px", borderRight: `1px solid ${C.border}`, height: "100%" }}>
-            <Image src="/images/ZoikoVertex_Logo_SVG 1.svg" alt="ZoikoVertex" width={130} height={28} style={{ objectFit: "contain" }} />
+            <Image src="/images/logos/zoikovertex-logo.svg" alt="ZoikoVertex" width={130} height={28} style={{ objectFit: "contain" }} />
             <span style={{ fontSize: 11, color: C.muted2, fontWeight: 600, background: C.accentDim, border: `1px solid ${C.border}`, padding: "2px 7px", borderRadius: 20, letterSpacing: "0.04em" }}>DOCS</span>
           </div>
           <nav style={{ flex: 1, display: "flex", alignItems: "stretch", height: "100%", overflowX: "auto", padding: "0 8px", gap: 0 }}>

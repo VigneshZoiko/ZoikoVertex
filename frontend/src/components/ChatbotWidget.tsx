@@ -4,7 +4,7 @@ import ChatBotRoot from "../custos-FE/ChatBotRoot";
 
 const RobotIcon = ({ size = 30 }) => (
   <Image
-    src="/images/response-icon.jpg"
+    src="/images/chatbot/response-icon.jpg"
     alt="Assistant"
     width={size}
     height={size}

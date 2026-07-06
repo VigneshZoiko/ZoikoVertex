@@ -37,7 +37,7 @@ export default function AboutHero() {
           style={{ transitionDelay: "100ms" }}
         >
           <Image
-            src="/images/about-hero.webp"
+            src="/images/about/about-hero.webp"
             alt="About ZoikoVertex"
             fill
             className="object-cover rounded-2xl"

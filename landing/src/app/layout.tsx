@@ -59,6 +59,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${jakarta.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="format-detection" content="telephone=no, email=no, address=no" />
         <Script id="meta-pixel" strategy="afterInteractive">
           {`
             !function(f,b,e,v,n,t,s)

@@ -109,7 +109,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-          <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} priority />
+          <Image src="/images/logos/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} priority />
         </Link>
 
         {/* Desktop nav links */}

@@ -212,7 +212,7 @@ function TheProblem() {
         <div>
           <div className="relative rounded-2xl overflow-hidden mb-4">
             <Image
-              src="/images/governance-problem.png"
+              src="/images/governance/governance-problem.png"
               alt="Team governance session"
               width={600}
               height={420}
@@ -360,7 +360,7 @@ const SIX_CONTROLS = [
     subtitle: "Agents act only within the user's authority.",
     desc: "RBAC with ABAC scoping by brand, region, workspace, channel, risk class, and tenant. Visibility does not equal authority.",
     artifact: "Role attestation report",
-    img: "/images/pillar-role-permission.png",
+    img: "/images/governance/pillar-role-permission.png",
     badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
@@ -370,7 +370,7 @@ const SIX_CONTROLS = [
     subtitle: "AI speed without unmanaged authority.",
     desc: "Autonomy levels, policy-as-code, action gates, escalation triggers, and content-class restrictions applied before every agent action.",
     artifact: "Autonomy policy snapshot",
-    img: "/images/pillar-policy-autonomy.png",
+    img: "/images/governance/pillar-policy-autonomy.png",
     badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
@@ -380,7 +380,7 @@ const SIX_CONTROLS = [
     subtitle: "No sensitive action is self-authorized.",
     desc: "Reviewer, Validator, Compliance Officer, Approver, Publisher chains enforced structurally — not by honour system.",
     artifact: "Signed approval chain",
-    img: "/images/pillar-approval-separation.png",
+    img: "/images/governance/pillar-approval-separation.png",
     badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
@@ -390,7 +390,7 @@ const SIX_CONTROLS = [
     subtitle: "Brand standards become enforceable rules.",
     desc: "Brand Library, approved claims, prohibited terms, source grounding, and jurisdictional rule packs enforced as policy checks before review.",
     artifact: "Brand and claims review record",
-    img: "/images/pillar-brand-claims.png",
+    img: "/images/governance/pillar-brand-claims.png",
     badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
@@ -400,7 +400,7 @@ const SIX_CONTROLS = [
     subtitle: "Every action produces an inspectable record.",
     desc: "Append-only event log, decision history, policy versioning, evidence export, and legal-hold readiness. Written at runtime — never reconstructed.",
     artifact: "Evidence Vault export",
-    img: "/images/pillar-evidence-audit.png",
+    img: "/images/governance/pillar-evidence-audit.png",
     badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
@@ -410,7 +410,7 @@ const SIX_CONTROLS = [
     subtitle: "Urgent situations are controlled, not improvised.",
     desc: "Dual-authorization break-glass, time-boxed crisis mode, reason codes, escalation routing, and post-incident review workflow.",
     artifact: "Exception and override log",
-    img: "/images/pillar-crisis-control.png",
+    img: "/images/governance/pillar-crisis-control.png",
     badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
 ];
@@ -593,7 +593,7 @@ function PermanentRecord() {
         {/* Left — image */}
         <div className="relative rounded-2xl overflow-hidden h-[480px]">
           <Image
-            src="/images/audit-trail-left.png"
+            src="/images/governance/audit-trail-left.png"
             alt="ZoikoVertex governed workspace"
             fill
             className="object-cover"

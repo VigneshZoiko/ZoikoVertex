@@ -22,7 +22,7 @@ export default function AuthLayout({ children, footer }: { children: React.React
         <div className="max-w-[460px]">
           {/* Logo */}
           <Image
-            src="/images/zoikovertexlogo.png"
+            src="/images/logos/zoikovertexlogo.png"
             alt="ZoikoVertex"
             width={200}
             height={38}
