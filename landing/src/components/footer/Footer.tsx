@@ -10,6 +10,7 @@ const LINK_HREFS: Record<string, string> = {
   "Leadership": "https://www.zoikovertex.com/leadership",
   "B2B SaaS": "/b2b-saas",
   "FinTech": "/fintech",
+  "Agencies & Multi-Brand Teams": "/agencies",
   "Platform Overview": "/platform",
   "Pricing": "/pricing",
 };
