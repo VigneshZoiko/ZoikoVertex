@@ -132,6 +132,7 @@ export const useStore = create((set, get) => ({
 
   setSessionId: async (sessionId, expiresAt = null) => {
     const current = get();
+    set({ sessionId, expiresAt: expiresAt || current.expiresAt });
     if (current.user) {
       await saveSession({
         user: current.user,
@@ -139,7 +140,6 @@ export const useStore = create((set, get) => ({
         expiresAt: expiresAt || current.expiresAt,
       });
     }
-    set({ sessionId, expiresAt: expiresAt || current.expiresAt });
   },
 
   // ─── FIX Bug 3: fetch history from Supabase after login too ──────────────
