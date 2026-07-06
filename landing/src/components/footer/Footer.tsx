@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 const LINK_HREFS: Record<string, string> = {
   "About ZoikoVertex": "https://www.zoikovertex.com/about",
@@ -16,6 +19,9 @@ const LINK_HREFS: Record<string, string> = {
 };
 
 export default function Footer() {
+  const pathname = usePathname();
+  if (pathname === "/press") return null;
+
   const cols = [
     {
       heading: "Product",
@@ -94,7 +100,7 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
-              <Image src="/images/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} />
+              <Image src="/images/logos/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} />
             </div>
             <p className="text-white/40 text-xs leading-relaxed mb-6">
               <span className="text-white/70 font-semibold">

@@ -31,7 +31,7 @@ export default function EnterpriseBanner() {
         <div className="space-y-5">
           <div className="rounded-2xl overflow-hidden">
             <Image
-              src="/images/governance-photo.png"
+              src="/images/common/governance-photo.png"
               alt="Governance"
               width={600}
               height={420}
@@ -40,7 +40,7 @@ export default function EnterpriseBanner() {
           </div>
           <div className="rounded-2xl overflow-hidden">
             <Image
-              src="/images/TrustModel_image.png"
+              src="/images/common/trust-model.png"
               alt="Governance Control Tower"
               width={600}
               height={500}

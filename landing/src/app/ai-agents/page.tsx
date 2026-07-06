@@ -103,13 +103,13 @@ function Hero() {
 
           {/* Center — Governance Core PNG */}
           <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
-            <img src="/images/governance_core.png" alt="Governance Core" className="w-28 h-28" />
+            <img src="/images/ai-agents/governance-core.png" alt="Governance Core" className="w-28 h-28" />
           </div>
 
           {/* Strategy — 0° (top) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: '50%', top: 'calc(50% - 190px)', transform: 'translate(-50%, -100%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <img src="/images/strategy_icon.png" alt="Strategy" className="w-8 h-8 object-contain" />
+              <img src="/images/ai-agents/strategy-icon.png" alt="Strategy" className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">STRATEGY</span>
             <span className="text-[10px] text-white/30">Campaign Direction</span>
@@ -117,13 +117,13 @@ function Hero() {
 
           {/* "19 DEFAULT ROLES" badge — upper right, outside ring */}
           <div className="absolute" style={{ right: '0', top: '8%' }}>
-            <img src="/images/19-default-roles.png" alt="19 Default Roles" className="h-12 object-contain" />
+            <img src="/images/ai-agents/19-default-roles.png" alt="19 Default Roles" className="h-12 object-contain" />
           </div>
 
           {/* Content — 72° (upper right) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% + 181px)', top: 'calc(50% - 59px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <img src="/images/content_icon.png" alt="Content" className="w-8 h-8 object-contain" />
+              <img src="/images/ai-agents/content-icon.png" alt="Content" className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">CONTENT</span>
             <span className="text-[10px] text-white/30">Brand-grounded Drafts</span>
@@ -143,7 +143,7 @@ function Hero() {
           {/* Engagement — 216° (lower left) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% - 112px)', top: 'calc(50% + 154px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#2a1e0a] border border-amber-500/20 flex items-center justify-center">
-              <img src="/images/engagement_icon.png" alt="Engagement" className="w-8 h-8 object-contain" />
+              <img src="/images/ai-agents/engagement-icon.png" alt="Engagement" className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-amber-400/80 tracking-widest mt-1">ENGAGEMENT</span>
             <span className="text-[10px] text-white/30">Route &amp; Escalate</span>
@@ -151,13 +151,13 @@ function Hero() {
 
           {/* "5 AI AGENTS" badge — lower left, below engagement */}
           <div className="absolute" style={{ left: '5%', bottom: '4%' }}>
-            <img src="/images/5-governed-agents.png" alt="5 AI Agents" className="h-12 object-contain" />
+            <img src="/images/ai-agents/5-governed-agents.png" alt="5 AI Agents" className="h-12 object-contain" />
           </div>
 
           {/* Revenue — 288° (upper left) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% - 181px)', top: 'calc(50% - 59px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <img src="/images/revenue_icon.png" alt="Revenue" className="w-8 h-8 object-contain" />
+              <img src="/images/ai-agents/revenue-icon.png" alt="Revenue" className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">REVENUE</span>
             <span className="text-[10px] text-white/30">Attribution &amp; ROI</span>
@@ -257,7 +257,7 @@ const AGENTS = [
     bestFor: "CMOs and Campaign Managers who need evidence-backed campaign direction.",
     failure: "Launching a campaign that contradicts prior performance or approved strategy.",
     plans: ["Audit", "Pro", "Scale", "Command"],
-    icon: <img src="/images/strategy_icon.png" alt="Strategy" className="w-7 h-7 object-contain" />,
+    icon: <img src="/images/ai-agents/strategy-icon.png" alt="Strategy" className="w-7 h-7 object-contain" />,
     iconBg: "bg-cyan-900/40 border-cyan-500/20",
   },
   {

@@ -86,7 +86,7 @@ export default function SolutionHero() {
           style={{ transitionDelay: "300ms" }}
         >
           <Image
-            src="/images/Vertex-Tab.webp"
+            src="/images/solution/vertex-tab.webp"
             alt="Solution"
             width={1200}
             height={900}

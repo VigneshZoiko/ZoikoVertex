@@ -62,7 +62,7 @@ export default function PlatformSection() {
             <div className="absolute inset-0 bg-cyan-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl z-10" />
 
             <Image
-              src="/images/Platform.webp"
+              src="/images/platform/platform.webp"
               alt="Platform Dashboard"
               width={1200}
               height={700}

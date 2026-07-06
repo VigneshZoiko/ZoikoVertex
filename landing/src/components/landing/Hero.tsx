@@ -87,7 +87,7 @@ export default function Hero() {
         <div className="relative hidden lg:flex items-center justify-center w-full">
           <div className="relative w-full h-auto rounded-[14px] overflow-hidden">
             <Image
-              src="/images/hero-command-center.png"
+              src="/images/common/hero-command-center.png"
               alt="ZoikoVertex Executive Command Center showing AI-agent workflows, approval controls, ROI evidence, and governance status"
               width={711}
               height={511}

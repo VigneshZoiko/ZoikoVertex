@@ -707,7 +707,7 @@ export default function VisionMissionPage() {
           {/* Globe card */}
           <div className="relative rounded-2xl overflow-hidden mb-6 min-h-[280px] sm:min-h-[360px]">
             <Image
-              src="/images/globe-satellite-vision.png"
+              src="/images/vision-and-mission/globe-satellite-vision.png"
               alt="Global governed AI marketing operations"
               fill
               className="object-cover object-center"

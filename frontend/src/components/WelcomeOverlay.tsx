@@ -47,7 +47,7 @@ export default function WelcomeOverlay() {
           <div className="relative z-10 flex flex-col items-center">
             <div className="relative w-24 h-24 rounded-3xl overflow-hidden flex items-center justify-center mb-8 shadow-2xl shadow-[var(--accent)]/20">
               <Image
-                src="/images/zoikovertexlogo.png"
+                src="/images/logos/zoikovertexlogo.png"
                 alt="ZoikoVertex Logo"
                 fill
                 className="object-cover"
