@@ -5,17 +5,21 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const LINK_HREFS: Record<string, string> = {
-  "About ZoikoVertex": "https://www.zoikovertex.com/about",
+  "About ZoikoVertex": "/about",
   "Vision & Mission": "/vision-and-mission",
   "Security": "/security",
   "Privacy Policy": "/privacy",
   "Terms of Service": "/terms",
-  "Leadership": "https://www.zoikovertex.com/leadership",
+  "Leadership": "/leadership",
   "B2B SaaS": "/b2b-saas",
   "FinTech": "/fintech",
   "Agencies & Multi-Brand Teams": "/agencies",
   "Platform Overview": "/platform",
   "Pricing": "/pricing",
+  "Press & Media": "/press",
+  "Healthcare": "/healthcare",
+  "Compliance & Governance": "/governance",
+  "Resource Center": "/resources-hub",
 };
 
 export default function Footer() {
