@@ -67,11 +67,16 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
     // 1. Check if this user already exists in the system (by email in public.users)
     //    If they do, reuse their existing ID — don't try to re-create them in Auth.
     //    This allows adding an existing user from another workspace to this workspace.
-    const { data: existingUser } = await supabaseAdmin
+    const { data: existingUser, error: lookupError } = await supabaseAdmin
       .from('users')
       .select('id')
       .eq('email', email)
       .maybeSingle();
+
+    if (lookupError) {
+      console.error('[provision] step1 users lookup failed:', lookupError.message, lookupError.details);
+      throw lookupError;
+    }
 
     let userId: string;
 
@@ -98,8 +103,38 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
         user_metadata: { full_name },
       });
 
-      if (authError) throw authError;
-      userId = createData.user.id;
+      if (authError) {
+        // If the email already exists in auth.users but is missing from public.users
+        // (data inconsistency from a previous failed provision), recover by finding
+        // the existing auth user instead of failing with 500.
+        const msg = authError.message?.toLowerCase() ?? '';
+        const isAlreadyExists = msg.includes('already') || msg.includes('registered') ||
+          msg.includes('duplicate') || (authError as any).code === 'email_exists';
+
+        if (isAlreadyExists) {
+          console.warn('[provision] auth user already exists for', email, '— recovering by searching auth.users');
+          let foundId: string | null = null;
+          let page = 1;
+          while (!foundId) {
+            const { data: pageData } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 50 });
+            const pageUsers = pageData?.users ?? [];
+            const match = pageUsers.find((u: { email?: string; id: string }) => u.email === email);
+            if (match) { foundId = match.id; break; }
+            if (pageUsers.length < 50) break;
+            page++;
+          }
+          if (!foundId) {
+            console.error('[provision] step2 createUser failed and could not find existing auth user:', authError.message);
+            throw authError;
+          }
+          userId = foundId;
+        } else {
+          console.error('[provision] step2 createUser failed:', authError.message, (authError as any).code);
+          throw authError;
+        }
+      } else {
+        userId = createData.user.id;
+      }
     }
 
     // 2. Ensure user record exists in public.users (safe upsert on PK)
@@ -111,8 +146,8 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
       );
 
     if (userError) {
-      console.error('[provision] users upsert failed:', userError.message, userError.details, userError.hint);
-      throw userError;
+      console.error('[provision] step3 users upsert failed:', userError.message, userError.details, userError.hint, userError.code);
+      throw Object.assign(new Error(`[step3-users-upsert] ${userError.message}`), { statusCode: 500, code: userError.code });
     }
 
     // 3. Add role in workspace_members — must specify onConflict on the unique pair,
@@ -125,8 +160,8 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
       );
 
     if (memberError) {
-      console.error('[provision] workspace_members upsert failed:', memberError.message, memberError.details, memberError.hint);
-      throw memberError;
+      console.error('[provision] step4 workspace_members upsert failed:', memberError.message, memberError.details, memberError.hint, memberError.code);
+      throw Object.assign(new Error(`[step4-wm-upsert] ${memberError.message}`), { statusCode: 500, code: memberError.code });
     }
 
     // 4. Send welcome email with credentials (fire-and-forget — don't fail provision if email fails)

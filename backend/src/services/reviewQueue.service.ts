@@ -385,7 +385,7 @@ export function calculateEligibility(item: ReviewItem, role: string, userId?: st
     return 'OVERRIDE_ELIGIBLE';
   }
 
-  if (item.risk_level === 'CRITICAL' && !['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN'].includes(role)) {
+  if (item.risk_level === 'CRITICAL' && !['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'COMPLIANCE_REVIEWER'].includes(role)) {
     return 'ELEVATED_APPROVAL_REQUIRED';
   }
   // Allow human reviewers to override/approve FAILED validation items if they judge it safe.
@@ -402,7 +402,7 @@ export function calculateEligibility(item: ReviewItem, role: string, userId?: st
     return 'REVIEW_REQUIRED';
   }
 
-  const canApprove = ['ADMIN', 'WORKSPACE_OWNER', 'REVIEWER', 'MANAGER', 'GOVERNANCE_ADMIN'].includes(role);
+  const canApprove = ['ADMIN', 'WORKSPACE_OWNER', 'REVIEWER', 'MANAGER', 'GOVERNANCE_ADMIN', 'COMPLIANCE_REVIEWER'].includes(role);
   const isAssignedToMe = item.assigned_to === null || item.assigned_to === userId;
   // HIGH risk items that haven't truly FAILED (e.g. videos awaiting human review with
   // MANUAL_CHECK_REQUIRED) are eligible for approval by authorized reviewers.
