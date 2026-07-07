@@ -93,7 +93,9 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
   ],
   COMPLIANCE_REVIEWER: [
     'dashboard:view', 'governance:view', 'risk:view',
-    'audit:view', 'evidence:view', 'analytics:view', 'support:view',
+    'audit:view', 'evidence:view', 'analytics:view',
+    'queue:view', 'queue:manage', 'approvals:view', 'approvals:manage',
+    'validation:view', 'support:view',
   ],
   AUDITOR: [
     'dashboard:view', 'audit:view', 'evidence:view',

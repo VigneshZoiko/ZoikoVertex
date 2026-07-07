@@ -249,7 +249,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/agents/studio",
         icon: Bot,
         // Build/configure agents — architects (full), knowledge managers (read), governance (oversee)
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","GOVERNANCE_ADMIN","KNOWLEDGE_MANAGER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","KNOWLEDGE_MANAGER"],
         plan: "agents" as Feature,
       },
       {
@@ -257,7 +257,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/agents/operations",
         icon: MonitorPlay,
         // Run/supervise/pause agents — operators only; architects do not operate
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","GOVERNANCE_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR"],
         plan: "agents" as Feature,
       },
       {
@@ -366,7 +366,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/accounts",
         icon: Link2,
         // Social/platform connections — admins, devs, publishers
-        roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","PUBLISHER"],
+        roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"],
       },
       {
         name: "Data Connectors",

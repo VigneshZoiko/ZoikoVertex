@@ -33,7 +33,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/integrations/identity-ledger',  roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'AUDITOR', 'SUPERADMIN'],                                                                                           plan: 'identity_ledger' },
   { prefix: '/integrations/health',           roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
   { prefix: '/integrations',                  roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
-  { prefix: '/accounts',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'PUBLISHER', 'SUPERADMIN'] },
+  { prefix: '/accounts',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
   { prefix: '/resources',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
 
   // ── Evidence Layer ────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ export const ROUTE_RULES: RouteRule[] = [
 
   // ── Authority Layer / Agents ──────────────────────────────────────────────
   // Specific sub-page rules must come BEFORE the /agents catch-all (longest prefix wins)
-  { prefix: '/agents/studio',                 roles: ['AGENT_ARCHITECT', 'KNOWLEDGE_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                     plan: 'agents' },
-  { prefix: '/agents/operations',             roles: ['AGENT_OPERATOR', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                           plan: 'agents' },
+  { prefix: '/agents/studio',                 roles: ['AGENT_ARCHITECT', 'KNOWLEDGE_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                         plan: 'agents' },
+  { prefix: '/agents/operations',             roles: ['AGENT_OPERATOR', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                                               plan: 'agents' },
   { prefix: '/agents/workflows',              roles: ['AGENT_ARCHITECT', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                          plan: 'agents' },
   { prefix: '/agents/prompts',                roles: ['AGENT_ARCHITECT', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                          plan: 'agents' },
   { prefix: '/agents/knowledge',              roles: ['KNOWLEDGE_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                        plan: 'agents' },
