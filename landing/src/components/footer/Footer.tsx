@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 const LINK_HREFS: Record<string, string> = {
   "About ZoikoVertex": "/about",
+  "About Zoiko Group": "/zoiko-group",
   "Vision & Mission": "/vision-and-mission",
   "Security": "/security",
   "Privacy Policy": "/privacy",
