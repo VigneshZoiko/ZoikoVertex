@@ -22,8 +22,19 @@ const SOLUTION_ITEMS = [
   { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/solution#regulated" },
   { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/solution#marketing-ops" },
   { label: "B2B SaaS", desc: "Governed marketing\nfor SaaS teams", href: "/b2b-saas" },
+  { label: "FinTech", desc: "Compliant marketing\nfor financial services", href: "/fintech" },
   { label: "Healthcare", desc: "Clinical review\nfor health marketing", href: "/healthcare" },
+  { label: "Logistics", desc: "Precision governance\nfor logistics ops", href: "/logistics" },
+  { label: "Telecom", desc: "Governed marketing\nfrom brief to broadcast", href: "/telecom" },
   { label: "Agencies &\nMulti-Brand Teams", desc: "Client-isolated\napproval workflows", href: "/agencies" },
+];
+
+const ABOUT_ITEMS = [
+  { label: "About\nZoikoVertex", desc: "Our mission\nand product story", href: "/about" },
+  { label: "About\nZoiko Group", desc: "The company\nbehind ZoikoVertex", href: "/zoiko-group" },
+  { label: "Leadership", desc: "Meet the team\nbehind the platform", href: "/leadership" },
+  { label: "Vision &\nMission", desc: "Where we're\ntaking governed AI", href: "/vision-and-mission" },
+  { label: "Press &\nMedia", desc: "News, coverage,\nand press resources", href: "/press" },
 ];
 
 const NAV_ITEMS = [
@@ -31,7 +42,7 @@ const NAV_ITEMS = [
   { label: "AI Agents", hasDropdown: false, href: "/ai-agents" },
   { label: "Solutions", hasDropdown: true, href: "/solution" },
   { label: "Resources", hasDropdown: false, href: "/resources-hub" },
-  { label: "About Us", hasDropdown: false, href: "/about" },
+  { label: "About Us", hasDropdown: true, href: "/about" },
   { label: "Pricing", hasDropdown: false, href: "/pricing" },
 ];
 
@@ -148,6 +159,9 @@ export default function Navbar() {
                 )}
                 {openMenu === item.label && item.label === "Solutions" && (
                   <DropdownMenu items={SOLUTION_ITEMS} title="Solutions" viewAllLabel="View All Solutions →" viewAllHref="/solution" />
+                )}
+                {openMenu === item.label && item.label === "About Us" && (
+                  <DropdownMenu items={ABOUT_ITEMS} title="About Us" viewAllLabel="About ZoikoVertex →" viewAllHref="/about" />
                 )}
               </div>
             );

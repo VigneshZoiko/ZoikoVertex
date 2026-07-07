@@ -19,6 +19,8 @@ const LINK_HREFS: Record<string, string> = {
   "Pricing": "/pricing",
   "Press & Media": "/press",
   "Healthcare": "/healthcare",
+  "Logistics": "/logistics",
+  "Telecom": "/telecom",
   "Compliance & Governance": "/governance",
   "Resource Center": "/resources-hub",
 };
