@@ -76,13 +76,13 @@ export default function ChatHeader({
           {/* Desktop Logo */}
           <div className="hidden lg:flex h-12 w-12 items-center justify-center overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-<img src="/images/zoikovertexlogo.png" alt="Logo" className="h-full w-full object-contain" />
+<img src="/images/chatbot/logo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           {/* Mobile / Tablet Logo */}
           <div className="block lg:hidden h-12 w-12 rounded-full overflow-hidden border-2 border-[#2b9ad9] flex items-center justify-center shadow-md shadow-[rgba(43,154,217,0.2)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-<img src="/images/zoikovertexlogo.png" alt="Logo" className="h-full w-full object-contain" />
+<img src="/images/chatbot/logo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           {/* Indicator */}
