@@ -4,8 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 const { supabase } = require("../config/db");
 const NewPrompt = require("../models/NewPrompt");
 const { normalizePrompt } = require("../utils/translate");
-const { generateResponse, isAIAvailable } = require("./aiService");
-const { buildContext, getRelevantPages } = require("./ragService");
+
 const {
   createHandoffTicket,
   getHandoffResponse,
@@ -171,6 +170,7 @@ const ZOIKOVERTEX_TERMS = new Set([
   "mission", "competitor", "hootsuite", "sprout", "benchmark",
   "alternative", "migrate", "migration", "onboard", "training",
   "support", "ticket", "escalate", "human", "handoff",
+  "url", "urls", "link", "links", "website",
 ]);
 
 function scoreEntry(message, entry) {
@@ -732,53 +732,6 @@ function matchWebsiteUrl(message) {
   return null;
 }
 
-async function generateAIFallbackReply(message, language = "en", history) {
-  const aiAvailable = await isAIAvailable();
-  if (!aiAvailable) return null;
-
-  const context = buildContext(message, 2500);
-  const relevantPages = getRelevantPages(message);
-  const urlMatch = matchWebsiteUrl(message);
-
-  if (urlMatch && !relevantPages.some((p) => p.path === urlMatch.path)) {
-    relevantPages.push({ path: urlMatch.path, label: urlMatch.label });
-  }
-
-  const conversationHistory = (history || []).map((msg) => ({
-    role: msg.role,
-    content: msg.content,
-  }));
-
-  const aiResult = await generateResponse({
-    message,
-    context,
-    conversationHistory,
-  });
-
-  if (!aiResult) return null;
-
-  const citations = relevantPages.slice(0, 3).map((page) => ({
-    title: page.label,
-    url: page.url || `https://zoikovertex.com${page.path}`,
-  }));
-
-  return {
-    id: uuidv4(),
-    answer: aiResult.answer,
-    matchedQuestion: "AI-generated response",
-    confidence: 0.75,
-    suggestions: relevantPages.slice(0, 4).map((p) =>
-      `Tell me more about ${p.label}`
-    ),
-    route: relevantPages[0]?.path || null,
-    intent: "ai_fallback",
-    timestamp: new Date().toISOString(),
-    source: "ai",
-    model: aiResult.model,
-    citations,
-  };
-}
-
 function hasZoikoVertexTopic(message) {
   const text = normalizeText(message);
   const tokens = tokenize(text);
@@ -861,7 +814,7 @@ function isMatchReliable(message, ruleReply) {
 async function generateHybridReply(message, language = "en", history) {
   const ruleReply = generateChatReply(message, language);
 
-  if (ruleReply.intent !== "fallback" && isMatchReliable(message, ruleReply)) {
+  if (ruleReply.intent !== "fallback" && (isMatchReliable(message, ruleReply) || ruleReply.intent === "website_url" || ruleReply.intent === "contact_us")) {
     return {
       ...ruleReply,
       source: "rule",
@@ -897,11 +850,6 @@ async function generateHybridReply(message, language = "en", history) {
       timestamp: new Date().toISOString(),
       source: "rule",
     };
-  }
-
-  const aiReply = await generateAIFallbackReply(message, language, history);
-  if (aiReply) {
-    return aiReply;
   }
 
   if (ruleReply.intent === "fallback") {
@@ -1062,7 +1010,7 @@ module.exports = {
   findOrCreateConversationForUser,
   generateChatReply,
   generateHybridReply,
-  generateAIFallbackReply,
+
   handleHumanHandoff,
   matchWebsiteUrl,
   getChatContext,

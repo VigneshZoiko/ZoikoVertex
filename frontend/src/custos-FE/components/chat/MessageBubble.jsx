@@ -174,13 +174,54 @@ export default function MessageBubble({
 
   const renderedBody = isStringBody ? (animating ? displayed : body) : body;
 
+  function linkify(text) {
+    // Strip markdown link syntax: [text](url) -> url
+    text = text.replace(/\[([^\]]*)\]\(([^)]+)\)/g, '$2');
+    const urlRegex = /(https?:\/\/[^\s<]+|[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s<]*)?(?=[\s<]|$))/gi;
+    const emailRegex = /([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi;
+    const parts = [];
+    let lastIndex = 0;
+
+    const matches = [];
+    let m;
+    while ((m = urlRegex.exec(text)) !== null) {
+      matches.push({ index: m.index, end: m.index + m[0].length, text: m[0], type: 'url' });
+    }
+    while ((m = emailRegex.exec(text)) !== null) {
+      matches.push({ index: m.index, end: m.index + m[0].length, text: m[0], type: 'email' });
+    }
+    matches.sort((a, b) => a.index - b.index);
+
+    for (const match of matches) {
+      if (match.index < lastIndex) continue;
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+      const href = match.type === 'email'
+        ? `mailto:${match.text}`
+        : match.text.startsWith('http')
+          ? match.text
+          : `https://${match.text}`;
+      parts.push(
+        <a key={match.index} href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 decoration-1 hover:opacity-80 transition-opacity" style={{ color: 'var(--accent, #2b9ad9)' }}>
+          {match.text}
+        </a>
+      );
+      lastIndex = match.end;
+    }
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+    return parts.length > 0 ? parts : text;
+  }
+
   function renderText(text) {
     const paragraphs = text.split("\n\n");
     return paragraphs.map((para, pi) => (
       <span key={pi}>
         {para.split("\n").map((line, li) => (
           <span key={li}>
-            {line}
+            {linkify(line)}
             {li < para.split("\n").length - 1 && <br />}
           </span>
         ))}

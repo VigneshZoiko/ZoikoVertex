@@ -72,17 +72,17 @@ export default function ChatHeader({
       {/* ── Logo + Title + Badge ── */}
       <div className="flex flex-1 items-center gap-3 min-w-0 ">
         {/* ✅ FIXED LOGO ONLY */}
-        <div className="relative flex items-center ">
+        <div className="relative flex items-center">
           {/* Desktop Logo */}
-          <div className="hidden lg:flex h-8 w-8 items-center justify-center rounded-[4px] overflow-hidden">
+          <div className="hidden lg:flex h-12 w-12 items-center justify-center overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/chatbot/logo.png" alt="Logo" className="h-full w-full object-contain" />
+<img src="/images/zoikovertexlogo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           {/* Mobile / Tablet Logo */}
-          <div className="block lg:hidden h-8 w-8 rounded-full overflow-hidden border-2 border-[#2b9ad9] flex items-center justify-center">
+          <div className="block lg:hidden h-12 w-12 rounded-full overflow-hidden border-2 border-[#2b9ad9] flex items-center justify-center shadow-md shadow-[rgba(43,154,217,0.2)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/chatbot/logo.png" alt="Logo" className="h-full w-full object-contain" />
+<img src="/images/zoikovertexlogo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
 
           {/* Indicator */}
@@ -91,9 +91,11 @@ export default function ChatHeader({
 
         {/* Name + badge */}
         <div className="flex min-w-0 flex-col gap-[6px]">
-          <span
-            className={`truncate font-extrabold text-[1.5rem]  leading-none ${
-              isDark               ? "text-[#c8dafc]" : "text-[#0a2d5c]"
+            <span
+            className={`truncate font-black text-[1.5rem] leading-none bg-clip-text text-transparent ${
+              isDark
+                ? "bg-gradient-to-r from-[#4db8ff] via-[#7ac8f0] to-[#c8dafc]"
+                : "bg-gradient-to-r from-[#17337c] via-[#2b9ad9] to-[#4db8ff]"
             }`}
           >
             CUSTOS

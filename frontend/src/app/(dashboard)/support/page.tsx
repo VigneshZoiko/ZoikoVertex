@@ -57,8 +57,8 @@ export default function SupportPage() {
           <Mail className="w-5 h-5 text-[var(--accent)] mb-2" />
           <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Email Support</h3>
           <p className="text-xs text-[var(--foreground-muted)] mb-2">Response within 24 hours</p>
-          <a href="mailto:support@zoikovertex.com" className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
-            support@zoikovertex.com <ExternalLink className="w-3 h-3" />
+          <a href="mailto:info@zoikovertex.com" className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
+            info@zoikovertex.com <ExternalLink className="w-3 h-3" />
           </a>
         </div>
 
