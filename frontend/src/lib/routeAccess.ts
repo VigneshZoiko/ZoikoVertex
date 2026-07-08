@@ -63,7 +63,7 @@ export const ROUTE_RULES: RouteRule[] = [
   // Specific sub-page rules must come BEFORE the /agents catch-all (longest prefix wins)
   { prefix: '/agents/studio',                 roles: ['AGENT_ARCHITECT', 'KNOWLEDGE_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                         plan: 'agents' },
   { prefix: '/agents/operations',             roles: ['AGENT_OPERATOR', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                                               plan: 'agents' },
-  { prefix: '/agents/workflows',              roles: ['AGENT_ARCHITECT', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                          plan: 'agents' },
+  { prefix: '/agents/workflows',              roles: ['AGENT_ARCHITECT', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                                         plan: 'agents' },
   { prefix: '/agents/prompts',                roles: ['AGENT_ARCHITECT', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                          plan: 'agents' },
   { prefix: '/agents/knowledge',              roles: ['KNOWLEDGE_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                        plan: 'agents' },
   { prefix: '/agents/autonomy',               roles: ['AGENT_ARCHITECT', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'],                                                                                              plan: 'agents' },

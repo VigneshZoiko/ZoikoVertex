@@ -265,7 +265,7 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/agents/workflows",
         icon: GitBranch,
         // Multi-agent orchestration — architects design; operators do not configure workflows
-        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","GOVERNANCE_ADMIN"],
+        roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT"],
         plan: "agents" as Feature,
       },
       {
