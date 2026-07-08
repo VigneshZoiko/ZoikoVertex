@@ -23,6 +23,7 @@ const LINK_HREFS: Record<string, string> = {
   "Telecom": "/telecom",
   "Compliance & Governance": "/governance",
   "Resource Center": "/resources-hub",
+  "AI Workflow Orchestration": "/ai-workflow-orchestration",
 };
 
 export default function Footer() {
