@@ -13,7 +13,7 @@ const HANDOFF_CATEGORIES = {
 function categorizeHandoff(message, userState = "public") {
   const text = (message || "").toLowerCase();
 
-  if (/(enterprise|corporate|custom pricing|contract|procurement|vendor)/.test(text))
+  if (/(enterprise|command tier|custom pricing|contract|procurement|vendor|60k|acv)/.test(text))
     return HANDOFF_CATEGORIES.SALES;
   if (/(dpa|legal|contract review|attorney|lawyer|regulatory)/.test(text))
     return HANDOFF_CATEGORIES.LEGAL;
