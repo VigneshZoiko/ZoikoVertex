@@ -65,7 +65,7 @@ async function sendChatMessage(req, res, next) {
     let reply;
     try {
       const history = await getSessionHistory(sessionId);
-      reply = await generateHybridReply(message, language, history);
+      reply = await generateHybridReply(message, language, history, sessionId, user);
     } catch (err) {
       console.error("❌ Reply generation failed:", err);
       reply = {

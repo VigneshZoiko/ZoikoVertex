@@ -35,6 +35,68 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const inMemoryHistory = new Map();
 const inMemoryConversations = new Map();
 
+// ── Conversation state machine for handoff flow ──
+const CONVERSATION_STATES = {
+  NORMAL: "normal",
+  HANDOFF_OFFERED: "handoff_offered",
+  HANDOFF_COLLECTING: "handoff_collecting",
+};
+
+const handoffState = new Map(); // sessionId -> { state, collectedInfo }
+
+const AFFIRMATIVE_PATTERNS = [
+  /^(yes|yeah|yep|yup|sure|ok|okay|alright|fine|go ahead|please do|do it|connect me|route me|send me|id like that|id love that)/i,
+  /^(yes|yeah|sure|ok|okay),?\s*(please|connect|route|help|send)/i,
+  /\b(yes|sure|okay|ok)\b.*\b(human|agent|support|connect|route|help)/i,
+];
+
+const NEGATIVE_PATTERNS = [
+  /^(no|nah|nope|not now|never mind|cancel|forget it|skip|no thanks)/i,
+  /^(no|nah),?\s*(thanks|thank you|i'm good|ill figure|not needed)/i,
+];
+
+function isAffirmative(message) {
+  const text = message.trim().toLowerCase();
+  return AFFIRMATIVE_PATTERNS.some((p) => p.test(text));
+}
+
+function isNegative(message) {
+  const text = message.trim().toLowerCase();
+  return NEGATIVE_PATTERNS.some((p) => p.test(text));
+}
+
+function getHandoffState(sessionId) {
+  const entry = handoffState.get(sessionId);
+  if (!entry) return { state: CONVERSATION_STATES.NORMAL, collectedInfo: {} };
+  if (Date.now() - entry.createdAt > 10 * 60 * 1000) {
+    handoffState.delete(sessionId);
+    return { state: CONVERSATION_STATES.NORMAL, collectedInfo: {} };
+  }
+  return entry;
+}
+
+function setHandoffState(sessionId, state, collectedInfo = {}) {
+  handoffState.set(sessionId, { state, collectedInfo, createdAt: Date.now() });
+}
+
+function clearHandoffState(sessionId) {
+  handoffState.delete(sessionId);
+}
+
+function extractEmail(text) {
+  const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  return match ? match[0] : null;
+}
+
+function extractName(text) {
+  const cleaned = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "").trim();
+  const withoutNoise = cleaned.replace(/^(my name is|im |i am |name is|call me|this is)\s+/i, "").trim();
+  const words = withoutNoise.split(/\s+/).filter((w) => w.length > 1);
+  if (words.length >= 2) return words.slice(0, 2).join(" ");
+  if (words.length === 1 && words[0].length > 2) return words[0];
+  return null;
+}
+
 function normalizeText(value = "") {
   return value
     .toLowerCase()
@@ -485,6 +547,7 @@ async function findOrCreateConversationForUser(user) {
 }
 
 async function endConversation(sessionId, userEmail) {
+  clearHandoffState(sessionId);
   const conversation = getInMemoryConversation(sessionId);
   if (conversation && (!userEmail || conversation.userEmail === userEmail)) {
     conversation.status = "ended";
@@ -811,10 +874,86 @@ function isMatchReliable(message, ruleReply) {
   return strongMatchCount >= 1;
 }
 
-async function generateHybridReply(message, language = "en", history) {
+async function generateHybridReply(message, language = "en", history, sessionId, user) {
+  if (sessionId) {
+    const hs = getHandoffState(sessionId);
+
+    if (hs.state === CONVERSATION_STATES.HANDOFF_OFFERED) {
+      if (isAffirmative(message)) {
+        setHandoffState(sessionId, CONVERSATION_STATES.HANDOFF_COLLECTING, {});
+        return {
+          id: uuidv4(),
+          answer: "I'd be happy to connect you. Could you please provide your full name, email address, and a brief description of what you need help with?",
+          matchedQuestion: "Handoff details collection",
+          confidence: 0.99,
+          suggestions: ["My name is ...", "I need help with ..."],
+          route: null,
+          intent: "handoff_collecting",
+          timestamp: new Date().toISOString(),
+          source: "rule",
+        };
+      }
+      if (isNegative(message)) {
+        clearHandoffState(sessionId);
+      }
+    }
+
+    if (hs.state === CONVERSATION_STATES.HANDOFF_COLLECTING) {
+      const email = extractEmail(message);
+      const name = extractName(message);
+
+      const collected = {
+        ...hs.collectedInfo,
+        ...(name && !hs.collectedInfo.name ? { name } : {}),
+        ...(email ? { email } : {}),
+        description: hs.collectedInfo.description || message,
+      };
+
+      if (email) {
+        clearHandoffState(sessionId);
+        const ticket = createHandoffTicket({
+          user: { ...(user || {}), email: collected.email, name: collected.name },
+          message: collected.description || message,
+          sessionId,
+        });
+        const response = getHandoffResponse(ticket);
+        return {
+          id: uuidv4(),
+          answer: response.answer,
+          matchedQuestion: "Human handoff request",
+          confidence: 0.99,
+          suggestions: response.suggestions,
+          route: null,
+          intent: "handoff",
+          timestamp: new Date().toISOString(),
+          source: "handoff",
+          handoffId: response.handoffId,
+          handoffCategory: response.category,
+        };
+      }
+
+      setHandoffState(sessionId, CONVERSATION_STATES.HANDOFF_COLLECTING, collected);
+      const askName = !collected.name;
+      return {
+        id: uuidv4(),
+        answer: askName
+          ? "Thanks. Could you please share your full name so I can note it for the team?"
+          : "Thank you. Could you also share your email address so the team can follow up with you?",
+        matchedQuestion: "Handoff details collection",
+        confidence: 0.99,
+        suggestions: askName ? ["John Smith"] : ["email@example.com"],
+        route: null,
+        intent: "handoff_collecting",
+        timestamp: new Date().toISOString(),
+        source: "rule",
+      };
+    }
+  }
+
   const ruleReply = generateChatReply(message, language);
 
   if (ruleReply.intent !== "fallback" && (isMatchReliable(message, ruleReply) || ruleReply.intent === "website_url" || ruleReply.intent === "contact_us")) {
+    if (sessionId) clearHandoffState(sessionId);
     return {
       ...ruleReply,
       source: "rule",
@@ -823,6 +962,7 @@ async function generateHybridReply(message, language = "en", history) {
 
   const urlMatch = matchWebsiteUrl(message);
   if (urlMatch && !ruleReply.route) {
+    if (sessionId) clearHandoffState(sessionId);
     return {
       ...ruleReply,
       route: urlMatch.path,
@@ -835,6 +975,7 @@ async function generateHybridReply(message, language = "en", history) {
   }
 
   if (isAdversarial(message)) {
+    if (sessionId) clearHandoffState(sessionId);
     const refusal = knowledgeDocument.adversarial?.find(
       (a) => a.locked_response && isAdversarial(message),
     );
@@ -853,6 +994,7 @@ async function generateHybridReply(message, language = "en", history) {
   }
 
   if (ruleReply.intent === "fallback") {
+    if (sessionId) setHandoffState(sessionId, CONVERSATION_STATES.HANDOFF_OFFERED, {});
     const handoffMsg = "Would you like me to connect you with someone who can help?";
     return {
       ...ruleReply,
@@ -866,6 +1008,7 @@ async function generateHybridReply(message, language = "en", history) {
     };
   }
 
+  if (sessionId) clearHandoffState(sessionId);
   return { ...ruleReply, source: "rule" };
 }
 
