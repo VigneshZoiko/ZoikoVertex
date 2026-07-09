@@ -133,7 +133,9 @@ export const useStore = create((set, get) => ({
   setSessionId: async (sessionId, expiresAt = null) => {
     const current = get();
     set({ sessionId, expiresAt: expiresAt || current.expiresAt });
-    if (current.user) {
+    if (sessionId === null) {
+      await clearSession();
+    } else if (current.user) {
       await saveSession({
         user: current.user,
         sessionId,
