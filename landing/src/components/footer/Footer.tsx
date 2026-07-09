@@ -24,6 +24,7 @@ const LINK_HREFS: Record<string, string> = {
   "Compliance & Governance": "/governance",
   "Resource Center": "/resources-hub",
   "AI Workflow Orchestration": "/ai-workflow-orchestration",
+  "Approval Workflows": "/approval-workflows",
 };
 
 export default function Footer() {
