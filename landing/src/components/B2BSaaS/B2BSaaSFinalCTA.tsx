@@ -50,14 +50,16 @@ export default function B2BSaaSFinalCTA() {
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           <Link
             href="/request-demo"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#20E7F2] text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition"
+            className="inline-flex items-center gap-2 px-6 py-3 text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition"
+            style={{ borderRadius: "100px", background: "#20E7F2" }}
           >
             <CalendarIcon className="w-4 h-4" />
             Request an Enterprise Demo
           </Link>
           <Link
             href="/governance"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 text-sm font-medium text-white/80 hover:bg-white/5 transition"
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white/80 hover:bg-white/5 transition"
+            style={{ borderRadius: "100px", border: "1px solid rgba(32, 231, 242, 0.25)" }}
           >
             <GovernanceIcon className="w-4 h-4" />
             Explore Governance
