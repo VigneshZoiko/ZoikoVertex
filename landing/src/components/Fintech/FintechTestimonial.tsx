@@ -13,7 +13,7 @@ export default function FintechTestimonial() {
     <section className="relative bg-[#0C1523] border-t border-white/[0.06] overflow-hidden">
       <div className="absolute inset-0">
         <Image
-          src="/images/fintech/testimonial-lead.png"
+          src="/images/fintech/testimonial-bg.jpg"
           alt=""
           fill
           className="object-cover opacity-15"
@@ -23,9 +23,18 @@ export default function FintechTestimonial() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 py-24 grid lg:grid-cols-2 gap-16 items-center">
         <div>
-          <div className="flex gap-1.5 mb-6">
-            <span className="w-1.5 h-8 bg-[#20E7F2]/60 rounded-sm" />
-            <span className="w-1.5 h-8 bg-[#20E7F2]/60 rounded-sm" />
+          <div
+            className="mb-6"
+            style={{
+              color: "#20E7F2",
+              fontFamily: "var(--font-bricolage), 'Bricolage Grotesque', sans-serif",
+              fontSize: 80,
+              fontStyle: "normal",
+              fontWeight: 800,
+              lineHeight: "64px",
+            }}
+          >
+            &rdquo;
           </div>
           <blockquote className="text-white text-[clamp(1.4rem,2.2vw,1.75rem)] font-bold leading-snug mb-8">
             Financial regulators expect evidence of process, not just evidence of outcome. ZoikoVertex gives our marketing governance team a complete, auditable record of every approval decision — without any extra effort.
