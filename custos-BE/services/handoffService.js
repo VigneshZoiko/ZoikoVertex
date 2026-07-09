@@ -91,11 +91,11 @@ function getHandoffResponse(ticket) {
   const estimatedTime = estimatedResponseMap[ticket.category.route] || "within 24 hours";
 
   return {
-    answer: `I've created a ${ticket.category.label} request (ID: ${ticket.id}). A team member will follow up at ${ticket.userEmail} ${estimatedTime}.`,
+    answer: `Your request (#${ticket.id}) has been submitted to our ${ticket.category.label} team, and someone will get back to you ${estimatedTime}. Thank you for reaching out!\n\nThanks for the conversation. If you have more questions about ZoikoVertex, I'm here.`,
     handoffId: ticket.id,
     category: ticket.category,
     estimatedResponse: estimatedTime,
-    suggestions: ["What's the status of my request?", "Back to main menu"],
+    suggestions: [],
   };
 }
 

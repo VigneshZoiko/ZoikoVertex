@@ -39,7 +39,6 @@ const inMemoryConversations = new Map();
 const CONVERSATION_STATES = {
   NORMAL: "normal",
   HANDOFF_OFFERED: "handoff_offered",
-  HANDOFF_COLLECTING: "handoff_collecting",
 };
 
 const handoffState = new Map(); // sessionId -> { state, collectedInfo }
@@ -82,21 +81,6 @@ function setHandoffState(sessionId, state, collectedInfo = {}) {
 function clearHandoffState(sessionId) {
   handoffState.delete(sessionId);
 }
-
-function extractEmail(text) {
-  const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-  return match ? match[0] : null;
-}
-
-function extractName(text) {
-  const cleaned = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "").trim();
-  const withoutNoise = cleaned.replace(/^(my name is|im |i am |name is|call me|this is)\s+/i, "").trim();
-  const words = withoutNoise.split(/\s+/).filter((w) => w.length > 1);
-  if (words.length >= 2) return words.slice(0, 2).join(" ");
-  if (words.length === 1 && words[0].length > 2) return words[0];
-  return null;
-}
-
 function normalizeText(value = "") {
   return value
     .toLowerCase()
@@ -658,7 +642,7 @@ function generateChatReply(message, language = "en") {
   }
 
   // 2. Goodbye / thanks
-  if (/^(bye|goodbye|see you|thanks|thank you|cheers)(\s|$)/.test(normalizedMessage)) {
+  if (/^(bye|goodbye|see you|thanks|thank you|cheers|ok|okay|yes)(\s|$)/.test(normalizedMessage)) {
     const goodbyeText = knowledgeDocument.templates?.goodbye
       ?? "Thanks for the conversation. If you have more questions about ZoikoVertex, I'm here.";
     return {
@@ -880,15 +864,15 @@ async function generateHybridReply(message, language = "en", history, sessionId,
 
     if (hs.state === CONVERSATION_STATES.HANDOFF_OFFERED) {
       if (isAffirmative(message)) {
-        setHandoffState(sessionId, CONVERSATION_STATES.HANDOFF_COLLECTING, {});
+        clearHandoffState(sessionId);
         return {
           id: uuidv4(),
-          answer: "I'd be happy to connect you. Could you please provide your full name, email address, and a brief description of what you need help with?",
-          matchedQuestion: "Handoff details collection",
+          answer: "Thank you! Please use the mail option to share your details, and our team will get back to you shortly.\n\nThanks for the conversation. If you have more questions about ZoikoVertex, I'm here.",
+          matchedQuestion: "Human handoff request",
           confidence: 0.99,
-          suggestions: ["My name is ...", "I need help with ..."],
+          suggestions: [],
           route: null,
-          intent: "handoff_collecting",
+          intent: "handoff",
           timestamp: new Date().toISOString(),
           source: "rule",
         };
@@ -896,57 +880,6 @@ async function generateHybridReply(message, language = "en", history, sessionId,
       if (isNegative(message)) {
         clearHandoffState(sessionId);
       }
-    }
-
-    if (hs.state === CONVERSATION_STATES.HANDOFF_COLLECTING) {
-      const email = extractEmail(message);
-      const name = extractName(message);
-
-      const collected = {
-        ...hs.collectedInfo,
-        ...(name && !hs.collectedInfo.name ? { name } : {}),
-        ...(email ? { email } : {}),
-        description: hs.collectedInfo.description || message,
-      };
-
-      if (email) {
-        clearHandoffState(sessionId);
-        const ticket = createHandoffTicket({
-          user: { ...(user || {}), email: collected.email, name: collected.name },
-          message: collected.description || message,
-          sessionId,
-        });
-        const response = getHandoffResponse(ticket);
-        return {
-          id: uuidv4(),
-          answer: response.answer,
-          matchedQuestion: "Human handoff request",
-          confidence: 0.99,
-          suggestions: response.suggestions,
-          route: null,
-          intent: "handoff",
-          timestamp: new Date().toISOString(),
-          source: "handoff",
-          handoffId: response.handoffId,
-          handoffCategory: response.category,
-        };
-      }
-
-      setHandoffState(sessionId, CONVERSATION_STATES.HANDOFF_COLLECTING, collected);
-      const askName = !collected.name;
-      return {
-        id: uuidv4(),
-        answer: askName
-          ? "Thanks. Could you please share your full name so I can note it for the team?"
-          : "Thank you. Could you also share your email address so the team can follow up with you?",
-        matchedQuestion: "Handoff details collection",
-        confidence: 0.99,
-        suggestions: askName ? ["John Smith"] : ["email@example.com"],
-        route: null,
-        intent: "handoff_collecting",
-        timestamp: new Date().toISOString(),
-        source: "rule",
-      };
     }
   }
 

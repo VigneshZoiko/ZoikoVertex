@@ -1,17 +1,25 @@
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
-
-const { Resend } = require("resend");
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-if (resend) {
-  console.log("✅ Mail provider: Resend");
-} else {
-  console.warn("⚠️  RESEND_API_KEY not configured — emails will not be sent");
-}
+const nodemailer = require("nodemailer");
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+let transporter = null;
+
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || "587", 10),
+    secure: parseInt(process.env.SMTP_PORT || "587", 10) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+  console.log("✅ Mail provider: SMTP (" + process.env.SMTP_HOST + ")");
+} else {
+  console.warn("⚠️  SMTP not configured — emails will not be sent");
+}
 
 const sendMail = async ({ to, from, subject, body, html }) => {
   if (!to || !subject) throw new Error("Missing required fields: to, subject");
@@ -20,7 +28,7 @@ const sendMail = async ({ to, from, subject, body, html }) => {
 
   const fromAddress = process.env.FROM_EMAIL || from;
   if (!fromAddress) throw new Error("No sender email configured and no 'from' provided");
-  if (!resend) throw new Error("Mail service not configured (missing RESEND_API_KEY)");
+  if (!transporter) throw new Error("Mail service not configured (missing SMTP credentials)");
 
   const textBody = body || "User has reported an issue. Please view this email in HTML format.";
   const htmlBody =
@@ -30,7 +38,7 @@ const sendMail = async ({ to, from, subject, body, html }) => {
       <p>${textBody.replace(/\n/g, "<br/>")}</p>
     </div>`;
 
-  const { error } = await resend.emails.send({
+  await transporter.sendMail({
     from: fromAddress,
     to,
     replyTo: from || fromAddress,
@@ -38,8 +46,6 @@ const sendMail = async ({ to, from, subject, body, html }) => {
     text: textBody,
     html: htmlBody,
   });
-
-  if (error) throw new Error(error.message || "Failed to send email via Resend");
 };
 
 module.exports = { sendMail };

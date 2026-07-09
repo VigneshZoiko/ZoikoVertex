@@ -246,7 +246,7 @@ function buildReply({ message, userState = "public", surface = "website" }) {
   }
 
   // 3. Goodbye / thanks
-  if (/^(bye|goodbye|see you|thanks|thank you|cheers)$/.test(text)) {
+  if (/^(bye|goodbye|see you|thanks|thank you|cheers|ok|okay|yes)$/.test(text)) {
     return {
       intent: "goodbye",
       answer: goodbyeMsg ?? "Thanks for the conversation. If you have more questions about ZoikoVertex, I'm here.",
