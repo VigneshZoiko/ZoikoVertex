@@ -1,4 +1,6 @@
-﻿import Link from "next/link";
+﻿"use client";
+import Link from "next/link";
+import { useState } from "react";
 import { Play, Clock, FileText } from "lucide-react";
 
 const Check = () => (
@@ -20,6 +22,7 @@ const Check = () => (
 );
 
 export default function Pricing() {
+  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const plans = [
     {
       tag: "FREE TIER",
@@ -53,10 +56,10 @@ export default function Pricing() {
       footerNote: "No live execution authority on this plan.",
     },
     {
-      tag: "ENTRY STEP, TIER",
+      tag: "FIRST PAID TIER",
       name: "Vertex Growth",
-      price: "$299",
-      billingNote: "$299 billed annually",
+      price: { monthly: "$399", annual: "$299" },
+      billingNote: { monthly: null, annual: "$299/mo billed annually" },
       desc: "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team.",
       stats: [
         { label: "users", value: "7" },
@@ -85,8 +88,8 @@ export default function Pricing() {
     {
       tag: "RECOMMENDED · COMMERCIAL CENTER",
       name: "Vertex Scale",
-      price: "$799",
-      billingNote: "$799 billed annually",
+      price: { monthly: "$999", annual: "$799" },
+      billingNote: { monthly: null, annual: "$799/mo billed annually" },
       desc: "Coordinate multi-brand teams with advanced approvals, full Brand Library, governed agents, and cross-brand performance intelligence.",
       stats: [
         { label: "users", value: "20" },
@@ -161,15 +164,25 @@ export default function Pricing() {
           Your deployment team has built us a good base security. Free to start,
           no credit card required.
         </p>
-        <div className="inline-flex items-center gap-3">
-          <div className="inline-flex items-center bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
-            <button className="text-sm text-white/40 px-4 py-1.5 rounded-full transition-all">
-              Monthly
-            </button>
-            <button className="text-sm font-semibold text-black bg-cyan-400 px-4 py-1.5 rounded-full transition-all">
-              Annual
-            </button>
-          </div>
+          <div className="inline-flex items-center gap-3">
+            <div className="inline-flex items-center bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={`text-sm px-4 py-1.5 rounded-full transition-all ${
+                  billing === "monthly" ? "font-semibold text-black bg-cyan-400" : "text-white/40"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBilling("annual")}
+                className={`text-sm px-4 py-1.5 rounded-full transition-all ${
+                  billing === "annual" ? "font-semibold text-black bg-cyan-400" : "text-white/40"
+                }`}
+              >
+                Annual
+              </button>
+            </div>
           <span className="text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-3 py-1.5 rounded-full">
             Save up to 25%
           </span>
@@ -207,20 +220,29 @@ export default function Pricing() {
               {p.tag}
             </p>
             <h3 className="text-white font-black text-xl mb-2">{p.name}</h3>
-            <div className="flex items-end gap-1 mb-1">
-              {p.price !== "Custom" && (
-                <span className="text-white/50 text-sm leading-none mb-1">
-                  $
-                </span>
-              )}
-              <span className="text-4xl font-black text-white leading-none">
-                {p.price === "Custom" ? "Custom" : p.price.replace("$", "")}
-              </span>
-              {p.price !== "Custom" && (
-                <span className="text-white/40 text-xs mb-1">/mo</span>
-              )}
-            </div>
-            <p className="text-white/30 text-[10px] mb-4">{p.billingNote}</p>
+            {(() => {
+              const rawPrice = typeof p.price === "string" ? p.price : p.price[billing];
+              const rawNote = typeof p.billingNote === "string" ? p.billingNote : p.billingNote[billing];
+              const isCustom = rawPrice === "Custom";
+              return (
+                <>
+                  <div className="flex items-end gap-1 mb-1">
+                    {!isCustom && (
+                      <span className="text-white/50 text-sm leading-none mb-1">$</span>
+                    )}
+                    <span className="text-4xl font-black text-white leading-none">
+                      {isCustom ? "Custom" : rawPrice.replace("$", "")}
+                    </span>
+                    {!isCustom && (
+                      <span className="text-white/40 text-xs mb-1">/mo</span>
+                    )}
+                  </div>
+                  {rawNote && (
+                    <p className="text-white/30 text-[10px] mb-4">{rawNote}</p>
+                  )}
+                </>
+              );
+            })()}
             <p className="text-white/50 text-xs leading-relaxed mb-5 pb-5 border-b border-white/10">
               {p.desc}
             </p>

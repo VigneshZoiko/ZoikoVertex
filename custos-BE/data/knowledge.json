@@ -312,7 +312,7 @@
     {
       "id": "pricing_plans",
       "label": "Pricing and Plans",
-      "safe_claim": "ZoikoVertex offers four plans: Free, Pro ($1,490/mo), Scale ($3,490/mo), and Command (custom, from $60K ACV). For full plan comparison, visit the Pricing page. Annual billing and add-on pricing must be quoted by Sales only.",
+      "safe_claim": "ZoikoVertex offers four plans: Vertex Starter (Free), Vertex Growth ($399/mo or $299/mo annual), Vertex Scale ($999/mo or $799/mo annual), and Vertex Corporate (Custom). For full plan comparison, visit the Pricing page. Annual billing and add-on pricing must be quoted by Sales only.",
       "forbidden_claims": [
         "discounts",
         "promotions",
@@ -504,34 +504,34 @@
     "model_note": "Pricing is per workspace, not per seat. Seats are an included allowance.",
     "tiers": [
       {
-        "name": "Free",
+        "name": "Vertex Starter",
         "price_usd_monthly": 0,
         "billing": "free",
-        "description": "Entry-level access for evaluation and audit-only use. Includes limited Campaign Workflows, analytics snapshot, and AI recommendations (read-only). Best for exploring the platform.",
-        "note": "Route users wanting expanded capability to Pro tier."
+        "description": "Entry-level access for evaluation and audit-only use. Includes 2 users, 2 channels, 1 brand, 30-day history, Command Center (limited), analytics snapshot, AI recommendations (read-only), basic activity log, and email support. Best for exploring the platform.",
+        "note": "Route users wanting expanded capability to Growth tier."
       },
       {
-        "name": "Pro",
-        "price_usd_monthly": 1490,
-        "price_usd_annual": null,
+        "name": "Vertex Growth",
+        "price_usd_monthly": 399,
+        "price_usd_annual": 299,
         "billing": "monthly",
-        "description": "Core governed execution for growing marketing teams. Includes campaign workflows, approval controls, and evidence records at production scale. Annual billing terms must be quoted by Sales only.",
-        "note": "$1,490/mo. Route all annual billing or multi-year enquiries to Sales."
+        "description": "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team. Includes 7 users, 8 profiles, Content Studio, Review Queue, two-step approvals, immutable audit trail, and Basic Brand Library.",
+        "note": "$399/mo or $299/mo billed annually. Route all annual billing or multi-year enquiries to Sales."
       },
       {
-        "name": "Scale",
-        "price_usd_monthly": 3490,
-        "price_usd_annual": null,
+        "name": "Vertex Scale",
+        "price_usd_monthly": 999,
+        "price_usd_annual": 799,
         "billing": "monthly",
-        "description": "Multi-brand and agency-scale governance. Advanced AI agent controls, extended evidence and audit capacity, and multi-workspace management.",
-        "note": "$3,490/mo. Route all annual billing or multi-year enquiries to Sales."
+        "description": "Multi-brand governance with advanced approvals, full Brand Library, governed agents, Crisis Console, and cross-brand performance intelligence. Includes 20 users, 25 profiles, up to 5 brands, and named Customer Success Manager.",
+        "note": "$999/mo or $799/mo billed annually. Route all annual billing or multi-year enquiries to Sales."
       },
       {
-        "name": "Command",
+        "name": "Vertex Corporate",
         "price_usd_monthly": null,
         "billing": "custom",
-        "description": "Enterprise and regulated-industry deployment. Custom contracts, dedicated support, SLA commitments, and procurement-grade security review.",
-        "note": "Custom pricing from $60K ACV. Route all Command enquiries to Sales immediately."
+        "description": "Enterprise and regulated-industry deployment. Custom contracts, Three-key approval protocol, Evidence Vault, legal hold, SSO/SAML/SCIM, and dedicated support.",
+        "note": "Custom pricing. Route all Corporate enquiries to Sales immediately."
       }
     ],
     "always_append": "For full plan comparison, visit the Pricing page.",
@@ -694,7 +694,7 @@
         "how do i request a demo"
       ],
       "route": "/request-demo",
-      "answer_first": "To request a demo, I will need your full name, company name, work email address, your role or title, your approximate team size, and the type of marketing or social media workflow you want to govern. Once I have those details, I will route your request to the ZoikoVertex team and confirm next steps."
+      "answer_first": "I can help you with that! Please visit our demo request page at https://zoikovertex.com/request-demo — fill in your details there and the ZoikoVertex team will reach out to schedule a guided walkthrough tailored to your needs."
     },
     {
       "id": "pricing",
@@ -738,7 +738,7 @@
         "features per plan"
       ],
       "route": "/pricing",
-      "answer_first": "ZoikoVertex offers four plans:\n\n1. Free \u2013 Entry-level access for evaluation. Limited Campaign Workflows, analytics snapshot, AI recommendations (read-only), email support. Best for exploring the platform.\n\n2. Pro ($1,490/mo) \u2013 Core governed execution for growing marketing teams. Campaign workflows, approval controls, and evidence records at production scale. Best for teams ready to run governed campaigns.\n\n3. Scale ($3,490/mo) \u2013 Multi-brand and agency-scale governance. Advanced AI agent controls, extended evidence and audit capacity, multi-workspace management. Best for agencies and multi-brand teams.\n\n4. Command (Custom, from $60K ACV) \u2013 Enterprise and regulated-industry deployment. Custom contracts, dedicated support, SLA commitments, procurement-grade security review. Route all Command enquiries to Sales.\n\nAnnual billing terms and add-on pricing must be quoted by Sales. For a full breakdown, visit the Pricing page."
+      "answer_first": "ZoikoVertex offers four plans:\n\n1. Vertex Starter (Free) \u2013 2 users, 2 channels, 1 brand, 30-day history. Command Center (limited), analytics snapshot, AI recommendations (read-only), basic activity log, email support. Best for exploring the platform.\n\n2. Vertex Growth ($399/mo or $299/mo annual) \u2013 7 users, 8 profiles, 1 brand, 12mo history. Content Studio, 5 AI agents, Review Queue, two-step approvals, immutable audit trail, Basic Brand Library, priority support. Best for teams ready to run governed campaigns.\n\n3. Vertex Scale ($999/mo or $799/mo annual) \u2013 20 users, 25 profiles, up to 5 brands, 24mo history. Advanced AI agents, multi-stage approvals, full Brand Library, Crisis Console, cross-brand analytics, named CSM. Best for multi-brand teams and agencies.\n\n4. Vertex Corporate (Custom) \u2013 Custom users, profiles, and brands. Three-key approval protocol, Evidence Vault, legal hold, SSO/SAML/SCIM, DPA, dedicated TAM + AE. Best for enterprise and regulated industries.\n\nFor a full breakdown, visit https://zoikovertex.com/pricing"
     },
     {
       "id": "free_plan",
@@ -755,50 +755,55 @@
         "free"
       ],
       "route": "/pricing",
-      "answer_first": "ZoikoVertex's Free plan includes: 2 users, 2 channels, 1 brand, 30-day history, limited Campaign Workflows, analytics snapshot, AI recommendations (read-only), basic activity log, and email support. No credit card required. It does not include live publishing, approvals, workflows, or API access. Best for exploring the platform and understanding your governance posture before your team commits."
+      "answer_first": "ZoikoVertex's Vertex Starter (Free) plan includes: 2 users, 2 channels, 1 brand, 30-day history, Command Center (limited), analytics snapshot, AI recommendations (read-only), basic activity log, and email support. No credit card required. It does not include live publishing, approvals, workflows, or API access. Best for exploring the platform and understanding your governance posture before your team commits."
     },
     {
-      "id": "pro_plan",
-      "label": "Pro Plan",
+      "id": "growth_plan",
+      "label": "Vertex Growth Plan",
       "trigger_signals": [
+        "growth plan",
+        "growth tier",
+        "growth pricing",
+        "what is growth",
+        "vertex growth",
+        "growth features",
+        "growth details",
+        "growth plan features",
+        "what do i get with growth",
+        "upgrade to growth",
+        "growth monthly",
+        "growth cost",
+        "$399",
         "pro plan",
-        "pro tier",
-        "pro pricing",
-        "what is pro",
-        "pro features",
-        "pro details",
-        "pro plan features",
-        "what do i get with pro",
-        "upgrade to pro",
-        "pro plan cost",
-        "pro monthly",
         "$1490"
       ],
       "route": "/pricing",
-      "answer_first": "Pro is ZoikoVertex's first paid tier at $1,490/mo (monthly billing only \u2014 annual billing terms must be quoted by Sales). It includes: campaign workflows, approval controls, evidence records at production scale, and standard analytics. Best for growing marketing teams ready to run governed campaigns. Annual billing enquiries must be routed to Sales."
+      "answer_first": "Vertex Growth is ZoikoVertex's first paid tier at $399/mo or $299/mo billed annually. It includes 7 users, 8 social profiles, 1 brand workspace, 5 AI agents (standard governed mode), Content Studio + publishing, Review Queue + two-step approvals, immutable audit trail, Basic Brand Library, Analytics & ROI, 12-month data retention, and priority email support. Best for teams ready to run governed campaigns."
     },
     {
       "id": "scale_plan",
-      "label": "Scale Plan",
+      "label": "Vertex Scale Plan",
       "trigger_signals": [
         "scale plan",
         "scale tier",
         "scale pricing",
         "what is scale",
+        "vertex scale",
         "scale features",
         "scale details",
         "scale plan features",
         "what do i get with scale",
         "upgrade to scale",
         "scale monthly",
+        "scale cost",
+        "$999",
         "$3490",
         "recommended plan",
         "most popular",
-        "scale cost",
         "multi brand"
       ],
       "route": "/pricing",
-      "answer_first": "Scale is ZoikoVertex's recommended plan at $3,490/mo (monthly billing only \u2014 annual billing terms must be quoted by Sales). It includes: multi-brand and agency-scale governance, advanced AI agent controls, extended evidence and audit capacity, multi-workspace management, and named support. Best for multi-brand teams and agencies. Annual billing enquiries must be routed to Sales."
+      "answer_first": "Vertex Scale is ZoikoVertex's recommended plan at $999/mo or $799/mo billed annually. It includes 20 users, 25 social profiles, up to 5 brand workspaces, 5 AI agents (advanced governed mode), advanced multi-stage approvals + multi-key, full Brand Library with standards & rules, Crisis Console (standard activation), advanced evidence packaging, cross-brand Analytics & ROI, 24-month data retention, named Customer Success Manager, and quarterly governance review. Best for multi-brand teams and agencies."
     },
     {
       "id": "sso_saml",
@@ -817,7 +822,7 @@
         "federated identity"
       ],
       "route": "/security",
-      "answer_first": "SSO/SAML with SCIM provisioning is available on Command plans. It supports integration with major identity providers including Okta, Azure AD, and Google Workspace. This enables centralized user management, automated provisioning and de-provisioning, and compliance with enterprise security policies. Contact Sales to discuss enterprise SSO setup."
+      "answer_first": "SSO/SAML with SCIM provisioning is available on Vertex Corporate plans. It supports integration with major identity providers including Okta, Azure AD, and Google Workspace. This enables centralized user management, automated provisioning and de-provisioning, and compliance with enterprise security policies. Contact Sales to discuss enterprise SSO setup."
     },
     {
       "id": "legal_holds",
@@ -832,29 +837,31 @@
       "answer_first": "Legal Holds allow preservation of evidence records beyond standard retention periods for legal or regulatory obligations."
     },
     {
-      "id": "command_plan",
-      "label": "Command Plan",
+      "id": "corporate_plan",
+      "label": "Vertex Corporate Plan",
       "trigger_signals": [
-        "command plan",
-        "command tier",
+        "corporate plan",
+        "corporate tier",
         "enterprise plan",
         "enterprise tier",
         "enterprise pricing",
-        "what is command",
-        "command features",
+        "what is corporate",
+        "vertex corporate",
+        "corporate features",
         "enterprise features",
-        "command pricing",
+        "corporate pricing",
         "enterprise cost",
         "custom plan",
         "custom pricing",
         "enterprise contract",
         "procurement",
+        "enterprise sla",
+        "command plan",
         "$60k",
-        "60k acv",
-        "enterprise sla"
+        "60k acv"
       ],
       "route": "/pricing",
-      "answer_first": "Command is ZoikoVertex's enterprise plan with custom pricing from $60K ACV (annual or multi-year contract). It includes: enterprise and regulated-industry deployment, custom contracts, dedicated support, SLA commitments, and procurement-grade security review. Security and legal review required. Route all Command enquiries to Sales immediately."
+      "answer_first": "Vertex Corporate is ZoikoVertex's enterprise plan with custom pricing. It includes: Three-key approval protocol, Evidence Vault + legal hold, chain-of-custody watermarked exports, custom AI governance configuration, Crisis Console (full dual-authorization), SSO/SAML + SCIM provisioning, DPA + security whitepaper, named AE + TAM + agreed SLA. Security and legal review required. Route all Corporate enquiries to Sales immediately."
     },
     {
       "id": "security",
@@ -1186,7 +1193,7 @@
         "what is crisis console"
       ],
       "route": "/",
-      "answer_first": "The Crisis Console is an advanced feature available in Scale and Command plans. It provides emergency response capabilities with dual-authorisation controls for urgent campaign actions during brand or reputational incidents. Access requires two authorised individuals to approve any emergency action."
+      "answer_first": "The Crisis Console is an advanced feature available in Vertex Scale and Vertex Corporate plans. It provides emergency response capabilities with dual-authorisation controls for urgent campaign actions during brand or reputational incidents. Access requires two authorised individuals to approve any emergency action."
     },
     {
       "id": "data_retention",
@@ -1246,7 +1253,7 @@
         "how to begin"
       ],
       "route": "/",
-      "answer_first": "After signing up for ZoikoVertex, the typical onboarding process includes: 1) Workspace configuration and setup, 2) User and role assignment based on the canonical role taxonomy, 3) Brand profile and Brand Library setup, 4) Channel connection and integration configuration, 5) AI agent configuration within governance boundaries, 6) Team training and workflow definition. Scale and Command plans include named support to guide you through every step of implementation."
+      "answer_first": "After signing up for ZoikoVertex, the typical onboarding process includes: 1) Workspace configuration and setup, 2) User and role assignment based on the canonical role taxonomy, 3) Brand profile and Brand Library setup, 4) Channel connection and integration configuration, 5) AI agent configuration within governance boundaries, 6) Team training and workflow definition. Vertex Scale and Vertex Corporate plans include named support to guide you through every step of implementation."
     },
     {
       "id": "supported_channels",
@@ -1285,7 +1292,7 @@
         "multi brand agency"
       ],
       "route": "/pricing",
-      "answer_first": "Multi-brand management is supported on Scale and Command plans. Scale includes multi-brand and agency-scale governance with advanced AI agent controls. Command supports custom brand limits for large enterprise portfolios. Each brand operates with its own governance boundary while remaining under a single workspace."
+      "answer_first": "Multi-brand management is supported on Vertex Scale and Vertex Corporate plans. Vertex Scale includes multi-brand governance across up to 5 brands with advanced AI agent controls. Vertex Corporate supports custom brand limits for large enterprise portfolios. Each brand operates with its own governance boundary while remaining under a single workspace."
     },
     {
       "id": "mobile_access",
@@ -1471,7 +1478,7 @@
         "trial account"
       ],
       "route": "/pricing",
-      "answer_first": "Yes. ZoikoVertex's Free plan allows you to explore the platform with 2 users, 2 channels, 1 brand, and 30-day history. No credit card is required. You can also request a guided demo to see the platform in action with a product specialist. To request a demo, I can collect your details and route your request to the ZoikoVertex team."
+      "answer_first": "Yes. ZoikoVertex's Free plan allows you to explore the platform with 2 users, 2 channels, 1 brand, and 30-day history. No credit card is required. You can also request a guided demo at https://zoikovertex.com/request-demo — fill in your details and a product specialist will walk you through the platform."
     },
     {
       "id": "website_url",
@@ -1557,7 +1564,7 @@
         "plan change"
       ],
       "route": "/pricing",
-      "answer_first": "You can upgrade your ZoikoVertex plan at any time. Moving from Free to Pro unlocks core governed execution with campaign workflows, approval controls, and evidence records at production scale. Moving from Pro to Scale adds multi-brand and agency-scale governance with advanced AI agent controls. For Command tier, contact Sales for custom enterprise terms from $60K ACV. Downgrades and plan changes can be coordinated through the Billing team."
+      "answer_first": "You can upgrade your ZoikoVertex plan at any time. Vertex Starter (Free) is always available. Moving to Vertex Growth ($399/mo or $299/mo annual) unlocks Content Studio + publishing, 5 AI agents, Review Queue + two-step approvals, and immutable audit trail. Moving to Vertex Scale ($999/mo or $799/mo annual) adds multi-brand governance, advanced AI agents, full Brand Library, Crisis Console, and cross-brand Analytics & ROI. For Vertex Corporate (Custom), contact Sales for custom enterprise terms. Downgrades and plan changes can be coordinated through the Billing team."
     },
     {
       "id": "refund_policy",
@@ -1686,35 +1693,35 @@
     },
     {
       "q": "What are the pricing plans?",
-      "a": "ZoikoVertex offers four plans: Free, Pro ($1,490/mo), Scale ($3,490/mo), and Command (custom, from $60K ACV). Annual billing terms and add-on pricing must be quoted by Sales. For full plan comparison, visit the Pricing page. For Command tier or enterprise terms, I can connect you to the Sales team."
+      "a": "ZoikoVertex offers four plans: Vertex Starter (Free), Vertex Growth ($399/mo or $299/mo annual), Vertex Scale ($999/mo or $799/mo annual), and Vertex Corporate (Custom). For full plan comparison, visit https://zoikovertex.com/pricing"
     },
     {
       "q": "What is the Free plan?",
-      "a": "ZoikoVertex's Free plan includes 2 users, 2 channels, 1 brand, 30-day history, limited Campaign Workflows, analytics snapshot, and AI recommendations (read-only). No credit card required. Best for exploring the platform."
+      "a": "ZoikoVertex's Vertex Starter (Free) plan includes 2 users, 2 channels, 1 brand, 30-day history, Command Center (limited), analytics snapshot, AI recommendations (read-only), basic activity log, and email support. No credit card required. Best for exploring the platform."
     },
     {
-      "q": "What is the Pro plan?",
-      "a": "Pro at $1,490/mo includes campaign workflows, approval controls, and evidence records at production scale. Best for growing marketing teams ready to run governed campaigns. Annual billing terms must be quoted by Sales."
+      "q": "What is the Growth plan?",
+      "a": "Vertex Growth is $399/mo or $299/mo billed annually. Includes 7 users, 8 social profiles, Content Studio + publishing, 5 AI agents, Review Queue + two-step approvals, immutable audit trail, Basic Brand Library, Analytics & ROI, and priority email support. Best for teams ready to run governed campaigns."
     },
     {
       "q": "What is the Scale plan?",
-      "a": "Scale at $3,490/mo is the recommended plan. Includes multi-brand and agency-scale governance, advanced AI agent controls, extended evidence and audit capacity, multi-workspace management, and named support. Best for multi-brand teams and agencies. Annual billing terms must be quoted by Sales."
+      "a": "Vertex Scale is the recommended plan at $999/mo or $799/mo billed annually. Includes 20 users, 25 social profiles, up to 5 brands, advanced AI agents, multi-stage approvals, full Brand Library, Crisis Console, cross-brand Analytics & ROI, named Customer Success Manager. Best for multi-brand teams and agencies."
     },
     {
-      "q": "What is the Command plan?",
-      "a": "Command is the enterprise plan with custom pricing from $60K ACV. Includes enterprise and regulated-industry deployment, custom contracts, dedicated support, SLA commitments, and procurement-grade security review. Route all Command enquiries to Sales immediately."
+      "q": "What is the Corporate plan?",
+      "a": "Vertex Corporate is the enterprise plan with custom pricing. Includes Three-key approval protocol, Evidence Vault + legal hold, chain-of-custody watermarked exports, custom AI governance, Crisis Console (dual-authorization), SSO/SAML/SCIM, DPA, named AE + TAM, and agreed SLA. Route all Corporate enquiries to Sales immediately."
     },
     {
       "q": "Which plan is best for me?",
-      "a": "It depends on your team size and needs. Free is best for exploring the platform. Pro is best for teams ready to run governed campaigns. Scale is our recommended plan for multi-brand teams and agencies. Command is for enterprise and regulated industries. For a detailed comparison, visit the Pricing page."
+      "a": "It depends on your team size and needs. Vertex Starter (Free) is best for exploring the platform. Vertex Growth is best for teams ready to run governed campaigns. Vertex Scale is our recommended plan for multi-brand teams and agencies. Vertex Corporate is for enterprise and regulated industries. For a detailed comparison, visit https://zoikovertex.com/pricing"
     },
     {
       "q": "What is the cheapest plan?",
-      "a": "Free is completely free with no credit card required. For paid plans, Pro starts at $1,490/mo."
+      "a": "Vertex Starter is completely free with no credit card required. For paid plans, Vertex Growth starts at $399/mo or $299/mo billed annually."
     },
     {
       "q": "Is there a free plan?",
-      "a": "Yes. ZoikoVertex's Free plan includes 2 users, 2 channels, 1 brand, and 30-day history with limited Campaign Workflows access and email support. No credit card required."
+      "a": "Yes. ZoikoVertex's Vertex Starter (Free) plan includes 2 users, 2 channels, 1 brand, and 30-day history with Command Center (limited), analytics snapshot, and email support. No credit card required."
     },
     {
       "q": "What is the difference between monthly and annual billing?",
@@ -1730,7 +1737,7 @@
     },
     {
       "q": "How do I request a demo?",
-      "a": "To request a demo, I will need your full name, company name, work email address, your role or title, your approximate team size, and the type of marketing or social media workflow you want to govern. Once I have those details, I will route your request to the ZoikoVertex team and confirm next steps."
+      "a": "Visit https://zoikovertex.com/request-demo and fill in your details. The ZoikoVertex team will receive your request and reach out to schedule a guided walkthrough."
     },
     {
       "q": "How does the Three-Key Approval Protocol work?",
@@ -1830,7 +1837,7 @@
     },
     {
       "q": "Does ZoikoVertex support SSO?",
-      "a": "SSO/SAML with SCIM provisioning is available on Command plans. It supports Okta, Azure AD, and Google Workspace. Contact Sales to discuss enterprise SSO setup."
+      "a": "SSO/SAML with SCIM provisioning is available on Vertex Corporate plans. It supports Okta, Azure AD, and Google Workspace. Contact Sales to discuss enterprise SSO setup."
     },
     {
       "q": "How long is my data retained?",
@@ -1842,7 +1849,7 @@
     },
     {
       "q": "How does onboarding work?",
-      "a": "Onboarding includes workspace configuration, user role assignment, brand setup, channel connection, AI agent configuration, and team training. Scale and Command plans include named support."
+      "a": "Onboarding includes workspace configuration, user role assignment, brand setup, channel connection, AI agent configuration, and team training. Vertex Scale and Vertex Corporate plans include named support."
     },
     {
       "q": "What support options are available?",
@@ -1862,7 +1869,7 @@
     },
     {
       "q": "What is the Crisis Console?",
-      "a": "The Crisis Console is an advanced feature in Scale and Command plans. It provides dual-authorisation emergency response capabilities for urgent campaign actions during brand or reputational incidents."
+      "a": "The Crisis Console is an advanced feature in Vertex Scale and Vertex Corporate plans. It provides dual-authorisation emergency response capabilities for urgent campaign actions during brand or reputational incidents."
     },
     {
       "q": "Is pricing per user or per workspace?",
@@ -1870,7 +1877,7 @@
     },
     {
       "q": "Can I try ZoikoVertex for free?",
-      "a": "Yes. Free is the free plan with 2 users, 2 channels, 1 brand, and 30-day history. No credit card required. You can also request a guided demo from the ZoikoVertex team."
+      "a": "Yes. The Free plan gives you 2 users, 2 channels, 1 brand, and 30-day history — no credit card required. You can also request a guided demo at https://zoikovertex.com/request-demo"
     },
     {
       "q": "How does the Publishing Hub work?",
@@ -1890,7 +1897,7 @@
     },
     {
       "q": "Which plan is the most popular?",
-      "a": "Scale at $3,490/mo is our recommended plan. It includes multi-brand and agency-scale governance, advanced AI agent controls, extended evidence and audit capacity, and multi-workspace management."
+      "a": "Vertex Scale at $999/mo or $799/mo billed annually is our recommended plan. It includes 20 users, 25 social profiles, up to 5 brands, advanced AI agents, multi-stage approvals, full Brand Library, Crisis Console, cross-brand analytics, and a named Customer Success Manager."
     },
     {
       "q": "How do I contact ZoikoVertex?",
