@@ -28,7 +28,7 @@ export default function FintechAuditTrail() {
               Evidence records built for regulatory scrutiny.
             </h2>
             <p className="text-white/55 text-[15px] leading-relaxed mb-7 max-w-[480px]">
-              ZoikoVertex preserves a complete, reviewable audit trail for every financial marketing decision — who created, reviewed, approved, and changed content, under which policy version and at what internal review.
+              ZoikoVertex preserves a complete, reviewable audit trail for every financial marketing decision — who created, reviewed, approved, and changed content, under which policy version, at what timestamp. Available for internal and external review.
             </p>
             <div className="flex flex-wrap gap-2.5">
               {TAGS.map((t) => (

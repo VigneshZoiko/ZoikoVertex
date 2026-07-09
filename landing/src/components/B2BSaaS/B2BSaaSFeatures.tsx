@@ -7,7 +7,20 @@ const TAGS_B = ["Customer authorization tracking", "Quote approval", "Case study
 
 function TagPill({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center text-[11px] font-mono text-[#8B5CF6] bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 rounded-full px-3 py-1.5">
+    <span
+      className="inline-flex items-center px-3 py-1.5"
+      style={{
+        borderRadius: "100px",
+        border: "1px solid rgba(139, 92, 246, 0.25)",
+        background: "rgba(139, 92, 246, 0.12)",
+        color: "#20E7F2",
+        fontFamily: '"JetBrains Mono", monospace',
+        fontSize: "10.1px",
+        fontStyle: "normal",
+        fontWeight: 500,
+        lineHeight: "normal",
+      }}
+    >
       {label}
     </span>
   );
