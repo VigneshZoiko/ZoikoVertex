@@ -926,12 +926,14 @@ async function generateHybridReply(message, language = "en", history, sessionId,
     };
   }
 
-  if (ruleReply.intent === "fallback") {
+  if (ruleReply.intent === "fallback" || !isMatchReliable(message, ruleReply)) {
     if (sessionId) setHandoffState(sessionId, CONVERSATION_STATES.HANDOFF_OFFERED, {});
     const handoffMsg = "Would you like me to connect you with someone who can help?";
     return {
       ...ruleReply,
-      answer: `${ruleReply.answer}\n\n${handoffMsg}`,
+      answer: ruleReply.intent === "fallback"
+        ? `${ruleReply.answer}\n\n${handoffMsg}`
+        : `I'm not sure I understood that correctly.\n\n${handoffMsg}`,
       suggestions: [
         ...(ruleReply.suggestions || []),
         "Yes, connect me to a human",

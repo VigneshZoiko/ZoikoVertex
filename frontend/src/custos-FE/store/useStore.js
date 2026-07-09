@@ -160,14 +160,28 @@ export const useStore = create((set, get) => ({
       sessionId: payload.sessionId,
       expiresAt: payload.expiresAt || null,
       onboardingDraft: payload.user,
-      // Restore history if found, else show welcome
       messages:
         messages && messages.length > 0
           ? messages
-          : createWelcomeMessage(get().language, get().assistantContext),
+          : payload.messages && payload.messages.length > 0
+            ? payload.messages
+            : createWelcomeMessage(get().language, get().assistantContext),
       hydrated: true,
       isEditing: false,
       // ─── FIX Bug 2: restore mailSent from localStorage, don't reset ──────
+      mailSent: loadMailSent(),
+    });
+  },
+
+  // Set user identity without resetting messages (used on retry to preserve chat context)
+  setUserOnly: (payload) => {
+    set({
+      user: payload.user,
+      sessionId: null,
+      expiresAt: null,
+      onboardingDraft: payload.user,
+      hydrated: true,
+      isEditing: false,
       mailSent: loadMailSent(),
     });
   },

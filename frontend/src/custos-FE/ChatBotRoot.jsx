@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import ChatPage from "./pages/ChatPage";
-import { verifyUser } from "./services/api";
+import { verifyUser, fetchHistory } from "./services/api";
 import { useStore } from "./store/useStore";
 
 const ACCESS_DENIED_MESSAGE = "You do not have access to that conversation.";
@@ -72,6 +72,7 @@ export default function ChatBotRoot() {
   const user = useStore((state) => state.user);
   const sessionId = useStore((state) => state.sessionId);
   const setUserSession = useStore((state) => state.setUserSession);
+  const setUserOnly = useStore((state) => state.setUserOnly);
   const [bootstrapError, setBootstrapError] = useState("");
   const [bootstrapComplete, setBootstrapComplete] = useState(false);
   const bootstrapAttemptedRef = useRef(false);
@@ -100,13 +101,8 @@ export default function ChatBotRoot() {
         return;
       }
 
-      // Set user immediately so "Sign in required" never shows
-      // for users already authenticated in the main app.
-      await setUserSession({
-        user: mainAppUser,
-        sessionId: null,
-        expiresAt: null,
-      });
+      // Set user without resetting messages (preserves chat context on retry)
+      setUserOnly({ user: mainAppUser });
       setBootstrapComplete(true);
 
       // Upgrade to a proper backend session in the background.
@@ -117,7 +113,27 @@ export default function ChatBotRoot() {
       })
         .then(async (response) => {
           if (!active) return;
-          await setUserSession(response);
+          // Preserve local messages if backend has no history for this session
+          const history = response.sessionId
+            ? await fetchHistory(response.sessionId)
+            : null;
+          const backendMessages =
+            history?.success && Array.isArray(history.messages) && history.messages.length > 0
+              ? history.messages.map((m) => ({
+                  id: m.id,
+                  role: m.role,
+                  content: m.content,
+                  timestamp: m.timestamp,
+                  metadata: m.meta || {},
+                }))
+              : null;
+          if (backendMessages) {
+            await setUserSession(response);
+          } else {
+            // Update session without losing current messages
+            const { messages: liveMessages } = useStore.getState();
+            await setUserSession({ ...response, messages: liveMessages });
+          }
         })
         .catch((error) => {
           if (!active) return;
@@ -135,7 +151,7 @@ export default function ChatBotRoot() {
     return () => {
       active = false;
     };
-  }, [hydrated, user?.email, sessionId, setUserSession]);
+  }, [hydrated, user?.email, sessionId, setUserSession, setUserOnly]);
 
   const hasSession = Boolean(user?.email && sessionId);
   const needsBootstrap = hydrated && !hasSession && !bootstrapComplete;

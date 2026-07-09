@@ -39,8 +39,8 @@ const PLANS = [
     tier: "FIRST PAID TIER",
     tierSub: null,
     name: "Vertex Growth",
-    price: { monthly: "349", annual: "299" },
-    priceNote: { monthly: null, annual: "$399 billed annually" },
+    price: { monthly: "399", annual: "299" },
+    priceNote: { monthly: null, annual: "$299 billed annually" },
     description:
       "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team.",
     cta: "Start 14-day trial",
@@ -311,7 +311,7 @@ export default function PricingSection() {
                 {plan.notIncluded.length > 0 && (
                   <>
                     <p className="text-white/25 text-xs font-black tracking-widest uppercase mt-3 mb-2">
-                      NOT INCLUDED
+                      {plan.notIncludedLabel}
                     </p>
                     {plan.notIncluded.map((f) => (
                       <div key={f} className="flex items-start gap-2">
