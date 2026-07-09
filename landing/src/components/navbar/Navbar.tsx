@@ -9,6 +9,7 @@ const PLATFORM_ITEMS = [
   { label: "Architecture", desc: "Governed execution\ninfrastructure layers", href: "/platform#architecture" },
   { label: "Command Center", desc: "Executive performance\ndashboard", href: "/platform#command-center" },
   { label: "AI Workflow\nOrchestration", desc: "Cross-channel\nexecution control", href: "/platform#ai-workflow" },
+  { label: "Approval\nWorkflows", desc: "Role-based, evidence-\nlinked approvals", href: "/approval-workflows" },
   { label: "Audit Engine", desc: "Immutable decision\nledger", href: "/platform#audit-engine" },
   { label: "Integrations", desc: "Connect your existing\nstack", href: "/platform#integrations" },
   { label: "Platform Security", desc: "SOC 2, ISO 27001, zero-\ntrust", href: "/platform#security" },
