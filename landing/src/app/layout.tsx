@@ -81,7 +81,6 @@ export default function RootLayout({
             fbq('track', 'PageView');
           `}
         </Script>
-        <!-- Google tag (gtag.js) -->
           {/* Google analytics  */}
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3EEJFHC8MZ"></script>
 <script>
