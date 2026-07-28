@@ -1,0 +1,81 @@
+# robots.txt for https://www.zoikovertex.com/
+
+# ==========================================
+# 1. Default Rule – Allow All Crawlers
+# ==========================================
+User-agent: *
+Allow: /
+
+# ==========================================
+# 2. Major Search Engines
+# ==========================================
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# ==========================================
+# 3. AI Crawlers – Explicitly Allowed
+# ==========================================
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+# ==========================================
+# 4. Block Private / Application Areas
+# ==========================================
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /login/
+Disallow: /signin/
+Disallow: /signup/
+Disallow: /register/
+Disallow: /account/
+Disallow: /my-account/
+Disallow: /workspace/
+Disallow: /settings/
+Disallow: /billing/
+Disallow: /payments/
+Disallow: /api/
+Disallow: /webhook/
+Disallow: /internal/
+Disallow: /cgi-bin/
+
+# WordPress (if applicable)
+Disallow: /wp-admin/
+Allow: /wp-admin/admin-ajax.php
+
+# ==========================================
+# 5. Sitemap
+# ==========================================
+Sitemap: https://www.zoikovertex.com/sitemap.xml
