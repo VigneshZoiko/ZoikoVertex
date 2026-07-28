@@ -81,20 +81,29 @@ export default function RootLayout({
             fbq('track', 'PageView');
           `}
         </Script>
-          {/* Google analytics  */}
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3EEJFHC8MZ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
 
-  gtag('config', 'G-3EEJFHC8MZ');
-</script>
-          {/* Google search console */}
+        {/* Google analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-3EEJFHC8MZ"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-3EEJFHC8MZ');
+          `}
+        </Script>
+
+        {/* Google search console */}
         <meta name="google-site-verification" content="L0aHGNugrX58O8zM2hKwKhmjDFmdkww64-xUkOe5oYk" />
-          {/* FAQ schema */}
-          <script type="application/ld+json">
-{
+
+        {/* FAQ schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: `{
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [{
@@ -434,8 +443,9 @@ export default function RootLayout({
       "text": "Organizations can start with the free or trial experience where appropriate, request a tailored demonstration, review a governed workflow from trigger to evidence, assess plan fit, and complete the required technical, security, privacy, legal, procurement, and commercial review. Enterprise demonstrations should be configured around the buyer’s actual brand structure, approval model, stack, and risk profile."
     }
   }]
-}
-</script>
+}`,
+          }}
+        />
       </head>
       <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <noscript>
