@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import { withRedis } from '../shared/redis';
 import { supabaseAdmin } from '../shared/supabase';
-import { sendEmail } from './email.service';
+import { sendVerificationCode } from './email.service';
 import { logger } from '../shared/logger';
 
-const MFA_TTL_SECONDS = 300;
+const MFA_TTL_SECONDS = 600; // 10 min — matches ZV-AUTH-OTP-001 template + mandatory control
 
 function generateCode(): string {
   return crypto.randomInt(100000, 999999).toString();
@@ -35,19 +35,10 @@ export async function sendMfaChallenge(userId: string): Promise<{ success: boole
     .single();
 
   if (user?.email) {
-    await sendEmail({
+    await sendVerificationCode({
       to: user.email,
-      subject: 'Your MFA Verification Code',
-      text: [
-        `Hi ${user.full_name || 'there'},`,
-        '',
-        `Your MFA verification code is: ${code}`,
-        '',
-        'This code expires in 5 minutes.',
-        'If you did not request this code, please ignore this email.',
-        '',
-        '— ZoikoVertex Security Team',
-      ].join('\n'),
+      code,
+      eventId: `auth.mfa.challenge:${userId}`,
     });
   } else {
     logger.warn({ userId }, '[mfa] No email found for user, MFA code not sent');

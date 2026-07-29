@@ -64,6 +64,28 @@ const envSchema = z.object({
   // Resend for email notifications
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('ZoikoVertex <noreply@zoikovertex.com>'),
+  // Per-stream senders (doc: separate transactional/security/billing/legal/marketing
+  // streams). Each falls back to EMAIL_FROM when unset. Must be on a Resend-verified domain.
+  EMAIL_FROM_SECURITY:  z.string().optional(),
+  EMAIL_FROM_BILLING:   z.string().optional(),
+  EMAIL_FROM_LEGAL:     z.string().optional(),
+  EMAIL_FROM_MARKETING: z.string().optional(),
+  // Authenticated app base (dashboard pages like /support, /profile live here).
+  CLIENT_URL: z.string().optional(),
+  // Global footer contract (doc §2). Populate from production legal-entity /
+  // regional-address configuration before launch. URLs fall back to derived paths.
+  EMAIL_BRAND_NAME:         z.string().default('ZoikoVertex'),
+  LEGAL_ENTITY_NAME:        z.string().default('Zoiko Tech Inc'),
+  // Logo shown in the email header — must be a public, always-reachable URL (email clients
+  // can't load authenticated/app-domain assets). Hosted on Supabase public storage.
+  EMAIL_LOGO_URL:           z.string().default('https://wcudapbmavuyafllfyft.supabase.co/storage/v1/object/public/brand-assets/zoikovertexlogo.png'),
+  LEGAL_REGISTERED_ADDRESS: z.string().optional(),
+  PRIVACY_URL:              z.string().optional(),
+  SECURITY_URL:             z.string().optional(),
+  SUPPORT_URL:              z.string().optional(),
+  PREFERENCE_CENTER_URL:    z.string().optional(),
+  // Idempotency consolidation window in seconds (doc §1: prevent duplicate sends on retry)
+  EMAIL_CONSOLIDATION_WINDOW_SECONDS: z.string().default('300'),
   // Slack webhook URL for workflow notifications
   SLACK_WEBHOOK_URL: z.string().optional(),
   // Phase 4 — Governed Prompt Execution. When 'true' AND NODE_ENV=production,
