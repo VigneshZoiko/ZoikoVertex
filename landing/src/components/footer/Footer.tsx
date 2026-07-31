@@ -11,6 +11,7 @@ const LINK_HREFS: Record<string, string> = {
   "ROI Engine":"/roi-engine",
   "Integrations":"/integrations",
   "Vision & Mission": "/vision-and-mission",
+  "Use Cases":"/use-cases",
   "Security": "/security",
   "Privacy Policy": "/privacy",
   "Terms of Service": "/terms",
