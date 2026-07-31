@@ -9,6 +9,7 @@ const LINK_HREFS: Record<string, string> = {
   "About Zoiko Group": "/zoiko-group",
   "Agentic Architecture": "/agentic-architecture",
   "ROI Engine":"/roi-engine",
+  "Integrations":"/integrations",
   "Vision & Mission": "/vision-and-mission",
   "Security": "/security",
   "Privacy Policy": "/privacy",
