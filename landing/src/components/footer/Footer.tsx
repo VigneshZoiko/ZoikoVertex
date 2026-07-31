@@ -24,6 +24,7 @@ const LINK_HREFS: Record<string, string> = {
   "Agencies & Multi-Brand Teams": "/agencies",
   "Platform Overview": "/platform",
   "Pricing": "/pricing",
+  "ROI & Governance Audit":"/roi-governance-audit",
   "Press & Media": "/press",
   "Healthcare": "/healthcare",
   "Logistics": "/logistics",
