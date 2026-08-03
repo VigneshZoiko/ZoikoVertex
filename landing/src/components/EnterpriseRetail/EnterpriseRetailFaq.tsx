@@ -14,37 +14,36 @@ import { ChevronDown } from "lucide-react";
  */
 const FAQS: { q: string; answer: string }[] = [
   {
-    // AEO Q1
+    
     q: "What is ZoikoVertex for enterprise retail?",
     answer:
-      "ZoikoVertex is a governed AI marketing operations platform for enterprise teams, agencies, multi-brand organizations, and governance-led marketing departments. It brings AI-assisted workflows, campaign approvals, brand controls, audit trails, evidence records, integrations, and performance intelligence into one controlled operating environment.",
+      "ZoikoVertex for Enterprise Retail is a governed AI marketing operations solution that connects campaign planning and execution with authorized product, inventory, pricing, margin, approval, and performance data. It helps retailers coordinate marketing around commercial reality while preserving brand standards, human authority, role-based access, approval controls, and evidence of material decisions.",
   },
   {
-    // AEO Q2
-    q: "How does ZoikoVertex help retail marketing teams?",
+   
+    q: "How does ZoikoVertex use inventory data in retail marketing?",
     answer:
-      "ZoikoVertex helps organizations plan, create, review, approve, publish, measure, and evidence marketing work. It coordinates AI agents, human reviewers, policies, permissions, connected systems, and performance data so teams can increase execution speed without removing accountability.",
+      "ZoikoVertex can use authorized inventory and availability signals to inform campaign recommendations, product priorities, promotional timing, and budget decisions. Configured workflows can identify products that are unavailable, discontinued, restricted, or below an approved stock threshold. The reliability of any inventory-aware action depends on the accuracy, timeliness, granularity, and integration status of the retailer's source data.",
   },
   {
-    // AEO Q12 covers regions but not store-level localization, so no answer
-    // in the document resolves this question.
-    q: "Can ZoikoVertex support regional and store-level localization?",
-    answer: "",
+   
+    q: " Can ZoikoVertex prevent promotion of low-stock or unavailable products?",
+    answer: "Yes, when the required inventory data and governance rules are configured. ZoikoVertex can flag, suppress, pause, or route campaigns that involve unavailable or low-stock products. It may also recommend an approved alternative product or category. Automatic intervention occurs only within the permissions, thresholds, channel controls, and autonomy limits established by the retailer.",
   },
   {
-    // AEO Q7
+   
     q: "Does ZoikoVertex replace existing retail systems?",
     answer:
       "Not necessarily. ZoikoVertex is designed to operate as a governed execution layer across existing social, CRM, collaboration, project, content, analytics, data, identity, and storage systems. Organizations can preserve useful tools while applying consistent authority, approval, and evidence controls across the work that moves between them.",
   },
   {
-    // AEO Q33
+    
     q: "How is retail AI activity audited in ZoikoVertex?",
     answer:
       "ZoikoVertex is designed around append-only, immutable audit events for material actions. Standard users should not be able to silently edit, delete, or backdate those records. Corrections, overrides, exports, and exceptions should create new events that preserve the original history rather than rewriting it.",
   },
   {
-    // AEO Q43
+   
     q: "How does ZoikoVertex measure retail ROI?",
     answer:
       "ZoikoVertex can surface pending approvals, SLA breaches, risk states, repeated rework, blocked execution, underperforming activity, and available ROI signals. These insights can support faster decisions and better capital allocation, but actual savings or performance improvement depend on the organization’s data, adoption, configuration, and management decisions.",

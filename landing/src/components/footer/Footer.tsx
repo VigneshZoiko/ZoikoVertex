@@ -38,6 +38,9 @@ const LINK_HREFS: Record<string, string> = {
   "FAQs":"/faqs",
   "Competitor Benchmark":"/competeter-benchmark",
   "Careers":"/careers",
+  "Cookie Preferences": "/cookie-preferences",
+  "Responsible AI": "/responsible-ai",
+  "Auditability": "/auditability",
 };
 
 export default function Footer() {

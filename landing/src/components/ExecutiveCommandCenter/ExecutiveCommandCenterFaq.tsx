@@ -15,34 +15,32 @@ import { ChevronDown, CalendarDays, BarChart3, Download } from "lucide-react";
  */
 const FAQS = [
   {
-    // No AEO question defines the Executive Command Center. Q42 describes it
-    // but is phrased as a yes/no answer, so it does not read as a definition.
+    
     q: "What is the ZoikoVertex Executive Command Center?",
-    a: "",
+    a: "The ZoikoVertex Executive Command Center is a governed executive marketing dashboard that brings performance, spend, financial context, AI-assisted actions, pending approvals, governance alerts, and operational priorities into one controlled view. It helps authorized leaders understand what marketing is doing, what requires a decision, why an action was recommended or taken, and how activity relates to the organization's approved commercial objectives.",
   },
   {
-    // AEO Q5 compares against social media management software, not analytics
-    // dashboards. No equivalent question exists.
-    q: "How is this different from a normal analytics dashboard?",
-    a: "",
+   
+    q: "How is the Executive Command Center different from a standard marketing dashboard?",
+    a: "A standard marketing dashboard primarily reports activity and historical results. The ZoikoVertex Executive Command Center combines reporting with governed execution: AI recommendations, decision queues, approval status, policy controls, risk alerts, evidence links, and accountable actions. It is designed to help leaders understand what happened, determine what should happen next, authorize the appropriate response, and trace the resulting outcome.",
   },
   {
-    // No AEO question covers visibility of live agent activity.
-    q: "Can leaders see which AI agents are active and what they are doing?",
-    a: "",
+   
+    q: "What business problem does the Executive Command Center solve?",
+    a: "The Executive Command Center solves fragmented executive visibility across marketing platforms, teams, agencies, approvals, and financial reports. Instead of forcing leaders to reconcile separate dashboards and status updates, it creates one decision surface for performance, risk, workflow status, and business impact. The quality of that view depends on the systems, metrics, permissions, and attribution rules connected by the organization.",
   },
   {
-    // AEO Q34
+    
     q: "Does it support compliance and audit review?",
     a: "Yes. Auditor and executive-viewer roles can be configured for read-oriented access to governance, audit, evidence, and performance information without granting content creation, approval, publishing, policy-administration, or override rights. Access itself can also be logged and, where appropriate, watermarked.",
   },
   {
-    // AEO Q41
+   
     q: "Can the Command Center help justify ROI to boards and finance teams?",
     a: "Yes, where the required data is available and authorized. The Revenue Attribution Agent and ROI capabilities can connect campaign activity to pipeline, revenue, efficiency, and commercial outcomes while recording model assumptions and evidence. Attribution quality depends on the completeness, accuracy, identity resolution, and permissions of the connected data.",
   },
   {
-    // AEO Q36
+  
     q: "Is access role-based?",
     a: "Qualifying enterprise configurations support SSO or SAML authentication, SCIM provisioning, MFA-aware controls, role-based access control, and attribute-based scope enforcement. Availability varies by plan and contract. Visibility, editing, approval, publishing, export, and governance administration should remain separately permissioned.",
   },
