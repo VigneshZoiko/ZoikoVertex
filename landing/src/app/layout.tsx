@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono, Bricolage_Grotesque } from "next/font/google";
+import {
+  Plus_Jakarta_Sans,
+  JetBrains_Mono,
+  Bricolage_Grotesque,
+} from "next/font/google";
 import { Providers } from "./providers";
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
@@ -64,9 +68,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${jakarta.variable} ${jetbrains.variable} ${bricolage.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`dark ${jakarta.variable} ${jetbrains.variable} ${bricolage.variable}`}
+      suppressHydrationWarning
+    >
       <head>
-        <meta name="format-detection" content="telephone=no, email=no, address=no" />
+        <meta
+          name="format-detection"
+          content="telephone=no, email=no, address=no"
+        />
         <Script id="meta-pixel" strategy="afterInteractive">
           {`
             !function(f,b,e,v,n,t,s)
@@ -97,10 +108,13 @@ export default function RootLayout({
         </Script>
 
         {/* Google search console */}
-        <meta name="google-site-verification" content="L0aHGNugrX58O8zM2hKwKhmjDFmdkww64-xUkOe5oYk" />
+        <meta
+          name="google-site-verification"
+          content="L0aHGNugrX58O8zM2hKwKhmjDFmdkww64-xUkOe5oYk"
+        />
 
         {/* FAQ schema */}
-        <script
+        <Script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: `{
@@ -449,7 +463,13 @@ export default function RootLayout({
       </head>
       <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <noscript>
-          <img height="1" width="1" style={{ display: "none" }} src="https://www.facebook.com/tr?id=1006709255052325&ev=PageView&noscript=1" alt="" />
+          <img
+            height="1"
+            width="1"
+            style={{ display: "none" }}
+            src="https://www.facebook.com/tr?id=1006709255052325&ev=PageView&noscript=1"
+            alt=""
+          />
         </noscript>
         <Providers>
           <Navbar />
