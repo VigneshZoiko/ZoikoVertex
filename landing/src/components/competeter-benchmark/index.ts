@@ -1,0 +1,9 @@
+export { default as CompetitorBenchmarkHero } from "./CompetitorBenchmarkHero";
+export { default as BenchmarkScoringFilter } from "./BenchmarkScoringFilter";
+export { default as BenchmarkMatrixTable } from "./BenchmarkMatrixTable";
+export { default as CategoryDeepDives } from "./CategoryDeepDives";
+export { default as WhyItMattersByRole } from "./WhyItMattersByRole";
+export { default as EvaluationPathQualifier } from "./EvaluationPathQualifier";
+export { default as ProcurementAndTrust } from "./ProcurementAndTrust";
+export { default as RoiAndRetention } from "./RoiAndRetention";
+export { default as BuyerQuestionsFaq } from "./BuyerQuestionsFaq";

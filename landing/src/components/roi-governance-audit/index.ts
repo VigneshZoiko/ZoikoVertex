@@ -1,0 +1,12 @@
+export { default as ROIAuditHeroSection } from "./ROIAuditHeroSection";
+export { default as WhyMeasureBothTogetherSection } from "./WhyMeasureBothTogetherSection";
+export { default as RunROIAuditSection } from "./RunROIAuditSection";
+export { default as WhatTheAuditMeasuresSection } from "./WhatTheAuditMeasuresSection";
+export { default as SampleExecutiveReportSection } from "./SampleExecutiveReportSection";
+export { default as EvidenceBehindEstimateSection } from "./EvidenceBehindEstimateSection";
+export { default as RoleBasedValuePathsSection } from "./RoleBasedValuePathsSection";
+export { default as EnterpriseUseCasesSection } from "./EnterpriseUseCasesSection";
+export { default as MethodologyAssumptionsSection } from "./MethodologyAssumptionsSection";
+export { default as SecurityPrivacyDataRetentionSection } from "./SecurityPrivacyDataRetentionSection";
+export { default as FaqSection } from "./FaqSection";
+export { default as CtaSection } from "./CtaSection";
