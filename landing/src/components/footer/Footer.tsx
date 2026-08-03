@@ -8,36 +8,37 @@ const LINK_HREFS: Record<string, string> = {
   "About ZoikoVertex": "/about",
   "About Zoiko Group": "/zoiko-group",
   "Agentic Architecture": "/agentic-architecture",
-  "ROI Engine":"/roi-engine",
-  "Integrations":"/integrations",
-  "Executive Command Center":"/executive-command-center",
+  "ROI Engine": "/roi-engine",
+  Integrations: "/integrations",
+  "Executive Command Center": "/executive-command-center",
   "Vision & Mission": "/vision-and-mission",
-  "Use Cases":"/use-cases",
-  "Security": "/security",
-  "Demo Library":"/demo-library",
-  "Enterprise Retail":"/enterprise-retail",
+  "Use Cases": "/use-cases",
+  Security: "/security",
+  "Demo Library": "/demo-library",
+  "Enterprise Retail": "/enterprise-retail",
   "Privacy Policy": "/privacy",
   "Terms of Service": "/terms",
-  "Leadership": "/leadership",
+  Leadership: "/leadership",
   "B2B SaaS": "/b2b-saas",
-  "FinTech": "/fintech",
+  FinTech: "/fintech",
   "Agencies & Multi-Brand Teams": "/agencies",
   "Platform Overview": "/platform",
-  "Pricing": "/pricing",
-  "ROI & Governance Audit":"/roi-governance-audit",
+  Pricing: "/pricing",
+  "ROI & Governance Audit": "/roi-governance-audit",
   "Press & Media": "/press",
-  "Healthcare": "/healthcare",
-  "Logistics": "/logistics",
-  "Telecom": "/telecom",
+  Healthcare: "/healthcare",
+  Logistics: "/logistics",
+  Telecom: "/telecom",
   "Compliance & Governance": "/governance",
   "Resource Center": "/resources-hub",
   "AI Workflow Orchestration": "/ai-workflow-orchestration",
   "Approval Workflows": "/approval-workflows",
-  "Buyer Guides":"/buyer-guides",
-  "Product Updates":"/product-updates",
-  "FAQs":"/faqs",
-  "Competitor Benchmark":"/competeter-benchmark",
-  "Careers":"/careers",
+  "Buyer Guides": "/buyer-guides",
+  "Product Updates": "/product-updates",
+  FAQs: "/faqs",
+  "Competitor Benchmark": "/competeter-benchmark",
+  Careers: "/careers",
+  "Data Processing Addendum": "/dpa",
 };
 
 export default function Footer() {
@@ -122,7 +123,12 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
-              <Image src="/images/logos/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} />
+              <Image
+                src="/images/logos/logo-wordmark.svg"
+                alt="ZoikoVertex"
+                width={180}
+                height={28}
+              />
             </div>
             <p className="text-white/40 text-xs leading-relaxed mb-6">
               <span className="text-white/70 font-semibold">
