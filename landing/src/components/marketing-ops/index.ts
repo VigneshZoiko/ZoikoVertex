@@ -1,0 +1,10 @@
+export { default as MarketingOpsHeroSection } from "./MarketingOpsHeroSection";
+export { default as MarketingOpsFeaturesSection } from "./MarketingOpsFeaturesSection";
+export { default as MarketingOpsChallengesSection } from "./MarketingOpsChallengesSection";
+export { default as MarOpsPlatformModulesSection } from "./MarOpsPlatformModulesSection";
+export { default as MarOpsExecutionModelSection } from "./MarOpsExecutionModelSection";
+export { default as MarketingStackIntegrationsSection } from "./MarketingStackIntegrationsSection";
+export { default as MarOpsBusinessValueSection } from "./MarOpsBusinessValueSection";
+export { default as MarOpsRolesSection } from "./MarOpsRolesSection";
+export { default as MarOpsFAQSection } from "./MarOpsFAQSection";
+export { default as MarOpsCallToActionSection } from "./MarOpsCallToActionSection";
