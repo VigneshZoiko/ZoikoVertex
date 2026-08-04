@@ -41,6 +41,7 @@ const LINK_HREFS: Record<string, string> = {
   "Cookie Preferences": "/cookie-preferences",
   "Responsible AI": "/responsible-ai",
   "Auditability": "/auditability",
+  Support: "/support",
 };
 
 export default function Footer() {
@@ -177,16 +178,28 @@ export default function Footer() {
               Contact & Locations
             </p>
             <ul className="space-y-2.5">
-              {["Contact Sales", "Support", "Partnerships"].map((l) => (
-                <li key={l}>
-                  <a
-                    href="#"
-                    className="text-white/40 text-xs hover:text-white/70 transition-colors"
-                  >
-                    {l}
-                  </a>
-                </li>
-              ))}
+              {["Contact Sales", "Support", "Partnerships"].map((l) => {
+                const href = LINK_HREFS[l];
+                return (
+                  <li key={l}>
+                    {href ? (
+                      <Link
+                        href={href}
+                        className="text-white/40 text-xs hover:text-white/70 transition-colors"
+                      >
+                        {l}
+                      </Link>
+                    ) : (
+                      <a
+                        href="#"
+                        className="text-white/40 text-xs hover:text-white/70 transition-colors"
+                      >
+                        {l}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
           <div>
