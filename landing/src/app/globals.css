@@ -94,10 +94,15 @@
 }
 
 /* ─── Base Styles ────────────────────────────────────────────────────────── */
-*,
-*::before,
-*::after {
-  border-color: var(--border);
+/* Must live in @layer base: unlayered CSS outranks every layered Tailwind
+   utility, which would make `border-slate-200`, `border-transparent`, etc.
+   silently lose to this default. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
+  }
 }
 
 html {

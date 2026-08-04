@@ -33,12 +33,14 @@ const LINK_HREFS: Record<string, string> = {
   "Resource Center": "/resources-hub",
   "AI Workflow Orchestration": "/ai-workflow-orchestration",
   "Approval Workflows": "/approval-workflows",
-  "Buyer Guides": "/buyer-guides",
-  "Product Updates": "/product-updates",
-  FAQs: "/faqs",
-  "Competitor Benchmark": "/competeter-benchmark",
-  Careers: "/careers",
-  "Data Processing Addendum": "/dpa",
+  "Buyer Guides":"/buyer-guides",
+  "Product Updates":"/product-updates",
+  "FAQs":"/faqs",
+  "Competitor Benchmark":"/competeter-benchmark",
+  "Careers":"/careers",
+  "Cookie Preferences": "/cookie-preferences",
+  "Responsible AI": "/responsible-ai",
+  "Auditability": "/auditability",
 };
 
 export default function Footer() {
