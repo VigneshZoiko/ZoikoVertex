@@ -18,10 +18,10 @@ const PLATFORM_ITEMS = [
 const SOLUTION_ITEMS = [
   { label: "Overview", desc: "All solutions\nat a glance", href: "/solution" },
   { label: "Enterprise\nGovernance", desc: "Controlled AI\nfor large teams", href: "/governance" },
-  { label: "Brand\nCompliance", desc: "Policy-bound\ncontent execution", href: "/solution#brand" },
+  { label: "Brand\nCompliance", desc: "Policy-bound\ncontent execution", href: "/brand-compliance" },
   { label: "Agency\nWorkflows", desc: "Multi-client\nisolation & control", href: "/solution#agency" },
-  { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/solution#regulated" },
-  { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/solution#marketing-ops" },
+  { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/regulated-industries" },
+  { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/marketing-ops" },
   { label: "B2B SaaS", desc: "Governed marketing\nfor SaaS teams", href: "/b2b-saas" },
   { label: "FinTech", desc: "Compliant marketing\nfor financial services", href: "/fintech" },
   { label: "Healthcare", desc: "Clinical review\nfor health marketing", href: "/healthcare" },
