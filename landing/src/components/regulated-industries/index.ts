@@ -1,0 +1,9 @@
+export { default as HeroSection } from "./HeroSection";
+export { default as FeaturesSection } from "./FeaturesSection";
+export { default as IndustryVerticalsSection } from "./IndustryVerticalsSection";
+export { default as WorkflowArchitectureSection } from "./WorkflowArchitectureSection";
+export { default as RegulatoryFrameworkSection } from "./RegulatoryFrameworkSection";
+export { default as RegulatedIndustryValueSection } from "./RegulatedIndustryValueSection";
+export { default as RegulatedIndustryRolesSection } from "./RegulatedIndustryRolesSection";
+export { default as RegulatedIndustriesFaqSection } from "./RegulatedIndustriesFaqSection";
+export { default as RegulatedIndustriesCtaSection } from "./RegulatedIndustriesCtaSection";
