@@ -225,7 +225,7 @@ export default function Footer() {
               Headquarters
             </p>
             <p className="text-white/40 text-xs leading-relaxed">
-              67–69 Great Portland Street,
+              167–169 Great Portland Street,
               <br />
               5th Floor, London W1W 5PF, UK
             </p>
