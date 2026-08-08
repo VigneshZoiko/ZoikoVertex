@@ -144,6 +144,14 @@ export const ROLE_ARCHITECTURE = [
     responsibilities: ["Data privacy", "PII management", "Consent tracking"]
   },
   {
+    id: "BILLING_ADMIN",
+    name: "Billing Admin",
+    category: "Operations",
+    layer: "Governance",
+    description: "Owns the workspace billing profile: payment methods, plan, add-ons, invoices, and cancellation. No governance, approval, or publishing authority.",
+    responsibilities: ["Payment methods", "Plan & add-ons", "Invoices & renewal"]
+  },
+  {
     id: "DEVELOPER",
     name: "Developer",
     category: "Engineering",
@@ -267,6 +275,12 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   BRAND_REVIEWER: [
     'dashboard:view','queue:view','brand:view','brand:manage',
     'brand-library:view','brand-library:manage','quality:view','support:view',
+  ],
+  BILLING_ADMIN: [
+    'dashboard:view','analytics:view','resources:view',
+    'billing:view','billing:manage',
+    'settings:view','settings:manage',
+    'team:view','audit:view','support:view',
   ],
   DEVELOPER: [
     'dashboard:view','developer:view','developer:manage',

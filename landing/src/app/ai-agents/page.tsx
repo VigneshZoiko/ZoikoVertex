@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import {
   Brain, Pencil, Send, MessageCircle, TrendingUp,
@@ -103,13 +104,13 @@ function Hero() {
 
           {/* Center — Governance Core PNG */}
           <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
-            <img src="/images/ai-agents/governance-core.png" alt="Governance Core" className="w-28 h-28" />
+            <Image src="/images/ai-agents/governance-core.png" alt="Governance Core" width={104} height={104} className="w-28 h-28" />
           </div>
 
           {/* Strategy — 0° (top) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: '50%', top: 'calc(50% - 190px)', transform: 'translate(-50%, -100%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <img src="/images/ai-agents/strategy-icon.png" alt="Strategy" className="w-8 h-8 object-contain" />
+              <Image src="/images/ai-agents/strategy-icon.png" alt="Strategy" width={24} height={24} className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">STRATEGY</span>
             <span className="text-[10px] text-white/30">Campaign Direction</span>
@@ -117,13 +118,13 @@ function Hero() {
 
           {/* "19 DEFAULT ROLES" badge — upper right, outside ring */}
           <div className="absolute" style={{ right: '0', top: '8%' }}>
-            <img src="/images/ai-agents/19-default-roles.png" alt="19 Default Roles" className="h-12 object-contain" />
+            <Image src="/images/ai-agents/19-default-roles.png" alt="19 Default Roles" width={110} height={52} className="h-12 w-auto object-contain" />
           </div>
 
           {/* Content — 72° (upper right) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% + 181px)', top: 'calc(50% - 59px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <img src="/images/ai-agents/content-icon.png" alt="Content" className="w-8 h-8 object-contain" />
+              <Image src="/images/ai-agents/content-icon.png" alt="Content" width={56} height={56} className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">CONTENT</span>
             <span className="text-[10px] text-white/30">Brand-grounded Drafts</span>
@@ -143,7 +144,7 @@ function Hero() {
           {/* Engagement — 216° (lower left) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% - 112px)', top: 'calc(50% + 154px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#2a1e0a] border border-amber-500/20 flex items-center justify-center">
-              <img src="/images/ai-agents/engagement-icon.png" alt="Engagement" className="w-8 h-8 object-contain" />
+              <Image src="/images/ai-agents/engagement-icon.png" alt="Engagement" width={56} height={56} className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-amber-400/80 tracking-widest mt-1">ENGAGEMENT</span>
             <span className="text-[10px] text-white/30">Route &amp; Escalate</span>
@@ -151,13 +152,13 @@ function Hero() {
 
           {/* "5 AI AGENTS" badge — lower left, below engagement */}
           <div className="absolute" style={{ left: '5%', bottom: '4%' }}>
-            <img src="/images/ai-agents/5-governed-agents.png" alt="5 AI Agents" className="h-12 object-contain" />
+            <Image src="/images/ai-agents/5-governed-agents.png" alt="5 AI Agents" width={111} height={52} className="h-12 w-auto object-contain" />
           </div>
 
           {/* Revenue — 288° (upper left) */}
           <div className="absolute flex flex-col items-center gap-1" style={{ left: 'calc(50% - 181px)', top: 'calc(50% - 59px)', transform: 'translate(-50%, -50%)' }}>
             <div className="w-14 h-14 rounded-2xl bg-[#0d1a2e] border border-white/10 flex items-center justify-center">
-              <img src="/images/ai-agents/revenue-icon.png" alt="Revenue" className="w-8 h-8 object-contain" />
+              <Image src="/images/ai-agents/revenue-icon.png" alt="Revenue" width={56} height={56} className="w-8 h-8 object-contain" />
             </div>
             <span className="text-[11px] font-bold text-white/70 tracking-widest mt-1">REVENUE</span>
             <span className="text-[10px] text-white/30">Attribution &amp; ROI</span>
@@ -256,8 +257,8 @@ const AGENTS = [
     features: ["Campaign direction from approved objectives", "Channel mix with performance evidence", "Audience prioritization within Brand Library rules"],
     bestFor: "CMOs and Campaign Managers who need evidence-backed campaign direction.",
     failure: "Launching a campaign that contradicts prior performance or approved strategy.",
-    plans: ["Audit", "Pro", "Scale", "Command"],
-    icon: <img src="/images/ai-agents/strategy-icon.png" alt="Strategy" className="w-7 h-7 object-contain" />,
+    plans: ["Starter", "Growth", "Scale", "Corporate"],
+    icon: <Image src="/images/ai-agents/strategy-icon.png" alt="Strategy" width={24} height={24} className="w-7 h-7 object-contain" />,
     iconBg: "bg-cyan-900/40 border-cyan-500/20",
   },
   {
@@ -268,7 +269,7 @@ const AGENTS = [
     features: ["Brand Library-grounded content generation", "Prohibited phrase detection before review", "Multi-variant drafting with source context"],
     bestFor: "Creators, Brand Stewards, and Compliance Reviewers managing regulated or multi-brand content at volume.",
     failure: "A regulated claim reaching review without Brand Library verification.",
-    plans: ["Pro", "Scale", "Command"],
+    plans: ["Growth", "Scale", "Corporate"],
     icon: (
       <svg width="22" height="23" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M2.75 18.5272C2.75 18.7912 2.838 19.0112 3.014 19.1872C3.19 19.3632 3.41 19.4512 3.674 19.4512H7.326C7.59 19.4512 7.81 19.3632 7.986 19.1872C8.162 19.0112 8.25 18.7948 8.25 18.5382C8.25 18.2815 8.162 18.0652 7.986 17.8892C7.81 17.7132 7.59 17.6252 7.326 17.6252H3.674C3.41 17.6252 3.19 17.7132 3.014 17.8892C2.838 18.0652 2.75 18.2778 2.75 18.5272ZM6.688 19.1872C6.864 19.3632 7.08033 19.4512 7.337 19.4512C7.59367 19.4512 7.81 19.3632 7.986 19.1872L17.6 9.55117C17.776 9.37517 17.864 9.16251 17.864 8.91317C17.864 8.66384 17.776 8.4475 17.6 8.26417C17.424 8.08084 17.2113 7.98917 16.962 7.98917C16.7127 7.98917 16.4927 8.07717 16.302 8.25317L6.688 17.8892C6.512 18.0652 6.424 18.2815 6.424 18.5382C6.424 18.7948 6.512 19.0112 6.688 19.1872ZM17.6 9.55117C18.0547 9.11117 18.359 8.58684 18.513 7.97817C18.667 7.3695 18.667 6.76451 18.513 6.16317C18.359 5.56184 18.0583 5.03751 17.611 4.59017C17.1637 4.14284 16.6393 3.84217 16.038 3.68817C15.4367 3.53417 14.8317 3.53417 14.223 3.68817C13.6143 3.84217 13.09 4.14651 12.65 4.60117C12.474 4.77717 12.386 4.98984 12.386 5.23917C12.386 5.48851 12.474 5.70484 12.65 5.88817C12.826 6.07151 13.0387 6.16317 13.288 6.16317C13.5373 6.16317 13.7573 6.07517 13.948 5.89917C14.2707 5.56184 14.663 5.39317 15.125 5.39317C15.587 5.39317 15.983 5.55817 16.313 5.88817C16.643 6.21817 16.808 6.61417 16.808 7.07617C16.808 7.53817 16.6393 7.9305 16.302 8.25317C16.126 8.44384 16.038 8.66384 16.038 8.91317C16.038 9.16251 16.1297 9.37517 16.313 9.55117C16.4963 9.72717 16.7127 9.81517 16.962 9.81517C17.2113 9.81517 17.424 9.72717 17.6 9.55117ZM13.948 4.60117C13.7573 4.42517 13.5373 4.33717 13.288 4.33717C13.0387 4.33717 12.826 4.42517 12.65 4.60117L3.014 14.2152C2.838 14.3912 2.75 14.6075 2.75 14.8642C2.75 15.1208 2.838 15.3372 3.014 15.5132C3.19 15.6892 3.40633 15.7772 3.663 15.7772C3.91967 15.7772 4.136 15.6892 4.312 15.5132L13.948 5.89917C14.124 5.70851 14.212 5.48851 14.212 5.23917C14.212 4.98984 14.124 4.77717 13.948 4.60117ZM3.674 13.9512C3.41 13.9512 3.19 14.0392 3.014 14.2152C2.838 14.3912 2.75 14.6112 2.75 14.8752V18.5272C2.75 18.7912 2.838 19.0112 3.014 19.1872C3.19 19.3632 3.40633 19.4512 3.663 19.4512C3.91967 19.4512 4.136 19.3632 4.312 19.1872C4.488 19.0112 4.576 18.7912 4.576 18.5272V14.8752C4.576 14.6112 4.488 14.3912 4.312 14.2152C4.136 14.0392 3.92333 13.9512 3.674 13.9512ZM11.726 5.50317C11.55 5.69384 11.462 5.91384 11.462 6.16317C11.462 6.41251 11.55 6.62517 11.726 6.80117L15.4 10.4752C15.576 10.6512 15.7887 10.7392 16.038 10.7392C16.2873 10.7392 16.5037 10.6512 16.687 10.4752C16.8703 10.2992 16.962 10.0828 16.962 9.82617C16.962 9.56951 16.874 9.35317 16.698 9.17717L13.024 5.50317C12.848 5.32717 12.6317 5.23917 12.375 5.23917C12.1183 5.23917 11.902 5.32717 11.726 5.50317Z" fill="white" fillOpacity="0.5"/>
@@ -284,7 +285,7 @@ const AGENTS = [
     features: ["Signature and policy-version verification before release", "Post-approval modification detection and re-routing", "Crisis-aware publishing pause controls (Command)"],
     bestFor: "Marketing Operations leads and Publishers managing multi-channel release schedules.",
     failure: "Modified content published after original approval without re-review.",
-    plans: ["Pro", "Scale", "Command"],
+    plans: ["Growth", "Scale", "Corporate"],
     icon: <Send className="w-6 h-6 text-green-400" />,
     iconBg: "bg-green-900/30 border-green-500/20",
   },
@@ -296,7 +297,7 @@ const AGENTS = [
     features: ["Sentiment, urgency, and escalation classification", "Sensitive topic routing before public response", "Multi-region crisis routing (Command)"],
     bestFor: "Community Managers and Crisis Communications leaders managing risk-sensitive engagement.",
     failure: "An unreviewed response to a sensitive complaint going public before escalation.",
-    plans: ["Pro", "Scale", "Command"],
+    plans: ["Growth", "Scale", "Corporate"],
     icon: (
       <svg width="22" height="23" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M2.4627 19.407C2.69736 19.4803 2.92836 19.462 3.1557 19.352C3.38303 19.242 3.53336 19.0623 3.6067 18.813L4.8167 15.249C4.89003 15.0143 4.8717 14.7833 4.7617 14.556C4.6517 14.3287 4.4757 14.1747 4.2337 14.094C3.9917 14.0133 3.75703 14.028 3.5297 14.138C3.30236 14.248 3.15203 14.4277 3.0787 14.677L1.8907 18.241C1.8027 18.4903 1.8137 18.725 1.9237 18.945C2.0337 19.165 2.21336 19.319 2.4627 19.407ZM1.8467 11.575C1.9347 12.9977 2.38203 14.2957 3.1887 15.469C3.33536 15.689 3.5297 15.821 3.7717 15.865C4.0137 15.909 4.24103 15.8577 4.4537 15.711C4.66636 15.5643 4.7947 15.37 4.8387 15.128C4.8827 14.886 4.83136 14.655 4.6847 14.435C4.08336 13.5403 3.75336 12.5577 3.6947 11.487L3.6727 11.201C3.68736 10.277 3.90003 9.40067 4.3107 8.572C4.72136 7.74334 5.28603 7.05034 6.0047 6.493L6.0267 6.471C6.14403 6.383 6.2687 6.295 6.4007 6.207C6.60603 6.06034 6.7307 5.86234 6.7747 5.613C6.8187 5.36367 6.76736 5.13267 6.6207 4.92C6.47403 4.70734 6.27603 4.58267 6.0267 4.546C5.77736 4.50934 5.55003 4.56434 5.3447 4.711C5.18336 4.81367 5.02936 4.92367 4.8827 5.041C3.94403 5.789 3.20703 6.69834 2.6717 7.769C2.13636 8.83967 1.86136 9.97634 1.8467 11.179V11.575ZM10.9107 2.929C9.91336 2.929 8.9417 3.083 7.9957 3.391C7.0497 3.699 6.16603 4.13167 5.3447 4.689C5.13936 4.83567 5.0147 5.03367 4.9707 5.283C4.9267 5.53234 4.97436 5.76334 5.1137 5.976C5.25303 6.18867 5.44736 6.317 5.6967 6.361C5.94603 6.405 6.17336 6.35367 6.3787 6.207C7.05336 5.73767 7.7757 5.382 8.5457 5.14C9.3157 4.898 10.104 4.76967 10.9107 4.755H11.0207C11.9594 4.755 12.8687 4.91267 13.7487 5.228C14.6287 5.54334 15.428 6.00167 16.1467 6.603C16.3374 6.76434 16.5574 6.83034 16.8067 6.801C17.056 6.77167 17.2614 6.66167 17.4227 6.471C17.584 6.28034 17.6537 6.06034 17.6317 5.811C17.6097 5.56167 17.5034 5.35634 17.3127 5.195C16.4327 4.447 15.45 3.88234 14.3647 3.501C13.2794 3.11967 12.1574 2.929 10.9987 2.929H10.9107ZM20.1287 10.255C19.982 9.25767 19.6667 8.32267 19.1827 7.45C18.6987 6.57734 18.0754 5.82567 17.3127 5.195C17.1074 5.03367 16.88 4.964 16.6307 4.986C16.3814 5.008 16.176 5.11434 16.0147 5.305C15.8534 5.49567 15.7837 5.71934 15.8057 5.976C15.8277 6.23267 15.9414 6.44167 16.1467 6.603C16.7334 7.087 17.2137 7.66634 17.5877 8.341C17.9617 9.01567 18.2 9.73434 18.3027 10.497C18.332 10.717 18.3467 10.9443 18.3467 11.179V11.311C18.332 11.971 18.2037 12.6127 17.9617 13.236C17.7197 13.8593 17.386 14.4203 16.9607 14.919C16.7994 15.1243 16.7297 15.3517 16.7517 15.601C16.7737 15.8503 16.88 16.0557 17.0707 16.217C17.2614 16.3783 17.485 16.448 17.7417 16.426C17.9984 16.404 18.2074 16.2977 18.3687 16.107C18.926 15.447 19.3587 14.71 19.6667 13.896C19.9747 13.082 20.1434 12.2423 20.1727 11.377V11.179C20.1727 10.871 20.158 10.563 20.1287 10.255ZM10.9987 19.429C12.4067 19.4437 13.756 19.1613 15.0467 18.582C16.3374 18.0027 17.4447 17.1777 18.3687 16.107C18.53 15.9163 18.5997 15.6963 18.5777 15.447C18.5557 15.1977 18.4494 14.9887 18.2587 14.82C18.068 14.6513 17.848 14.578 17.5987 14.6C17.3494 14.622 17.144 14.7283 16.9827 14.919C16.2347 15.7843 15.34 16.4517 14.2987 16.921C13.2574 17.3903 12.1647 17.6177 11.0207 17.603L10.5587 17.581C9.47336 17.537 8.43936 17.273 7.4567 16.789C7.22203 16.6863 6.98736 16.6753 6.7527 16.756C6.51803 16.8367 6.3457 16.9907 6.2357 17.218C6.1257 17.4453 6.11103 17.68 6.1917 17.922C6.27236 18.164 6.43003 18.3363 6.6647 18.439C7.86736 19.0257 9.13603 19.3483 10.4707 19.407C10.6467 19.4217 10.8227 19.429 10.9987 19.429ZM7.9627 17.427C7.90403 17.1777 7.76836 16.9833 7.5557 16.844C7.34303 16.7047 7.11203 16.6643 6.8627 16.723L2.5507 17.647C2.30136 17.691 2.1107 17.8193 1.9787 18.032C1.8467 18.2447 1.80636 18.4757 1.8577 18.725C1.90903 18.9743 2.04103 19.1687 2.2537 19.308C2.46636 19.4473 2.69736 19.4877 2.9467 19.429L7.2367 18.505C7.48603 18.461 7.68036 18.3327 7.8197 18.12C7.95903 17.9073 8.0067 17.6763 7.9627 17.427Z" fill="#F59E0B"/>
@@ -313,7 +314,7 @@ const AGENTS = [
     features: ["Multi-touch attribution with logged assumptions", "Cross-brand attribution analysis (Scale+)", "Board-grade evidence packs (Command)"],
     bestFor: "CMOs, CFOs, and Analysts who need ROI evidence that survives Finance and board scrutiny.",
     failure: "A marketing ROI claim that cannot be verified by Finance or the board.",
-    plans: ["Pro", "Scale", "Command"],
+    plans: ["Growth", "Scale", "Corporate"],
     icon: (
       <svg width="22" height="23" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M2.75115 17.6253C2.75115 17.8747 2.83915 18.0873 3.01515 18.2633C3.19115 18.4393 3.41115 18.5273 3.67515 18.5273H18.3272C18.5912 18.5273 18.8111 18.4393 18.9872 18.2633C19.1632 18.0873 19.2512 17.871 19.2512 17.6143C19.2512 17.3577 19.1632 17.1413 18.9872 16.9653C18.8111 16.7893 18.5912 16.7013 18.3272 16.7013H3.67515C3.41115 16.7013 3.19115 16.7893 3.01515 16.9653C2.83915 17.1413 2.75115 17.3613 2.75115 17.6253ZM3.16915 14.7213C3.37448 14.8533 3.60182 14.8937 3.85115 14.8423C4.10048 14.791 4.29115 14.6627 4.42315 14.4573L8.09715 8.95734C8.24382 8.75201 8.29148 8.52468 8.24015 8.27534C8.18882 8.02601 8.05682 7.83168 7.84415 7.69234C7.63148 7.55301 7.40048 7.50901 7.15115 7.56034C6.90182 7.61168 6.71115 7.74001 6.57915 7.94534L2.90515 13.4453C2.75848 13.6507 2.71082 13.878 2.76215 14.1273C2.81348 14.3767 2.94915 14.5747 3.16915 14.7213ZM6.51315 8.03334C6.39582 8.26801 6.37748 8.50634 6.45815 8.74834C6.53882 8.99034 6.69648 9.16268 6.93115 9.26534L10.5832 11.1133C10.8178 11.216 11.0562 11.227 11.2982 11.1463C11.5402 11.0657 11.7162 10.9153 11.8262 10.6953C11.9362 10.4753 11.9508 10.2443 11.8702 10.0023C11.7895 9.76034 11.6392 9.58068 11.4192 9.46334L7.74515 7.63734C7.52515 7.52001 7.29415 7.50168 7.05215 7.58234C6.81015 7.66301 6.63048 7.81334 6.51315 8.03334ZM10.1432 10.6073C10.2018 10.7687 10.2972 10.9007 10.4292 11.0033C10.5612 11.106 10.7078 11.1683 10.8692 11.1903C11.0305 11.2123 11.1882 11.194 11.3422 11.1353C11.4962 11.0767 11.6245 10.9813 11.7272 10.8493L15.3792 6.27334C15.5405 6.08268 15.6065 5.85901 15.5772 5.60234C15.5478 5.34568 15.4342 5.14034 15.2362 4.98634C15.0382 4.83234 14.8145 4.77001 14.5652 4.79934C14.3158 4.82868 14.1105 4.93868 13.9492 5.12934L10.2752 9.70534C10.1872 9.83734 10.1285 9.98401 10.0992 10.1453C10.0698 10.3067 10.0845 10.4607 10.1432 10.6073ZM14.0152 5.06334C13.8392 5.23934 13.7512 5.45201 13.7512 5.70134C13.7512 5.95068 13.8392 6.16334 14.0152 6.33934L17.6892 10.0133C17.8652 10.1893 18.0815 10.2773 18.3382 10.2773C18.5948 10.2773 18.8111 10.1893 18.9872 10.0133C19.1632 9.83734 19.2512 9.62101 19.2512 9.36434C19.2512 9.10768 19.1632 8.89134 18.9872 8.71534L15.3132 5.06334C15.1372 4.87268 14.9208 4.77734 14.6642 4.77734C14.4075 4.77734 14.1912 4.87268 14.0152 5.06334Z" fill="white" fillOpacity="0.5"/>
@@ -606,7 +607,7 @@ const ROLES = [
   { title: "Approver", sub: "APPROVALS", desc: "Signs off on validated content. Cannot self-approve content they created. SoD enforced structurally.", badge: "× Cannot self-approve", badgeColor: "bg-red-950/40 border-red-500/20 text-red-400", icon: <CheckSquare className="w-5 h-5 text-cyan-400" /> },
   { title: "Publisher", sub: "PUBLISHING CALENDAR", desc: "Releases signed, approved, version-current content only. Cannot modify after approval without re-routing.", badge: "× No post-approval edits", badgeColor: "bg-red-950/40 border-red-500/20 text-red-400", icon: <Send className="w-5 h-5 text-cyan-400" /> },
   { title: "Brand Steward", sub: "BRAND LIBRARY", desc: "Owns brand standards, approved claims, and policy versions. All changes are versioned and audited.", badge: "× No content execution", badgeColor: "bg-red-950/40 border-red-500/20 text-red-400", icon: <BookOpen className="w-5 h-5 text-cyan-400" /> },
-  { title: "Compliance Officer", sub: "AUDIT & EVIDENCE", desc: "Regulated sign-off authority, audit access, and evidence export rights. Legal hold on Command plans.", badge: "Scope: regulated content", badgeColor: "bg-white/5 border-white/10 text-white/40", icon: <Shield className="w-5 h-5 text-red-400" /> },
+  { title: "Compliance Officer", sub: "AUDIT & EVIDENCE", desc: "Regulated sign-off authority, audit access, and evidence export rights. Legal hold on Vertex Corporate plans.", badge: "Scope: regulated content", badgeColor: "bg-white/5 border-white/10 text-white/40", icon: <Shield className="w-5 h-5 text-red-400" /> },
   { title: "Executive Viewer", sub: "COMMAND CENTER", desc: "Board-grade read-only dashboards. ROI evidence and governance status. No operational authority.", badge: "Read-only · No execution", badgeColor: "bg-white/5 border-white/10 text-white/40", icon: <BarChart2 className="w-5 h-5 text-cyan-400" /> },
   { title: "Platform Admin", sub: "ADMINISTRATION HUB", desc: "Workspace configuration and integrations. Separated from security identity management by design.", badge: "× Separated from security admin", badgeColor: "bg-red-950/40 border-red-500/20 text-red-400", icon: <Settings className="w-5 h-5 text-cyan-400" /> },
 ];
@@ -800,8 +801,8 @@ const FAQS = [
   { q: "How do we control brand voice across multiple brands and regions?", a: "Brand Library policies are versioned and scoped per brand and region. Every agent checks against the relevant policy set before generating or routing content." },
   { q: "What is available for security and procurement review?", a: "Full security architecture summary, SOC 2 Type II report, GDPR data processing addendum, and role attestation reports are available on request." },
   { q: "Can an agent publish without approval?", a: "No. Publishing Agent verifies a complete, signed approval chain — including policy version, embargo status, and publishing window — before any release." },
-  { q: "Is ZoikoVertex suitable for regulated industries?", a: "Yes. Sector packs for financial promotions, pharmaceutical review, and advertising standards are available on Scale and Command plans." },
-  { q: "Which plan includes all five agents?", a: "All five agents are available from Pro tier. Scale includes all five in advanced multi-brand mode. Command adds custom models and board-grade evidence packs." },
+  { q: "Is ZoikoVertex suitable for regulated industries?", a: "Yes. Sector packs for financial promotions, pharmaceutical review, and advertising standards are available on Vertex Scale and Vertex Corporate plans." },
+  { q: "Which plan includes all five agents?", a: "All five agents are available from Vertex Growth. Vertex Scale includes all five in advanced multi-brand mode. Vertex Corporate adds custom models and board-grade evidence packs." },
 ];
 
 function FAQ() {

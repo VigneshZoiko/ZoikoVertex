@@ -241,11 +241,13 @@ import { PromptController } from './modules/prompts/promptController';
 import { getResourceUsage, getTokenQuota, getStorageQuota, purchaseStorageAddon } from './domains/monitoring/usageController';
 import {
   getWalletData, updateAutoTopup, calculateFees, createDepositSession, stripeWebhook, simulateDeposit, syncDepositSession,
+  startTrial, getBillingStatus,
   getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings,
   createSetupIntent, createSetupCheckout, syncCardSession, listPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod,
   getWalletBalance, createSubscription, cancelSubscription, getSubscription, listInvoices,
   getOvercharge, updateOvercharge,
 } from './domains/billing/walletController';
+import { requireBillingExecution } from './shared/billingGate';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
@@ -504,7 +506,10 @@ const agentOpsGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN
 const promptsGuard           = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN','AGENT_ARCHITECT');
 const govRulesGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','GOVERNANCE_ADMIN');
 const teamMgmtGuard          = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','SECURITY_ADMIN');
-const billingGuard           = requireRole('SUPERADMIN','WORKSPACE_OWNER');
+// ZV-COM-BILL-001 §22 — Billing Admin is the canonical financial role; all other
+// roles (Governance Admin, Approver, Publisher, Auditor, External Collaborator)
+// have no payment authority.
+const billingGuard           = requireRole('SUPERADMIN','WORKSPACE_OWNER','BILLING_ADMIN');
 const developerGuard         = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','DEVELOPER');
 const systemStatusGuard      = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','SECURITY_ADMIN','DEVELOPER');
 const privacyDataGuard       = requireRole('SUPERADMIN','WORKSPACE_OWNER','ADMIN','PRIVACY_ADMIN');
@@ -551,8 +556,8 @@ app.get('/api/v1/routing/history', authenticate, agentReadGuard, scopeGuard('rea
 
 const govGuard = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER');
 // Protected Governance
-app.post('/api/v1/governance/transition', authenticate, publishHubGuard, planRateLimit('general'), scopeGuard('write:content', '*'), transitionStatus);
-app.post('/api/v1/governance/submit', authenticate, publishHubGuard, planRateLimit('general'), scopeGuard('write:content', 'write:publish', '*'), submitIntent);
+app.post('/api/v1/governance/transition', authenticate, publishHubGuard, requireBillingExecution('publish'), planRateLimit('general'), scopeGuard('write:content', '*'), transitionStatus);
+app.post('/api/v1/governance/submit', authenticate, publishHubGuard, requireBillingExecution('publish'), planRateLimit('general'), scopeGuard('write:content', 'write:publish', '*'), submitIntent);
 app.get('/api/v1/governance/intents', authenticate, publishHubGuard, planRateLimit('general'), scopeGuard('read:content', '*'), listIntents);
 app.get('/api/v1/governance/queue', authenticate, reviewQueueReadGuard, planRateLimit('general'), scopeGuard('read:content', 'read:governance', '*'), getQueue);
 app.delete('/api/v1/governance/intents/:id', authenticate, publishHubGuard, planRateLimit('general'), scopeGuard('write:content', '*'), deleteIntent);
@@ -843,7 +848,7 @@ app.get('/api/v1/campaigns',           authenticate, campaignGuard,       listCa
 app.get('/api/v1/campaigns/stats',     authenticate, campaignGuard,       cache(30), getCampaignStats);
 app.get('/api/v1/campaigns/:id',       authenticate, campaignGuard,       getCampaign);
 app.get('/api/v1/campaigns/:id/posts', authenticate, campaignGuard,       getCampaignPosts);
-app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  createCampaign);
+app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  requireBillingExecution('campaign_create'), createCampaign);
 app.patch('/api/v1/campaigns/:id',     authenticate, campaignWriteGuard,  updateCampaign);
 app.delete('/api/v1/campaigns/:id',    authenticate, campaignWriteGuard,  deleteCampaign);
 
@@ -854,12 +859,12 @@ app.post('/api/v1/campaigns/bulk/assign-pixel', authenticate, campaignWriteGuard
 app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,    submitCampaignForReview);
 app.post('/api/v1/campaigns/:id/approve',         authenticate, campaignLaunchGuard,   approveCampaign);
 app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,         checkLaunchGate);
-app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,   launchCampaign);
+app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,   requireBillingExecution('campaign_create'), launchCampaign);
 app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,    pauseCampaign);
 app.post('/api/v1/campaigns/:id/resume',          authenticate, campaignWriteGuard,    resumeCampaign);
 app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
 app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
-app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   requireBillingExecution('budget_increase'), updateSpend);
 app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Client Meta Account routes (bring-your-own-account model)
@@ -887,7 +892,7 @@ app.post('/api/v1/campaigns/meta/accounts/:id/set-ad-account',    authenticate, 
 app.get('/api/v1/campaigns/meta/pages',                           authenticate, campaignGuard, fetchMetaPages);
 
 // Meta campaign publish / sync
-app.post('/api/v1/campaigns/:id/publish-to-meta',    authenticate, campaignWriteGuard,  publishToMeta);
+app.post('/api/v1/campaigns/:id/publish-to-meta',    authenticate, campaignWriteGuard,  requireBillingExecution('publish'), publishToMeta);
 app.get('/api/v1/campaigns/:id/meta-verify',         authenticate, campaignGuard,       verifyMetaCampaign);
 app.post('/api/v1/campaigns/:id/toggle-meta-status', authenticate, campaignWriteGuard, toggleMetaStatus);
 app.delete('/api/v1/campaigns/:id/meta',             authenticate, campaignWriteGuard, deleteFromMeta);
@@ -903,7 +908,7 @@ app.post('/api/v1/campaigns/meta/reach-estimate',     authenticate, campaignGuar
 app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);
 app.get('/api/v1/campaigns/:id/budget-auth',          authenticate, campaignGuard,         getBudgetAuthForCampaign);
 app.get('/api/v1/budget-authorizations',              authenticate, campaignGuard,         listBudgetAuths);
-app.post('/api/v1/budget-authorizations/:id/approve', authenticate, campaignLaunchGuard,   approveBudgetAuth);
+app.post('/api/v1/budget-authorizations/:id/approve', authenticate, campaignLaunchGuard,   requireBillingExecution('budget_increase'), approveBudgetAuth);
 app.post('/api/v1/budget-authorizations/:id/reject',  authenticate, campaignLaunchGuard,   rejectBudgetAuth);
 
 // Ads / Boost routes (Meta Ads — Phase 2)
@@ -1219,6 +1224,8 @@ app.post('/api/v1/monitoring/storage-addon', authenticate, purchaseStorageAddon)
 // Billing & Wallet
 app.use('/api/v1/billing/webhook', express.raw({ type: 'application/json' }));
 app.post('/api/v1/billing/webhook', stripeWebhook);
+app.post('/api/v1/billing/trial/start',      authenticate, billingGuard, startTrial);
+app.get('/api/v1/billing/status',            authenticate, billingGuard, getBillingStatus);
 app.get('/api/v1/billing/wallet',            authenticate, billingGuard, getWalletData);
 app.get('/api/v1/billing/wallet/balance',    authenticate, billingGuard, getWalletBalance);
 app.put('/api/v1/billing/wallet/auto-topup', authenticate, billingGuard, updateAutoTopup);
@@ -1333,7 +1340,7 @@ app.get('/api/v1/integrations/webhooks/:id/logs', authenticate, blockApiKeyUsers
 
 // Data Connectors Routes
 app.get('/api/v1/integrations/connectors', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, listConnectors);
-app.post('/api/v1/integrations/connectors', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, createConnector);
+app.post('/api/v1/integrations/connectors', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, requireBillingExecution('connector_write'), createConnector);
 app.delete('/api/v1/integrations/connectors/:id', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, deleteConnector);
 app.post('/api/v1/integrations/connectors/:id/sync', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, triggerSync);
 app.get('/api/v1/integrations/connectors/:id/logs', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, getSyncLogs);

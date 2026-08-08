@@ -15,7 +15,8 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/superadmin',                    roles: ['SUPERADMIN'] },
 
   // ── Admin / System ────────────────────────────────────────────────────────
-  { prefix: '/admin/billing',                 roles: ['WORKSPACE_OWNER', 'SUPERADMIN'] },
+  // ZV-COM-BILL-001 §22 — Billing Admin is the canonical financial role.
+  { prefix: '/admin/billing',                 roles: ['WORKSPACE_OWNER', 'BILLING_ADMIN', 'SUPERADMIN'] },
   { prefix: '/admin/security',                roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'] },
   { prefix: '/admin/privacy',                 roles: ['ADMIN', 'WORKSPACE_OWNER', 'PRIVACY_ADMIN', 'SUPERADMIN'] },
   { prefix: '/admin/status',                  roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'] },
@@ -25,7 +26,7 @@ export const ROUTE_RULES: RouteRule[] = [
 
   // ── Access Control ────────────────────────────────────────────────────────
   { prefix: '/access',                        roles: ['WORKSPACE_OWNER', 'SUPERADMIN'] },
-  { prefix: '/team',                          roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'] },
+  { prefix: '/team',                          roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'BILLING_ADMIN', 'SUPERADMIN'] },
 
   // ── Infrastructure / Integrations ─────────────────────────────────────────
   { prefix: '/integrations/api',              roles: ['ADMIN', 'WORKSPACE_OWNER', 'DEVELOPER', 'SUPERADMIN'],                                                                                                      plan: 'api_webhooks' },

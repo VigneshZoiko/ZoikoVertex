@@ -5,6 +5,11 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest }   from '../../shared/authMiddleware';
 import { env }           from '../../config/env';
 import { logger }        from '../../shared/logger';
+import {
+  assertClassificationChargeable,
+  resolveBillingState,
+  settleBillingState,
+} from '../../shared/commercialState';
 
 // —— Stripe (optional — gracefully disabled if package not installed) ——
 let stripe: any = null;
@@ -506,15 +511,26 @@ export const stripeWebhook = async (req: Request, res: Response) => {
     if (customerId && subscriptionId) {
       try {
         const { data: wallet } = await supabaseAdmin
-          .from('wallets').select('id').eq('stripe_customer_id', customerId).single();
+          .from('wallets').select('id, workspace_id').eq('stripe_customer_id', customerId).single();
         if (wallet) {
           const sub = await stripeClient.subscriptions.retrieve(subscriptionId) as any;
           const renewalDate = new Date(sub.current_period_end * 1000).toISOString();
           await supabaseAdmin.from('wallets').update({
             stripe_subscription_id: subscriptionId,
             plan_renewal_date: renewalDate,
+            last_payment_failed_at: null,
+            payment_failure_count: 0,
             updated_at: new Date().toISOString(),
           }).eq('id', wallet.id);
+          // ZV-COM-BILL-001 §13 — payment recovered: restore entitled state.
+          // Defensive §19.3: a paying customer is COMMERCIAL — never let a paid
+          // workspace linger in a non-billable classification after a successful charge.
+          await supabaseAdmin.from('workspaces').update({
+            subscription_status: 'ACTIVE',
+            billing_classification: 'COMMERCIAL',
+            commercial_effective_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq('id', wallet.workspace_id);
           logger.info({ customerId, subscriptionId, renewalDate }, '[Billing] Subscription renewed');
         }
       } catch { /* non-fatal */ }
@@ -528,8 +544,14 @@ export const stripeWebhook = async (req: Request, res: Response) => {
     if (customerId) {
       try {
         const { data: wallet } = await supabaseAdmin
-          .from('wallets').select('id, workspace_id').eq('stripe_customer_id', customerId).single();
+          .from('wallets').select('id, workspace_id, payment_failure_count').eq('stripe_customer_id', customerId).single();
         if (wallet) {
+          // ZV-COM-BILL-001 §13 — record failure time so the dunning ladder resolves lazily.
+          await supabaseAdmin.from('wallets').update({
+            last_payment_failed_at: new Date().toISOString(),
+            payment_failure_count: (wallet.payment_failure_count ?? 0) + 1,
+            updated_at: new Date().toISOString(),
+          }).eq('id', wallet.id);
           await supabaseAdmin.from('notifications').insert({
             workspace_id: wallet.workspace_id,
             type: 'PAYMENT_FAILED',
@@ -561,6 +583,12 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           }).eq('id', wallet.id);
           await supabaseAdmin.from('workspaces').update({
             plan_type: 'STARTER',
+            billing_classification: 'FREE_STARTER',
+            subscription_status: 'FREE_ACTIVE',
+            // trial_starts_at deliberately preserved — a cancelled customer cannot
+            // restart a fresh 14-day trial (one trial per workspace, §6).
+            trial_ends_at: null,
+            commercial_effective_at: null,
             updated_at: new Date().toISOString(),
           }).eq('id', wallet.workspace_id);
           // Also downgrade organizations
@@ -1117,6 +1145,17 @@ export const createSubscription = async (req: AuthRequest, res: Response, _next:
   const workspaceId = req.user?.workspace_id;
   if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
 
+  // ZV-COM-BILL-001 §19.3 — only workspaces that may become billable can convert.
+  const { data: wsClass } = await supabaseAdmin
+    .from('workspaces')
+    .select('billing_classification')
+    .eq('id', workspaceId)
+    .single();
+  const chargeBlock = assertClassificationChargeable(wsClass?.billing_classification as string | null | undefined);
+  if (chargeBlock) {
+    return res.status(403).json({ error: chargeBlock });
+  }
+
   const { plan, payment_method_id } = req.body as { plan?: string; payment_method_id?: string };
   if (!plan || !['GROWTH', 'SCALE'].includes(plan.toUpperCase())) {
     return res.status(400).json({ error: 'plan must be GROWTH or SCALE' });
@@ -1174,7 +1213,8 @@ export const createSubscription = async (req: AuthRequest, res: Response, _next:
       .eq('id', wallet.id);
 
     // Record subscription payment as a transaction for history (idempotent)
-    const planPriceMap: Record<string, number> = { GROWTH: 399, SCALE: 999 };
+    // Monthly launch baselines per ZV-COM-BILL-001: Growth $299, Scale $799.
+    const planPriceMap: Record<string, number> = { GROWTH: 299, SCALE: 799 };
     const planAmount = planPriceMap[plan.toUpperCase()] || 0;
     const subChargeId = subscription.latest_invoice?.payment_intent?.id || subscription.id;
     const { data: existingSubTx } = await supabaseAdmin
@@ -1197,11 +1237,27 @@ export const createSubscription = async (req: AuthRequest, res: Response, _next:
     });
     }
 
-    // Update workspace plan
+    // Update workspace plan + mark COMMERCIAL (ZV-COM-BILL-001 §19.3).
+    // trial_starts_at is the durable "one trial per workspace" marker — it is NOT
+    // cleared here: a former trial user (or a paid-then-cancelled workspace) must
+    // never regain a fresh 14-day evaluation.
     await supabaseAdmin
       .from('workspaces')
-      .update({ plan_type: plan.toUpperCase(), updated_at: new Date().toISOString() })
+      .update({
+        plan_type: plan.toUpperCase(),
+        billing_classification: 'COMMERCIAL',
+        subscription_status: 'ACTIVE',
+        commercial_effective_at: new Date().toISOString(),
+        trial_ends_at: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', workspaceId);
+
+    // Clear dunning state on successful conversion
+    await supabaseAdmin
+      .from('wallets')
+      .update({ last_payment_failed_at: null, payment_failure_count: 0, updated_at: new Date().toISOString() })
+      .eq('id', wallet.id);
 
     // Also update organizations.plan_type (user context reads from here)
     const { data: ws } = await supabaseAdmin
@@ -1268,6 +1324,12 @@ export const cancelSubscription = async (req: AuthRequest, res: Response, _next:
       .from('wallets')
       .update({ plan_renewal_date: renewalDate, updated_at: new Date().toISOString() })
       .eq('id', wallet.id);
+
+    // ZV-COM-BILL-001 §16 — cancellation takes effect at period end.
+    await supabaseAdmin
+      .from('workspaces')
+      .update({ subscription_status: 'CANCEL_AT_PERIOD_END', updated_at: new Date().toISOString() })
+      .eq('id', workspaceId);
 
     logger.info({ workspaceId, subscriptionId: wallet.stripe_subscription_id }, '[Billing] Subscription set to cancel at period end');
 
@@ -1398,5 +1460,144 @@ export const updateAutoTopup = async (req: AuthRequest, res: Response, _next: Ne
     return res.json({ success: true, data: wallet });
   } catch {
     return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+// ── POST /api/v1/billing/trial/start ─────────────────────────────────────────
+// ZV-COM-BILL-001 §6.2 — optional 14-day no-card Growth evaluation.
+// No automatic conversion; Autonomous Mode stays disabled (execution_mode_max=ASSISTED).
+// At expiry the workspace settles back to Vertex Starter (data preserved).
+
+export const startTrial = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  try {
+    const { data: workspace } = await supabaseAdmin
+      .from('workspaces')
+      .select('billing_classification, subscription_status, plan_type, org_id, trial_ends_at, trial_starts_at')
+      .eq('id', workspaceId)
+      .single();
+
+    if (!workspace) return res.status(404).json({ success: false, error: 'Workspace not found' });
+
+    // ZV-COM-BILL-001 §6 — one trial per workspace, no auto-convert, no restart.
+    // trial_starts_at is the durable "trial used" marker: once a trial has ever
+    // started, the workspace may never start another evaluation — continuing after
+    // expiry requires a real paid conversion.
+    if (workspace.subscription_status === 'TRIAL_GROWTH') {
+      const active = workspace.trial_ends_at && new Date(workspace.trial_ends_at) > new Date();
+      if (active) {
+        return res.json({ success: true, data: { trial_active: true, trial_ends_at: workspace.trial_ends_at } });
+      }
+      // Expired trial that was never settled — settle to Starter (data preserved),
+      // then block any restart below (trial_starts_at is set).
+      await settleBillingState(workspaceId, {
+        billing_classification: 'FREE_STARTER',
+        subscription_status: 'FREE_ACTIVE',
+        trial_active: false,
+        trial_ends_at: null,
+        dunning_days: null,
+        execution: { publish: true, campaignCreate: true, budgetIncrease: true, connectorWrite: true },
+        plan: 'STARTER',
+      });
+    }
+
+    // Never-trialled free workspaces may start one evaluation. Anything that has
+    // already trialled (trial_starts_at set) or is not a plain free workspace is
+    // blocked — no unlimited 14-day evaluations.
+    const classification = (workspace.billing_classification ?? 'FREE_STARTER').toUpperCase();
+    if (workspace.trial_starts_at) {
+      return res.status(400).json({
+        success: false,
+        error: 'This workspace has already used its 14-day trial. Upgrade to a paid plan to continue using Growth features.',
+      });
+    }
+    if (classification !== 'FREE_STARTER') {
+      return res.status(400).json({
+        success: false,
+        error: 'A trial can only be started from the free Vertex Starter plan.',
+      });
+    }
+
+    const startsAt = new Date();
+    const endsAt = new Date(startsAt.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    await supabaseAdmin.from('workspaces').update({
+      plan_type: 'GROWTH',
+      billing_classification: 'EVALUATION_NON_BILLABLE',
+      subscription_status: 'TRIAL_GROWTH',
+      trial_starts_at: startsAt.toISOString(),
+      trial_ends_at: endsAt,
+      updated_at: startsAt.toISOString(),
+    }).eq('id', workspaceId);
+
+    if (workspace.org_id) {
+      await supabaseAdmin.from('organizations').update({
+        plan_type: 'GROWTH',
+        updated_at: startsAt.toISOString(),
+      }).eq('id', workspace.org_id);
+    }
+
+    logger.info({ workspaceId, endsAt }, '[Billing] 14-day Growth trial started');
+    return res.json({
+      success: true,
+      data: {
+        trial_active: true,
+        trial_ends_at: endsAt,
+        message: '14-day Vertex Growth trial started. No card required — you will not be charged automatically.',
+      },
+    });
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] startTrial failed');
+    return res.status(500).json({ success: false, error: 'Failed to start trial' });
+  }
+};
+
+// ── GET /api/v1/billing/status ───────────────────────────────────────────────
+// ZV-COM-BILL-001 §13/§26 — canonical billing state + permitted execution actions.
+// Settles expired trials and persisted dunning states lazily.
+
+export const getBillingStatus = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  try {
+    const [wsRes, walletRes] = await Promise.all([
+      supabaseAdmin
+        .from('workspaces')
+        .select('plan_type, billing_classification, subscription_status, trial_starts_at, trial_ends_at, commercial_effective_at')
+        .eq('id', workspaceId)
+        .single(),
+      supabaseAdmin
+        .from('wallets')
+        .select('last_payment_failed_at, payment_failure_count')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle(),
+    ]);
+
+    if (wsRes.error || !wsRes.data) {
+      return res.status(404).json({ success: false, error: 'Workspace not found' });
+    }
+
+    const { state, needsSettlement } = await resolveBillingState(wsRes.data, walletRes.data);
+    if (needsSettlement) {
+      await settleBillingState(workspaceId, state);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        ...state,
+        billing_classification: state.billing_classification,
+        subscription_status: state.subscription_status,
+        trial_starts_at: wsRes.data.trial_starts_at ?? null,
+        commercial_effective_at: wsRes.data.commercial_effective_at ?? null,
+        payment_failure_count: walletRes.data?.payment_failure_count ?? 0,
+      },
+    });
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] getBillingStatus failed');
+    return res.status(500).json({ success: false, error: 'Failed to resolve billing status' });
   }
 };

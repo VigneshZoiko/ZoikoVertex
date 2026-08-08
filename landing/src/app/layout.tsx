@@ -115,6 +115,7 @@ export default function RootLayout({
 
         {/* FAQ schema */}
         <Script
+          id="faq-schema"
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: `{
@@ -463,6 +464,8 @@ export default function RootLayout({
       </head>
       <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <noscript>
+          {/* Facebook Pixel noscript tracking pixel — must stay a raw <img> (3rd-party pixel, not an optimized asset) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             height="1"
             width="1"

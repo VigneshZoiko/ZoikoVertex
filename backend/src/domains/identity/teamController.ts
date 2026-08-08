@@ -65,6 +65,17 @@ export const listMembers = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
+// ZV-COM-BILL-001 §7: invites expire after 7 days unless explicitly renewed.
+const INVITE_TTL_DAYS = 7;
+
+// Non-billable invites are created as external collaborators by default — they never
+// count toward billed internal seats (ZV-COM-BILL-001 §20).
+const DEFAULT_INVITE_IDENTITY_CLASS = 'EXTERNAL_COLLABORATOR';
+
+// ZV-COM-BILL-001 §7: invites are only visible/approvable while their 7-day expiry
+// has not passed. Expired invites are filtered out at query time rather than written
+// to an 'EXPIRED' status (account_requests lives outside this repo's migrations, so
+// its status CHECK constraint is unknown and must not be depended on).
 export const listRequests = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -77,9 +88,11 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(403).json({ error: 'Workspace context missing' });
     }
 
+    // Only PENDING invites that have not expired are returned. NULL expires_at
+    // (legacy rows without a backfilled expiry) is treated as still valid.
     let query = supabaseAdmin
       .from('account_requests')
-      .select('id, full_name, email, role, requested_by')
+      .select('id, full_name, email, role, requested_by, identity_class, expires_at, created_at')
       .eq('status', 'PENDING');
 
     if (!isSuperAdmin) {
@@ -89,7 +102,10 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
     const { data: rawRequests, error } = await query;
     if (error) throw error;
 
-    const requests = rawRequests || [];
+    const now = Date.now();
+    const requests = (rawRequests || []).filter((r: any) =>
+      !r.expires_at || new Date(r.expires_at).getTime() > now
+    );
     const requestedByUserIds = [...new Set(requests.map((r: any) => r.requested_by).filter(Boolean))];
     const userMap = new Map<string, string>();
 
@@ -114,7 +130,11 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
       full_name: r.full_name,
       email: r.email,
       role: r.role,
+      identity_class: r.identity_class || DEFAULT_INVITE_IDENTITY_CLASS,
       requested_by_user: r.requested_by ? { full_name: userMap.get(r.requested_by) || null } : null,
+      // Surface remaining validity so the UI can warn before an invite lapses.
+      expires_at: r.expires_at,
+      created_at: r.created_at,
     }));
 
     res.json({ success: true, data: formattedRequests });
@@ -134,12 +154,20 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
       return res.status(403).json({ error: 'Workspace context missing' });
     }
 
-    const { full_name, email, role, temporary_password, target_workspace_id } = req.body;
+    const { full_name, email, role, temporary_password, target_workspace_id, identity_class } = req.body;
     
     // Superadmins can specify a target workspace
     const finalWorkspaceId = req.user?.is_superadmin ? (target_workspace_id || workspaceId) : workspaceId;
 
     if (!finalWorkspaceId) return res.status(400).json({ error: 'Target workspace required' });
+
+    // Invites are non-billable by default (external collaborator). An admin may explicitly
+    // request an internal invite by passing identity_class = 'INTERNAL_USER'.
+    const finalIdentityClass =
+      identity_class === 'INTERNAL_USER' ? 'INTERNAL_USER' : DEFAULT_INVITE_IDENTITY_CLASS;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
     const { error } = await supabaseAdmin.from('account_requests').insert({
       workspace_id: finalWorkspaceId,
@@ -148,6 +176,8 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
       email,
       role,
       temporary_password,
+      identity_class: finalIdentityClass,
+      expires_at: expiresAt,
     });
 
     if (error) throw error;
@@ -174,10 +204,34 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+    // ZV-COM-BILL-001 §7 — only APPROVED / REJECTED are legal terminal actions from
+    // this endpoint; anything else (incl. arbitrary values) is rejected.
+    if (status !== 'APPROVED' && status !== 'REJECTED') {
+      return res.status(400).json({ error: 'status must be APPROVED or REJECTED' });
+    }
+
     // Superadmins bypass role check
     if (!req.user?.is_superadmin) {
       // For standard users, we'd check their role in the workspace, 
       // but requireRole middleware should have already gated this.
+    }
+
+    // ZV-COM-BILL-001 §7: an expired invite can no longer be approved.
+    if (status === 'APPROVED') {
+      const { data: reqRow } = await supabaseAdmin
+        .from('account_requests')
+        .select('expires_at, status, identity_class')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (reqRow) {
+        if (reqRow.status !== 'PENDING') {
+          return res.status(409).json({ error: `This invite was already ${reqRow.status.toLowerCase()}.` });
+        }
+        if (reqRow.expires_at && new Date(reqRow.expires_at).getTime() < Date.now()) {
+          return res.status(410).json({ error: 'This invite has expired (7-day validity). Create a new invite.' });
+        }
+      }
     }
 
     const { error } = await supabaseAdmin
