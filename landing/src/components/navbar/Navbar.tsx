@@ -6,22 +6,22 @@ import { useState, useRef, useEffect } from "react";
 
 const PLATFORM_ITEMS = [
   { label: "Overview", desc: "Platform architecture\nand capabilities", href: "/platform" },
-  { label: "Architecture", desc: "Governed execution\ninfrastructure layers", href: "/platform#architecture" },
-  { label: "Command Center", desc: "Executive performance\ndashboard", href: "/platform#command-center" },
-  { label: "AI Workflow\nOrchestration", desc: "Cross-channel\nexecution control", href: "/platform#ai-workflow" },
+  { label: "Architecture", desc: "Governed execution\ninfrastructure layers", href: "/agentic-architecture" },
+  { label: "Command Center", desc: "Executive performance\ndashboard", href: "/executive-command-center" },
+  { label: "AI Workflow\nOrchestration", desc: "Cross-channel\nexecution control", href: "/ai-workflow-orchestration" },
   { label: "Approval\nWorkflows", desc: "Role-based, evidence-\nlinked approvals", href: "/approval-workflows" },
-  { label: "Audit Engine", desc: "Immutable decision\nledger", href: "/platform#audit-engine" },
-  { label: "Integrations", desc: "Connect your existing\nstack", href: "/platform#integrations" },
-  { label: "Platform Security", desc: "SOC 2, ISO 27001, zero-\ntrust", href: "/platform#security" },
+  { label: "Audit Engine", desc: "Immutable decision\nledger", href: "/audit-engine" },
+  { label: "Integrations", desc: "Connect your existing\nstack", href: "/integrations" },
+  { label: "Platform Security", desc: "SOC 2, ISO 27001, zero-\ntrust", href: "/security" },
 ];
 
 const SOLUTION_ITEMS = [
   { label: "Overview", desc: "All solutions\nat a glance", href: "/solution" },
-  { label: "Enterprise\nGovernance", desc: "Controlled AI\nfor large teams", href: "/solution#governance" },
-  { label: "Brand\nCompliance", desc: "Policy-bound\ncontent execution", href: "/solution#brand" },
-  { label: "Agency\nWorkflows", desc: "Multi-client\nisolation & control", href: "/solution#agency" },
-  { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/solution#regulated" },
-  { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/solution#marketing-ops" },
+  { label: "Enterprise\nGovernance", desc: "Controlled AI\nfor large teams", href: "/governance" },
+  { label: "Brand\nCompliance", desc: "Policy-bound\ncontent execution", href: "/brand-compliance" },
+  { label: "Agency\nWorkflows", desc: "Multi-client\nisolation & control", href: "/agency-workflows" },
+  { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/regulated-industries" },
+  { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/marketing-ops" },
   { label: "B2B SaaS", desc: "Governed marketing\nfor SaaS teams", href: "/b2b-saas" },
   { label: "FinTech", desc: "Compliant marketing\nfor financial services", href: "/fintech" },
   { label: "Healthcare", desc: "Clinical review\nfor health marketing", href: "/healthcare" },

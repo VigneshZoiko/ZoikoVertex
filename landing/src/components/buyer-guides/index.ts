@@ -1,0 +1,10 @@
+export { default as BuyerGuidesHeroSection } from "./BuyerGuidesHeroSection";
+export { default as StartWithYourRoleSection } from "./StartWithYourRoleSection";
+export { default as FeaturedGuideLibrarySection } from "./FeaturedGuideLibrarySection";
+export { default as EnterpriseEvaluationFrameworkSection } from "./EnterpriseEvaluationFrameworkSection";
+export { default as GovernanceReadinessChecklistSection } from "./GovernanceReadinessChecklistSection";
+export { default as BusinessCaseAndProcurementSection } from "./BusinessCaseAndProcurementSection";
+export { default as ComparisonFrameworkSection } from "./ComparisonFrameworkSection";
+export { default as GuidedDemoPathSection } from "./GuidedDemoPathSection";
+export { default as BuyerFaqSection } from "./BuyerFaqSection";
+export { default as BuyerGuidesCtaSection } from "./BuyerGuidesCtaSection";

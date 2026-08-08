@@ -1,0 +1,9 @@
+export { default as ZoikoRoiHeroSection } from "./ZoikoRoiHeroSection";
+export { default as ZoikoAudiencePersonaGrid } from "./ZoikoAudiencePersonaGrid";
+export { default as ZoikoRoiCalculatorSection } from "./ZoikoRoiCalculatorSection";
+export { default as ZoikoValueDriversSection } from "./ZoikoValueDriversSection";
+export { default as ZoikoGovernanceRoiSection } from "./ZoikoGovernanceRoiSection";
+export { default as ZoikoEnterpriseRetailSection } from "./ZoikoEnterpriseRetailSection";
+export { default as ZoikoExecutiveReportSection } from "./ZoikoExecutiveReportSection";
+export { default as ZoikoFaqCtaSection } from "./ZoikoFaqCtaSection";
+export { default as ZoikoBusinessCaseCtaSection } from "./ZoikoBusinessCaseCtaSection";

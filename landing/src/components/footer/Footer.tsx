@@ -7,24 +7,41 @@ import { usePathname } from "next/navigation";
 const LINK_HREFS: Record<string, string> = {
   "About ZoikoVertex": "/about",
   "About Zoiko Group": "/zoiko-group",
+  "Agentic Architecture": "/agentic-architecture",
+  "ROI Engine": "/roi-engine",
+  Integrations: "/integrations",
+  "Executive Command Center": "/executive-command-center",
   "Vision & Mission": "/vision-and-mission",
-  "Security": "/security",
+  "Use Cases": "/use-cases",
+  Security: "/security",
+  "Demo Library": "/demo-library",
+  "Enterprise Retail": "/enterprise-retail",
   "Privacy Policy": "/privacy",
   "Terms of Service": "/terms",
-  "Leadership": "/leadership",
+  Leadership: "/leadership",
   "B2B SaaS": "/b2b-saas",
-  "FinTech": "/fintech",
+  FinTech: "/fintech",
   "Agencies & Multi-Brand Teams": "/agencies",
   "Platform Overview": "/platform",
-  "Pricing": "/pricing",
+  Pricing: "/pricing",
+  "ROI & Governance Audit": "/roi-governance-audit",
   "Press & Media": "/press",
-  "Healthcare": "/healthcare",
-  "Logistics": "/logistics",
-  "Telecom": "/telecom",
+  Healthcare: "/healthcare",
+  Logistics: "/logistics",
+  Telecom: "/telecom",
   "Compliance & Governance": "/governance",
   "Resource Center": "/resources-hub",
   "AI Workflow Orchestration": "/ai-workflow-orchestration",
   "Approval Workflows": "/approval-workflows",
+  "Buyer Guides":"/buyer-guides",
+  "Product Updates":"/product-updates",
+  "FAQs":"/faqs",
+  "Competitor Benchmark":"/competeter-benchmark",
+  "Careers":"/careers",
+  "Cookie Preferences": "/cookie-preferences",
+  "Responsible AI": "/responsible-ai",
+  "Auditability": "/auditability",
+  Support: "/support",
 };
 
 export default function Footer() {
@@ -109,7 +126,12 @@ export default function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
             <div className="flex items-center mb-4">
-              <Image src="/images/logos/logo-wordmark.svg" alt="ZoikoVertex" width={180} height={28} />
+              <Image
+                src="/images/logos/logo-wordmark.svg"
+                alt="ZoikoVertex"
+                width={180}
+                height={28}
+              />
             </div>
             <p className="text-white/40 text-xs leading-relaxed mb-6">
               <span className="text-white/70 font-semibold">
@@ -156,16 +178,28 @@ export default function Footer() {
               Contact & Locations
             </p>
             <ul className="space-y-2.5">
-              {["Contact Sales", "Support", "Partnerships"].map((l) => (
-                <li key={l}>
-                  <a
-                    href="#"
-                    className="text-white/40 text-xs hover:text-white/70 transition-colors"
-                  >
-                    {l}
-                  </a>
-                </li>
-              ))}
+              {["Contact Sales", "Support", "Partnerships"].map((l) => {
+                const href = LINK_HREFS[l];
+                return (
+                  <li key={l}>
+                    {href ? (
+                      <Link
+                        href={href}
+                        className="text-white/40 text-xs hover:text-white/70 transition-colors"
+                      >
+                        {l}
+                      </Link>
+                    ) : (
+                      <a
+                        href="#"
+                        className="text-white/40 text-xs hover:text-white/70 transition-colors"
+                      >
+                        {l}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
           <div>
@@ -191,7 +225,7 @@ export default function Footer() {
               Headquarters
             </p>
             <p className="text-white/40 text-xs leading-relaxed">
-              67–69 Great Portland Street,
+              167–169 Great Portland Street,
               <br />
               5th Floor, London W1W 5PF, UK
             </p>
