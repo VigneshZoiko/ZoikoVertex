@@ -10,7 +10,7 @@ const VALID_ROLES = [
   'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'KNOWLEDGE_MANAGER', 'CAMPAIGN_MANAGER',
   'CREATOR', 'BRAND_REVIEWER', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'PUBLISHER',
   'COMPLIANCE_REVIEWER', 'AUDITOR', 'ANALYST', 'PRIVACY_ADMIN', 'DEVELOPER',
-  'VIEWER',
+  'BILLING_ADMIN', 'VIEWER',
 ] as const;
 
 const ProvisionSchema = z.object({
@@ -19,6 +19,8 @@ const ProvisionSchema = z.object({
   full_name: z.string().optional(),
   role: z.enum(VALID_ROLES),
   workspace_id: z.string().uuid().optional(),
+  // ZV-COM-BILL-001 §20: invited (external) collaborators are non-billable members.
+  identity_class: z.enum(['INTERNAL_USER', 'EXTERNAL_COLLABORATOR', 'SERVICE_ACCOUNT']).optional(),
 });
 
 const ResendVerificationSchema = z.object({
@@ -32,7 +34,7 @@ const ESCALATION_ROLES = new Set(['WORKSPACE_OWNER']);
 
 export const provisionUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { email, password, full_name, role, workspace_id: bodyWorkspaceId } = ProvisionSchema.parse(req.body);
+    const { email, password, full_name, role, workspace_id: bodyWorkspaceId, identity_class } = ProvisionSchema.parse(req.body);
 
     // Non-superadmins cannot create WORKSPACE_OWNER (privilege escalation)
     if (!req.user?.is_superadmin && ESCALATION_ROLES.has(role)) {
@@ -155,7 +157,13 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
     const { error: memberError } = await supabaseAdmin
       .from('workspace_members')
       .upsert(
-        { workspace_id, user_id: userId, role },
+        {
+          workspace_id,
+          user_id: userId,
+          role,
+          // Invited collaborators stay non-billable; internal provision (default) is billed.
+          ...(identity_class ? { identity_class } : {}),
+        },
         { onConflict: 'workspace_id,user_id' }
       );
 

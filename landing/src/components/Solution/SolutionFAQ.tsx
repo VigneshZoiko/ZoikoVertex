@@ -20,7 +20,7 @@ const FAQS = [
   {
     question: "Is ZoikoVertex only for large companies?",
     answer:
-      "No. ZoikoVertex is designed for teams at different scales — from growing brand teams on Pro to enterprise command centers on Command. The governance depth scales with your complexity, not your headcount.",
+      "No. ZoikoVertex is designed for teams at different scales — from growing brand teams on Vertex Growth to regulated corporate deployments on Vertex Corporate. The governance depth scales with your complexity, not your headcount.",
   },
   {
     question: "Can agencies use ZoikoVertex for clients?",

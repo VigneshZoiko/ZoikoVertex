@@ -15,9 +15,8 @@ const PLANS = [
     highlighted: false,
     stats: [
       { value: "2", label: "users" },
-      { value: "2", label: "channels" },
+      { value: "2", label: "profiles" },
       { value: "1", label: "brand" },
-      { value: "30d", label: "history" },
     ],
     includedLabel: "INCLUDED",
     included: [
@@ -39,8 +38,8 @@ const PLANS = [
     tier: "FIRST PAID TIER",
     tierSub: null,
     name: "Vertex Growth",
-    price: { monthly: "399", annual: "299" },
-    priceNote: { monthly: null, annual: "$299 billed annually" },
+    price: { monthly: "299", annual: "299" },
+    priceNote: { monthly: null, annual: null },
     description:
       "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team.",
     cta: "Start 14-day trial",
@@ -74,8 +73,8 @@ const PLANS = [
     tier: "RECOMMENDED",
     tierSub: "COMMERCIAL CENTER",
     name: "Vertex Scale",
-    price: { monthly: "999", annual: "799" },
-    priceNote: { monthly: null, annual: "$999 billed annually" },
+    price: { monthly: "799", annual: "799" },
+    priceNote: { monthly: null, annual: null },
     description:
       "Coordinate multi-brand teams with advanced approvals, full Brand Library, governed agents, and cross-brand performance intelligence.",
     cta: "Book strategy call",
@@ -153,7 +152,6 @@ function CtaIcon({ type }: { type: string }) {
 }
 
 export default function PricingSection() {
-  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -181,29 +179,9 @@ export default function PricingSection() {
           </p>
         </div>
 
-        {/* Billing toggle */}
+        {/* Monthly-only note — annual checkout disabled until price book approval */}
         <div className={`flex items-center justify-center gap-3 mb-10 transition-all duration-700 ease-out ${visible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "150ms" }}>
-          <div className="flex items-center border border-white/10 rounded-full p-1 bg-[#0a0a18]">
-            <button
-              onClick={() => setBilling("monthly")}
-              className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
-                billing === "monthly" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBilling("annual")}
-              className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
-                billing === "annual" ? "bg-cyan-400 text-black" : "text-white/40 hover:text-white/60"
-              }`}
-            >
-              Annual
-            </button>
-          </div>
-          <span className="text-xs font-bold px-3 py-1.5 rounded-full border border-green-400/30 bg-green-400/8 text-green-400">
-            Save up to 25%
-          </span>
+          <p className="text-white/30 text-xs">Monthly pricing. Annual plans available on request.</p>
         </div>
 
         {/* Cards — NO gap, shared borders */}
@@ -241,22 +219,22 @@ export default function PricingSection() {
 
               {/* Price */}
               <div className="mb-3">
-                {plan.price.annual === "Custom" ? (
+                {plan.price.monthly === "Custom" ? (
                   <>
                     <p className="text-white text-3xl font-black">Custom</p>
-                    <p className="text-white/30 text-xs mt-1">{plan.priceNote[billing]}</p>
+                    <p className="text-white/30 text-xs mt-1">{plan.priceNote.monthly}</p>
                   </>
                 ) : (
                   <>
                     <div className="flex items-start gap-0.5">
                       <span className="text-white text-xs font-bold mt-1.5">$</span>
                       <span className="text-white text-4xl font-black leading-none">
-                        {plan.price[billing]}
+                        {plan.price.monthly}
                       </span>
                       <span className="text-white/40 text-xs mt-4">/mo</span>
                     </div>
-                    {plan.priceNote[billing] && (
-                      <p className="text-white/30 text-xs mt-1">{plan.priceNote[billing]}</p>
+                    {plan.priceNote.monthly && (
+                      <p className="text-white/30 text-xs mt-1">{plan.priceNote.monthly}</p>
                     )}
                   </>
                 )}

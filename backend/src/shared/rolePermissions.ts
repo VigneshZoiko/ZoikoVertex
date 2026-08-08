@@ -121,6 +121,14 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'dashboard:view', 'queue:view', 'brand:view', 'brand:manage',
     'brand-library:view', 'brand-library:manage', 'quality:view', 'support:view',
   ],
+  // ZV-COM-BILL-001 §22 — Billing Admin: payment/billing profile, plan & add-ons
+  // within policy, cancellation, invoice access. No governance/approval/publish authority.
+  BILLING_ADMIN: [
+    'dashboard:view', 'analytics:view', 'resources:view',
+    'billing:view', 'billing:manage',
+    'settings:view', 'settings:manage',
+    'team:view', 'audit:view', 'support:view',
+  ],
   DEVELOPER: [
     'dashboard:view', 'developer:view', 'developer:manage',
     'accounts:view', 'connectors:view', 'api:view', 'api:manage',

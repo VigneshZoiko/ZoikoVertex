@@ -74,21 +74,21 @@ const PLANS = [
     price: 0,
     annual: null,
     period: "/ month",
-    desc: "Start with visibility. Connect limited channels and understand your social governance posture.",
+    desc: "Start with visibility. Connect limited profiles and understand your social governance posture.",
     icon: Globe,
     features: [
       "2 users", "2 connected social profiles",
       "1 workspace & 1 brand", "AI agent preview only",
       "Analytics snapshot", "Basic activity log",
-      "30-day data retention", "Email & help center support",
+      "Standard data retention", "Email & help center support",
     ],
     limits: ["No live publishing", "No approval workflows", "No Brand Library", "No Crisis Console"],
   },
   {
     id: "growth",
     name: "Vertex Growth",
-    price: 399,
-    annual: 299,
+    price: 299,
+    annual: null,
     period: "/ month",
     desc: "Run governed campaigns with AI-assisted content, approvals, publishing, and audit-ready execution.",
     icon: Rocket,
@@ -104,8 +104,8 @@ const PLANS = [
   {
     id: "scale",
     name: "Vertex Scale",
-    price: 999,
-    annual: 799,
+    price: 799,
+    annual: null,
     period: "/ month",
     desc: "Coordinate multi-brand teams with advanced approvals, governed agents, and cross-brand performance intelligence.",
     icon: TrendingUp,
@@ -226,6 +226,7 @@ export default function BillingPage() {
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ planId: string; planName: string; price: number } | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showCancelSub, setShowCancelSub] = useState(false);
+  const [trialStarting, setTrialStarting] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -584,6 +585,27 @@ export default function BillingPage() {
       setPlanMessage({ type: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setChangingPlan(null);
+    }
+  };
+
+  // ZV-COM-BILL-001 §6.2 — 14-day no-card Growth trial, no auto-convert.
+  const handleStartTrial = async () => {
+    setTrialStarting(true);
+    setSubscribeError(null);
+    try {
+      const r = await api.post('/api/v1/billing/trial/start', {});
+      if (r.success) {
+        setActivePlanId('growth');
+        showToast(r.data?.message || 'Trial started — no card required. You will not be charged automatically.', 'success');
+        await refreshRole();
+      } else {
+        setSubscribeError(r.error || 'Could not start the trial. Please try again.');
+      }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setSubscribeError(msg || 'Could not start the trial. Please try again.');
+    } finally {
+      setTrialStarting(false);
     }
   };
 
@@ -961,6 +983,17 @@ export default function BillingPage() {
 
                 {/* CTA */}
                 <div className="flex flex-col items-stretch md:items-end gap-3 md:min-w-[180px] justify-start pt-1">
+                  {activePlan.id === 'starter' && (
+                    <button
+                      type="button"
+                      onClick={handleStartTrial}
+                      disabled={trialStarting}
+                      className="px-5 py-2.5 w-full bg-white/10 border border-border text-foreground hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {trialStarting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                      Start 14-day Growth Trial
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowUpgradeModal(true)}
                     className="px-5 py-2.5 w-full bg-white text-black hover:bg-zinc-200 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"

@@ -72,7 +72,7 @@ const GLANCE = [
     icon: CreditCard,
     iconBg: "bg-amber-100 text-amber-600",
     label: "SUBSCRIPTIONS AUTO-RENEW",
-    text: "Subscriptions renew automatically unless cancelled before the renewal date. Free trials may convert to paid plans. Billing, cancellation, and refund rules must be reviewed before subscribing.",
+    text: "Subscriptions renew automatically unless cancelled before the renewal date. Free trials do not automatically convert to paid plans — conversion requires an affirmative purchase. Billing, cancellation, and refund rules must be reviewed before subscribing.",
   },
 ];
 
@@ -99,7 +99,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "How do ZoikoVertex subscriptions and cancellations work?",
-    a: "Subscriptions are billed on a monthly, annual, usage-based, or custom enterprise basis. They renew automatically unless cancelled before the renewal date. Cancellation takes effect at the end of the current paid period. Specific billing, refund, and cancellation terms must be confirmed at checkout and in the order form.",
+    a: "Standard subscriptions are billed monthly for Vertex Growth and Vertex Scale. Vertex Starter is a free, permanent tier with no payment method required. Annual, usage-based, or custom enterprise billing applies only where separately approved and disclosed at checkout or in an order form. Subscriptions renew automatically unless cancelled before the renewal date; cancellation takes effect at the end of the current paid period. ZoikoVertex does not apply hidden usage charges — no fees arise from failed AI jobs, failed publishes, pending invitations, or approvals unless an add-on is affirmatively accepted.",
   },
   {
     q: "Do enterprise customers have separate terms?",
@@ -511,13 +511,14 @@ export default function TermsPage() {
 
             {/* 4. Subscriptions & Billing */}
             <SectionHeading id="subscriptions" title="Plans, Subscriptions, Billing, and Cancellation" badge={{ label: "Financial", variant: "orange" }} num={4} />
-            <Body>Access to ZoikoVertex is provided through paid subscription plans. Plan features, limits, prices, credits, add-ons, overages, and usage-based charges may vary by tier or order form. By subscribing, customers authorize ZoikoVertex or its payment processor to charge applicable fees and taxes.</Body>
+            <Body>Access to ZoikoVertex is provided through subscription plans: Vertex Starter (free, permanent), Vertex Growth, Vertex Scale, and Vertex Corporate. Vertex Starter requires no payment method and does not automatically convert to a paid plan. Plan features, limits, and prices vary by tier or order form. By subscribing, customers authorize ZoikoVertex or its payment processor to charge applicable fees and taxes.</Body>
+            <CalloutBox lead="No hidden usage charges." text="ZoikoVertex does not bill for failed, cancelled, denied, or duplicate AI jobs, failed publishes, pending invitations, external collaborators, or approvals. Customer advertising and media spend paid to third-party providers is separate from ZoikoVertex subscription fees and is not charged through the ZoikoVertex payment method by default." />
             <DataTable
               headers={["TOPIC", "REQUIRED UNDERSTANDING"]}
               rows={[
-                ["Billing Cycle",         "Monthly, annual, usage-based, or custom enterprise billing as specified in the order form or checkout."],
+                ["Billing Cycle",         "Standard self-serve plans are billed monthly. Annual, usage-based, or custom enterprise billing applies only where separately approved and disclosed at checkout or in the order form."],
                 ["Auto-Renewal",          "Subscriptions renew automatically unless cancelled before the renewal date. Renewal period, billing timing, and notice are disclosed at checkout or in the order form."],
-                ["Free Trials",           "Free trials may convert to paid plans on the conversion date. Customers must cancel before the trial ends to avoid charges. [Trial length and conversion mechanics to be confirmed.]"],
+                ["Free Trials",           "Vertex Growth may be evaluated through a 14-day trial that requires no card. Trials do not automatically convert to paid plans; conversion requires an affirmative purchase. At trial expiry, access returns to Vertex Starter functionality unless a purchase is completed. [Trial length and mechanics to be confirmed by legal.]"],
                 ["Cancellation",          "Customers may cancel through the admin console or by contacting support. Cancellation takes effect at the end of the current paid period unless otherwise stated."],
                 ["Refunds",               "[Refund policy to be confirmed by legal and aligned with applicable law and checkout terms.]"],
                 ["Taxes",                 "Customers are responsible for applicable taxes, including sales tax, VAT, GST, withholding, and similar charges, unless ZoikoVertex is required by law to collect them."],

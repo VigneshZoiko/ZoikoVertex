@@ -1013,7 +1013,7 @@ const PROCUREMENT = [
   },
   {
     title: "Data Processing Addendum",
-    desc: "Standard DPA for enterprise review; negotiated terms available for Command customers.",
+    desc: "Standard DPA for enterprise review; negotiated terms available for Vertex Corporate customers.",
     badge: "Template available",
     img: "/images/governance/data-processing-addendum.png",
   },

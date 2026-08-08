@@ -1,6 +1,5 @@
 ﻿"use client";
 import Link from "next/link";
-import { useState } from "react";
 import { Play, Clock, FileText } from "lucide-react";
 
 const Check = () => (
@@ -22,7 +21,6 @@ const Check = () => (
 );
 
 export default function Pricing() {
-  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const plans = [
     {
       tag: "FREE TIER",
@@ -32,8 +30,7 @@ export default function Pricing() {
       desc: "Connect channels, understand your governance posture, and see where ZoikoVertex reduces risk before your team commits.",
       stats: [
         { label: "users", value: "2" },
-        { label: "channels", value: "2" },
-        { label: "history", value: "386" },
+        { label: "profiles", value: "2" },
       ],
       sectionLabel: "INCLUDED",
       features: [
@@ -58,8 +55,8 @@ export default function Pricing() {
     {
       tag: "FIRST PAID TIER",
       name: "Vertex Growth",
-      price: { monthly: "$399", annual: "$299" },
-      billingNote: { monthly: null, annual: "$299/mo billed annually" },
+      price: "$299",
+      billingNote: null,
       desc: "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team.",
       stats: [
         { label: "users", value: "7" },
@@ -88,8 +85,8 @@ export default function Pricing() {
     {
       tag: "RECOMMENDED · COMMERCIAL CENTER",
       name: "Vertex Scale",
-      price: { monthly: "$999", annual: "$799" },
-      billingNote: { monthly: null, annual: "$799/mo billed annually" },
+      price: "$799",
+      billingNote: null,
       desc: "Coordinate multi-brand teams with advanced approvals, full Brand Library, governed agents, and cross-brand performance intelligence.",
       stats: [
         { label: "users", value: "20" },
@@ -164,29 +161,9 @@ export default function Pricing() {
           Your deployment team has built us a good base security. Free to start,
           no credit card required.
         </p>
-          <div className="inline-flex items-center gap-3">
-            <div className="inline-flex items-center bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
-              <button
-                onClick={() => setBilling("monthly")}
-                className={`text-sm px-4 py-1.5 rounded-full transition-all ${
-                  billing === "monthly" ? "font-semibold text-black bg-cyan-400" : "text-white/40"
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBilling("annual")}
-                className={`text-sm px-4 py-1.5 rounded-full transition-all ${
-                  billing === "annual" ? "font-semibold text-black bg-cyan-400" : "text-white/40"
-                }`}
-              >
-                Annual
-              </button>
-            </div>
-          <span className="text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-3 py-1.5 rounded-full">
-            Save up to 25%
-          </span>
-        </div>
+        <p className="text-white/40 text-xs">
+          Monthly pricing. Annual plans available on request.
+        </p>
       </div>
       <div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
         {plans.map((p) => (
@@ -221,8 +198,8 @@ export default function Pricing() {
             </p>
             <h3 className="text-white font-black text-xl mb-2">{p.name}</h3>
             {(() => {
-              const rawPrice = typeof p.price === "string" ? p.price : p.price[billing];
-              const rawNote = typeof p.billingNote === "string" ? p.billingNote : p.billingNote[billing];
+              const rawPrice = p.price;
+              const rawNote = p.billingNote;
               const isCustom = rawPrice === "Custom";
               return (
                 <>

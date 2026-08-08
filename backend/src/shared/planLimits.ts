@@ -8,17 +8,18 @@ export interface PlanLimit {
   aiPerMin: number;           // AI/QA route rate limit for API key users
   allowWildcard: boolean;
   aiTokensMonthly: number;    // monthly AI token quota; -1 = unlimited
-  aiOverageRatePerK: number;  // USD per 1,000 tokens over quota (0 = no overage billing)
+  aiOverageRatePerK: number;  // USD per 1,000 tokens over quota. MUST be 0 at launch —
+                              // no hidden overage billing unless an approved catalog add-on exists (ZV-COM-BILL-001 §11).
   storageGbIncluded: number;  // base storage in GB; -1 = unlimited
 }
 
 // Per-plan limits — matches DB plan_type values: FREE | STARTER | GROWTH | SCALE | ENTERPRISE
 export const PLAN_LIMITS: Record<string, PlanLimit> = {
   FREE:       { maxKeys: 0,  maxWebhooks: 0,  reqPerMin: 0,   aiPerMin: 0,  allowWildcard: false, aiTokensMonthly: 10_000,    aiOverageRatePerK: 0,     storageGbIncluded: 0.5   },
-  STARTER:    { maxKeys: 3,  maxWebhooks: 2,  reqPerMin: 30,  aiPerMin: 5,  allowWildcard: false, aiTokensMonthly: 100_000,   aiOverageRatePerK: 0.005, storageGbIncluded: 1     },
-  GROWTH:     { maxKeys: 10, maxWebhooks: 5,  reqPerMin: 100, aiPerMin: 20, allowWildcard: false, aiTokensMonthly: 500_000,   aiOverageRatePerK: 0.004, storageGbIncluded: 30    },
-  SCALE:      { maxKeys: 50, maxWebhooks: 20, reqPerMin: 200, aiPerMin: 40, allowWildcard: false, aiTokensMonthly: 2_000_000, aiOverageRatePerK: 0.003, storageGbIncluded: 75    },
-  ENTERPRISE: { maxKeys: -1, maxWebhooks: -1, reqPerMin: 400, aiPerMin: 80, allowWildcard: true,  aiTokensMonthly: -1,        aiOverageRatePerK: 0.002, storageGbIncluded: -1    },
+  STARTER:    { maxKeys: 3,  maxWebhooks: 2,  reqPerMin: 30,  aiPerMin: 5,  allowWildcard: false, aiTokensMonthly: 100_000,   aiOverageRatePerK: 0,     storageGbIncluded: 1     },
+  GROWTH:     { maxKeys: 10, maxWebhooks: 5,  reqPerMin: 100, aiPerMin: 20, allowWildcard: false, aiTokensMonthly: 500_000,   aiOverageRatePerK: 0,     storageGbIncluded: 30    },
+  SCALE:      { maxKeys: 50, maxWebhooks: 20, reqPerMin: 200, aiPerMin: 40, allowWildcard: false, aiTokensMonthly: 2_000_000, aiOverageRatePerK: 0,     storageGbIncluded: 75    },
+  ENTERPRISE: { maxKeys: -1, maxWebhooks: -1, reqPerMin: 400, aiPerMin: 80, allowWildcard: true,  aiTokensMonthly: -1,        aiOverageRatePerK: 0,     storageGbIncluded: -1    },
 };
 
 // Storage add-on packs — price includes 75% markup over Supabase cost ($0.40/GB)

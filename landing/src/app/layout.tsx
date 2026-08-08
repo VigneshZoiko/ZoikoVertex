@@ -449,6 +449,8 @@ export default function RootLayout({
       </head>
       <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <noscript>
+          {/* Facebook Pixel noscript tracking pixel — must stay a raw <img> (3rd-party pixel, not an optimized asset) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img height="1" width="1" style={{ display: "none" }} src="https://www.facebook.com/tr?id=1006709255052325&ev=PageView&noscript=1" alt="" />
         </noscript>
         <Providers>

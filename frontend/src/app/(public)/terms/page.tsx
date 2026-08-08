@@ -43,19 +43,31 @@ Workspace administrators are responsible for managing access, roles, and permiss
   },
   {
     title: "4. Subscription Plans & Billing",
-    content: `ZoikoVertex is offered under the following subscription tiers: Starter, Core, Professional, and Enterprise. Features available to you depend on the plan your organisation has subscribed to.
+    content: `ZoikoVertex is offered under the following subscription tiers: Vertex Starter, Vertex Growth, Vertex Scale, and Vertex Corporate. Features available to you depend on the plan your organisation has subscribed to.
+
+**Free Plan**
+Vertex Starter is a free, permanent entry tier. It requires no payment method and does not automatically convert to a paid plan. Vertex Starter includes no live publishing or autonomous execution authority.
+
+**Trials**
+Vertex Growth may be evaluated through an optional 14-day trial that requires no card. Trials do not automatically convert to paid plans. At trial expiry, workspaces return to Vertex Starter functionality (or remain limited) unless an affirmative purchase is completed. External publishing during a trial occurs only after an explicit execution-activation step and within Assisted Mode.
 
 **Feature Gating**
-Certain features — including Approval Workflow Engine, Evidence Vault, Agent Autonomy levels D2 and D3, and Evidence Packs — are available only on Professional and Enterprise plans. Access to these features will be restricted if your plan does not include them.
+Certain features — including Approval Workflow Engine, Evidence Vault, Agent Autonomy levels D2 and D3, and Evidence Packs — are available only on Vertex Growth, Vertex Scale, and Vertex Corporate plans. Access to these features will be restricted if your plan does not include them.
 
 **Billing**
-Subscription fees are billed in advance on a monthly or annual basis. All fees are non-refundable except where required by applicable law. You authorise ZoikoVertex to charge your designated payment method for all applicable subscription fees.
+Subscription fees are billed in advance on a monthly basis. All fees are non-refundable except where required by applicable law or where a billing defect is proven. You authorise ZoikoVertex to charge your designated payment method for all applicable subscription fees.
+
+**No Hidden Usage Charges**
+ZoikoVertex does not charge for failed, cancelled, denied, or duplicate AI jobs, failed publishes, pending invitations, external collaborators, or approvals. No overage charges are applied unless you affirmatively accept a separately published add-on.
+
+**Media Spend**
+Customer advertising and media spend paid to third-party providers is separate from ZoikoVertex subscription fees and is not charged through the ZoikoVertex payment method by default.
 
 **Changes to Plans**
 ZoikoVertex reserves the right to change subscription pricing with 30 days' notice. Continued use of the Platform after a price change takes effect constitutes acceptance of the new pricing.
 
 **Suspension for Non-Payment**
-If payment is not received when due, ZoikoVertex may suspend or terminate access to the Platform.`,
+If payment is not received when due, ZoikoVertex will progressively restrict execution: new campaigns and automated budget increases are blocked, then consequential outbound actions are suspended in a safe mode that preserves read, export, and billing-remediation access. Accounts may be terminated after continued non-payment, subject to applicable law.`,
   },
   {
     title: "5. Connected Social Media Platforms",
@@ -117,7 +129,7 @@ Customers are responsible for:
 - Exporting and preserving evidence packs required for any specific legal or regulatory obligation
 - Applying legal holds where required prior to anticipated litigation or audit
 
-ZoikoVertex retains governance artefacts for a minimum of 12 months. Extended retention is available on Enterprise plans.`,
+ZoikoVertex retains governance artefacts for a minimum of 12 months. Extended retention is available on Vertex Scale and Vertex Corporate plans.`,
   },
   {
     title: "9. User Responsibilities & Acceptable Use",

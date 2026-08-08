@@ -20,18 +20,21 @@ const PLAN_ROLES: Record<string, string[]> = {
     "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
     "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
     "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
+    "BILLING_ADMIN",
   ],
   SCALE: [
     "CREATOR", "REVIEWER", "VIEWER", "ANALYST",
     "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
     "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
     "AGENT_ARCHITECT", "GOVERNANCE_ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "ADMIN",
+    "BILLING_ADMIN",
   ],
   ENTERPRISE: [
     "WORKSPACE_OWNER", "ADMIN", "SECURITY_ADMIN", "GOVERNANCE_ADMIN",
     "AGENT_ARCHITECT", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER", "CAMPAIGN_MANAGER",
     "CREATOR", "BRAND_REVIEWER", "REVIEWER", "VALIDATOR", "APPROVER", "PUBLISHER",
     "COMPLIANCE_REVIEWER", "AUDITOR", "ANALYST", "PRIVACY_ADMIN", "DEVELOPER",
+    "BILLING_ADMIN",
     "VIEWER",
   ],
 };
@@ -43,6 +46,7 @@ const PLAN_LABELS: Record<string, string> = {
 
 const ROLE_GROUPS = [
   { group: "Build Control",      roles: ["WORKSPACE_OWNER","ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","DEVELOPER"] },
+  { group: "Commercial Control", roles: ["BILLING_ADMIN"] },
   { group: "Governance Control", roles: ["GOVERNANCE_ADMIN","SECURITY_ADMIN","PRIVACY_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"] },
   { group: "Output Control",     roles: ["BRAND_REVIEWER","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","ANALYST"] },
   { group: "External",           roles: ["VIEWER"] },
@@ -199,6 +203,8 @@ export default function TeamPage() {
             email: req.email,
             role: req.role,
             password: req.temporary_password || "TempPass123!",
+            // Invited collaborators stay non-billable (ZV-COM-BILL-001 §20)
+            identity_class: req.identity_class || "EXTERNAL_COLLABORATOR",
           });
           if (r.success === false) { setMessage({ type: "error", text: r.error || "Failed" }); setFormLoading(false); return; }
         } catch {

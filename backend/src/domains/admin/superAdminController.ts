@@ -442,7 +442,7 @@ export class SuperAdminController {
       const { orgId } = req.params;
       const { planType } = req.body;
 
-      if (!planType || !['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'].includes(planType)) {
+      if (!planType || !['FREE', 'STARTER', 'GROWTH', 'SCALE', 'ENTERPRISE'].includes(planType)) {
         return res.status(400).json({ error: 'Invalid plan type. Must be FREE, STARTER, GROWTH, or ENTERPRISE.' });
       }
 
