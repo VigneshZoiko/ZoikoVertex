@@ -383,7 +383,7 @@ export default function LeadershipPage() {
               Request an Enterprise Demo
             </Link>
             <Link
-              href="/governance"
+              href="/responsible-ai"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/25 text-white text-[13px] font-medium hover:border-white/50 transition"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-[#20E7F2]" />

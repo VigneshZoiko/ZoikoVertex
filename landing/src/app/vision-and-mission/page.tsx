@@ -231,14 +231,14 @@ const EVAL_CARDS = [
     title: "Leadership",
     body: "The governance-led leadership model guiding product, technology, responsible AI, and commercial outcomes.",
     cta: "Explore",
-    href: "/about",
+    href: "/leadership",
   },
   {
     icon: <Brain size={18} />,
     title: "Responsible AI",
     body: "How ZoikoVertex approaches human oversight, AI-assisted workflow boundaries, and accountability.",
     cta: "Read",
-    href: "#",
+    href: "/responsible-ai",
   },
   {
     icon: <Shield size={18} />,
@@ -377,7 +377,7 @@ export default function VisionMissionPage() {
                 Explore ZoikoVertex
               </Link>
               <Link
-                href="#"
+                href="/responsible-ai"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold border transition-colors hover:bg-white/5"
                 style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)" }}
               >

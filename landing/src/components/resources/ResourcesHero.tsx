@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const FILTER_TABS = ["All Formats", "Executive Brief", "Toolkit", "Guide", "Field Note"];
@@ -78,6 +79,7 @@ export default function ResourcesHero() {
   const [visible, setVisible] = useState(false);
   const [activeTab, setActiveTab] = useState("All Formats");
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -121,7 +123,7 @@ export default function ResourcesHero() {
             >
               Explore Resources →
             </a>
-            <button className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
+            <button onClick={()=>router.push("#")} className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
               Access Trust Center
             </button>
           </div>
