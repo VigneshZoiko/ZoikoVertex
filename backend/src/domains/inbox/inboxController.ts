@@ -793,7 +793,7 @@ export const generateAiDraft = async (req: AuthRequest, res: Response, next: Nex
       const openai = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey: env.GROQ_API_KEY });
       const callModel = async (p: string): Promise<string> => {
         const c = await openai.chat.completions.create({
-          model: 'llama-3.3-70b-versatile',
+          model: 'openai/gpt-oss-120b',
           messages: [{ role: 'user', content: p }],
           max_tokens: 200,
           temperature: 0.7,

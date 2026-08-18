@@ -560,6 +560,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLength, setAiLength] = useState("");
+  const [copyGenError, setCopyGenError] = useState<string | null>(null);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [showVaultPicker, setShowVaultPicker] = useState(false);
   const [vaultPickerType, setVaultPickerType] = useState<"image" | "video" | "all">("image");
@@ -570,6 +571,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
     if (!aiPrompt) return;
     setIsGeneratingCopy(true);
     setError(null);
+    setCopyGenError(null);
     try {
       const res = await api.post("/api/v1/ai/generate-ad-copy", {
         prompt: aiPrompt,
@@ -580,10 +582,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
         setAiPrompt("");
         setAiLength("");
       } else {
-        setError(res.error || "Failed to generate ad copy");
+        setCopyGenError(res.error || "Couldn't generate ad copy. Please try again.");
       }
     } catch (err) {
-      setError("An error occurred while generating ad copy");
+      setCopyGenError("Couldn't reach the AI service. Please try again in a moment.");
     } finally {
       setIsGeneratingCopy(false);
     }
@@ -2576,6 +2578,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             Generate
                           </button>
                         </div>
+                        {copyGenError && (
+                          <p className="text-[11px] text-red-400 font-medium">{copyGenError}</p>
+                        )}
                       </div>
 
                       <div className="relative">

@@ -25,7 +25,7 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   groq: {
     id: 'groq',
     displayName: 'Groq Llama 3.3 70B',
-    modelId: 'llama-3.3-70b-versatile',
+    modelId: 'openai/gpt-oss-120b',
     inputCostPer1K: 0.00059,
     outputCostPer1K: 0.00079,
     metricWeights: { quality: 1.0, safety: 1.0, faithfulness: 1.0, latency: 1.0, cost: 1.0, consistency: 1.0 },
@@ -33,7 +33,7 @@ export const PROVIDER_CONFIGS: Record<ProviderId, ProviderConfig> = {
   groq_alt: {
     id: 'groq_alt',
     displayName: 'Groq Llama 3.1 8B (Fast)',
-    modelId: 'llama-3.1-8b-instant',
+    modelId: 'openai/gpt-oss-20b',
     inputCostPer1K: 0.00005,
     outputCostPer1K: 0.00008,
     metricWeights: { quality: 0.85, safety: 1.0, faithfulness: 0.85, latency: 1.0, cost: 1.0, consistency: 0.9 },

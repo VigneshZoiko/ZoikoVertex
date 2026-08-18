@@ -51,7 +51,7 @@ const DEFAULT_ACTION: Record<GovCategory, GovMatchAction> = {
   POLICY_SAFETY: "BLOCK",
 };
 
-const GROQ_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+const GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
 const GEMINI_MODEL = "gemini-1.5-flash";
 
 // Pinned to the 5 categories with concrete examples so the model can't invent

@@ -303,7 +303,7 @@ Return ONLY a valid JSON array with no explanation:
 ["keyword1", "keyword2", ...]`;
 
     const completion = await groqClient.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4,
       max_tokens: 600,

@@ -25,7 +25,7 @@ import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 
 // Primary is the larger, more accurate model; fall back to the fast one.
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
 
 export type EntailmentRelation = 'SUPPORT' | 'CONTRADICT' | 'NEUTRAL';
 
