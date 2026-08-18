@@ -14,7 +14,7 @@ import { logger } from "../../shared/logger";
 import type { MatchResult, SafetyCategory, Severity } from "./types";
 import { SAFETY_CATEGORIES } from "./types";
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 interface GroqVerdict {
   safe: boolean;

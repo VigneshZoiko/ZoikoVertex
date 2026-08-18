@@ -379,7 +379,7 @@ Evidence records are:
 
       // 8. Execute LLM content generation under governed context
       let aiOutput = '';
-      const chosenModel = req.model || version.model_routes_json?.default_model || 'llama-3.3-70b-versatile';
+      const chosenModel = req.model || version.model_routes_json?.default_model || 'openai/gpt-oss-120b';
       
       const promptVariables = version.variables_json || {};
       

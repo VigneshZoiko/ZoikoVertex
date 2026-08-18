@@ -379,7 +379,7 @@ export class AdversarialTestService {
     actorId?: string;
   }): Promise<RealAdversarialReport> {
     const { promptVersionId, promptId, workspaceId } = input;
-    const modelId = input.modelId || 'llama-3.3-70b-versatile';
+    const modelId = input.modelId || 'openai/gpt-oss-120b';
     const provider = input.provider || 'groq';
 
     const { data: version } = await supabaseAdmin

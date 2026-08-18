@@ -84,7 +84,7 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
         reason = cap.result.raw.reason;
         if (workspaceId) {
           const qty = cap.result.tokensUsed > 0 ? cap.result.tokensUsed : 384;
-          trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'safety_moderation', metadata: { model: 'llama-3.3-70b-versatile', estimated: cap.result.tokensUsed === 0 } });
+          trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'safety_moderation', metadata: { model: 'openai/gpt-oss-120b', estimated: cap.result.tokensUsed === 0 } });
         }
       }
     } else {
@@ -99,7 +99,7 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
           reason = groq.raw.reason;
           if (workspaceId) {
             const qty = groq.tokensUsed > 0 ? groq.tokensUsed : 384;
-            trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'safety_moderation', metadata: { model: 'llama-3.3-70b-versatile', estimated: groq.tokensUsed === 0 } });
+            trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'safety_moderation', metadata: { model: 'openai/gpt-oss-120b', estimated: groq.tokensUsed === 0 } });
           }
         }
       } catch {

@@ -326,7 +326,7 @@ ${blocks.join('\n\n')}
     // contains full context). The governed prompt is sent as a user message.
     const callCaptionModel = async (governedPrompt: string): Promise<string> => {
       const c = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: governedPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.8,
@@ -368,7 +368,7 @@ ${blocks.join('\n\n')}
       // as user role. This separates workspace knowledge from user-controlled
       // input, preventing prompt injection from exfiltrating the KB.
       const fallbackCompletion = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -426,7 +426,7 @@ ${blocks.join('\n\n')}
         costUsd: tokens * 0.0000001, // ~$0.0001 per 1k tokens (Groq llama-3.3-70b)
         unit: 'tokens',
         referenceType: 'content_generation',
-        metadata: { model: 'llama-3.3-70b-versatile', topic },
+        metadata: { model: 'openai/gpt-oss-120b', topic },
       });
     }
   } catch (error) {
@@ -477,7 +477,7 @@ ${lengthInstructions ? `IMPORTANT: Follow these length instructions strictly: ${
 Do not include conversational filler like "Here is your copy". Just output the copy directly.`;
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: prompt }

@@ -213,7 +213,7 @@ RESPONSE (strict JSON, no markdown, no backticks):
     let schedulerTokensUsed = 0;
     const callModel = async (p: string): Promise<string> => {
       const completion = await groqScheduler.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: p }],
         temperature: 0,
         max_tokens: 1024,
@@ -253,7 +253,7 @@ RESPONSE (strict JSON, no markdown, no backticks):
 
     if (workspaceId) {
       const qty = schedulerTokensUsed > 0 ? schedulerTokensUsed : 384;
-      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'scheduler_recommendation', metadata: { model: 'llama-3.3-70b-versatile', platform, estimated: schedulerTokensUsed === 0 } });
+      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'scheduler_recommendation', metadata: { model: 'openai/gpt-oss-120b', platform, estimated: schedulerTokensUsed === 0 } });
     }
     
     let parsed;

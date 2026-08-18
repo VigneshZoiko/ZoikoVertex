@@ -86,7 +86,7 @@ MEDIUM: strong complaints, frustration, dissatisfaction
 LOW: general inquiry, neutral or positive message`;
     const callModel = async (p: string): Promise<string> => {
       const c = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: p }],
         temperature: 0,
         max_tokens: 50,
@@ -109,7 +109,7 @@ LOW: general inquiry, neutral or positive message`;
     } else {
       await GovernedModelGate.legacyInlineFallback('inbox_message_classification', workspaceId, `governed prompt unavailable: ${governed.code}`);
       const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [{ role: 'system', content: INLINE_SYSTEM }, { role: 'user', content: text.slice(0, 500) }],
         temperature: 0,
         max_tokens: 50,
@@ -125,7 +125,7 @@ LOW: general inquiry, neutral or positive message`;
       return null;
     }
     if (workspaceId) {
-      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: 100, costUsd: 0.00001, unit: 'tokens', referenceType: 'inbox_classification', metadata: { model: 'llama-3.3-70b-versatile', estimated: true } });
+      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: 100, costUsd: 0.00001, unit: 'tokens', referenceType: 'inbox_classification', metadata: { model: 'openai/gpt-oss-120b', estimated: true } });
     }
     return { risk_level: parsed.risk_level as RiskLevel, sentiment: parsed.sentiment as Sentiment };
   } catch {

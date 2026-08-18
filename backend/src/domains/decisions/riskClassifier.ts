@@ -416,7 +416,7 @@ export class RiskClassifier {
 
         const callModel = async (p: string): Promise<string> => {
           const c = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: "openai/gpt-oss-120b",
             messages: [{ role: "user", content: p }],
             response_format: { type: "json_object" },
             temperature: 0.1,
