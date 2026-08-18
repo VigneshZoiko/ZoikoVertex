@@ -84,6 +84,8 @@ export default function DataPage() {
   const [tableName, setTableName] = useState("users");
   const [apiUrl, setApiUrl] = useState("");
   const [targetKb, setTargetKb] = useState("");
+  const [newKbName, setNewKbName] = useState("");
+  const [creatingKb, setCreatingKb] = useState(false);
   const [titleKey, setTitleKey] = useState("name");
   const [contentKey, setContentKey] = useState("email");
   const [urlKey, setUrlKey] = useState("");
@@ -135,6 +137,32 @@ export default function DataPage() {
     return () => { if (syncIntervalRef.current) clearInterval(syncIntervalRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Always keep a valid Knowledge Base selected when any exist, so the
+  // "Finish & Save" button is never stuck disabled with an empty/stale target.
+  useEffect(() => {
+    if (bases.length > 0 && !bases.some((b) => b.id === targetKb)) {
+      setTargetKb(bases[0].id);
+    }
+  }, [bases, targetKb]);
+
+  const handleCreateKb = async () => {
+    const nm = newKbName.trim();
+    if (!nm) return;
+    setCreatingKb(true);
+    try {
+      const res = await api.post('/api/v1/knowledge/bases', { name: nm, type: 'AI_LIBRARY' });
+      if (res.success && res.data) {
+        setBases((prev) => [res.data, ...prev]);
+        setTargetKb(res.data.id);
+        setNewKbName("");
+      }
+    } catch (err) {
+      console.error("Failed to create knowledge base", err);
+    } finally {
+      setCreatingKb(false);
+    }
+  };
 
   const fetchConnectorsOnly = async () => {
     try {
@@ -464,8 +492,29 @@ export default function DataPage() {
                           ))}
                         </select>
                       ) : (
-                        <div className="p-4 bg-card/20 border border-dashed border-zinc-850 rounded-lg text-center text-foreground-muted text-xs font-semibold">
-                        No knowledge bases found. Go to Agents → Knowledge Bases to create one first.
+                        <div className="p-4 bg-card/20 border border-dashed border-zinc-850 rounded-lg space-y-2.5">
+                          <p className="text-foreground-muted text-xs font-semibold text-center">
+                            No knowledge bases yet — create one to save this connector&apos;s data into.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={newKbName}
+                              onChange={(e) => setNewKbName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateKb(); } }}
+                              placeholder="Knowledge Base name"
+                              className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:border-info-border text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleCreateKb}
+                              disabled={creatingKb || !newKbName.trim()}
+                              className="px-4 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+                            >
+                              {creatingKb ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                              <span>Create</span>
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -484,6 +533,13 @@ export default function DataPage() {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Validation hint — explains why "Finish & Save" is disabled */}
+              {wizardStep === 3 && !targetKb && (
+                <p className="text-[11px] text-amber-500 font-medium pt-2">
+                  Select or create a Knowledge Base above to enable &ldquo;Finish &amp; Save&rdquo;.
+                </p>
               )}
 
               {/* Navigation Controls */}
