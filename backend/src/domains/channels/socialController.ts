@@ -663,8 +663,6 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('No authorization code returned from Twitter')}`);
     }
 
-    let nonce: string;
-    let workspaceId: string;
     // state comes back as the JSON we sent at authorize time. Guard each failure
     // mode with a distinct, logged reason instead of a catch-all "Invalid session".
     const rawState = Array.isArray(stateParam) ? stateParam[0] : stateParam;
@@ -672,14 +670,19 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
       logger.warn({ stateParam }, '[Social] Twitter callback: missing state parameter');
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Missing session state. Please try connecting again.')}`);
     }
-    try {
-      const stateObj = JSON.parse(rawState);
-      nonce = stateObj.nonce;
-      workspaceId = stateObj.workspaceId;
-    } catch {
+    // Parse the JSON state we sent at authorize time. Tolerate a double-encoded
+    // value (some providers/proxies hand `state` back URL-encoded) by decoding once more.
+    const parseState = (s: string): { nonce?: string; workspaceId?: string } | null => {
+      try { return JSON.parse(s); } catch { /* try decoded */ }
+      try { return JSON.parse(decodeURIComponent(s)); } catch { return null; }
+    };
+    const stateObj = parseState(rawState);
+    if (!stateObj || !stateObj.nonce) {
       logger.warn({ rawState }, '[Social] Twitter callback: unparseable state');
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Invalid session. Please try connecting again.')}`);
     }
+    const nonce = stateObj.nonce;
+    const workspaceId = stateObj.workspaceId || '';
     const entry = await consumeNonceEntry(nonce);
     if (!entry || entry.wsId !== workspaceId) {
       logger.warn({ nonce, workspaceId, found: !!entry }, '[Social] Twitter callback: nonce not found or workspace mismatch');
