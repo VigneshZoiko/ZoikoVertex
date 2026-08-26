@@ -7,9 +7,39 @@ import { logger } from '../../shared/logger';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { createNotifications, getWorkspaceAdmins } from '../../services/inAppNotification.service';
+import { withRedis } from '../../shared/redis';
 
-// CSRF nonce store for OAuth state verification (5 min TTL)
+// ── OAuth CSRF nonce + PKCE store (5-min TTL) ────────────────────────────────
+// Redis-backed with an in-memory fallback. MUST be shared across instances and
+// survive restarts: the OAuth callback lands unauthenticated (often on a
+// different instance than the init call), so a per-process Map loses the nonce
+// in production and every connect fails with "Invalid/expired session".
+const NONCE_TTL_SECONDS = 5 * 60;
 const oauthNonces = new Map<string, { wsId: string; expiresAt: number; codeVerifier?: string }>();
+
+async function storeNonce(nonce: string, wsId: string, codeVerifier?: string): Promise<void> {
+  oauthNonces.set(nonce, { wsId, codeVerifier, expiresAt: Date.now() + NONCE_TTL_SECONDS * 1000 });
+  await withRedis(async (r) => { await r.set(`oauth:nonce:${nonce}`, JSON.stringify({ wsId, codeVerifier }), 'EX', NONCE_TTL_SECONDS); return true; }, false);
+}
+
+// Single-use: returns the entry (and removes it from both stores). Null if absent/expired.
+async function consumeNonceEntry(nonce: string): Promise<{ wsId: string; codeVerifier?: string } | null> {
+  let entry: { wsId: string; codeVerifier?: string } | null = null;
+  const raw = await withRedis<string | null>(async (r) => await r.get(`oauth:nonce:${nonce}`), null);
+  if (raw) { try { entry = JSON.parse(raw); } catch { /* ignore malformed */ } }
+  if (!entry) {
+    const mem = oauthNonces.get(nonce);
+    if (mem && mem.expiresAt > Date.now()) entry = { wsId: mem.wsId, codeVerifier: mem.codeVerifier };
+  }
+  oauthNonces.delete(nonce);
+  await withRedis(async (r) => { await r.del(`oauth:nonce:${nonce}`); return true; }, false);
+  return entry;
+}
+
+async function consumeNonce(nonce: string, expectedWsId: string): Promise<boolean> {
+  const entry = await consumeNonceEntry(nonce);
+  return !!entry && entry.wsId === expectedWsId;
+}
 
 export const generateOAuthNonce = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -24,32 +54,29 @@ export const generateOAuthNonce = async (req: AuthRequest, res: Response, next: 
     }
 
     const nonce = randomUUID();
-    oauthNonces.set(nonce, { wsId: workspaceId, expiresAt: Date.now() + 5 * 60 * 1000 });
+    await storeNonce(nonce, workspaceId);
     res.json({ success: true, data: { nonce } });
   } catch (err) { next(err); }
 };
 
-function consumeNonce(nonce: string, expectedWsId: string): boolean {
-  const entry = oauthNonces.get(nonce);
-  if (!entry) return false;
-  oauthNonces.delete(nonce);
-  return entry.wsId === expectedWsId && entry.expiresAt > Date.now();
-}
-
-// In-memory session store for short-lived OAuth page-selection sessions (10 min TTL)
+// ── Short-lived OAuth page-selection sessions (Redis-backed, in-memory fallback) ──
 const _sessionStore = new Map<string, { data: string; expiresAt: number }>();
 
-function setSession(key: string, value: string, ttlSeconds: number): void {
+async function setSession(key: string, value: string, ttlSeconds: number): Promise<void> {
   _sessionStore.set(key, { data: value, expiresAt: Date.now() + ttlSeconds * 1000 });
+  await withRedis(async (r) => { await r.set(`oauth:sess:${key}`, value, 'EX', ttlSeconds); return true; }, false);
 }
-function getSession(key: string): string | null {
+async function getSession(key: string): Promise<string | null> {
+  const raw = await withRedis<string | null>(async (r) => await r.get(`oauth:sess:${key}`), null);
+  if (raw !== null) return raw;
   const entry = _sessionStore.get(key);
   if (!entry) return null;
   if (Date.now() > entry.expiresAt) { _sessionStore.delete(key); return null; }
   return entry.data;
 }
-function deleteSession(key: string): void {
+async function deleteSession(key: string): Promise<void> {
   _sessionStore.delete(key);
+  await withRedis(async (r) => { await r.del(`oauth:sess:${key}`); return true; }, false);
 }
 
 /**
@@ -83,7 +110,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
     }
 
     // Verify CSRF nonce (required)
-    if (!nonce || !consumeNonce(nonce, workspaceId)) {
+    if (!nonce || !(await consumeNonce(nonce, workspaceId))) {
       logger.warn(`[Social] Facebook callback with invalid/expired nonce — possible CSRF attack`);
       return res.status(403).json({ error: 'Invalid state parameter. Please reconnect your account.' });
     }
@@ -240,7 +267,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
       workspaceId = stateParam as string;
     }
 
-    if (!nonce || !consumeNonce(nonce, workspaceId)) {
+    if (!nonce || !(await consumeNonce(nonce, workspaceId))) {
       logger.warn(`[Social] LinkedIn callback with invalid/expired nonce — possible CSRF attack`);
       return res.status(403).json({ error: 'Invalid state parameter. Please reconnect your account.' });
     }
@@ -335,7 +362,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
       logger.info(`[Social] Found ${pages.length} admin pages for workspace ${workspaceId}`);
 
       const sessionId = randomUUID();
-      setSession(`lp_session:${sessionId}`, JSON.stringify({ accessToken, workspaceId, pages }), 600);
+      await setSession(`lp_session:${sessionId}`, JSON.stringify({ accessToken, workspaceId, pages }), 600);
 
       return res.redirect(`${env.FRONTEND_URL}/accounts?status=linkedin_pages&session=${sessionId}`);
     }
@@ -383,7 +410,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 export const getLinkedInPagesSession = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { session } = req.query;
-    const raw = getSession(`lp_session:${session as string}`);
+    const raw = await getSession(`lp_session:${session as string}`);
     if (!raw) return res.status(404).json({ success: false, error: 'Session expired or not found' });
 
     const { pages } = JSON.parse(raw);
@@ -400,7 +427,7 @@ export const saveLinkedInPages = async (req: Request, res: Response, next: NextF
   try {
     const { session, selectedPageIds } = req.body as { session: string; selectedPageIds: string[] };
 
-    const raw = getSession(`lp_session:${session}`);
+    const raw = await getSession(`lp_session:${session}`);
     if (!raw) return res.status(400).json({ success: false, error: 'Session expired — please reconnect LinkedIn' });
 
     const { accessToken, workspaceId, pages } = JSON.parse(raw);
@@ -423,7 +450,7 @@ export const saveLinkedInPages = async (req: Request, res: Response, next: NextF
       if (dbError) throw dbError;
     }
 
-    deleteSession(`lp_session:${session}`);
+    await deleteSession(`lp_session:${session}`);
     logger.info(`[Social] Saved ${selectedPages.length} LinkedIn pages for workspace ${workspaceId}`);
     // Notify admins about LinkedIn page connections
     for (const page of selectedPages) {
@@ -450,7 +477,7 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !(await consumeNonce(stateObj.nonce, workspaceId))) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=pinterest&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
@@ -532,7 +559,7 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !(await consumeNonce(stateObj.nonce, workspaceId))) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=threads&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
@@ -613,7 +640,7 @@ export const initTwitterOAuth = async (req: AuthRequest, res: Response, next: Ne
     if (!workspaceId) return res.status(400).json({ error: 'Workspace not found' });
     const nonce = randomUUID();
     const codeVerifier = crypto.randomBytes(32).toString('hex');
-    oauthNonces.set(nonce, { wsId: workspaceId, expiresAt: Date.now() + 5 * 60 * 1000, codeVerifier });
+    await storeNonce(nonce, workspaceId, codeVerifier);
     res.json({ success: true, data: { nonce, codeVerifier } });
   } catch (err) { next(err); }
 };
@@ -638,20 +665,27 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
 
     let nonce: string;
     let workspaceId: string;
-    let codeVerifier: string;
+    // state comes back as the JSON we sent at authorize time. Guard each failure
+    // mode with a distinct, logged reason instead of a catch-all "Invalid session".
+    const rawState = Array.isArray(stateParam) ? stateParam[0] : stateParam;
+    if (!rawState || typeof rawState !== 'string') {
+      logger.warn({ stateParam }, '[Social] Twitter callback: missing state parameter');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Missing session state. Please try connecting again.')}`);
+    }
     try {
-      const stateObj = JSON.parse(stateParam as string);
+      const stateObj = JSON.parse(rawState);
       nonce = stateObj.nonce;
       workspaceId = stateObj.workspaceId;
-      const entry = oauthNonces.get(nonce);
-      if (!entry || entry.wsId !== workspaceId || entry.expiresAt < Date.now()) {
-        return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Session expired. Please try again.')}`);
-      }
-      codeVerifier = entry.codeVerifier || '';
-      oauthNonces.delete(nonce);
     } catch {
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Invalid session. Please try again.')}`);
+      logger.warn({ rawState }, '[Social] Twitter callback: unparseable state');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Invalid session. Please try connecting again.')}`);
     }
+    const entry = await consumeNonceEntry(nonce);
+    if (!entry || entry.wsId !== workspaceId) {
+      logger.warn({ nonce, workspaceId, found: !!entry }, '[Social] Twitter callback: nonce not found or workspace mismatch');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Session expired. Please try connecting again.')}`);
+    }
+    const codeVerifier = entry.codeVerifier || '';
 
     logger.info(`[Social] Handling Twitter callback for workspace: ${workspaceId}`);
 
@@ -830,7 +864,7 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !(await consumeNonce(stateObj.nonce, workspaceId))) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
@@ -927,7 +961,7 @@ export const handleGoogleAdsCallback = async (req: Request, res: Response, next:
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-      if (!stateObj.nonce || !consumeNonce(stateObj.nonce, workspaceId)) {
+      if (!stateObj.nonce || !(await consumeNonce(stateObj.nonce, workspaceId))) {
         return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent('Session expired. Please try again.')}`);
       }
     } catch {
