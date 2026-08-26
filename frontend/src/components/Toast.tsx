@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error';
@@ -14,11 +15,17 @@ interface ToastProps {
 
 export default function Toast({ message, type, onClose, duration = 4500 }: ToastProps) {
   const [visible, setVisible] = useState(false);
+  // Render into document.body via a portal so the toast escapes any parent
+  // stacking context (e.g. the page-transition wrapper) — otherwise the sticky
+  // header paints over it despite a high z-index.
+  const [mounted, setMounted] = useState(false);
 
   const dismiss = useCallback(() => {
     setVisible(false);
     setTimeout(onClose, 280);
   }, [onClose]);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const show = setTimeout(() => setVisible(true), 10);
@@ -28,7 +35,9 @@ export default function Toast({ message, type, onClose, duration = 4500 }: Toast
 
   const isSuccess = type === 'success';
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className={`fixed top-6 right-6 z-[9999] flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-2xl border max-w-sm min-w-[300px] transition-all duration-300 backdrop-blur-md ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'
@@ -62,6 +71,7 @@ export default function Toast({ message, type, onClose, duration = 4500 }: Toast
           }}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
