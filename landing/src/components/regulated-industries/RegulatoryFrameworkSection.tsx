@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function RegulatoryFrameworkSection() {
@@ -90,9 +91,10 @@ export default function RegulatoryFrameworkSection() {
       >
         {/* Left Column - Full Bleed Image Container */}
         <div className="relative w-full min-h-[320px] lg:min-h-0 lg:h-full overflow-hidden">
-          <img
+          <Image
             src="/images/regulated-industries/laptop.png"
             alt="Workspace documentation"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center grayscale contrast-125 opacity-60"
           />
           {/* Edge gradients for seamless transitions */}

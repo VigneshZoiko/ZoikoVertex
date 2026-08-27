@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Calendar, Shield, FileText } from "lucide-react";
 
@@ -32,9 +33,10 @@ export default function RegulatedIndustriesCtaSection() {
     <section className="relative w-full bg-[#080C10] text-white py-24 px-6 sm:px-10 lg:px-16 overflow-hidden flex items-center justify-center min-h-[520px]">
       {/* Background Image Container with Dark Overlay */}
       <div className="absolute inset-0 z-0">
-        <img
+        <Image
           src="/images/regulated-industries/cta.png"
           alt="Office background"
+          fill
           className="w-full h-full object-cover object-center grayscale contrast-125 opacity-25"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#080C10] via-[#080C10]/80 to-[#080C10]" />

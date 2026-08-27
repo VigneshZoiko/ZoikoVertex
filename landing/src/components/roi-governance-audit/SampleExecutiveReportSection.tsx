@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -153,9 +154,11 @@ export default function SampleExecutiveReportSection() {
           variants={graphicVariants}
         >
           <div className="relative w-full max-w-[580px] rounded-2xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-md">
-            <img
+            <Image
               src="/images/roi-governance-audit/report.png"
               alt="Sample Executive Report Illustration"
+              width={602}
+              height={404}
               className="w-full h-auto object-cover block"
             />
           </div>

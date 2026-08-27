@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 type Feature = {
@@ -106,10 +107,12 @@ export default function AgencyWorkflowsFeaturesSection() {
             <div
               className={`w-10 h-10 rounded-lg ${feature.colors.background} ${feature.colors.border} border flex items-center justify-center mb-4 flex-shrink-0`}
             >
-              <img
+              <Image
                 src={feature.icon}
                 alt=""
                 aria-hidden="true"
+                width={18}
+                height={18}
                 className="max-w-[18px] max-h-[18px]"
               />
             </div>

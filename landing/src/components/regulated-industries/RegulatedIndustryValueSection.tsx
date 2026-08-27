@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function RegulatedIndustryValueSection() {
@@ -69,9 +70,10 @@ export default function RegulatedIndustryValueSection() {
           className="relative w-full rounded-2xl overflow-hidden min-h-[280px] sm:min-h-[340px] flex items-center p-8 sm:p-12 lg:p-14"
         >
           {/* Background Image with Dark Gradient Overlay */}
-          <img
+          <Image
             src="/images/regulated-industries/build.png"
             alt="City skyline"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center grayscale contrast-125 opacity-40"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0C1422]/90 via-[#0C1422]/70 to-transparent" />

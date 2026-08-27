@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function BrandComplianceBusinessValueSection() {
@@ -69,9 +70,10 @@ export default function BrandComplianceBusinessValueSection() {
           className="relative w-full rounded-2xl overflow-hidden min-h-[320px] sm:min-h-[380px] flex items-center p-8 sm:p-12 lg:p-14 bg-[#111D2E]"
         >
           {/* Background Image */}
-          <img
+          <Image
             src="/images/brand-compliance/image.png"
             alt="Brand protection and compliance analytics dashboard"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center opacity-60"
           />
 

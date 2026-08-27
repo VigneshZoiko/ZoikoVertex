@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 
@@ -39,9 +40,10 @@ export default function AuditEngineHeroSection() {
     <section className="relative min-h-screen w-full bg-[#080C10] text-white overflow-hidden flex flex-col justify-between">
       {/* Background Image Layer with Gradient Overlay */}
       <div className="absolute inset-0 z-0">
-        <img
+        <Image
           src="/images/audit-engine/hero.png"
           alt="Audit engine evidence dashboard"
+          fill
           className="w-full h-full object-cover object-center contrast-125 opacity-35 mix-blend-luminosity"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#080C10] via-[#080C10]/85 to-transparent w-full lg:w-3/4 h-full" />

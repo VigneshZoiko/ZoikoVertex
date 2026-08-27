@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
@@ -153,9 +154,10 @@ export default function AgencyWorkflowsFAQSection() {
           >
             {/* Top Image with Bottom Fade */}
             <div className="relative w-full h-[220px] sm:h-[260px] overflow-hidden">
-              <img
+              <Image
                 src="/images/agency-workflows/Agency-Workflows-Demo.png"
                 alt="Agency workflows live demo"
+                fill
                 className="w-full h-full object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#080C10] via-[#080C10]/40 to-transparent" />

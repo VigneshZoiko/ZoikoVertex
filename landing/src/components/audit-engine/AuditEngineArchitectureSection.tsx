@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
@@ -73,9 +74,10 @@ export default function AuditEngineArchitectureSection() {
         >
           {/* Component 01: AUDIT TRAIL (Tall Left Card) */}
           <div className="relative group lg:col-span-4 min-h-[520px] bg-[#0C1422] flex flex-col justify-end p-6 sm:p-8">
-            <img
+            <Image
               src="/images/audit-engine/COMPONENT 01.png"
               alt="Audit Trail"
+              fill
               className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0C1422] via-[#0C1422]/80 to-transparent" />
@@ -110,9 +112,10 @@ export default function AuditEngineArchitectureSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Component 02: DECISION LEDGER (2 Cols) */}
               <div className="relative group sm:col-span-2 min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/audit-engine/COMPONENT 02.png"
                   alt="Decision Ledger"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -128,9 +131,10 @@ export default function AuditEngineArchitectureSection() {
 
               {/* Component 03: EVIDENCE VAULT */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/audit-engine/COMPONENT 03.png"
                   alt="Evidence Vault"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -149,9 +153,10 @@ export default function AuditEngineArchitectureSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Component 04: FORENSIC HUB */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/audit-engine/COMPONENT 04.png"
                   alt="Forensic Hub"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -167,9 +172,10 @@ export default function AuditEngineArchitectureSection() {
 
               {/* Component 05: IDENTITY LEDGER */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/audit-engine/COMPONENT 05.png"
                   alt="Identity Ledger"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -185,9 +191,10 @@ export default function AuditEngineArchitectureSection() {
 
               {/* CROSS-LAYER LINKAGE */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/audit-engine/COMPONENT 06.png"
                   alt="Cross-layer linkage"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 

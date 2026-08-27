@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function AgencyCampaignLifecycleSection() {
@@ -98,9 +99,10 @@ export default function AgencyCampaignLifecycleSection() {
       >
         {/* Left Column - Image Container */}
         <div className="relative w-full min-h-[360px] lg:min-h-0 lg:h-full overflow-hidden">
-          <img
+          <Image
             src="/images/marketing-ops/left.png"
             alt="Agency team working through a client campaign"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#080C10]/60" />

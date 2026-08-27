@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -80,9 +81,11 @@ export default function RunROIAuditSection() {
           variants={graphicVariants}
         >
           <div className="relative w-full rounded-2xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.85)] backdrop-blur-md">
-            <img
+            <Image
               src="/images/roi-governance-audit/roi.png"
               alt="Interactive Diagnostic - Run the ROI & Governance Audit Illustration"
+              width={1132}
+              height={570}
               className="w-full h-auto object-cover block"
             />
           </div>

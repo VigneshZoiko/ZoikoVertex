@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function AgencyPainPointsSection() {
@@ -95,10 +96,12 @@ export default function AgencyPainPointsSection() {
             >
               {/* Icon Container */}
               <div className="w-10 h-10 rounded-xl bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center mb-6 shrink-0">
-                <img
+                <Image
                   src={item.icon}
                   alt=""
                   aria-hidden="true"
+                  width={18}
+                  height={18}
                   className="max-w-[18px] max-h-[18px]"
                 />
               </div>

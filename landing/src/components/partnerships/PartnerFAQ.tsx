@@ -180,7 +180,7 @@ export default function PartnerFAQ() {
                 </span>
 
                 <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3 leading-snug">
-                  Talk to alliances before applying if it's a strategic
+                  Talk to alliances before applying if it&apos;s a strategic
                   discussion.
                 </h3>
 

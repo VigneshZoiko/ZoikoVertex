@@ -51,7 +51,7 @@ export default function TalkToSalesSection() {
           {/* Description */}
           <p className="text-sm text-[#B9C2D0] max-w-xl leading-relaxed font-normal">
             Tell us where you are — evaluation, procurement, or ready to deploy
-            — and we'll route you directly to the specialist who can move you
+            — and we&apos;ll route you directly to the specialist who can move you
             forward. No generic queue. No pricing pressure.
           </p>
 
@@ -105,7 +105,7 @@ export default function TalkToSalesSection() {
           <div>
             <h3 className="text-xl font-bold text-white mb-1">Talk to sales</h3>
             <p className="text-xs text-slate-400">
-              Four fields to start — we'll route you to the right specialist
+              Four fields to start — we&apos;ll route you to the right specialist
               automatically.
             </p>
           </div>

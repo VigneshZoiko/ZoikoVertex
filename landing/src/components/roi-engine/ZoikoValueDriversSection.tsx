@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 import { Clock, TrendingUp, RefreshCw, ShieldCheck } from "lucide-react";
 
@@ -120,9 +121,10 @@ export default function ZoikoValueDriversSection() {
               >
                 {/* Top Image Preview Area with Grayscale Filter & Fade Overlay */}
                 <div className="relative w-full h-40 bg-[#162032] overflow-hidden">
-                  <img
+                  <Image
                     src={driver.imageSrc}
                     alt={driver.title}
+                    fill
                     className="w-full h-full object-cover grayscale group-hover:scale-105 transition-all duration-500"
                   />
                   {/* Bottom Gradient Overlay for Smooth Transition */}

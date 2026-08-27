@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function MarOpsRolesSection() {
@@ -112,9 +113,10 @@ export default function MarOpsRolesSection() {
               className="relative group min-h-[480px] sm:min-h-[520px] bg-[#0B1117] flex flex-col justify-end p-5 sm:p-6 overflow-hidden"
             >
               {/* Background Image */}
-              <img
+              <Image
                 src={item.image}
                 alt={item.role}
+                fill
                 className="absolute inset-0 w-full h-full object-cover object-center contrast-125 transition-transform duration-500 group-hover:scale-105"
               />
 

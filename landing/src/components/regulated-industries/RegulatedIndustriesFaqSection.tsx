@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
@@ -144,9 +145,10 @@ export default function RegulatedIndustriesFaqSection() {
           <div className="lg:col-span-5 relative group border border-white/10 rounded-2xl overflow-hidden flex flex-col justify-end min-h-[460px]">
             {/* Top Image Preview with Dark Radial Gradient Mask */}
             <div className="relative w-full h-[220px] overflow-hidden">
-              <img
+              <Image
                 src="/images/regulated-industries/faq.png"
                 alt="Office architecture"
+                fill
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0B1117] via-[#0B1117]/40 to-transparent" />

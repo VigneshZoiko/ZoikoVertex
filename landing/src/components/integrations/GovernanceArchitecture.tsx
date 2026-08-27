@@ -131,7 +131,7 @@ export default function GovernanceArchitecture() {
             <span>GOVERNED INTEGRATION ARCHITECTURE</span>
           </div>
           <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight leading-tight">
-            Integrations shouldn't bypass
+            Integrations shouldn&apos;t bypass
             <br />
             governance.
           </h1>

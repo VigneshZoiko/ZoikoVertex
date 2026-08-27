@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function RegulatedIndustryRolesSection() {
@@ -117,9 +118,10 @@ export default function RegulatedIndustryRolesSection() {
               className="relative group min-h-[460px] sm:min-h-[500px] bg-[#0B1117] flex flex-col justify-end p-5 sm:p-6"
             >
               {/* Background Image */}
-              <img
+              <Image
                 src={item.image}
                 alt={item.role}
+                fill
                 className="absolute inset-0 w-full h-full object-cover contrast-110 transition-transform duration-500"
               />
 

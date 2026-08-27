@@ -79,11 +79,11 @@ export default function PartnerTestimonialSection() {
               variants={itemVariants}
               className="text-xl sm:text-2xl md:text-3xl font-medium tracking-tight text-white leading-snug mb-10"
             >
-              "ZoikoVertex is not a tool we resell. It is the governance
+              &quot;ZoikoVertex is not a tool we resell. It is the governance
               architecture we build our enterprise AI practice around. The
               evidence layer, the approval workflows, and the auditability
               posture give our clients something they cannot find anywhere else
-              in the market."
+              in the market.&quot;
             </motion.blockquote>
 
             {/* Attribution Box */}

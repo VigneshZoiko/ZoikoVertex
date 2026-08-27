@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 
@@ -154,9 +155,10 @@ export default function BrandComplianceFAQSection() {
           >
             {/* Top Image with Fade Overlay */}
             <div className="relative w-full h-[220px] sm:h-[260px] overflow-hidden">
-              <img
+              <Image
                 src="/images/brand-compliance/paper.png"
                 alt="Brand and compliance governance live workflow demo"
+                fill
                 className="w-full h-full object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0C1422] via-[#0C1422]/40 to-transparent" />

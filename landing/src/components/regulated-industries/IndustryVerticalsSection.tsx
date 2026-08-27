@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
@@ -73,9 +74,10 @@ export default function IndustryVerticalsSection() {
         >
           {/* Card 1: Financial Services & Fintech (Full Height Left Card - Top Left & Bottom Left Corners) */}
           <div className="relative group lg:col-span-4 min-h-[520px] flex flex-col justify-end p-6 sm:p-8">
-            <img
+            <Image
               src="/images/regulated-industries/1.png"
               alt="Financial Services & Fintech"
+              fill
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30" />
@@ -110,9 +112,10 @@ export default function IndustryVerticalsSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Card 2: Healthcare & Life Sciences */}
               <div className="relative group sm:col-span-2 min-h-[250px] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/regulated-industries/2.png"
                   alt="Healthcare & Life Sciences"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
@@ -130,9 +133,10 @@ export default function IndustryVerticalsSection() {
 
               {/* Card 3: Enterprise Retail (Top Right Corner) */}
               <div className="relative group min-h-[250px] bg-[#0B1117] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/regulated-industries/3.png"
                   alt="Enterprise Retail"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
@@ -153,9 +157,10 @@ export default function IndustryVerticalsSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Card 4: Telecommunications */}
               <div className="relative group min-h-[250px] bg-[#0B1117] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/regulated-industries/4.png"
                   alt="Telecommunications"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
@@ -173,9 +178,10 @@ export default function IndustryVerticalsSection() {
 
               {/* Card 5: B2B SaaS & Technology */}
               <div className="relative group min-h-[250px] bg-[#0B1117] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/regulated-industries/5.png"
                   alt="B2B SaaS & Technology"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
@@ -193,9 +199,10 @@ export default function IndustryVerticalsSection() {
 
               {/* Card 6: Logistics & Supply Chain (Bottom Right Corner) */}
               <div className="relative group min-h-[250px] bg-[#0B1117] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/regulated-industries/6.png"
                   alt="Logistics & Supply Chain"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />

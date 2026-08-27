@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Calendar, Workflow, Check } from "lucide-react";
 
@@ -31,9 +32,10 @@ export default function MarOpsCallToActionSection() {
   return (
     <section className="relative w-full min-h-[520px] sm:min-h-[600px] flex items-center justify-center bg-[#080C10] text-white overflow-hidden py-20 px-6 sm:px-10 lg:px-16">
       {/* Background Office Image with Dark Overlay Vignette */}
-      <img
+      <Image
         src="/images/marketing-ops/cta.png"
         alt="Marketing operations office background"
+        fill
         className="absolute inset-0 w-full h-full object-cover object-center brightness-75 contrast-125 opacity-30"
       />
       <div className="absolute inset-0 bg-[#080C10]/85 z-[1]" />

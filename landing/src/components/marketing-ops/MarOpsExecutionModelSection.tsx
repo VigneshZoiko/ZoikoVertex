@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function MarOpsExecutionModelSection() {
@@ -84,9 +85,10 @@ export default function MarOpsExecutionModelSection() {
       >
         {/* Left Column - Image Container */}
         <div className="relative w-full min-h-[360px] lg:min-h-0 lg:h-full overflow-hidden">
-          <img
+          <Image
             src="/images/marketing-ops/left.png"
             alt="Marketing operations team meeting"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
         </div>

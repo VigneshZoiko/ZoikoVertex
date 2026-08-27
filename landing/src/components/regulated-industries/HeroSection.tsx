@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 
@@ -51,9 +52,10 @@ export default function HeroSection() {
     <section className="relative min-h-screen w-full bg-[#0B0F15] text-white overflow-hidden flex flex-col justify-between">
       {/* Background Image Layer with Overlay */}
       <div className="absolute inset-0 z-0">
-        <img
+        <Image
           src="/images/regulated-industries/hero.png"
           alt="Modern Architecture Interior"
+          fill
           className="w-full h-full object-cover object-center grayscale contrast-125 opacity-40 mix-blend-luminosity"
         />
         {/* Dark Vignette / Gradient overlays for precise text contrast */}

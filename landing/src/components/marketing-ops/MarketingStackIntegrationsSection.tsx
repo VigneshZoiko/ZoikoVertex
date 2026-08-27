@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function MarketingStackIntegrationsSection() {
@@ -76,9 +77,10 @@ export default function MarketingStackIntegrationsSection() {
       >
         {/* Left Column - Image Container */}
         <div className="relative w-full min-h-[400px] lg:min-h-full overflow-hidden">
-          <img
+          <Image
             src="/images/marketing-ops/code.png"
             alt="Development laptop displaying source code"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
         </div>

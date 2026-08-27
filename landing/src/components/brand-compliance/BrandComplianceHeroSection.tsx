@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
 
@@ -50,9 +51,10 @@ export default function BrandComplianceHeroSection() {
   return (
     <section className="relative w-full min-h-[640px] lg:min-h-[720px] flex items-center bg-[#080C10] text-white overflow-hidden py-20 px-6 sm:px-10 lg:px-16">
       {/* Background Image with Dark Vignette Overlay */}
-      <img
+      <Image
         src="/images/brand-compliance/hero.png"
         alt="Team reviewing brand & compliance assets in conference room"
+        fill
         className="absolute inset-0 w-full h-full object-cover object-center brightness-75 contrast-125 opacity-40"
       />
       {/* <div className="absolute inset-0 bg-[#080C10]/80 z-[1]" /> */}

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 import { Calculator, FileText } from "lucide-react";
 
@@ -30,9 +31,10 @@ export default function ZoikoRoiHeroSection() {
     <section className="relative w-full min-h-[600px] lg:min-h-[680px] flex items-center bg-[#0d0f12] overflow-hidden py-16 px-6 font-sans text-white">
       {/* Background Image Container */}
       <div className="absolute inset-0 z-0">
-        <img
+        <Image
           src="/images/roi-engine/hero.png"
           alt="Laptop background with overlay"
+          fill
           className="w-full h-full object-cover object-center opacity-40"
         />
       </div>

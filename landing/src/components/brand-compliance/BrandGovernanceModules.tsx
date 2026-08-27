@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function ComplianceArchitectureSection() {
@@ -122,9 +123,10 @@ export default function ComplianceArchitectureSection() {
             >
               {/* Image Container with Rounded Corner and Gradient Overlay */}
               <div className="relative w-full h-44 mb-6 rounded-xl overflow-hidden bg-black/30">
-                <img
+                <Image
                   src={card.imgSrc}
                   alt={card.title}
+                  fill
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#111D2E] via-transparent to-transparent opacity-90" />

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
 
@@ -163,9 +164,10 @@ export default function ZoikoGovernanceRoiSection() {
             <div className="relative rounded-2xl overflow-hidden min-h-[480px] lg:min-h-[580px] flex flex-col justify-end p-6">
               {/* Background Image / Overlay */}
               <div className="absolute inset-0 z-0">
-                <img
+                <Image
                   src="/images/roi-engine/laptop.png" // Add your image asset URL here (e.g., /images/governance-vault.jpg)
                   alt="Governance Vault & Evidence Interface"
+                  fill
                   className="w-full h-full object-contain"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0b121e] via-[#0b121e]/40 to-transparent" />

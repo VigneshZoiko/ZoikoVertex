@@ -102,9 +102,11 @@ export default function ROIAuditHeroSection() {
           variants={graphicVariants}
         >
           <div className="relative w-full max-w-[560px] rounded-2xl overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.8)]">
-            <img
+            <Image
               src="/images/roi-governance-audit/hero.png"
               alt="ROI Governance Audit Illustration"
+              width={516}
+              height={389}
               className="w-full h-auto object-cover block"
             />
           </div>

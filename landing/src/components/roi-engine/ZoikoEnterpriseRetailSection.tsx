@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 import { ArrowRight, Store, ShieldCheck, BarChart3 } from "lucide-react";
 
@@ -58,9 +59,10 @@ export default function ZoikoEnterpriseRetailSection() {
       <div className="w-full grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
         {/* Left Column: Flush to Edge Image (No padding on left) */}
         <div className="lg:col-span-6 relative w-full h-80 sm:h-96 lg:h-full overflow-hidden">
-          <img
+          <Image
             src="/images/roi-engine/clothes.png" // Replace with your retail store asset path e.g., /images/retail-store.jpg
             alt="Enterprise Retail Store Environment"
+            fill
             className="w-full h-full object-cover object-center"
           />
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
@@ -65,9 +66,10 @@ export default function AgencyWorkflowPlatformSection() {
         >
           {/* Card 1: BRIEF INTAKE & SCOPING (Tall Left Card) */}
           <div className="relative group lg:col-span-4 min-h-[520px] bg-[#0C1422] flex flex-col justify-end p-6 sm:p-8">
-            <img
+            <Image
               src="/images/agency-workflows/Brief-Intake-Scoping.png"
               alt="Brief intake and scoping"
+              fill
               className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0C1422] via-[#0C1422]/80 to-transparent" />
@@ -102,9 +104,10 @@ export default function AgencyWorkflowPlatformSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Card 2: AI CONTENT GENERATION (2 Cols) */}
               <div className="relative group sm:col-span-2 min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/agency-workflows/AI-Content-Generation.png"
                   alt="AI content generation"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -121,9 +124,10 @@ export default function AgencyWorkflowPlatformSection() {
 
               {/* Card 3: CLIENT APPROVAL FLOWS */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/agency-workflows/Client-Approval-Flows.png"
                   alt="Client approval flows"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -143,9 +147,10 @@ export default function AgencyWorkflowPlatformSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Card 4: REVISION TRACKING */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/agency-workflows/Revision-Tracking.png"
                   alt="Revision tracking"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -162,9 +167,10 @@ export default function AgencyWorkflowPlatformSection() {
 
               {/* Card 5: MULTI-CLIENT WORKSPACES */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/agency-workflows/Multi-Client-Workspaces.png"
                   alt="Multi-client workspaces"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 
@@ -181,9 +187,10 @@ export default function AgencyWorkflowPlatformSection() {
 
               {/* Card 6: IP & CONTENT EVIDENCE */}
               <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
-                <img
+                <Image
                   src="/images/agency-workflows/IP-Content-Evidence.png"
                   alt="IP and content evidence"
+                  fill
                   className="absolute inset-0 w-full h-full object-cover opacity-50 transition-transform duration-500"
                 />
 

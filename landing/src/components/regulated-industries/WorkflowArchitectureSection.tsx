@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function WorkflowArchitectureSection() {
@@ -75,9 +76,10 @@ export default function WorkflowArchitectureSection() {
       >
         {/* Left Column - Image Container with relative aspect alignment */}
         <div className="relative w-full min-h-[320px] lg:min-h-0 lg:h-full overflow-hidden">
-          <img
+          <Image
             src="/images/regulated-industries/paper.png"
             alt="Newspaper texture background"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center grayscale contrast-125 opacity-70"
           />
           {/* Subtle blend edge for seamless integration */}

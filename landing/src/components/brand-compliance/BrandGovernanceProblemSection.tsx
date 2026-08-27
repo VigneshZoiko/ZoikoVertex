@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function BrandGovernanceProblemSection() {
@@ -69,9 +70,10 @@ export default function BrandGovernanceProblemSection() {
       >
         {/* Left Column - Image Container */}
         <div className="relative w-full min-h-[360px] lg:min-h-0 lg:h-full overflow-hidden">
-          <img
+          <Image
             src="/images/brand-compliance/left.png"
             alt="Brand governance problem concept"
+            fill
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
         </div>

@@ -735,7 +735,7 @@ export default function DpaDocumentationLayout() {
                 </div>
                 <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed">
                   The processing schedule defines the core parameters of
-                  ZoikoVertex's role as processor or service provider for
+                  ZoikoVertex&apos;s role as processor or service provider for
                   customer personal data. This summary reflects the intended DPA
                   position and must be confirmed by counsel before publication.
                 </p>
@@ -1344,7 +1344,7 @@ export default function DpaDocumentationLayout() {
               <div className="p-4 sm:p-5 rounded-xl bg-white shadow-sm border-l-4 border-l-[#00D2B4]">
                 <p className="text-xs text-[#64748B] leading-relaxed">
                   <strong className="text-[#0F172A] font-semibold">
-                    Not a data subject's direct contact point:
+                    Not a data subject&apos;s direct contact point:
                   </strong>{" "}
                   ZoikoVertex is generally processor for customer data. Data
                   subjects should direct access, deletion, and correction
@@ -1422,7 +1422,7 @@ export default function DpaDocumentationLayout() {
                   <strong className="text-[#0F172A] font-semibold">
                     Customer data minimization:
                   </strong>{" "}
-                  ZoikoVertex's position is to retain customer personal data
+                  ZoikoVertex&apos;s position is to retain customer personal data
                   only as long as reasonably necessary for the stated purpose,
                   security, legal obligations, dispute resolution, and the
                   agreement. Customers may configure retention settings within
@@ -1500,7 +1500,7 @@ export default function DpaDocumentationLayout() {
                   publicly unless operationally guaranteed and approved by
                   legal. The DPA defines the applicable notification commitment.
                   The 72-hour GDPR supervisory authority window applies to the
-                  customer as controller — ZoikoVertex's obligation to the
+                  customer as controller — ZoikoVertex&apos;s obligation to the
                   customer as processor is defined contractually.
                 </p>
               </div>

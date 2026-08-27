@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function AuditEngineDeepDiveSection() {
@@ -143,9 +144,10 @@ export default function AuditEngineDeepDiveSection() {
             >
               {/* Card Image with Bottom Fade */}
               <div className="relative w-full h-[160px] overflow-hidden">
-                <img
+                <Image
                   src={layer.image}
                   alt={layer.tag}
+                  fill
                   className="w-full h-full object-cover object-center"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B1117]/40 to-[#0B1117]" />

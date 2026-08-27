@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import {
   Database,
@@ -67,7 +68,7 @@ export default function ZoikoIntegrationsHeroSection() {
             variants={itemVariants}
             className="text-xs tracking-wider text-slate-500 font-mono flex items-center space-x-1"
           >
-            <a href="/">Home</a>
+            <Link href="/">Home</Link>
             <span>/</span>
             <a href="#">Platform</a>
             <span>/</span>

@@ -89,7 +89,7 @@ export default function IntegrationHealthObservability() {
           </h2>
 
           <p className="text-[14px] leading-[1.6] text-[#8E9AAB] font-normal pt-1">
-            Every connected system stays observable — so silent failures don't
+            Every connected system stays observable — so silent failures don&apos;t
             become workflow disruptions, and gaps become expansion paths.
           </p>
         </motion.header>

@@ -47,7 +47,7 @@ export default function WhoShouldContactSales() {
             Built for the people who own the outcome.
           </h2>
           <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed max-w-110">
-            If you're accountable for marketing spend, governance, or the
+            If you&apos;re accountable for marketing spend, governance, or the
             systems that touch either, this is your front door.
           </p>
         </div>

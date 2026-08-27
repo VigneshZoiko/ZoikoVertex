@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { ShieldCheck, Building2, ClipboardCheck, Lock } from "lucide-react";
 
 interface Badge {
@@ -20,9 +21,10 @@ export default function ResponsibleAiCulture() {
     <div className="flex min-h-screen w-full flex-col bg-[#0b0f1a] lg:flex-row">
       {/* Left - Image */}
       <div className="relative h-[320px] w-full lg:h-screen lg:w-1/2">
-        <img
+        <Image
           src="/images/careers/left.png"
           alt="Hand using a stylus on a tablet beside a keyboard and open magazine"
+          fill
           className="h-full w-full object-cover grayscale"
         />
       </div>
