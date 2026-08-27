@@ -173,7 +173,7 @@ import {
   listWorkflowChains,
 } from './domains/governance/routingController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
-import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
+import { getBrandProfiles, createBrandProfile, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages, generateOAuthNonce, initTwitterOAuth } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost, getSchedulerHealth, getBestSlot } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts, bulkAssignPixel } from './domains/campaigns/campaignsController';
@@ -807,6 +807,7 @@ app.get('/api/v1/search', authenticate, scopeGuard('read:content', '*'), perform
 
 // Protected Brand Standards & Content Governance
 app.get('/api/v1/governance/brand/profiles', authenticate, govGuard, scopeGuard('read:governance', '*'), getBrandProfiles);
+app.post('/api/v1/governance/brand/profiles', authenticate, govGuard, scopeGuard('write:governance', '*'), createBrandProfile);
 app.get('/api/v1/governance/brand/linguistic', authenticate, govGuard, scopeGuard('read:governance', '*'), getLinguisticProfile);
 app.get('/api/v1/governance/brand/claims', authenticate, govGuard, scopeGuard('read:governance', '*'), getClaimsLedger);
 app.post('/api/v1/governance/brand/rules', authenticate, govGuard, scopeGuard('read:governance', '*'), updateBrandRule);

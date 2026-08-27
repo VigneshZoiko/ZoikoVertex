@@ -8,6 +8,7 @@ import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { createNotifications, getWorkspaceAdmins } from '../../services/inAppNotification.service';
 import { withRedis } from '../../shared/redis';
+import { checkWorkspaceCapacity } from '../../shared/commercialState';
 
 // ── OAuth CSRF nonce + PKCE store (5-min TTL) ────────────────────────────────
 // Redis-backed with an in-memory fallback. MUST be shared across instances and
@@ -51,6 +52,15 @@ export const generateOAuthNonce = async (req: AuthRequest, res: Response, next: 
     // a nonce for their own workspace and tricks a victim into completing OAuth.
     if (req.user?.workspace_id && req.user.workspace_id !== workspaceId) {
       return res.status(403).json({ error: 'Forbidden: workspace does not belong to the authenticated user' });
+    }
+
+    // §4 — enforce the plan's connected-profile cap before starting OAuth.
+    // At-cap workspaces must remove a profile (or upgrade) before adding another.
+    if (!req.user?.is_superadmin) {
+      const cap = await checkWorkspaceCapacity(workspaceId, 'profiles');
+      if (!cap.ok) {
+        return res.status(403).json({ error: cap.message, upgrade_required: true, current: cap.current, cap: cap.cap });
+      }
     }
 
     const nonce = randomUUID();
@@ -638,6 +648,13 @@ export const initTwitterOAuth = async (req: AuthRequest, res: Response, next: Ne
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(400).json({ error: 'Workspace not found' });
+    // §4 — enforce connected-profile cap before starting OAuth.
+    if (!req.user?.is_superadmin) {
+      const cap = await checkWorkspaceCapacity(workspaceId, 'profiles');
+      if (!cap.ok) {
+        return res.status(403).json({ error: cap.message, upgrade_required: true, current: cap.current, cap: cap.cap });
+      }
+    }
     const nonce = randomUUID();
     const codeVerifier = crypto.randomBytes(32).toString('hex');
     await storeNonce(nonce, workspaceId, codeVerifier);

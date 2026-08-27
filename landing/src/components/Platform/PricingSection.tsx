@@ -27,14 +27,14 @@ const plans = [
     featured: false,
   },
   {
-    price: "$399/MO · $299 ANNUAL",
+    price: "$299/MO",
     name: "Growth",
     desc: "Run governed campaigns with AI-assisted execution — approvals, publishing, engagement, and audit-ready operation for one brand team.",
     cta: "Start Trial",
     featured: false,
   },
   {
-    price: "$999/MO · $799 ANNUAL",
+    price: "$799/MO",
     name: "Scale",
     desc: "Coordinate multi-team, multi-brand operations with advanced approvals, full Brand Library, Crisis Console, and cross-brand intelligence.",
     cta: "Book Strategy Call",

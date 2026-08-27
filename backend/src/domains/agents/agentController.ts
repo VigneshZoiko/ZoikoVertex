@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { isAutonomousLevel, autonomousExecutionAllowed } from '../../shared/commercialState';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { getAgentCapabilities as fetchAgentCapabilities } from '../../services/agentCapability.service';
 import { getAgentVersions as fetchAgentVersions, rollbackAgentVersion as doRollback, createAgentVersion } from '../../services/agentVersion.service';
@@ -1078,6 +1079,24 @@ export const updateAutonomy = async (req: Request, res: Response, next: NextFunc
 
     if (!['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6'].includes(autonomy_level)) {
       return res.status(400).json({ success: false, message: 'Invalid autonomy level. Valid: L0–L6' });
+    }
+
+    // §6/§8 — Autonomous Mode (L4–L6) requires an active paid subscription.
+    // Trials and free tiers are capped at Assisted (L0–L3). Superadmins bypass.
+    const authReq = req as AuthRequest;
+    if (isAutonomousLevel(autonomy_level) && !authReq.user?.is_superadmin && authReq.user?.workspace_id) {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('subscription_status, plan_type')
+        .eq('id', authReq.user.workspace_id)
+        .single();
+      if (ws && !autonomousExecutionAllowed(ws)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Autonomous Mode (L4–L6) requires an active paid subscription. Your current plan is limited to Assisted execution (L0–L3). Upgrade to enable autonomy.',
+          upgrade_required: true,
+        });
+      }
     }
 
     const { data, error } = await supabaseAdmin

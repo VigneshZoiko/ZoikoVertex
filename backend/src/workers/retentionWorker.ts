@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { logger } from '../shared/logger';
 import { logAuditEvent } from '../domains/governance/evidenceController';
+import { PLAN_CAPS } from '../shared/commercialState';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -321,6 +322,7 @@ async function checkExpiredBillingRecords(workspaceId: string) {
 async function enforceForWorkspace(workspaceId: string) {
   // Load retention settings for this workspace
   let settings: Record<string, any> = { ...DEFAULT_RETENTION };
+  let explicitContentHistory = false;
   try {
     const { data: wsSettings, error } = await supabaseAdmin
       .from('workspace_retention_settings')
@@ -329,9 +331,33 @@ async function enforceForWorkspace(workspaceId: string) {
       .single();
     if (wsSettings && !error) {
       settings = { ...settings, ...wsSettings };
+      explicitContentHistory = wsSettings.content_history_months != null;
     }
   } catch {
     // Table not yet created — use hardcoded policy defaults
+  }
+
+  // ZV-COM-BILL-001 §4/§12 — plan-based standard-history window: Growth = 12mo,
+  // Scale = 24mo. Only applies to non-evidence content history; the 84-month
+  // evidence/published retention is unaffected. Explicit per-workspace settings
+  // (e.g. an Enterprise contract) always win. Fails to the safe default.
+  if (!explicitContentHistory) {
+    try {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('plan_type')
+        .eq('id', workspaceId)
+        .single();
+      const plan = (ws?.plan_type ?? 'FREE').toUpperCase();
+      const planMonths = PLAN_CAPS[plan]?.historyMonths;
+      // Only Growth(12)/Scale(24) define a positive window. null (Free/Starter —
+      // not yet approved) and -1 (Enterprise — contract/unlimited) keep the default.
+      if (typeof planMonths === 'number' && planMonths > 0) {
+        settings.content_history_months = planMonths;
+      }
+    } catch {
+      // keep default on any lookup error
+    }
   }
 
   // Run all categories in parallel. Each is independently try/caught so a

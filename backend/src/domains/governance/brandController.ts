@@ -2,6 +2,54 @@ import { Response } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logAuditEvent } from './evidenceController';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { checkWorkspaceCapacity } from '../../shared/commercialState';
+
+// Create a Brand Profile (e.g. "Cosmetics", "Food") within the workspace.
+// ZV-COM-BILL-001 §4 — enforces the plan's brand cap (Growth 1 / Scale 5).
+export const createBrandProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    if (!workspaceId) return res.status(400).json({ success: false, error: 'Workspace context required' });
+
+    const { name, description, audience } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ success: false, error: 'Brand name is required' });
+
+    // §4 — plan brand cap. Superadmins bypass. Fails open inside the helper.
+    if (!req.user?.is_superadmin) {
+      const cap = await checkWorkspaceCapacity(workspaceId, 'brands');
+      if (!cap.ok) {
+        return res.status(403).json({ success: false, error: cap.message, upgrade_required: true, current: cap.current, cap: cap.cap });
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('brand_profiles')
+      .insert({
+        workspace_id: workspaceId,
+        name: String(name).trim(),
+        description: description ?? null,
+        audience: audience ?? null,
+        status: 'ACTIVE',
+      })
+      .select('*')
+      .single();
+    if (error) throw error;
+
+    await logAuditEvent({
+      workspaceId,
+      actorId: userId,
+      module: 'Brand',
+      action: `Created brand "${String(name).trim()}"`,
+      metadata: { brand_id: data.id },
+    });
+
+    res.status(201).json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to create brand' });
+  }
+};
 
 // 1. Get Brand Profiles
 export const getBrandProfiles = async (req: AuthRequest, res: Response) => {
