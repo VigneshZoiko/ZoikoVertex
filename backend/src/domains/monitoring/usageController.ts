@@ -631,6 +631,7 @@ export const purchaseStorageAddon = async (req: AuthRequest, res: Response, next
       net_amount:  pack.priceUsd,
       type:        'DEBIT',
       status:      'AVAILABLE',
+      revenue_class: 'ADDON', // §21 — ZoikoVertex catalog add-on revenue
       description: addonDesc,
       currency:    'USD',
     }).then(() => {}, () => {});
@@ -779,6 +780,7 @@ async function settleAiOverage(workspaceId: string, tokensThisCall: number): Pro
         net_amount: charge,
         type:       'DEBIT',
         status:     'AVAILABLE',
+        revenue_class: 'ADDON', // §21 — ZoikoVertex usage/overage revenue (rate is 0 at launch per §11)
         description: overageDesc,
         currency:   'USD',
       }).then(() => {}, () => {});

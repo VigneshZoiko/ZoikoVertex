@@ -213,3 +213,87 @@ export function assertClassificationChargeable(classification: string | null | u
   }
   return null;
 }
+
+// §6/§8 — execution-mode entitlement. Autonomy levels L0–L3 are "Assisted";
+// L4–L6 are "Autonomous". Autonomous Mode requires an active paid subscription —
+// self-serve trials and free tiers are capped at Assisted.
+export const ASSISTED_AUTONOMY_LEVELS = ['L0', 'L1', 'L2', 'L3'] as const;
+export const AUTONOMOUS_AUTONOMY_LEVELS = ['L4', 'L5', 'L6'] as const;
+
+export function isAutonomousLevel(level: string | null | undefined): boolean {
+  return AUTONOMOUS_AUTONOMY_LEVELS.includes((level ?? '') as (typeof AUTONOMOUS_AUTONOMY_LEVELS)[number]);
+}
+
+export function autonomousExecutionAllowed(input: { subscription_status?: string | null; plan_type?: string | null }): boolean {
+  const status = input.subscription_status ?? 'FREE_ACTIVE';
+  const plan = (input.plan_type ?? 'FREE').toUpperCase();
+  if (status === 'TRIAL_GROWTH') return false;          // §6 — trial max = Assisted
+  if (plan === 'FREE' || plan === 'STARTER') return false; // free tier = Assisted only
+  return true;
+}
+
+// §4/§5/§7 — plan capacity enforcement. Counts current usage against PLAN_CAPS.
+// FAILS OPEN: any lookup error returns { ok: true } so a resolver bug can never
+// block a legitimate connect/invite — it simply doesn't enforce until fixed.
+export type CapacityResource = 'profiles' | 'brands' | 'users';
+
+export async function checkWorkspaceCapacity(
+  workspaceId: string,
+  resource: CapacityResource,
+): Promise<{ ok: boolean; current: number; cap: number; message?: string }> {
+  try {
+    const { data: ws } = await supabaseAdmin
+      .from('workspaces')
+      .select('plan_type')
+      .eq('id', workspaceId)
+      .single();
+    const plan = (ws?.plan_type ?? 'FREE').toUpperCase();
+    const caps = PLAN_CAPS[plan] ?? PLAN_CAPS.FREE;
+
+    let cap: number;
+    let current = 0;
+    if (resource === 'profiles') {
+      cap = caps.profiles;
+      const { count } = await supabaseAdmin
+        .from('connected_accounts')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'active');
+      current = count ?? 0;
+    } else if (resource === 'brands') {
+      // Brand entities are brand_profiles scoped to the workspace. NOTE: there is
+      // currently no create-brand API endpoint, so this branch is ready but not
+      // yet wired — hook it into that endpoint when brand creation ships.
+      cap = caps.brands;
+      const { count } = await supabaseAdmin
+        .from('brand_profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId);
+      current = count ?? 0;
+    } else {
+      // users — only INTERNAL_USER seats count; external collaborators are
+      // non-billable and never consume licensed capacity (§5).
+      cap = caps.users;
+      const { count } = await supabaseAdmin
+        .from('workspace_members')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId)
+        .eq('identity_class', 'INTERNAL_USER');
+      current = count ?? 0;
+    }
+
+    if (cap === -1) return { ok: true, current, cap }; // unlimited (Enterprise)
+    if (current >= cap) {
+      return {
+        ok: false,
+        current,
+        cap,
+        message: `Your plan includes up to ${cap} ${resource}. You currently have ${current}. Upgrade your plan or remove one to add another.`,
+      };
+    }
+    return { ok: true, current, cap };
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : err, workspaceId, resource }, '[CommercialState] capacity check failed — allowing (fail-open)');
+    return { ok: true, current: 0, cap: -1 };
+  }
+}

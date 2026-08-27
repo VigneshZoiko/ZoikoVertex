@@ -1230,6 +1230,7 @@ export const createSubscription = async (req: AuthRequest, res: Response, _next:
       amount:      planAmount,
       net_amount:  planAmount,
       currency:    'USD',
+      revenue_class: 'SUBSCRIPTION', // §21 — ZoikoVertex recurring plan revenue
       description: `${plan.toUpperCase()} plan subscription - monthly`,
       stripe_charge_id: subChargeId,
       available_at: new Date().toISOString(),

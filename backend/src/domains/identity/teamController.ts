@@ -6,6 +6,7 @@ import { logAuditEvent } from '../governance/evidenceController';
 import { createAuditEvent } from '../../services/auditTrail.service';
 import { syncActorAfterRoleChange } from '../../services/identityLedger.service';
 import { preserveEvidence } from '../../services/evidenceVault.service';
+import { checkWorkspaceCapacity } from '../../shared/commercialState';
 
 export const listMembers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -165,6 +166,15 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
     // request an internal invite by passing identity_class = 'INTERNAL_USER'.
     const finalIdentityClass =
       identity_class === 'INTERNAL_USER' ? 'INTERNAL_USER' : DEFAULT_INVITE_IDENTITY_CLASS;
+
+    // §4/§5 — enforce the plan's internal-user cap. Only INTERNAL_USER invites
+    // consume licensed capacity; external collaborators are exempt. Superadmins bypass.
+    if (finalIdentityClass === 'INTERNAL_USER' && !req.user?.is_superadmin) {
+      const cap = await checkWorkspaceCapacity(finalWorkspaceId, 'users');
+      if (!cap.ok) {
+        return res.status(403).json({ error: cap.message, upgrade_required: true, current: cap.current, cap: cap.cap });
+      }
+    }
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
