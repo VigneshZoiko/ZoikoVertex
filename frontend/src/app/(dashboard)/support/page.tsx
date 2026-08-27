@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, 
   Mail, 
@@ -15,6 +15,20 @@ import { api } from '@/lib/api';
 export default function SupportPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Prefilled from query params (e.g. the billing page's "Contact Sales" → upgrade flow).
+  const [category, setCategory] = useState('Authentication Issue');
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const c = p.get('category'); const s = p.get('subject'); const m = p.get('message');
+      if (c) setCategory(c);
+      if (s) setSubject(s);
+      if (m) setDescription(m);
+    } catch { /* no query params */ }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -101,11 +115,12 @@ export default function SupportPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Category</label>
-                <select name="category" className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors">
+                <select name="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors">
                   <option>Authentication Issue</option>
                   <option>Organization Management</option>
                   <option>Social Posting Error</option>
                   <option>Governance Workflow</option>
+                  <option>Billing &amp; Plans</option>
                   <option>General Feedback</option>
                 </select>
               </div>
@@ -124,6 +139,8 @@ export default function SupportPage() {
               <input
                 name="subject"
                 type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
                 placeholder="Brief summary of the issue"
                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors"
                 required
@@ -135,6 +152,8 @@ export default function SupportPage() {
               <textarea
                 name="description"
                 rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe what happened in detail"
                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors resize-none"
                 required

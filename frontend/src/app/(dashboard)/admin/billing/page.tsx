@@ -1479,10 +1479,18 @@ export default function BillingPage() {
                         Current Plan
                       </button>
                     ) : plan.id === 'corporate' ? (
-                      <a href="mailto:sales@zoikogroup.com?subject=Vertex Corporate Inquiry"
+                      <button type="button"
+                        onClick={() => {
+                          setShowUpgradeModal(false);
+                          router.push(
+                            `/support?category=${encodeURIComponent('Billing & Plans')}` +
+                            `&subject=${encodeURIComponent(`Upgrade to ${plan.name}`)}` +
+                            `&message=${encodeURIComponent(`I would like to upgrade my subscription to the ${plan.name} plan. Please share pricing, contract terms, and onboarding details.`)}`
+                          );
+                        }}
                         className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-zinc-200 transition-colors">
                         Contact Sales <ArrowUpRight className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
                     ) : (
                       <div className="space-y-2">
                         <button
