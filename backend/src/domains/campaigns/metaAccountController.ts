@@ -4,6 +4,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { env } from '../../config/env';
+import { hasMetaAdsAccess } from './metaAdsCapability';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -213,6 +214,12 @@ export const fetchMetaPixels = async (req: AuthRequest, res: Response) => {
     if (!acct) return res.json({ success: true, data: { pixels: [] } });
 
     const { adAccountId, token } = acct;
+
+    // /adspixels needs ads_management — skip (return empty) if the token lacks it.
+    if (!(await hasMetaAdsAccess(workspaceId, token))) {
+      return res.json({ success: true, data: { pixels: [] } });
+    }
+
     const url = metaUrl(
       `/${adAccountId}/adspixels`,
       token,
@@ -272,6 +279,13 @@ export const getPixelStats = async (req: AuthRequest, res: Response) => {
     if (!acct) return res.status(400).json({ error: 'No connected ad account found' });
 
     const { token } = acct;
+
+    // Pixel stats endpoints require ads scope — skip (return zeros) if the token
+    // lacks it, to avoid 5–6 avoidable 400s per view against the ads error rate.
+    if (!(await hasMetaAdsAccess(workspaceId, token))) {
+      return res.json({ success: true, data: { events_24h: 0, by_event: [], by_day: [], by_device: [], by_url: [], by_country: [], event_quality: [] } });
+    }
+
     const nowTs = Math.floor(Date.now() / 1000);
     const ts7d  = nowTs - 7 * 86400;
     const ts24h = nowTs - 86400;

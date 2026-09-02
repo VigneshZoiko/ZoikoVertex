@@ -10,6 +10,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { env } from '../../config/env';
+import { hasMetaAdsAccess } from './metaAdsCapability';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -59,6 +60,12 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
   try {
     const token = await getClientToken(workspaceId);
     if (!token) return res.json({ success: true, data: { estimate: null } });
+
+    // Skip the ads-scoped delivery_estimate call when the token lacks ads access
+    // (it would 400 and inflate the Marketing API error rate).
+    if (!(await hasMetaAdsAccess(workspaceId, token))) {
+      return res.json({ success: true, data: { estimate: null } });
+    }
 
     const { data: accs } = await supabaseAdmin
       .from('connected_accounts')
@@ -163,6 +170,11 @@ export const searchLocations = async (req: AuthRequest, res: Response) => {
     const token = await getClientToken(workspaceId);
     if (!token) return res.status(400).json({ error: 'No Meta account connected. Connect your Facebook account first.' });
 
+    // adgeolocation search needs ads scope — skip (return empty) if not granted.
+    if (!(await hasMetaAdsAccess(workspaceId, token))) {
+      return res.json({ success: true, data: { locations: [] } });
+    }
+
     // location_types must be JSON-encoded and URL-encoded — not a raw string
     const url = metaUrl('/search', token, {
       type:           'adgeolocation',
@@ -208,6 +220,11 @@ export const searchInterests = async (req: AuthRequest, res: Response) => {
   try {
     const token = await getClientToken(workspaceId);
     if (!token) return res.status(400).json({ error: 'No Meta account connected. Connect your Facebook account first.' });
+
+    // adinterest search needs ads scope — skip (return empty) if not granted.
+    if (!(await hasMetaAdsAccess(workspaceId, token))) {
+      return res.json({ success: true, data: { interests: [] } });
+    }
 
     const url  = metaUrl('/search', token, { type: 'adinterest', q: q.trim(), limit: '10' });
     const r    = await fetch(url);

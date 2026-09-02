@@ -53,7 +53,8 @@ const META_OBJECTIVE_MAP: Record<string, string> = {
 };
 
 function resolveMetaObjective(objective: string): string {
-  return META_OBJECTIVE_MAP[objective?.toUpperCase()] || 'REACH';
+  // Never fall back to a legacy objective ('REACH' 400s on v21) — use a valid OUTCOME_*.
+  return META_OBJECTIVE_MAP[objective?.toUpperCase()] || 'OUTCOME_ENGAGEMENT';
 }
 
 // Maps internal objective → Meta ad set optimization_goal

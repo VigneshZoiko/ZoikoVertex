@@ -353,24 +353,31 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
-    // Auto-delete if campaign was deleted in Meta
+    // Auto-delete ONLY if the campaign genuinely no longer exists in Meta.
     if (data.meta_campaign_id && meta_access_token) {
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 2000);
+        const proof = _appSecretProof(meta_access_token);
         const metaRes = await fetch(
-          `https://graph.facebook.com/v21.0/${data.meta_campaign_id}?fields=id,status&access_token=${meta_access_token}`,
+          `https://graph.facebook.com/v21.0/${data.meta_campaign_id}?fields=id,status&access_token=${meta_access_token}${proof ? `&appsecret_proof=${proof}` : ''}`,
           { signal: ctrl.signal }
         );
         clearTimeout(timer);
-        const metaData = await metaRes.json() as { error?: { code: number; message: string } };
-        if (metaData.error) {
+        const metaData = await metaRes.json() as { error?: { code: number; error_subcode?: number; message: string } };
+        const e = metaData.error;
+        // Delete locally only on a genuine "object does not exist" — never on
+        // token (190), permission (10/200), or rate-limit (4/17/32/80004) errors,
+        // which would wrongly remove a live campaign (data loss) and also miscount.
+        const trulyGone = !!e && e.code === 100 && (e.error_subcode === 33 || /does not exist/i.test(e.message || ''));
+        if (trulyGone) {
           await supabaseAdmin.from('campaigns').delete().eq('id', data.id).eq('workspace_id', workspaceId);
           return res.status(404).json({
             error: 'This campaign was deleted in Meta Ads Manager and has been removed.',
             meta_deleted: true,
           });
         }
+        // Any other error (transient/permission/token) → fall through, serve cached data.
       } catch {
         // Meta unreachable or timed out — serve cached data
       }

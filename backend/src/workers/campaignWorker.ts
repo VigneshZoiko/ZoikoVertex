@@ -15,8 +15,10 @@
  * One boost failing never stops the others.
  */
 
+import { createHmac }    from 'crypto';
 import { supabaseAdmin } from '../shared/supabase';
 import { logger }        from '../shared/logger';
+import { env }           from '../config/env';
 import {
   resolveAgencyAccount,
   resolveMetaAdAccountId,
@@ -28,37 +30,68 @@ const POLL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 // Maximum boosts to process per run to keep runs time-bounded
 const BATCH_LIMIT = 10;
 
-const META_GRAPH = 'https://graph.facebook.com/v18.0';
+// Match the rest of the ads stack (adsController / metaCampaignPublisher) on v21.0.
+const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
 // ── Meta API helpers ──────────────────────────────────────────────────────────
+
+// appsecret_proof is required when the Meta app has "Require app secret proof"
+// enabled — without it every ads call 400s. Every other ads controller sends it.
+function appSecretProof(token: string): string {
+  const secret = env.META_APP_SECRET;
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(token).digest('hex');
+}
 
 async function metaPost(
   path: string,
   token: string,
   body: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  const proof = appSecretProof(token);
   const r = await fetch(`${META_GRAPH}${path}`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ ...body, access_token: token }),
+    body:    JSON.stringify({ ...body, access_token: token, ...(proof ? { appsecret_proof: proof } : {}) }),
   });
   return r.json();
 }
 
 // ── Objective mapping ─────────────────────────────────────────────────────────
+// Meta v18+ only accepts OUTCOME_* campaign objectives — legacy values
+// (BRAND_AWARENESS, POST_ENGAGEMENT, VIDEO_VIEWS, REACH) 400. Mirrors adsController.
 
 const META_OBJECTIVE_MAP: Record<string, string> = {
-  BRAND_AWARENESS: 'BRAND_AWARENESS',
-  TRAFFIC:         'OUTCOME_TRAFFIC',
-  LEAD_GENERATION: 'OUTCOME_LEADS',
-  CONVERSIONS:     'OUTCOME_SALES',
-  POST_ENGAGEMENT: 'POST_ENGAGEMENT',
-  VIDEO_VIEWS:     'VIDEO_VIEWS',
-  REACH:           'REACH',
+  BRAND_AWARENESS:  'OUTCOME_AWARENESS',
+  AWARENESS:        'OUTCOME_AWARENESS',
+  TRAFFIC:          'OUTCOME_TRAFFIC',
+  LEAD_GENERATION:  'OUTCOME_LEADS',
+  CONVERSIONS:      'OUTCOME_SALES',
+  ENGAGEMENT:       'OUTCOME_ENGAGEMENT',
+  POST_ENGAGEMENT:  'OUTCOME_ENGAGEMENT',
+  VIDEO_VIEWS:      'OUTCOME_TRAFFIC',
+  REACH:            'OUTCOME_AWARENESS',
 };
 
 function resolveMetaObjective(objective: string): string {
-  return META_OBJECTIVE_MAP[objective?.toUpperCase()] || 'POST_ENGAGEMENT';
+  return META_OBJECTIVE_MAP[objective?.toUpperCase()] || 'OUTCOME_ENGAGEMENT';
+}
+
+// Meta requires an optimization_goal on every ad set — omitting it 400s.
+const META_OPTIMIZATION_GOAL_MAP: Record<string, string> = {
+  BRAND_AWARENESS: 'REACH',
+  AWARENESS:       'REACH',
+  REACH:           'REACH',
+  TRAFFIC:         'LINK_CLICKS',
+  CONVERSIONS:     'OFFSITE_CONVERSIONS',
+  LEAD_GENERATION: 'LEAD_GENERATION',
+  ENGAGEMENT:      'POST_ENGAGEMENT',
+  POST_ENGAGEMENT: 'POST_ENGAGEMENT',
+  VIDEO_VIEWS:     'THRUPLAY',
+};
+
+function resolveOptimizationGoal(objective: string): string {
+  return META_OPTIMIZATION_GOAL_MAP[objective?.toUpperCase()] || 'POST_ENGAGEMENT';
 }
 
 // ── Process a single PENDING boost ───────────────────────────────────────────
@@ -158,14 +191,15 @@ async function processBoost(boost: any): Promise<void> {
   // ── Create Ad Set ─────────────────────────────────────────────────────────
 
   const adSetBody: Record<string, unknown> = {
-    name:          `${label} · Ad Set`,
-    campaign_id:   metaCampaignId,
-    billing_event: 'IMPRESSIONS',
-    start_time:    startTime,
-    end_time:      endTime,
-    targeting:     targetingSpec,
-    status:        'ACTIVE',
-    daily_budget:  budgetCents > 0 ? budgetCents : 1000, // $10 minimum fallback
+    name:              `${label} · Ad Set`,
+    campaign_id:       metaCampaignId,
+    billing_event:     'IMPRESSIONS',
+    optimization_goal: resolveOptimizationGoal(campaign.objective || 'POST_ENGAGEMENT'),
+    start_time:        startTime,
+    end_time:          endTime,
+    targeting:         targetingSpec,
+    status:            'ACTIVE',
+    daily_budget:      budgetCents > 0 ? budgetCents : 1000, // $10 minimum fallback
   };
 
   const metaAdSetRes = await metaPost(`/${adAccountId}/adsets`, token, adSetBody) as any;
