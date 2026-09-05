@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 
 interface JourneyItem {
@@ -15,6 +16,7 @@ interface JourneyCard {
   items: JourneyItem[];
   ctaText: string;
   ctaType: "cyan" | "gold";
+  href: string;
 }
 
 const JOURNEYS: JourneyCard[] = [
@@ -38,6 +40,7 @@ const JOURNEYS: JourneyCard[] = [
     ],
     ctaText: "Book a Demo",
     ctaType: "cyan",
+    href: "/demo-library",
   },
   {
     id: "2",
@@ -59,6 +62,7 @@ const JOURNEYS: JourneyCard[] = [
     ],
     ctaText: "Start ROI & Governance Audit",
     ctaType: "cyan",
+    href: "/roi-governance-audit",
   },
   {
     id: "3",
@@ -80,6 +84,7 @@ const JOURNEYS: JourneyCard[] = [
     ],
     ctaText: "Contact Sales",
     ctaType: "gold",
+    href: "/support",
   },
 ];
 
@@ -159,12 +164,18 @@ export default function FlagshipEnterpriseJourneys() {
             >
               <div className="space-y-6">
                 {/* Category Header */}
-                <div className={` ${journey.ctaType === "cyan" ?"text-white":"text-[#E8B768]"} text-[10px] font-mono font-semibold uppercase tracking-[0.15em]`}>
+                <div
+                  className={` ${
+                    journey.ctaType === "cyan" ? "text-white" : "text-[#E8B768]"
+                  } text-[10px] font-mono font-semibold uppercase tracking-[0.15em]`}
+                >
                   {journey.category}
                 </div>
 
                 {/* Card Title */}
-                <h3 className={`text-[18px] font-bold text-white tracking-tight leading-snug` }>
+                <h3
+                  className={`text-[18px] font-bold text-white tracking-tight leading-snug`}
+                >
                   {journey.title}
                 </h3>
 
@@ -192,23 +203,33 @@ export default function FlagshipEnterpriseJourneys() {
               {/* Action Button */}
               <div className="pt-8">
                 {journey.ctaType === "cyan" ? (
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#00F3FF] text-[#03060C] font-semibold text-[12px] tracking-tight hover:bg-[#33F6FF] shadow-[0_0_20px_rgba(0,243,255,0.2)] transition-all"
+                  <Link
+                    href={journey.href}
+                    className="inline-block w-full sm:w-auto"
                   >
-                    {journey.ctaText}
-                  </motion.button>
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#00F3FF] text-[#03060C] font-semibold text-[12px] tracking-tight hover:bg-[#33F6FF] shadow-[0_0_20px_rgba(0,243,255,0.2)] transition-all"
+                    >
+                      {journey.ctaText}
+                    </motion.button>
+                  </Link>
                 ) : (
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#D9A755] text-[#03060C] font-semibold text-[12px] tracking-tight hover:bg-[#E5B667] shadow-[0_0_20px_rgba(217,167,85,0.2)] transition-all"
+                  <Link
+                    href={journey.href}
+                    className="inline-block w-full sm:w-auto"
                   >
-                    {journey.ctaText}
-                  </motion.button>
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-[#D9A755] text-[#03060C] font-semibold text-[12px] tracking-tight hover:bg-[#E5B667] shadow-[0_0_20px_rgba(217,167,85,0.2)] transition-all"
+                    >
+                      {journey.ctaText}
+                    </motion.button>
+                  </Link>
                 )}
               </div>
             </motion.div>

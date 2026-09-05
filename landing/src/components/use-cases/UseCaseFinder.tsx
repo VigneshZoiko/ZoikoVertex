@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
@@ -26,6 +27,7 @@ interface UseCaseCardData {
   footerTags: string[];
   ctaText: string;
   ctaColor?: "cyan" | "gold";
+  href: string;
 }
 
 const FILTER_CATEGORIES: FilterCategory[] = [
@@ -69,6 +71,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Creative Ops", "Approval Ops", "Market Launch"],
     ctaText: "View Campaign Execution Use Case",
     ctaColor: "cyan",
+    href: "/marketing-ops",
   },
   {
     id: "2",
@@ -88,6 +91,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Approval", "Decision Flow", "Policy Exceptions"],
     ctaText: "Explore Approval Workflows",
     ctaColor: "gold",
+    href: "/approval-workflows",
   },
   {
     id: "3",
@@ -108,6 +112,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Execution", "Governance", "Regional Coverage"],
     ctaText: "View Retail Use Case",
     ctaColor: "cyan",
+    href: "/enterprise-retail",
   },
   {
     id: "4",
@@ -128,6 +133,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Live Visibility", "Executive View", "ROI at a Glance"],
     ctaText: "Explore Executive Center",
     ctaColor: "cyan",
+    href: "/executive-command-center",
   },
   {
     id: "5",
@@ -148,6 +154,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Evidence Vault", "Identity Audit", "Traceability"],
     ctaText: "View Auditability",
     ctaColor: "gold",
+    href: "/auditability",
   },
   {
     id: "6",
@@ -168,6 +175,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Client Workspaces", "Approval Automation", "Governance"],
     ctaText: "Book Agency Demo",
     ctaColor: "cyan",
+    href: "/agency-workflows",
   },
   {
     id: "7",
@@ -188,6 +196,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["Governance", "Brand Safety", "Content Automation"],
     ctaText: "View Content Use Case",
     ctaColor: "cyan",
+    href: "/brand-compliance",
   },
   {
     id: "8",
@@ -208,6 +217,7 @@ const USE_CASES: UseCaseCardData[] = [
     footerTags: ["ROI Tracking", "Executive Reporting", "Audit"],
     ctaText: "Start ROI & Governance Audit",
     ctaColor: "gold",
+    href: "/roi-governance-audit",
   },
 ];
 
@@ -253,7 +263,10 @@ export default function UseCaseFinder() {
   };
 
   return (
-    <section className="relative w-full bg-[#0B1524] text-[#8E9B9E] font-sans antialiased px-6 py-16 md:px-12 md:py-24 lg:px-16 lg:py-28 flex flex-col items-center overflow-hidden">
+    <section
+      id="usecase"
+      className="relative w-full bg-[#0B1524] text-[#8E9B9E] font-sans antialiased px-6 py-16 md:px-12 md:py-24 lg:px-16 lg:py-28 flex flex-col items-center overflow-hidden"
+    >
       <div className="max-w-[1240px] w-full space-y-10 z-10">
         {/* --- Header Section --- */}
         <motion.header
@@ -415,8 +428,8 @@ export default function UseCaseFinder() {
 
                 {/* CTA Link */}
                 <div>
-                  <a
-                    href="#"
+                  <Link
+                    href={card.href}
                     className={`inline-flex items-center gap-1.5 text-[11px] font-mono tracking-tight hover:underline transition-colors ${
                       card.ctaColor === "gold"
                         ? "text-[#D9A755] group-hover:text-[#F0BE6E]"
@@ -425,7 +438,7 @@ export default function UseCaseFinder() {
                   >
                     {card.ctaText}
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </a>
+                  </Link>
                 </div>
               </div>
             </motion.article>
