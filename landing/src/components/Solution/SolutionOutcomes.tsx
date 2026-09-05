@@ -5,104 +5,158 @@ const STAKEHOLDERS = [
   {
     role: "CMO / MARKETING LEADER",
     title: "Output pressure, ROI scrutiny, board reporting",
-    quote: '"AI at scale means I own every mistake my team makes — and I need to explain it."',
+    quote:
+      '"AI at scale means I own every mistake my team makes — and I need to explain it."',
     answer:
       "A governed operating layer that increases campaign velocity while preserving control, brand standards, and ROI evidence. Every approval is logged; every decision is traceable.",
     cta: "Request Executive Demo →",
+    href: "/executive-command-center",
     iconColor: "#20E7F2",
     iconBg: "#20E7F20F",
     iconBorder: "#20E7F22E",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#20E7F2" strokeWidth="1.5">
-        <line x1="18" y1="20" x2="18" y2="10"/>
-        <line x1="12" y1="20" x2="12" y2="4"/>
-        <line x1="6" y1="20" x2="6" y2="14"/>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#20E7F2"
+        strokeWidth="1.5"
+      >
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     ),
   },
   {
     role: "DIGITAL MARKETING DIRECTOR",
     title: "Toolchain fragmentation, attribution gaps",
-    quote: '"Six tools, approvals in email, and still no clear attribution. There has to be a better system."',
+    quote:
+      '"Six tools, approvals in email, and still no clear attribution. There has to be a better system."',
     answer:
       "One unified workflow from strategy through publishing to revenue intelligence — with approval workflows that replace email chains and an audit trail that connects decisions to outcomes.",
     cta: "Explore Workflow →",
+    href: "/ai-workflow-orchestration",
     iconColor: "#22C55E",
     iconBg: "#22C55E1A",
     iconBorder: "#22C55E33",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="1.5">
-        <rect x="3" y="3" width="7" height="7" rx="1"/>
-        <rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/>
-        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#22C55E"
+        strokeWidth="1.5"
+      >
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
   },
   {
     role: "HEAD OF BRAND / BRAND STEWARD",
     title: "Brand drift, regional inconsistency",
-    quote: '"Agencies are generating content that doesn\'t match our standards and I only find out after it\'s live."',
+    quote:
+      "\"Agencies are generating content that doesn't match our standards and I only find out after it's live.\"",
     answer:
       "Versioned Brand Library standards, Brand Library-enforced content checks before review, controlled approval paths, and brand integrity scorecards for every asset and campaign.",
     cta: "Explore Brand Control →",
+    href: "/brand-compliance",
     iconColor: "#F59E0B",
     iconBg: "#F59E0B1A",
     iconBorder: "#F59E0B33",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
-        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
       </svg>
     ),
   },
   {
     role: "COMPLIANCE / LEGAL / RISK",
     title: "AI adoption without defensible oversight",
-    quote: '"I can\'t approve an AI tool I can\'t audit. How do I defend adoption to regulators or the board?"',
+    quote:
+      "\"I can't approve an AI tool I can't audit. How do I defend adoption to regulators or the board?\"",
     answer:
       "Policy-bound agents, approval gates, validation surfaces, an immutable audit trail, and exportable Evidence Vault documentation — so compliance can verify every decision before and after it happens.",
     cta: "Explore Governance →",
+    href: "/governance",
     iconColor: "#EF4444",
     iconBg: "#EF444414",
     iconBorder: "#EF444433",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#EF4444"
+        strokeWidth="1.5"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
   },
   {
     role: "CIO / CTO / SECURITY",
     title: "Identity, audit, data governance",
-    quote: '"Another AI tool operating outside our identity, security, and data governance. We\'ve been here before."',
+    quote:
+      '"Another AI tool operating outside our identity, security, and data governance. We\'ve been here before."',
     answer:
       "Role-scoped RBAC + ABAC, SSO/SAML/SCIM path, MFA, audit log streaming, and separation between security administration and identity management. Trust Center documentation available.",
     cta: "Review Trust Layer →",
+    href: "/security",
     iconColor: "#FFFFFF85",
     iconBg: "#FFFFFF0E",
     iconBorder: "#FFFFFF1A",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF85" strokeWidth="1.5">
-        <rect x="3" y="11" width="18" height="11" rx="2"/>
-        <path d="M7 11V7a5 5 0 0110 0v4"/>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#FFFFFF85"
+        strokeWidth="1.5"
+      >
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0110 0v4" />
       </svg>
     ),
   },
   {
     role: "AGENCY LEADER",
     title: "Multi-client governance and delivery",
-    quote: '"We need AI speed across clients without creating governance chaos or losing proof of work."',
+    quote:
+      '"We need AI speed across clients without creating governance chaos or losing proof of work."',
     answer:
       "Client-scoped workspaces, External Collaborator roles, per-client Brand Libraries, approval chain tracking, and client-ready reporting — so you move fast and still have documented proof for every account.",
     cta: "Explore Agency Fit →",
+    href: "/agencies",
     iconColor: "#8B5CF6",
     iconBg: "#8B5CF61A",
     iconBorder: "#8B5CF633",
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="2" y="7" width="20" height="14" rx="2"/>
-        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
       </svg>
     ),
   },
@@ -114,8 +168,10 @@ export default function SolutionOutcomes() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold: 0.05 }
+      ([entry]) => {
+        if (entry.isIntersecting) setVisible(true);
+      },
+      { threshold: 0.05 },
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
@@ -123,8 +179,7 @@ export default function SolutionOutcomes() {
 
   return (
     <section className="bg-[#080E1A] py-24 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
-
+      <div ref={ref} className="max-w-[1200px] mx-auto">
         {/* Header */}
         <div
           className={`text-center mb-14 transition-all duration-700 ease-out ${
@@ -139,8 +194,8 @@ export default function SolutionOutcomes() {
             Every stakeholder sees their version of the answer.
           </h2>
           <p className="text-white/40 text-sm leading-relaxed max-w-md mx-auto">
-            Different roles carry different anxieties. ZoikoVertex answers each one in
-            the language that matters to them.
+            Different roles carry different anxieties. ZoikoVertex answers each
+            one in the language that matters to them.
           </p>
         </div>
 
@@ -168,10 +223,7 @@ export default function SolutionOutcomes() {
                   {s.icon}
                 </div>
                 <div>
-                  <p
-                    className="text-xs font-bold text-[#20E7F2] tracking-widest uppercase mb-1 font-medium font-jetbrains"
-                  
-                  >
+                  <p className="text-xs font-bold text-[#20E7F2] tracking-widest uppercase mb-1 font-jetbrains">
                     {s.role}
                   </p>
                   <h3 className="text-white text-sm font-black leading-snug">
@@ -193,16 +245,16 @@ export default function SolutionOutcomes() {
               </p>
 
               {/* CTA */}
-              <button
-                className="text-xs font-semibold text-left transition-colors duration-300 hover:opacity-80"
+              <a
+                href={s.href}
+                className="text-xs font-semibold text-left transition-colors duration-300 hover:opacity-80 inline-block"
                 style={{ color: s.iconColor }}
               >
                 {s.cta}
-              </button>
+              </a>
             </div>
           ))}
         </div>
-
       </div>
     </section>
   );

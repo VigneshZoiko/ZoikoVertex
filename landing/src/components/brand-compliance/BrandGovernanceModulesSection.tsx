@@ -89,7 +89,7 @@ export default function BrandGovernanceModulesSection() {
                 approval workflow.
               </p>
               <a
-                href="#"
+                href="/resources-hub"
                 className="inline-flex items-center gap-2 text-xs font-semibold text-[#00E5FF] hover:underline"
               >
                 <span>Explore Brand Voice</span>
@@ -103,7 +103,7 @@ export default function BrandGovernanceModulesSection() {
             {/* Top Row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Card 2: CLAIMS & COMPLIANCE POLICY ENGINE (Top Left, 2 Cols) */}
-              <div className="relative group sm:col-span-2 min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
+              <a href="/governance" className="relative group sm:col-span-2 min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6 block">
                 <Image
                   src="/images/marketing-ops/2.png"
                   alt="Claims & Compliance Policy Engine"
@@ -121,10 +121,10 @@ export default function BrandGovernanceModulesSection() {
                     approval.
                   </h3>
                 </div>
-              </div>
+              </a>
 
               {/* Card 3: REGIONAL RULE SCOPING (Top Right, 1 Col) */}
-              <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
+              <a href="/governance" className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6 block">
                 <Image
                   src="/images/marketing-ops/3.png"
                   alt="Regional Rule Scoping"
@@ -141,13 +141,13 @@ export default function BrandGovernanceModulesSection() {
                     Rules per region, language, channel, and category.
                   </h3>
                 </div>
-              </div>
+              </a>
             </div>
 
             {/* Bottom Row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px flex-1">
               {/* Card 4: RISK-BASED APPROVAL ROUTING */}
-              <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
+              <a href="/approval-workflows" className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6 block">
                 <Image
                   src="/images/marketing-ops/4.png"
                   alt="Risk-Based Approval Routing"
@@ -164,10 +164,10 @@ export default function BrandGovernanceModulesSection() {
                     Route by brand risk, claim type, and channel.
                   </h3>
                 </div>
-              </div>
+              </a>
 
               {/* Card 5: BRAND EVIDENCE VAULT */}
-              <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
+              <a href="/auditability" className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6 block">
                 <Image
                   src="/images/marketing-ops/6.png"
                   alt="Brand Evidence Vault"
@@ -184,10 +184,10 @@ export default function BrandGovernanceModulesSection() {
                     Policy check history, approval decisions, final artifacts.
                   </h3>
                 </div>
-              </div>
+              </a>
 
               {/* Card 6: LEGAL HOLDS & REPORTING */}
-              <div className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6">
+              <a href="/auditability" className="relative group min-h-[250px] bg-[#0C1422] flex flex-col justify-end p-6 block">
                 <Image
                   src="/images/marketing-ops/5.png"
                   alt="Legal Holds & Reporting"
@@ -204,7 +204,7 @@ export default function BrandGovernanceModulesSection() {
                     Preserved evidence for legal proceedings and audits.
                   </h3>
                 </div>
-              </div>
+              </a>
             </div>
           </div>
         </motion.div>

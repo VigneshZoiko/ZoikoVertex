@@ -105,7 +105,7 @@ export default function HeroSection() {
           {/* CTA Button */}
           <motion.div variants={itemVariants} className="mb-10">
             <a
-              href="#"
+              href="/request-demo"
               className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full bg-[#00E5FF] text-[#05111A] text-sm font-semibold tracking-wide hover:bg-[#33ECFF] transition-all duration-200 shadow-[0_0_20px_rgba(0,229,255,0.3)] hover:shadow-[0_0_28px_rgba(0,229,255,0.5)]"
             >
               <Calendar className="w-4 h-4 text-[#05111A]" />

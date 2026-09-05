@@ -163,7 +163,7 @@ export default function IntegrationHealthObservability() {
           className="pt-2"
         >
           <a
-            href="#"
+            href="https://getzoikovertex.com/login"
             className="inline-flex items-center text-[12px] font-mono text-[#D9A755] hover:underline tracking-tight"
           >
             Monitor integration health →

@@ -539,9 +539,9 @@ export default function IntegrationsGrid() {
               </div>
 
               {/* View details CTA button/link */}
-              <div className="pt-3 mt-3 border-t border-[#7AA0BE]/15 flex items-center justify-between text-[11px] font-mono text-[#20E7F2] hover:underline tracking-[1px] cursor-pointer">
+              {/* <div className="pt-3 mt-3 border-t border-[#7AA0BE]/15 flex items-center justify-between text-[11px] font-mono text-[#20E7F2] hover:underline tracking-[1px] cursor-pointer">
                 <span>{item.ctaText || "View details →"}</span>
-              </div>
+              </div> */}
             </motion.div>
           ))}
         </motion.div>
