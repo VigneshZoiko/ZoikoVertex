@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const PLANS_HEADER = [
@@ -140,6 +141,7 @@ function Cell({ value, highlight }: { value: string; highlight: boolean }) {
 }
 
 export default function PricingComparison() {
+  const router = useRouter();
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -183,7 +185,7 @@ export default function PricingComparison() {
               <p className="text-cyan-400 text-xs font-medium tracking-widest uppercase mb-3">
                 {plan.name}
               </p>
-              <button className="w-full bg-cyan-400 hover:bg-cyan-300 text-[#03050F] text-xs font-semibold py-2.5 rounded-[4] transition-colors duration-300">
+              <button onClick={()=>router.push("https://getzoikovertex.com/signup")} className="w-full cursor-pointer bg-cyan-400 hover:bg-cyan-300 text-[#03050F] text-xs font-semibold py-2.5 rounded-[4] transition-colors duration-300">
                 GET STARTED
               </button>
             </div>
