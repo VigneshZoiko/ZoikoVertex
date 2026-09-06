@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 function useInView(threshold = 0.15) {
@@ -83,6 +84,7 @@ export default function SecurityTrustSection() {
   const { ref: headRef, inView: headInView } = useInView(0.2);
   const { ref: cardsRef, inView: cardsInView } = useInView(0.1);
   const { ref: ctaRef, inView: ctaInView } = useInView(0.2);
+  const router = useRouter();
 
   return (
     <section className="bg-[#0C1422] w-full px-6 py-20 overflow-hidden">
@@ -142,7 +144,7 @@ export default function SecurityTrustSection() {
               </p>
 
               {/* Monospace tag */}
-              <span className="self-start text-[11px] font-mono text-[#F5E6C0] border border-[#C9A84C33] rounded-md px-3 py-1.5 mt-1
+              <span className="self-start text-[11px] font-mono text-[#F5E6C0] cursor-text border border-[#C9A84C33] rounded-md px-3 py-1.5 mt-1
                 group-hover:border-[#C9A84C33] group-hover:text-[#C9A84C] transition-all duration-200">
                 {card.tag}
               </span>
@@ -168,9 +170,9 @@ export default function SecurityTrustSection() {
           </div>
 
           {/* Label */}
-          <span className="text-[#FFFFFFE0] font-semibold text-[15px] group-hover:text-[#F5E6C0] transition-colors duration-200">
+          <button onClick={()=>router.push("/security")} className="text-[#FFFFFFE0] cursor-pointer font-semibold text-[15px] group-hover:text-[#F5E6C0] transition-colors duration-200">
             Review Security &amp; Governance
-          </span>
+          </button>
         </div>
 
       </div>

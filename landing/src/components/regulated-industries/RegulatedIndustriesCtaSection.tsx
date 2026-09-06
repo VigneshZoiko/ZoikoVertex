@@ -42,9 +42,6 @@ export default function RegulatedIndustriesCtaSection() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#080C10] via-[#080C10]/80 to-[#080C10]" />
       </div>
 
-      {/* Background Subtle Watermark Text */}
-
-
       {/* Main Content */}
       <motion.div
         className="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center"
@@ -92,7 +89,7 @@ export default function RegulatedIndustriesCtaSection() {
         >
           {/* Primary CTA Button */}
           <a
-            href="#"
+            href="/request-demo"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00E5FF] hover:bg-[#00E5FF]/90 text-black font-semibold text-xs sm:text-sm transition-all duration-200 shadow-lg shadow-[#00E5FF]/20"
           >
             <Calendar className="w-4 h-4" />
@@ -101,7 +98,7 @@ export default function RegulatedIndustriesCtaSection() {
 
           {/* Secondary Button - Governance Platform */}
           <a
-            href="#"
+            href="/governance"
             className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-white font-medium text-xs sm:text-sm transition-all duration-200 backdrop-blur-sm"
           >
             <Shield className="w-4 h-4 text-gray-400" />
@@ -110,7 +107,7 @@ export default function RegulatedIndustriesCtaSection() {
 
           {/* Secondary Button - Audit Engine */}
           <a
-            href="#"
+            href="/audit-engine"
             className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-white font-medium text-xs sm:text-sm transition-all duration-200 backdrop-blur-sm"
           >
             <FileText className="w-4 h-4 text-gray-400" />

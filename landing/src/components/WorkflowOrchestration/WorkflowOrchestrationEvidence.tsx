@@ -61,7 +61,7 @@ export default function WorkflowOrchestrationEvidence() {
           </div>
 
           <Link
-            href="/security"
+            href="/auditablity"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition w-fit"
           >
             <ShieldIcon className="w-3.5 h-3.5" />

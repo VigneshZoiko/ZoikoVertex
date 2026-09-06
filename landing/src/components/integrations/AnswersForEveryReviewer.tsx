@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 
 interface StakeholderCard {
@@ -8,6 +9,7 @@ interface StakeholderCard {
   role: string;
   question: string;
   ctaText: string;
+  href: string;
 }
 
 const STAKEHOLDERS: StakeholderCard[] = [
@@ -16,30 +18,35 @@ const STAKEHOLDERS: StakeholderCard[] = [
     role: "EXECUTIVE BUYER",
     question: "Can this connect to our stack?",
     ctaText: "Book Integration Demo →",
+    href: "/request-demo",
   },
   {
     id: "2",
     role: "CTO / IT",
     question: "Is it secure and manageable?",
     ctaText: "Get Stack Assessment →",
+    href: "/roi-governance-audit",
   },
   {
     id: "3",
     role: "MARKETING OPS",
     question: "Will it fit daily workflows?",
     ctaText: "Design a workflow →",
+    href: "/ai-workflow-orchestration",
   },
   {
     id: "4",
     role: "LEGAL / COMPLIANCE",
     question: "Can we prove what happened?",
     ctaText: "View Governance Audit →",
+    href: "/audit-engine",
   },
   {
     id: "5",
     role: "PARTNER / SI",
     question: "Can we build connectors?",
     ctaText: "Become a Partner →",
+    href: "/agencies",
   },
 ];
 
@@ -122,12 +129,12 @@ export default function AnswersForEveryReviewer() {
 
               {/* Call-to-Action Link */}
               <div className="pt-6">
-                <a
-                  href="#"
+                <Link
+                  href={item.href}
                   className="inline-flex items-center text-[11px] font-mono text-[#20E7F2] hover:underline tracking-tight"
                 >
                   {item.ctaText}
-                </a>
+                </Link>
               </div>
             </motion.div>
           ))}

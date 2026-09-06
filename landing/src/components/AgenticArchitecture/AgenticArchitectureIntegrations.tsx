@@ -153,7 +153,7 @@ export default function AgenticArchitectureIntegrations() {
             Speak to the ZoikoVertex enterprise team about your integration requirements, API access, and implementation roadmap.
           </p>
           <Link
-            href="/request-demo"
+            href="/integrations"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition shrink-0"
           >
             <PlugSmallIcon className="w-3.5 h-3.5" />

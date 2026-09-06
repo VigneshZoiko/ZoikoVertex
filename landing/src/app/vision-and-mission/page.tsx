@@ -369,7 +369,7 @@ export default function VisionMissionPage() {
 
             <div className="flex flex-wrap gap-3 mb-8">
               <Link
-                href="/platform"
+                href="/"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
                 style={{ background: TEAL, color: "#080F1B" }}
               >

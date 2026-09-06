@@ -80,7 +80,7 @@ export default function ExecutiveCommandCenterRoi() {
 
         <div className="mt-10">
           <Link
-            href="/platform"
+            href="/roi-engine"
             className="inline-flex items-center gap-2.5 px-7 py-3 rounded-full bg-[#20E7F2] text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition font-[family-name:var(--font-jakarta)]"
           >
             <BarChart3 className="w-[14px] h-[14px]" strokeWidth={2.5} />

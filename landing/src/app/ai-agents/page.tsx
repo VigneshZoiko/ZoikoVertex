@@ -61,7 +61,7 @@ function Hero() {
               <span>📅</span> Request a Demo
             </Link>
             <Link
-              href="/"
+              href="/governance"
               className="border border-white/20 hover:border-white/40 text-white font-semibold px-7 py-3.5 rounded-xl transition-all hover:bg-white/5 text-sm flex items-center gap-2"
             >
               <Shield className="w-4 h-4" /> Explore Governance
@@ -573,13 +573,13 @@ function PlanAccess() {
               <tr className="border-t border-white/8 bg-[#080F1B]">
                 <td className="px-4 py-4 text-xs text-white/30">Scale includes all five agents in advanced multi-brand mode.</td>
                 {[
-                  { label: "Request Audit", style: "border border-white/20 text-white/60" },
-                  { label: "Start Pro Trial", style: "border border-white/20 text-white/60" },
-                  { label: "Book Scale Call", style: "bg-cyan-400 text-black font-bold" },
-                  { label: "Command Brief", style: "border border-white/20 text-white/60" },
+                  { label: "Request Audit", href: "/roi-governance-audit", style: "border border-white/20 text-white/60" },
+                  { label: "Start Pro Trial", href: "/request-demo", style: "border border-white/20 text-white/60" },
+                  { label: "Book Scale Call", href: "/request-demo", style: "bg-cyan-400 text-black font-bold" },
+                  { label: "Command Brief", href: "/request-demo", style: "border border-white/20 text-white/60" },
                 ].map((b, i) => (
                   <td key={b.label} className="px-4 py-4 text-center" style={i === 2 ? { backgroundColor: "#0C1A27" } : undefined}>
-                    <Link href="/request-demo" className={`text-xs rounded-lg px-3 py-2 transition-all hover:opacity-80 ${b.style}`}>
+                    <Link href={b.href} className={`inline-block text-xs rounded-lg px-3 py-2 transition-all hover:opacity-80 ${b.style}`}>
                       {b.label}
                     </Link>
                   </td>
@@ -590,7 +590,7 @@ function PlanAccess() {
         </div>
 
         <div className="text-center mt-6">
-          <Link href="/" className="border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-sm rounded-xl px-6 py-3 transition-all inline-flex items-center gap-2">
+          <Link href="https://getzoikovertex.com/login" className="border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-sm rounded-xl px-6 py-3 transition-all inline-flex items-center gap-2">
             → View full plan comparison
           </Link>
         </div>
