@@ -10,12 +10,9 @@ import ResponsibleAIFinalCTA from "@/components/ResponsibleAI/ResponsibleAIFinal
 import { Divider } from "@/components/ResponsibleAI/shared";
 
 export const metadata = {
-  title: "Responsible AI | ZoikoVertex",
+  title: "Responsible AI Governance | ZoikoVertex",
   description:
-    "Deploy AI agents with control, oversight, and evidence. Policy guardrails, approval workflows, human oversight, risk classification, audit trails, and evidence vaults for governed enterprise AI.",
-  alternates: {
-    canonical: "https://www.zoikovertex.com/responsible-ai",
-  },
+    "Build responsible AI governance with ZoikoVertex, combining agent controls, approval workflows, human oversight, risk classification, audit trails & evidence.",
 };
 
 export default function ResponsibleAIPage() {

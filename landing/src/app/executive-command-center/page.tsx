@@ -10,9 +10,9 @@ import ExecutiveCommandCenterFaq from "@/components/ExecutiveCommandCenter/Execu
 import ExecutiveCommandCenterFinalCTA from "@/components/ExecutiveCommandCenter/ExecutiveCommandCenterFinalCTA";
 
 export const metadata = {
-  title: "Executive Command Center | ZoikoVertex",
+  title: "AI Executive Command Center | ZoikoVertex",
   description:
-    "See every agent, workflow, approval, risk and ROI signal in one governed command center. A real-time operating view of AI-assisted execution, governance exceptions, approval bottlenecks, and measurable business outcomes.",
+    "Manage AI-powered marketing from one executive command center. Track execution, governance, approvals, risks, performance, and ROI with ZoikoVertex.",
 };
 
 export default function ExecutiveCommandCenterPage() {

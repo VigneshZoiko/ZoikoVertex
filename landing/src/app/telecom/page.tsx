@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import TelecomHero from "@/components/Telecom/TelecomHero";
 import TelecomChallenges from "@/components/Telecom/TelecomChallenges";
 import TelecomPricingClaims from "@/components/Telecom/TelecomPricingClaims";
@@ -8,6 +10,12 @@ import TelecomProcess from "@/components/Telecom/TelecomProcess";
 import TelecomTestimonial from "@/components/Telecom/TelecomTestimonial";
 import TelecomTrustDocs from "@/components/Telecom/TelecomTrustDocs";
 import TelecomFinalCTA from "@/components/Telecom/TelecomFinalCTA";
+
+export const metadata = {
+  title: "Telecom Marketing Governance | ZoikoVertex",
+  description:
+    "ZoikoVertex delivers telecom marketing governance with pricing claim reviews, market-specific disclosures, approval workflows, AI oversight, and audit trails.",
+};
 
 export default function TelecomPage() {
   return (

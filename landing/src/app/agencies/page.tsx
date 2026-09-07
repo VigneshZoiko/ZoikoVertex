@@ -10,9 +10,9 @@ import AgenciesTrustDocs from "@/components/Agencies/AgenciesTrustDocs";
 import AgenciesFinalCTA from "@/components/Agencies/AgenciesFinalCTA";
 
 export const metadata = {
-  title: "Agencies & Multi-Brand Teams | ZoikoVertex",
+  title: "Marketing Agency Workflow | ZoikoVertex",
   description:
-    "Govern AI-assisted client work, manage structured client approval workflows, separate brand workspaces, preserve evidence records, and scale governance across every account.",
+    "Improve marketing agency workflow with ZoikoVertex. Manage client approvals, AI-assisted content, brand workspaces, and audit-ready evidence in one platform.",
 };
 
 export default function AgenciesPage() {
