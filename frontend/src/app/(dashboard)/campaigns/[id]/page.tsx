@@ -127,6 +127,15 @@ const dur = (start?: string | null, end?: string | null) => {
 
 const isActive = (s: string) => ["ACTIVE", "SCHEDULED"].includes(s);
 
+// Friendly, compact device labels so long names (e.g. "android_smartphone")
+// don't overflow the breakdown column and overlap the bar.
+const DEVICE_LABELS: Record<string, string> = {
+  iphone: "iPhone", ipad: "iPad", ipod: "iPod",
+  android_smartphone: "Android", android_tablet: "Android tab",
+  desktop: "Desktop", other: "Other", unknown: "Unknown",
+};
+const fmtDevice = (d: string) => DEVICE_LABELS[d?.toLowerCase()] || (d || "").replace(/_/g, " ");
+
 // ── Page ───────────────────────────────────────────────────────
 
 export default function CampaignDetailPage() {
@@ -1559,7 +1568,7 @@ export default function CampaignDetailPage() {
                               const pct = Math.round((row.impressions / max) * 100);
                               return (
                                 <div key={i} className="flex items-center gap-3">
-                                  <div className="w-20 shrink-0 text-xs text-foreground-muted font-medium capitalize text-right">{row.label}</div>
+                                  <div className="w-24 shrink-0 text-xs text-foreground-muted font-medium text-right truncate" title={fmtDevice(row.label)}>{fmtDevice(row.label)}</div>
                                   <div className="flex-1 h-4 bg-surface-hover rounded-full overflow-hidden">
                                     <div className="h-full rounded-full bg-purple-500/60 transition-all" style={{ width: `${pct}%` }} />
                                   </div>
