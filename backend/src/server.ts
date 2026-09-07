@@ -1749,6 +1749,7 @@ import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
 import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
+import { startCampaignLifecycleWorker } from './workers/campaignLifecycleWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
 import { startSlaBreachWorker } from './workers/slaBreachWorker';
 import { initEvidenceIntelligenceWorker } from './workers/evidenceIntelligenceWorker';
@@ -1784,6 +1785,7 @@ try {
     initVaultWorker();
     initDlpScanWorker();
     startCampaignWorker();
+    startCampaignLifecycleWorker();
     initOrgInactivityWorker();
     startSlaBreachWorker();
     initEvidenceIntelligenceWorker();

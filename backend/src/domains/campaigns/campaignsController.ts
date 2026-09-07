@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { deleteMetaCampaign } from './metaCampaignPublisher';
 import { resolveCampaignMetaAccount } from './resolveCampaignMetaAccount';
+import { effectiveCampaignStatus } from './campaignStatus';
 import { env } from '../../config/env';
 import { preserveEvidence } from '../../services/evidenceVault.service';
 
@@ -252,8 +253,13 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
     const { data, error } = await query;
     if (error) throw error;
 
-    const rows = data || [];
-    const ids  = rows.map(c => c.id);
+    // Derive COMPLETED for campaigns whose end date has passed (UI immediacy;
+    // the lifecycle worker persists the same to the DB on its schedule).
+    const rows = (data || []).map((c: any) => ({
+      ...c,
+      status: effectiveCampaignStatus(c.status, c.end_at),
+    }));
+    const ids  = rows.map((c: any) => c.id);
     const counts: Record<string, number> = {};
 
     if (ids.length > 0) {
@@ -386,7 +392,7 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
-    res.json({ success: true, data: { ...data, meta_account_name, meta_ad_account_name } });
+    res.json({ success: true, data: { ...data, status: effectiveCampaignStatus(data.status, data.end_at), meta_account_name, meta_ad_account_name } });
   } catch (err) { next(err); }
 };
 
