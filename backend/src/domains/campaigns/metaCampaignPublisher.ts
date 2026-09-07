@@ -19,6 +19,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { logger }        from '../../shared/logger';
 import { env }           from '../../config/env';
 import { PublishReporter, type PublishReport } from './metaPublishReport';
+import { resolveCampaignMetaAccount } from './resolveCampaignMetaAccount';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -1287,14 +1288,8 @@ export async function toggleMetaCampaignStatus(
     return { success: false, error: 'Campaign not published to Meta yet.' };
   }
 
-  const { data: account } = await supabaseAdmin
-    .from('connected_accounts')
-    .select('access_token, refresh_token')
-    .eq('id', campaign.selected_meta_account_id)
-    .eq('workspace_id', workspaceId)
-    .single();
-
-  const token = account?.refresh_token || account?.access_token;
+  const resolved = await resolveCampaignMetaAccount(campaign.selected_meta_account_id, workspaceId);
+  const token = resolved?.token;
   if (!token) return { success: false, error: 'Access token not found. Please reconnect your Facebook account.' };
 
   const result = await metaPost(`/${campaign.meta_campaign_id}`, token, {
@@ -1320,14 +1315,8 @@ export async function deleteMetaCampaign(
 
   if (!campaign?.meta_campaign_id) return { success: true }; // not published, nothing to delete
 
-  const { data: account } = await supabaseAdmin
-    .from('connected_accounts')
-    .select('access_token, refresh_token')
-    .eq('id', campaign.selected_meta_account_id)
-    .eq('workspace_id', workspaceId)
-    .single();
-
-  const token = account?.refresh_token || account?.access_token;
+  const resolved = await resolveCampaignMetaAccount(campaign.selected_meta_account_id, workspaceId);
+  const token = resolved?.token;
   if (!token) return { success: true }; // can't delete but not critical
 
   await metaPost(`/${campaign.meta_campaign_id}`, token, { status: 'DELETED' }).catch(() => {});

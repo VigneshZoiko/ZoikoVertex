@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { deleteMetaCampaign } from './metaCampaignPublisher';
+import { resolveCampaignMetaAccount } from './resolveCampaignMetaAccount';
 import { env } from '../../config/env';
 import { preserveEvidence } from '../../services/evidenceVault.service';
 
@@ -340,17 +341,19 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
     let meta_account_name: string | null = null;
     let meta_ad_account_name: string | null = null;
     let meta_access_token: string | null = null;
-    if (data.selected_meta_account_id) {
-      const { data: acct } = await supabaseAdmin
-        .from('connected_accounts')
-        .select('account_name, ad_account_name, ad_account_id, access_token')
-        .eq('id', data.selected_meta_account_id)
-        .single();
-      if (acct) {
-        meta_account_name    = acct.account_name    || null;
-        meta_ad_account_name = acct.ad_account_name || acct.ad_account_id || null;
-        meta_access_token    = acct.access_token    || null;
-      }
+    // Resolve via the selected account, falling back to the workspace's connected
+    // Meta account — so the ad account name and metrics still show even when
+    // selected_meta_account_id was never persisted on the campaign.
+    const resolvedAcct = await resolveCampaignMetaAccount(data.selected_meta_account_id, workspaceId);
+    if (resolvedAcct) {
+      meta_account_name    = resolvedAcct.accountName   || null;
+      meta_ad_account_name = resolvedAcct.adAccountName || resolvedAcct.adAccountId || null;
+      meta_access_token    = resolvedAcct.token         || null;
+    }
+    // Clear a stale "token not found / reconnect" banner once a valid account resolves.
+    if (resolvedAcct?.token && data.meta_error && /token|reconnect/i.test(data.meta_error)) {
+      await supabaseAdmin.from('campaigns').update({ meta_error: null }).eq('id', data.id).eq('workspace_id', workspaceId);
+      data.meta_error = null;
     }
 
     // Auto-delete ONLY if the campaign genuinely no longer exists in Meta.

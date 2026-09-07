@@ -6,6 +6,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { logger } from '../../shared/logger';
 import { env } from '../../config/env';
 import { resolveAgencyAccount, resolveMetaAdAccountId, resolveMetaPageId } from './agencyAccountResolver';
+import { resolveCampaignMetaAccount } from './resolveCampaignMetaAccount';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
@@ -835,15 +836,10 @@ export const getCampaignInsights = async (req: AuthRequest, res: Response, next:
     let metaLive: { impressions: number; reach: number; clicks: number; spend: number } | null = null;
     const { meta_campaign_id, selected_meta_account_id } = campaign as any;
 
-    if (meta_campaign_id && selected_meta_account_id) {
+    if (meta_campaign_id) {
       try {
-        const { data: account } = await supabaseAdmin
-          .from('connected_accounts')
-          .select('access_token')
-          .eq('id', selected_meta_account_id)
-          .single();
-
-        const token = (account as any)?.access_token as string | undefined;
+        const resolved = await resolveCampaignMetaAccount(selected_meta_account_id, workspaceId);
+        const token = resolved?.token;
         if (token) {
           const raw = await metaGet(
             `/${meta_campaign_id}/insights?fields=impressions,reach,clicks,spend,cpm,cpc,ctr,frequency,unique_clicks,cost_per_unique_click,purchase_roas,cost_per_action_type,actions,outbound_clicks,website_ctr,quality_ranking,engagement_rate_ranking,conversion_rate_ranking&date_preset=maximum&level=campaign`,
@@ -1042,22 +1038,17 @@ export const getCampaignBreakdownInsights = async (req: AuthRequest, res: Respon
 
     const { meta_adset_id, selected_meta_account_id } = campaign as any;
 
-    if (!meta_adset_id || !selected_meta_account_id) {
+    if (!meta_adset_id) {
       return res.json({ success: true, data: { by_age_gender: [], by_placement: [] } });
     }
 
-    // Resolve access token for this ad account
-    const { data: account } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('access_token')
-      .eq('id', selected_meta_account_id)
-      .single();
-
-    if (!account?.access_token) {
+    // Resolve access token (falls back to the workspace's connected Meta account)
+    const resolved = await resolveCampaignMetaAccount(selected_meta_account_id, workspaceId);
+    if (!resolved?.token) {
       return res.json({ success: true, data: { by_age_gender: [], by_placement: [] } });
     }
 
-    const token = (account as any).access_token as string;
+    const token = resolved.token;
     const ageFields       = 'impressions,reach,clicks,spend,ctr,cpc,frequency';
     const placementFields = 'impressions,reach,clicks,spend,ctr,cpc';
     const positionFields  = 'impressions,reach,clicks,spend,ctr,cpc';
@@ -1123,17 +1114,12 @@ export const getCampaignTrend = async (req: AuthRequest, res: Response, next: Ne
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
     const { meta_campaign_id, selected_meta_account_id } = campaign as any;
-    if (!meta_campaign_id || !selected_meta_account_id) {
+    if (!meta_campaign_id) {
       return res.json({ success: true, data: { by_day: [] } });
     }
 
-    const { data: account } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('access_token')
-      .eq('id', selected_meta_account_id)
-      .single();
-
-    const token = (account as any)?.access_token as string | undefined;
+    const resolved = await resolveCampaignMetaAccount(selected_meta_account_id, workspaceId);
+    const token = resolved?.token;
     if (!token) return res.json({ success: true, data: { by_day: [] } });
 
     const raw = await metaGet(
@@ -1180,17 +1166,12 @@ export const getCampaignAdInsights = async (req: AuthRequest, res: Response, nex
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
     const { meta_campaign_id, selected_meta_account_id } = campaign as any;
-    if (!meta_campaign_id || !selected_meta_account_id) {
+    if (!meta_campaign_id) {
       return res.json({ success: true, data: { ads: [] } });
     }
 
-    const { data: account } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('access_token')
-      .eq('id', selected_meta_account_id)
-      .single();
-
-    const token = (account as any)?.access_token as string | undefined;
+    const resolved = await resolveCampaignMetaAccount(selected_meta_account_id, workspaceId);
+    const token = resolved?.token;
     if (!token) return res.json({ success: true, data: { ads: [] } });
 
     // Fetch ad-level insights from Meta under the campaign
@@ -1268,17 +1249,12 @@ export const syncBudgetToMeta = async (req: AuthRequest, res: Response, next: Ne
       return res.status(400).json({ error: 'Campaign is not published to Meta yet — publish first, then sync budget' });
     }
 
-    const { data: account } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('access_token')
-      .eq('id', selected_meta_account_id)
-      .single();
-
-    if (!account?.access_token) {
+    const resolved = await resolveCampaignMetaAccount(selected_meta_account_id, workspaceId);
+    if (!resolved?.token) {
       return res.status(400).json({ error: 'Meta account token not found — please reconnect' });
     }
 
-    const token = (account as any).access_token as string;
+    const token = resolved.token;
 
     // Meta budget is in minor currency units (cents for USD)
     const majorToMinor: Record<string, number> = { USD: 100, EUR: 100, GBP: 100, INR: 100, AED: 100 };
