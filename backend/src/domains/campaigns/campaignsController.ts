@@ -240,7 +240,9 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
 
     const { status, risk_tier, campaign_type, needs_action, business_unit_id } = req.query;
 
-    if (status && status !== 'ALL') query = query.eq('status', String(status));
+    // status is filtered AFTER end-date derivation (below) so the filter and the
+    // displayed status agree — e.g. a running-but-past-end campaign filters as COMPLETED.
+    const statusFilter = status && status !== 'ALL' ? String(status) : null;
     if (risk_tier) query = query.eq('risk_tier', String(risk_tier));
     if (campaign_type) query = query.eq('campaign_type', String(campaign_type));
     if (business_unit_id) query = query.eq('business_unit_id', String(business_unit_id));
@@ -254,11 +256,13 @@ export const listCampaigns = async (req: AuthRequest, res: Response, next: NextF
     if (error) throw error;
 
     // Derive COMPLETED for campaigns whose end date has passed (UI immediacy;
-    // the lifecycle worker persists the same to the DB on its schedule).
-    const rows = (data || []).map((c: any) => ({
+    // the lifecycle worker persists the same to the DB on its schedule), then apply
+    // the status filter on the derived value so the filter matches what's displayed.
+    const derived = (data || []).map((c: any) => ({
       ...c,
       status: effectiveCampaignStatus(c.status, c.end_at),
     }));
+    const rows = statusFilter ? derived.filter((c: any) => c.status === statusFilter) : derived;
     const ids  = rows.map((c: any) => c.id);
     const counts: Record<string, number> = {};
 
@@ -349,8 +353,11 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
     let meta_access_token: string | null = null;
     // Resolve via the selected account, falling back to the workspace's connected
     // Meta account — so the ad account name and metrics still show even when
-    // selected_meta_account_id was never persisted on the campaign.
-    const resolvedAcct = await resolveCampaignMetaAccount(data.selected_meta_account_id, workspaceId);
+    // selected_meta_account_id was never persisted. Skip for pure drafts (never
+    // linked or published) so they don't display a fallback account they never used.
+    const resolvedAcct = (data.selected_meta_account_id || data.meta_campaign_id)
+      ? await resolveCampaignMetaAccount(data.selected_meta_account_id, workspaceId)
+      : null;
     if (resolvedAcct) {
       meta_account_name    = resolvedAcct.accountName   || null;
       meta_ad_account_name = resolvedAcct.adAccountName || resolvedAcct.adAccountId || null;
@@ -362,8 +369,13 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
       data.meta_error = null;
     }
 
-    // Auto-delete ONLY if the campaign genuinely no longer exists in Meta.
-    if (data.meta_campaign_id && meta_access_token) {
+    // Auto-delete ONLY when using the campaign's OWN linked account (whose token
+    // is known to have access). With a fallback token, Meta's "missing permissions"
+    // response (code 100 / subcode 33) is indistinguishable from a real deletion —
+    // deleting then would wipe a live campaign (data loss).
+    const usingLinkedAccount = !!resolvedAcct && !!data.selected_meta_account_id
+      && resolvedAcct.accountId === data.selected_meta_account_id;
+    if (data.meta_campaign_id && meta_access_token && usingLinkedAccount) {
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 2000);

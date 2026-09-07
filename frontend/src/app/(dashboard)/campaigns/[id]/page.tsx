@@ -356,8 +356,7 @@ export default function CampaignDetailPage() {
               )}
             </button>
             <span className={`text-sm font-semibold ${isActive(campaign.status) && !campaignEnded ? "text-foreground" : "text-foreground-muted"}`}>
-              {campaignEnded && !["COMPLETED","CANCELLED"].includes(campaign.status) ? "Ended" :
-               campaign.status === "PAUSING" ? "Pausing..." :
+              {campaign.status === "PAUSING" ? "Pausing..." :
                campaign.status.charAt(0) + campaign.status.slice(1).toLowerCase()}
             </span>
           </div>
