@@ -10,9 +10,9 @@ import FintechTrustDocs from "@/components/Fintech/FintechTrustDocs";
 import FintechFinalCTA from "@/components/Fintech/FintechFinalCTA";
 
 export const metadata = {
-  title: "Fintech Marketing Governance | ZoikoVertex",
+  title: "FinTech Marketing Governance | ZoikoVertex",
   description:
-    "Govern AI-assisted financial communications, enforce claims review, route regulated content to legal and compliance, and maintain complete audit trails for every marketing decision.",
+    "ZoikoVertex governs AI-assisted FinTech marketing with claims review, compliance routing, human oversight, and complete audit trails for every decision.",
 };
 
 export default function FintechPage() {

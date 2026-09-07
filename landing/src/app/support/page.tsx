@@ -11,12 +11,9 @@ import {
 } from "@/components/support";
 
 export const metadata = {
-  title: "Support | ZoikoVertex",
+  title: "AI Workflow Support Center | ZoikoVertex",
   description:
-    "Get help with AI workflows, approval routing, integrations, evidence, auditability, privacy, billing, and enterprise implementation. Intent-based routing sends every request to the right specialist queue.",
-  alternates: {
-    canonical: "https://www.zoikovertex.com/support",
-  },
+    "Get support for governed agentic execution, AI workflows, approval routing, integrations, evidence, auditability, privacy, billing, and enterprise needs.",
 };
 
 export default function SupportPage() {

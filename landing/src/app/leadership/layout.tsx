@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Leadership | ZoikoVertex",
+  title: "ZoikoVertex Leadership Team | AI Governance Vision",
   description:
-    "A governance-led leadership model connecting founder oversight, product discipline, engineering execution, responsible AI, security, design authority, and customer accountability.",
+    "Meet ZoikoVertex leadership driving responsible AI, governance, security, product strategy, and enterprise accountability with a trusted technology vision.",
 };
 
 export default function LeadershipLayout({ children }: { children: React.ReactNode }) {

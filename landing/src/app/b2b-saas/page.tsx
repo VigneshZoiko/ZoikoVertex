@@ -10,7 +10,7 @@ import B2BSaaSFinalCTA from "@/components/B2BSaaS/B2BSaaSFinalCTA";
 export const metadata = {
   title: "B2B SaaS Marketing Governance | ZoikoVertex",
   description:
-    "Govern product claims, security messaging, competitive positioning, and customer proof — with approval workflows, brand controls, and evidence records built for enterprise procurement scrutiny.",
+    "ZoikoVertex governs B2B SaaS marketing with claims review, security sign-off, customer proof authorization, AI oversight, and procurement-ready evidence.",
 };
 
 export default function B2BSaaSPage() {

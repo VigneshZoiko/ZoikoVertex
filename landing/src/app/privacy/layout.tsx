@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | ZoikoVertex",
+  title: "Privacy Policy & Data Protection | ZoikoVertex",
   description:
-    "Privacy Policy for ZoikoVertex — Governed Agentic Marketing OS. How we collect, use, share, and protect personal information under GDPR, CCPA, and global data protection law.",
-  alternates: {
-    canonical: "https://www.zoikovertex.com/privacy",
-  },
+    "Read the ZoikoVertex privacy policy to understand data collection, AI-assisted workflows, security measures, user rights & how your information is protected.",
 };
 
 export default function PrivacyLayout({ children }: { children: React.ReactNode }) {

@@ -11,12 +11,9 @@ import AuditabilityFaq from "@/components/Auditability/AuditabilityFaq";
 import AuditabilityFinalCTA from "@/components/Auditability/AuditabilityFinalCTA";
 
 export const metadata = {
-  title: "Auditability | ZoikoVertex",
+  title: "AI Auditability & Evidence | ZoikoVertex",
   description:
-    "Make every AI workflow traceable, reviewable, and evidence-backed. Audit Trail, Decision Ledger, Evidence Vault, Forensic Hub, and Identity Ledger record the actions, decisions, approvals, and exports behind agentic workflows.",
-  alternates: {
-    canonical: "https://www.zoikovertex.com/auditability",
-  },
+    "ZoikoVertex delivers AI auditability for governed agentic workflows, recording actions, decisions, approvals, identities, evidence, exports, and exceptions.",
 };
 
 export default function AuditabilityPage() {

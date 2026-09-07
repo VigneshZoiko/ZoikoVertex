@@ -6,9 +6,9 @@ import ZoikoGroupPrinciples from "@/components/ZoikoGroup/ZoikoGroupPrinciples";
 import ZoikoGroupCTA from "@/components/ZoikoGroup/ZoikoGroupCTA";
 
 export const metadata: Metadata = {
-  title: "About Zoiko Group | ZoikoVertex",
+  title: "About Zoiko Group | Enterprise Platform Innovation",
   description:
-    "Zoiko Group is a technology-led holding group building category-defining platforms across AI, telecommunications, workforce intelligence, and enterprise operations.",
+    "Learn about Zoiko Group technology ecosystem, creating AI-powered platforms for enterprises across communications, operations, workforce, and automation.",
 };
 
 export default function ZoikoGroupPage() {

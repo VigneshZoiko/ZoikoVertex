@@ -43,6 +43,8 @@ const LINK_HREFS: Record<string, string> = {
   Auditability: "/auditability",
   Support: "/support",
   "Data Processing Addendum": "/dpa",
+  "Contact Sales": "/contact-sales",
+  Partnerships: "/partnerships",
 };
 
 export default function Footer() {
@@ -245,13 +247,13 @@ export default function Footer() {
               "Cookie Preferences",
               "Security",
             ].map((l) => (
-              <a
+              <Link
                 key={l}
-                href="#"
+                href={LINK_HREFS[l] ?? "#"}
                 className="hover:text-white/50 transition-colors"
               >
                 {l}
-              </a>
+              </Link>
             ))}
           </div>
         </div>
