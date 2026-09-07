@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ShieldCheck,
@@ -38,6 +39,7 @@ interface RoleCard {
   title: string;
   description: string;
   ctaText: string;
+  href: string;
 }
 
 const roleCards: RoleCard[] = [
@@ -48,6 +50,7 @@ const roleCards: RoleCard[] = [
     description:
       "Board-level value, risk reduction, ROI, and strategic control.",
     ctaText: "View Executive Buyer Guide",
+    href: "/buyer-guides",
   },
   {
     id: "marketing",
@@ -56,6 +59,7 @@ const roleCards: RoleCard[] = [
     description:
       "Campaign velocity, brand governance, content approval, and performance accountability.",
     ctaText: "View Marketing Operations Guide",
+    href: "/marketing-ops",
   },
   {
     id: "it-cto",
@@ -64,6 +68,7 @@ const roleCards: RoleCard[] = [
     description:
       "Architecture, integrations, security, scalability, and data controls.",
     ctaText: "View Technical Evaluation Guide",
+    href: "/security",
   },
   {
     id: "legal-compliance",
@@ -72,6 +77,7 @@ const roleCards: RoleCard[] = [
     description:
       "AI governance, audit evidence, retention, policy controls, and approval records.",
     ctaText: "View Governance & Compliance Guide",
+    href: "/governance",
   },
   {
     id: "procurement",
@@ -80,6 +86,7 @@ const roleCards: RoleCard[] = [
     description:
       "Vendor evaluation, security evidence, contractual readiness, and implementation risk.",
     ctaText: "View Procurement Checklist",
+    href: "/roi-governance-audit",
   },
   {
     id: "operations",
@@ -88,6 +95,7 @@ const roleCards: RoleCard[] = [
     description:
       "Workflow control, ownership, SLAs, handoffs, and operational visibility.",
     ctaText: "View Workflow Maturity Guide",
+    href: "/ai-workflow-orchestration",
   },
 ];
 
@@ -127,40 +135,41 @@ export default function StartWithYourRoleSection() {
           {roleCards.map((card) => {
             const Icon = card.icon;
             return (
-              <motion.div
-                key={card.id}
-                variants={cardVariants}
-                className="group relative flex flex-col justify-between p-7 rounded-2xl bg-[#131C2B] border border-slate-800/80 hover:border-slate-700 hover:bg-[#162235] transition-all duration-300 cursor-pointer backdrop-blur-sm min-h-[220px]"
-              >
-                <div>
-                  {/* Top Row: Icon & Radio Circle Outline */}
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="w-9 h-9 rounded-lg bg-cyan-950/60 border border-cyan-800/50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-                      <Icon className="w-4 h-4 text-cyan-400 stroke-[2]" />
+              <motion.div key={card.id} variants={cardVariants}>
+                <Link
+                  href={card.href}
+                  className="group relative flex flex-col justify-between p-7 rounded-2xl bg-[#131C2B] border border-slate-800/80 hover:border-slate-700 hover:bg-[#162235] transition-all duration-300 cursor-pointer backdrop-blur-sm min-h-[220px] h-full"
+                >
+                  <div>
+                    {/* Top Row: Icon & Radio Circle Outline */}
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="w-9 h-9 rounded-lg bg-cyan-950/60 border border-cyan-800/50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                        <Icon className="w-4 h-4 text-cyan-400 stroke-[2]" />
+                      </div>
+                      <div className="w-4 h-4 rounded-full border border-slate-700 group-hover:border-cyan-400 transition-colors" />
                     </div>
-                    <div className="w-4 h-4 rounded-full border border-slate-700 group-hover:border-cyan-400 transition-colors" />
+
+                    {/* Title */}
+                    <h3 className="text-base font-bold text-slate-100 mb-2.5 tracking-tight group-hover:text-white transition-colors">
+                      {card.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="text-xs text-slate-400 font-normal leading-relaxed mb-6">
+                      {card.description}
+                    </p>
                   </div>
 
-                  {/* Title */}
-                  <h3 className="text-base font-bold text-slate-100 mb-2.5 tracking-tight group-hover:text-white transition-colors">
-                    {card.title}
-                  </h3>
-
-                  {/* Description */}
-                  <p className="text-xs text-slate-400 font-normal leading-relaxed mb-6">
-                    {card.description}
-                  </p>
-                </div>
-
-                {/* Arrow & CTA Link */}
-                <div className="flex items-center gap-2 pt-4 border-t border-slate-800/60">
-                  <span className="text-xs font-mono font-bold text-[#20E7F2] tracking-[1px]">
-                    {card.ctaText}
-                  </span>
-                  <span className="text-[#20E7F2] text-xs font-semibold group-hover:translate-x-1 transition-transform">
-                    <ArrowRight size={15}/>
-                  </span>
-                </div>
+                  {/* Arrow & CTA Link */}
+                  <div className="flex items-center gap-2 pt-4 border-t border-slate-800/60">
+                    <span className="text-xs font-mono font-bold text-[#20E7F2] tracking-[1px]">
+                      {card.ctaText}
+                    </span>
+                    <span className="text-[#20E7F2] text-xs font-semibold group-hover:translate-x-1 transition-transform">
+                      <ArrowRight size={15} />
+                    </span>
+                  </div>
+                </Link>
               </motion.div>
             );
           })}

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -24,6 +25,7 @@ const itemVariants = {
 } as const;
 
 export default function ProveItCallToActionSection() {
+  const router = useRouter();
   return (
     <section className="relative min-h-[460px] w-full bg-[#08101F] bg-radial from-[#20E7F224] to-[#20E7F200] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Subtle Radial Glows */}
@@ -72,17 +74,17 @@ export default function ProveItCallToActionSection() {
           className="flex flex-wrap items-center justify-center gap-4 w-full"
         >
           {/* Primary Cyan CTA */}
-          <button className="px-6 py-3.5 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98]">
+          <button onClick={()=>router.push("#demo")} className="px-6 py-3.5 cursor-pointer rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98]">
             Book a Live Enterprise Demo
           </button>
 
           {/* Secondary Gold CTA */}
-          <button className="px-6 py-3.5 rounded-xl bg-[#D4A359] text-slate-950 font-bold text-xs hover:bg-[#E2B46C] transition-all duration-200 shadow-[0_0_20px_rgba(212,163,89,0.25)] active:scale-[0.98]">
+          <button onClick={()=>router.push("/roi-governance-audit")} className="px-6 py-3.5 cursor-pointer rounded-xl bg-[#D4A359] text-slate-950 font-bold text-xs hover:bg-[#E2B46C] transition-all duration-200 shadow-[0_0_20px_rgba(212,163,89,0.25)] active:scale-[0.98]">
             Request ROI &amp; Governance Audit
           </button>
 
           {/* Outline CTA */}
-          <button className="px-6 py-3.5 rounded-xl border border-[#7AA0BE42] text-slate-200 font-semibold text-xs hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-200 active:scale-[0.98] backdrop-blur-sm">
+          <button onClick={()=>router.push("/request-demo")} className="px-6 py-3.5 rounded-xl cursor-pointer border border-[#7AA0BE42] text-slate-200 font-semibold text-xs hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-200 active:scale-[0.98] backdrop-blur-sm">
             Browse Product Demos
           </button>
         </motion.div>

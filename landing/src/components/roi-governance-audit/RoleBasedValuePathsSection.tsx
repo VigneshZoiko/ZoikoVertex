@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 const containerVariants = {
@@ -30,6 +31,7 @@ interface RoleData {
   headline: string;
   description: string;
   ctaText: string;
+  href: string;
 }
 
 const rolesData: RoleData[] = [
@@ -41,6 +43,7 @@ const rolesData: RoleData[] = [
     description:
       "Turn agentic AI into a measurable line item: hours recovered, rework avoided, and payback period — with assumptions transparent enough for the board.",
     ctaText: "Download ROI Summary",
+    href: "/roi-engine",
   },
   {
     id: "cmo",
@@ -50,6 +53,7 @@ const rolesData: RoleData[] = [
     description:
       "Scale high-velocity campaign workflows across markets with real-time approval gates and automated quality compliance.",
     ctaText: "Explore Marketing Demos",
+    href: "/demo-library",
   },
   {
     id: "coo",
@@ -59,6 +63,7 @@ const rolesData: RoleData[] = [
     description:
       "Gain full cross-functional visibility into automated workflow throughput and eliminate operational dependencies.",
     ctaText: "View Operational Playbook",
+    href: "/buyer-guides",
   },
   {
     id: "cio",
@@ -68,6 +73,7 @@ const rolesData: RoleData[] = [
     description:
       "Enforce zero-trust agent permissions, continuous policy validation, and complete technical auditability across your enterprise.",
     ctaText: "Review Security Architecture",
+    href: "/security",
   },
   {
     id: "legal",
@@ -77,6 +83,7 @@ const rolesData: RoleData[] = [
     description:
       "Ensure strict regulatory adherence with automated decision recording, identity binding, and tamper-proof evidence trails.",
     ctaText: "Inspect Legal Evidence Vault",
+    href: "/auditability",
   },
   {
     id: "procurement",
@@ -86,6 +93,7 @@ const rolesData: RoleData[] = [
     description:
       "Access board-ready procurement packs with clear SLA mappings, risk assessments, and predictable licensing tiers.",
     ctaText: "Download Procurement Pack",
+    href: "/roi-governance-audit",
   },
 ];
 
@@ -179,9 +187,12 @@ export default function RoleBasedValuePathsSection() {
                   <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-slate-500 uppercase mb-3">
                     RECOMMENDED NEXT STEP
                   </span>
-                  <button className="px-6 py-3.5 rounded-xl bg-[#D4A359] text-slate-950 font-bold text-xs hover:bg-[#E2B46C] transition-all duration-200 shadow-[0_0_20px_rgba(212,163,89,0.25)] active:scale-[0.98] w-full sm:w-auto text-center">
+                  <Link
+                    href={activeRole.href}
+                    className="px-6 py-3.5 rounded-xl bg-[#D4A359] text-slate-950 font-bold text-xs hover:bg-[#E2B46C] transition-all duration-200 shadow-[0_0_20px_rgba(212,163,89,0.25)] active:scale-[0.98] w-full sm:w-auto text-center inline-block"
+                  >
                     {activeRole.ctaText}
-                  </button>
+                  </Link>
                 </div>
               </motion.div>
             </AnimatePresence>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -193,9 +194,12 @@ export default function GovernanceReadinessChecklistSection() {
               <button className="px-6 py-3 rounded-xl bg-[#131C2B] border border-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all active:scale-[0.98]">
                 Download PDF
               </button>
-              <button className="px-6 py-3 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs hover:bg-[#00cce6] transition-all shadow-[0_0_20px_rgba(0,229,255,0.3)] active:scale-[0.98]">
+              <Link
+                href="/roi-governance-audit"
+                className="px-6 py-3 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs hover:bg-[#00cce6] transition-all shadow-[0_0_20px_rgba(0,229,255,0.3)] active:scale-[0.98] inline-block text-center"
+              >
                 Run Governance Audit
-              </button>
+              </Link>
             </div>
           </motion.div>
 
@@ -228,9 +232,12 @@ export default function GovernanceReadinessChecklistSection() {
             </div>
 
             {/* CTA Button */}
-            <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#E8B768] to-[#C8954A] text-[#1C1405] font-bold text-xs sm:text-sm hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98]">
+            <Link
+              href="/roi-governance-audit"
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-[#E8B768] to-[#C8954A] text-[#1C1405] font-bold text-xs sm:text-sm hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98] text-center inline-block"
+            >
               Run ROI &amp; Governance Audit
-            </button>
+            </Link>
           </motion.div>
         </motion.div>
       </div>

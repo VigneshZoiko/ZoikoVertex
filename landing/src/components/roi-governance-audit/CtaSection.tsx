@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -71,17 +72,26 @@ export default function CtaSection() {
           variants={itemVariants}
           className="flex flex-wrap items-center justify-center gap-4 w-full sm:w-auto"
         >
-          <button className="px-7 py-4 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] w-full sm:w-auto">
+          <Link
+            href="/roi-governance-audit"
+            className="px-7 py-4 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] w-full sm:w-auto inline-block text-center"
+          >
             Run ROI &amp; Governance Audit
-          </button>
+          </Link>
 
-          <button className="px-7 py-4 rounded-xl bg-[#070E18] text-slate-200 border border-slate-800 font-semibold text-xs sm:text-sm hover:bg-[#0A1422] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] w-full sm:w-auto">
+          <Link
+            href="/demo-library"
+            className="px-7 py-4 rounded-xl bg-[#070E18] text-slate-200 border border-slate-800 font-semibold text-xs sm:text-sm hover:bg-[#0A1422] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] w-full sm:w-auto inline-block text-center"
+          >
             Book Enterprise Demo
-          </button>
+          </Link>
 
-          <button className="px-7 py-4 rounded-xl bg-[#D4A359] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#E2B46C] transition-all duration-200 shadow-[0_0_25px_rgba(212,163,89,0.25)] active:scale-[0.98] w-full sm:w-auto">
+          <Link
+            href="/buyer-guides"
+            className="px-7 py-4 rounded-xl bg-[#D4A359] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#E2B46C] transition-all duration-200 shadow-[0_0_25px_rgba(212,163,89,0.25)] active:scale-[0.98] w-full sm:w-auto inline-block text-center"
+          >
             Request Procurement Pack
-          </button>
+          </Link>
         </motion.div>
       </motion.div>
     </section>

@@ -10,6 +10,7 @@ import {
   Activity,
   AlertTriangle,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -33,6 +34,7 @@ const itemVariants = {
 } as const;
 
 export default function DemoLibrarySection() {
+  const router = useRouter();
   return (
     <section className="relative min-h-screen w-full bg-[#030710] text-white px-6 py-12 md:px-16 lg:px-24 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
@@ -94,10 +96,10 @@ export default function DemoLibrarySection() {
             variants={itemVariants}
             className="flex flex-wrap items-center gap-4 mb-12"
           >
-            <button className="px-6 py-3.5 rounded-lg bg-[#00E5FF] text-slate-950 font-bold text-sm hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.4)]">
+            <button onClick={()=>router.push("#demo")} className="px-6 py-3.5 cursor-pointer rounded-lg bg-[#00E5FF] text-slate-950 font-bold text-sm hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.4)]">
               Book a Live Enterprise Demo
             </button>
-            <button className="px-6 py-3.5 rounded-lg border border-slate-800 bg-[#070E18]/80 text-slate-200 font-semibold text-sm hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-200">
+            <button onClick={()=>router.push("/request-demo")} className="px-6 py-3.5 rounded-lg border border-slate-800 cursor-pointer bg-[#070E18]/80 text-slate-200 font-semibold text-sm hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-200">
               Browse Product Demos
             </button>
           </motion.div>

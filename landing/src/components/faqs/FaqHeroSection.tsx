@@ -85,7 +85,7 @@ export default function FaqHeroSection() {
           className="mb-14"
         >
           <a
-            href="#"
+            href="/request-demo"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00E5FF] text-slate-950 font-mono font-bold text-xs tracking-[1px] hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_20px_rgba(0,229,255,0.3)] active:scale-[0.98]"
           >
             <span>Book a Demo</span>
