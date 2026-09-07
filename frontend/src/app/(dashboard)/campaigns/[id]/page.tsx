@@ -292,6 +292,11 @@ export default function CampaignDetailPage() {
   const targeting = (campaign.targeting || {}) as Record<string, unknown>;
   const creative  = (campaign.creative  || {}) as Record<string, unknown>;
 
+  // A campaign is ended once it is COMPLETED/CANCELLED. The backend already
+  // derives COMPLETED when the end date has passed (effectiveCampaignStatus),
+  // so its ads can no longer be "Active" and their toggles must be locked.
+  const campaignEnded = ["COMPLETED", "CANCELLED"].includes(campaign.status);
+
   return (
     <div className="h-full flex flex-col bg-card overflow-hidden">
 
@@ -323,9 +328,9 @@ export default function CampaignDetailPage() {
             <button
               type="button"
               onClick={handleToggle}
-              disabled={toggling || ["DRAFT","COMPLETED","CANCELLED"].includes(campaign.status)}
+              disabled={toggling || campaignEnded || ["DRAFT","COMPLETED","CANCELLED"].includes(campaign.status)}
               className={`relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${
-                isActive(campaign.status) ? "bg-[#1877F2]" : "bg-surface-hover"
+                isActive(campaign.status) && !campaignEnded ? "bg-[#1877F2]" : "bg-surface-hover"
               }`}
               style={{ width: 36, height: 20 }}
             >
@@ -337,12 +342,13 @@ export default function CampaignDetailPage() {
                   borderRadius: "50%", background: "#ffffff",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
                   transition: "transform 200ms",
-                  transform: isActive(campaign.status) ? "translateX(19px)" : "translateX(3px)",
+                  transform: isActive(campaign.status) && !campaignEnded ? "translateX(19px)" : "translateX(3px)",
                 }} />
               )}
             </button>
-            <span className={`text-sm font-semibold ${isActive(campaign.status) ? "text-foreground" : "text-foreground-muted"}`}>
-              {campaign.status === "PAUSING" ? "Pausing..." :
+            <span className={`text-sm font-semibold ${isActive(campaign.status) && !campaignEnded ? "text-foreground" : "text-foreground-muted"}`}>
+              {campaignEnded && !["COMPLETED","CANCELLED"].includes(campaign.status) ? "Ended" :
+               campaign.status === "PAUSING" ? "Pausing..." :
                campaign.status.charAt(0) + campaign.status.slice(1).toLowerCase()}
             </span>
           </div>
@@ -1285,7 +1291,7 @@ export default function CampaignDetailPage() {
                     const bCtr    = adI ? Number(adI.ctr)          : 0;
                     const bFreq   = adI ? Number(adI.frequency)    : 0;
                     const cpr = bClicks > 0 && bSpend > 0 ? (bSpend / bClicks).toFixed(2) : null;
-                    const isAdActive = ["ACTIVE"].includes(b.status);
+                    const isAdActive = ["ACTIVE"].includes(b.status) && !campaignEnded;
                     return (
                       <tr key={b.id}
                         className={`border-b border-border/40 transition-colors ${
@@ -1319,14 +1325,14 @@ export default function CampaignDetailPage() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleBoostToggle(b)}
-                              disabled={b.id.startsWith('virtual-ad-') || togglingBoost === b.id}
-                              title={b.id.startsWith('virtual-ad-') ? 'Toggle individual ads after campaign is live' : (isAdActive ? 'Pause ad' : 'Resume ad')}
+                              disabled={campaignEnded || b.id.startsWith('virtual-ad-') || togglingBoost === b.id}
+                              title={campaignEnded ? 'Campaign has ended' : b.id.startsWith('virtual-ad-') ? 'Toggle individual ads after campaign is live' : (isAdActive ? 'Pause ad' : 'Resume ad')}
                               style={{
                                 width: 32, height: 18, borderRadius: 999,
                                 background: isAdActive ? "#1877F2" : "#3f3f46",
                                 position: "relative", display: "inline-block",
                                 border: "none", padding: 0,
-                                cursor: b.id.startsWith('virtual-ad-') ? 'not-allowed' : 'pointer',
+                                cursor: (campaignEnded || b.id.startsWith('virtual-ad-')) ? 'not-allowed' : 'pointer',
                                 opacity: togglingBoost === b.id ? 0.6 : 1,
                                 transition: "background 200ms",
                               }}
@@ -1340,7 +1346,7 @@ export default function CampaignDetailPage() {
                               }} />
                             </button>
                             <span className={`text-xs font-medium ${isAdActive ? "text-foreground" : "text-foreground-muted"}`}>
-                              {togglingBoost === b.id ? '…' : (b.status.charAt(0) + b.status.slice(1).toLowerCase())}
+                              {togglingBoost === b.id ? '…' : campaignEnded ? 'Ended' : (b.status.charAt(0) + b.status.slice(1).toLowerCase())}
                             </span>
                           </div>
                         </td>
