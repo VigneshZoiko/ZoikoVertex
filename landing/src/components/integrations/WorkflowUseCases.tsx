@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import Link from "next/link";
+import { motion, Variants } from "framer-motion";
 
 interface UseCaseCard {
   id: string;
@@ -10,6 +11,7 @@ interface UseCaseCard {
   problem: string;
   solution: string;
   ctaText: string;
+  href: string;
 }
 
 const USE_CASES: UseCaseCard[] = [
@@ -21,6 +23,7 @@ const USE_CASES: UseCaseCard[] = [
     solution:
       "Connect social platforms to AI workflows, approvals, policy checks, and evidence records.",
     ctaText: "See publishing workflow →",
+    href: "/ai-workflow-orchestration",
   },
   {
     id: "2",
@@ -30,6 +33,7 @@ const USE_CASES: UseCaseCard[] = [
       "Campaign actions are disconnected from customer and revenue data.",
     solution: "Connect CRM segments to agentic workflows and ROI measurement.",
     ctaText: "Map CRM stack →",
+    href: "/roi-engine",
   },
   {
     id: "3",
@@ -39,6 +43,7 @@ const USE_CASES: UseCaseCard[] = [
     solution:
       "Route review requests into collaboration tools while ZoikoVertex stays the system of record.",
     ctaText: "Design approval flow →",
+    href: "/approval-workflows",
   },
   {
     id: "4",
@@ -48,6 +53,7 @@ const USE_CASES: UseCaseCard[] = [
     solution:
       "Connect performance data to the ROI Engine and Executive Command Center.",
     ctaText: "View ROI Engine →",
+    href: "/executive-command-center",
   },
   {
     id: "5",
@@ -56,6 +62,7 @@ const USE_CASES: UseCaseCard[] = [
     problem: "Audit proof is manual and scattered.",
     solution: "Generate controlled evidence bundles from integrated workflows.",
     ctaText: "View governance audit →",
+    href: "/audit-engine",
   },
   {
     id: "6",
@@ -65,8 +72,10 @@ const USE_CASES: UseCaseCard[] = [
     solution:
       "Bind every connected action to role, scope, and tenant with SSO and SCIM.",
     ctaText: "View security controls →",
+    href: "/security",
   },
 ];
+
 const containerVariants: Variants = {
   hidden: {
     opacity: 0,
@@ -159,7 +168,7 @@ export default function WorkflowUseCases() {
 
               {/* Action Link CTA */}
               <div className="pt-6 mt-4 flex items-center text-xs font-mono text-[#20E7F2] group-hover:underline">
-                <a href="#">{item.ctaText}</a>
+                <Link href={item.href}>{item.ctaText}</Link>
               </div>
             </motion.div>
           ))}

@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cookie Preferences | ZoikoVertex",
+  title: "Cookie Preferences & Settings | ZoikoVertex",
   description:
-    "Control how ZoikoVertex uses cookies and similar technologies for essential site operation, analytics, personalization, marketing, and integrations. Manage consent, review vendor categories, and exercise Do Not Sell or Share rights.",
-  alternates: {
-    canonical: "https://www.zoikovertex.com/cookie-preferences",
-  },
+    "Manage your ZoikoVertex cookie preferences for essential site functions, analytics, personalization, marketing, and integrations. Change choices anytime.",
 };
 
 export default function CookiePreferencesLayout({

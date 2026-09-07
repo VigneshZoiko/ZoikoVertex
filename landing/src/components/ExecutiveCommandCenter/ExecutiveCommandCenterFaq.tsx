@@ -134,7 +134,7 @@ export default function ExecutiveCommandCenterFaq() {
                   Book an Executive Demo
                 </Link>
                 <Link
-                  href="/request-demo"
+                  href="/roi-governance-audit"
                   className="inline-flex items-center justify-center gap-2.5 px-6 py-3 rounded-full bg-[#C9A94A] text-[#080d1a] text-sm font-bold hover:bg-[#C9A94A]/90 transition font-[family-name:var(--font-jakarta)]"
                 >
                   <BarChart3 className="w-[14px] h-[14px]" strokeWidth={2.5} />

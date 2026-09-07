@@ -238,7 +238,7 @@ export default function SecurityPage() {
                 Contact Enterprise Sales
               </a>
               <Link
-                href="/signup"
+                href="/request-demo"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 text-sm font-medium text-white/80 hover:bg-white/5 transition"
               >
                 Request a Demo

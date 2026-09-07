@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import {
   BuyerGuidesHeroSection,
   StartWithYourRoleSection,
@@ -10,6 +12,12 @@ import {
   BuyerFaqSection,
   BuyerGuidesCtaSection,
 } from "@/components/buyer-guides";
+
+export const metadata: Metadata = {
+  title: "Governed Agentic AI Buyer Guides | ZoikoVertex",
+  description:
+    "Explore ZoikoVertex buyer guides for governed agentic AI, covering governance, ROI, orchestration, auditability, integrations, and enterprise readiness.",
+};
 
 export default function BuyerGuidesPage() {
   return (

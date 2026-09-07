@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const PLANS = [
@@ -152,6 +153,7 @@ function CtaIcon({ type }: { type: string }) {
 }
 
 export default function PricingSection() {
+  const router = useRouter();
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -245,12 +247,12 @@ export default function PricingSection() {
 
               {/* CTA */}
               {plan.highlighted ? (
-                <button className="w-full flex items-center justify-center gap-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black py-2.5 rounded-xl transition-colors duration-300 mb-4">
+                <button onClick={()=>router.push("https://getzoikovertex.com/signup")} className="w-full cursor-pointer flex items-center justify-center gap-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black py-2.5 rounded-xl transition-colors duration-300 mb-4">
                   <CtaIcon type={plan.ctaIcon} />
                   {plan.cta}
                 </button>
               ) : (
-                <button className="w-full flex items-center justify-center gap-2 border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-xs font-semibold py-2.5 rounded-xl transition-all duration-300 mb-4">
+                <button onClick={()=>router.push("https://getzoikovertex.com/signup")} className="w-full cursor-pointer flex items-center justify-center gap-2 border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-xs font-semibold py-2.5 rounded-xl transition-all duration-300 mb-4">
                   <CtaIcon type={plan.ctaIcon} />
                   {plan.cta}
                 </button>
@@ -315,7 +317,7 @@ export default function PricingSection() {
         <div className={`text-center mt-10 transition-all duration-700 ease-out ${visible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "400ms" }}>
           <p className="text-white/30 text-sm">
             Need help choosing?{" "}
-            <a href="#comparison" className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">
+            <a href="https://getzoikovertex.com/signup" className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">
               Compare all plans →
             </a>
           </p>

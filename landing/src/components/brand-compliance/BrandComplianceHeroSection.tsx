@@ -103,7 +103,7 @@ export default function BrandComplianceHeroSection() {
           {/* Primary Call To Action Button */}
           <motion.div variants={itemVariants} className="mb-14">
             <a
-              href="#request-demo"
+              href="/request-demo"
               className="inline-flex items-center gap-2 bg-[#00E5FF] text-[#080C10] text-xs font-bold px-6 py-3.5 rounded-full hover:bg-[#00E5FF]/90 transition-all duration-200 shadow-lg shadow-[#00E5FF]/20"
             >
               <Calendar className="w-4 h-4 fill-[#080C10]" />

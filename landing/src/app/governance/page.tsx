@@ -199,12 +199,12 @@ function TheProblem() {
               </svg>
               Request Gov Demo
             </Link>
-            <button className="inline-flex items-center gap-2 border border-white/20 text-white/70 hover:text-white hover:border-white/40 font-semibold px-6 py-3 rounded-xl text-sm transition-all">
+            <Link href="https://getzoikovertex.com/login" className="inline-flex items-center gap-2 border border-white/20 text-white/70 hover:text-white hover:border-white/40 font-semibold px-6 py-3 rounded-xl text-sm transition-all">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
               </svg>
               See Governance Controls
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -1082,7 +1082,7 @@ function BuiltForProcurement() {
         </div>
         <div className="text-center">
           <Link
-            href="/request-demo"
+            href="/security"
             className="inline-flex items-center gap-2 border border-white/20 hover:border-[#20E7F2]/40 text-white/60 hover:text-white text-sm rounded-full px-8 py-3 transition-all"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -1108,7 +1108,7 @@ const STAKEHOLDERS = [
     concern: "\"I need AI speed, but I cannot afford a brand incident.\"",
     answer: "Governed workflows accelerate output while keeping brand standards, approvals, and evidence attached to every release. Every approval is logged; every decision is traceable.",
     cta: "Request Governance Demo",
-    ctaHref: "/request-demo",
+    ctaHref: "/roi-governance-audit",
   },
   {
     roleLabel: "GENERAL COUNSEL",
@@ -1119,7 +1119,7 @@ const STAKEHOLDERS = [
     concern: "\"Show me who approved this, under what policy, and what changed after approval.\"",
     answer: "Signed approval chains, content-hash validation, versioned policy snapshots, and Evidence Vault exports — all available before and after any legal challenge.",
     cta: "View Approval Protocol",
-    ctaHref: "/request-demo",
+    ctaHref: "/approval-workflows",
   },
   {
     roleLabel: "CIO / CTO",
@@ -1130,7 +1130,7 @@ const STAKEHOLDERS = [
     concern: "\"Do not let AI create a shadow operating model outside our identity and access controls.\"",
     answer: "RBAC, ABAC, SSO-ready identity model, tenant isolation, event logs, and full administrative separation. Trust Center documentation available for security review.",
     cta: "Open Trust Center",
-    ctaHref: "/request-demo",
+    ctaHref: "/security",
   },
   {
     roleLabel: "COMPLIANCE OFFICER",
@@ -1141,7 +1141,7 @@ const STAKEHOLDERS = [
     concern: "\"Claims and regulated content cannot depend on prompt discipline.\"",
     answer: "Policy-bound validation, claim libraries, jurisdictional rule packs, and compliance sign-off before release — structurally enforced, not reliant on individual behaviour.",
     cta: "See Control Matrix",
-    ctaHref: "/request-demo",
+    ctaHref: "/governance",
   },
   {
     roleLabel: "PROCUREMENT LEAD",
@@ -1152,7 +1152,7 @@ const STAKEHOLDERS = [
     concern: "\"Give me the trust artifacts before the vendor call.\"",
     answer: "Security overview, DPA template, sub-processor list, retention policy, AI governance summary, and audit-log sample — available through the Trust Center without a sales call.",
     cta: "Request Security Pack",
-    ctaHref: "/request-demo",
+    ctaHref: "/dpa",
   },
 ];
 

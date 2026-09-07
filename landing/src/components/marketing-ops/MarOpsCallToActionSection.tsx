@@ -4,8 +4,10 @@ import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Calendar, Workflow, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function MarOpsCallToActionSection() {
+  const router = useRouter();
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -88,7 +90,7 @@ export default function MarOpsCallToActionSection() {
         >
           {/* Primary CTA Button */}
           <a
-            href="#request-demo"
+            href="/request-demo"
             className="inline-flex items-center gap-2 bg-[#00E5FF] text-[#080C10] text-xs font-bold px-6 py-3 rounded-full hover:bg-[#00E5FF]/90 transition-all duration-200 shadow-lg shadow-[#00E5FF]/20"
           >
             <Calendar className="w-4 h-4 fill-[#080C10]" />
@@ -96,13 +98,13 @@ export default function MarOpsCallToActionSection() {
           </a>
 
           {/* Secondary Outline Pill Badge 1 */}
-          <button className="inline-flex items-center gap-2 hover:bg-[#FFFFFF1A] border border-white/10 px-5 py-3 rounded-full text-xs text-white font-medium backdrop-blur-sm">
+          <button onClick={()=>router.push("/ai-workflow-orchestration")} className="inline-flex items-center gap-2 cursor-pointer hover:bg-[#FFFFFF1A] border border-white/10 px-5 py-3 rounded-full text-xs text-white font-medium backdrop-blur-sm">
             <Workflow className="w-4 h-4 text-gray-400" />
             <span>AI Workflow Orchestration</span>
           </button>
 
           {/* Secondary Outline Pill Badge 2 */}
-          <button className="inline-flex items-center gap-2 hover:bg-[#FFFFFF1A] border border-white/10 px-5 py-3 rounded-full text-xs text-white font-medium backdrop-blur-sm">
+          <button onClick={()=>router.push("/approval-workflows")} className="inline-flex items-center gap-2 cursor-pointer hover:bg-[#FFFFFF1A] border border-white/10 px-5 py-3 rounded-full text-xs text-white font-medium backdrop-blur-sm">
             <Check className="w-4 h-4 text-gray-400" />
             <span>Approval Workflows</span>
           </button>

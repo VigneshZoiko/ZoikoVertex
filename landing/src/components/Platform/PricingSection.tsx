@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 function useInView(threshold = 0.15) {
@@ -52,6 +53,7 @@ const plans = [
 export default function PricingSection() {
   const { ref: headRef, inView: headInView } = useInView(0.2);
   const { ref: cardsRef, inView: cardsInView } = useInView(0.1);
+  const router = useRouter();
 
   return (
     <section className="bg-[#080E1A] w-full px-6 py-20 overflow-hidden">
@@ -116,11 +118,11 @@ export default function PricingSection() {
 
               {/* CTA Button */}
               {plan.featured ? (
-                <button className="w-full bg-[#20E7F2] hover:bg-teal-300 text-[#0C1422] font-bold text-[14px] py-3 rounded-xl transition-colors duration-200">
+                <button onClick={()=>router.push("https://getzoikovertex.com/login")} className="w-full bg-[#20E7F2] cursor-pointer hover:bg-teal-300 text-[#0C1422] font-bold text-[14px] py-3 rounded-xl transition-colors duration-200">
                   {plan.cta}
                 </button>
               ) : (
-                <button className="w-full border border-[#ffffff18] hover:border-[#ffffff30] hover:bg-[#ffffff06] text-white font-semibold text-[14px] py-3 rounded-xl transition-all duration-200">
+                <button onClick={()=>router.push("https://getzoikovertex.com/login")} className="w-full cursor-pointer border border-[#ffffff18] hover:border-[#ffffff30] hover:bg-[#ffffff06] text-white font-semibold text-[14px] py-3 rounded-xl transition-all duration-200">
                   {plan.cta}
                 </button>
               )}

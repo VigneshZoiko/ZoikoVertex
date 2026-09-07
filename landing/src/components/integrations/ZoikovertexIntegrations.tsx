@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
+
+const MotionLink = motion.create(Link);
 
 const fadeUpVariants: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -30,8 +33,7 @@ const buttonGroupVariants: Variants = {
 
 export default function ZoikovertexIntegrations() {
   return (
-    <section
-     className="relative w-full bg-[#08101F] bg-radial from-[#20E7F224] to-[#20E7F200] text-[#8E9B9E] font-sans antialiased px-6 py-20 md:px-12 md:py-32 lg:px-16 lg:py-40 flex items-center justify-center overflow-hidden">
+    <section className="relative w-full bg-[#08101F] bg-radial from-[#20E7F224] to-[#20E7F200] text-[#8E9B9E] font-sans antialiased px-6 py-20 md:px-12 md:py-32 lg:px-16 lg:py-40 flex items-center justify-center overflow-hidden">
       <div className="max-w-[900px] w-full text-center space-y-8 z-10">
         {/* Header Block */}
         <motion.div
@@ -67,28 +69,28 @@ export default function ZoikovertexIntegrations() {
           variants={buttonGroupVariants}
         >
           {/* Primary Cyan Button */}
-          <motion.a
-            href="#"
+          <MotionLink
+            href="/request-demo"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="w-full sm:w-auto px-6 py-3 rounded-lg bg-[#00F3FF] text-[#03060C] font-semibold text-[13px] tracking-tight hover:bg-[#33F6FF] shadow-[0_0_25px_rgba(0,243,255,0.25)] transition-all text-center"
           >
             Book Integration Demo
-          </motion.a>
+          </MotionLink>
 
           {/* Secondary Gold/Amber Button */}
-          <motion.a
-            href="#"
+          <MotionLink
+            href="/roi-governance-audit"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="w-full sm:w-auto px-6 py-3 rounded-lg bg-[#D9A755] text-[#03060C] font-semibold text-[13px] tracking-tight hover:bg-[#E5B667] transition-all text-center"
           >
             Get Stack Assessment
-          </motion.a>
+          </MotionLink>
 
           {/* Dark Bordered Button */}
-          <motion.a
-            href="#"
+          <MotionLink
+            href="/integrations"
             whileHover={{
               scale: 1.02,
               borderColor: "rgba(255, 255, 255, 0.25)",
@@ -97,7 +99,7 @@ export default function ZoikovertexIntegrations() {
             className="w-full sm:w-auto px-6 py-3 rounded-lg border border-[#7AA0BE42] text-white font-medium text-[13px] tracking-tight hover:bg-[#0E1726] transition-all text-center"
           >
             View API Documentation
-          </motion.a>
+          </MotionLink>
         </motion.div>
       </div>
 

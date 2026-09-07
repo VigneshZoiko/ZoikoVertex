@@ -1,16 +1,41 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
 
-const PATHWAYS = [
+import React, { useEffect, useRef, useState } from "react";
+
+interface Pathway {
+  number: string;
+  title: string;
+  description: string;
+  tags: string[];
+  features: string[];
+  bestFit: string;
+  cta: string;
+  href: string;
+  colorScheme: {
+    text: string;
+    bg: string;
+    border: string;
+  };
+  icon: React.ReactNode;
+}
+
+const PATHWAYS: Pathway[] = [
   {
     number: "PATHWAY 01",
     title: "Growth & Campaign Teams",
     description:
       "For teams that need faster campaign planning, content production, publishing, engagement, and performance insight — without uncontrolled AI or informal approval chains.",
-    tags: ["Campaign cadence", "Content volume", "ROI reporting", "Channel coordination"],
-    tagColor: "#22d3ee",
-    tagBg: "rgba(34,211,238,0.08)",
-    tagBorder: "rgba(34,211,238,0.2)",
+    tags: [
+      "Campaign cadence",
+      "Content volume",
+      "ROI reporting",
+      "Channel coordination",
+    ],
+    colorScheme: {
+      text: "text-cyan-400",
+      bg: "bg-cyan-400/10",
+      border: "border-cyan-400/20",
+    },
     features: [
       "Strategy Agent + Content Agent for AI-assisted drafting",
       "Publishing Agent for governed, approved-only release",
@@ -19,12 +44,17 @@ const PATHWAYS = [
     ],
     bestFit: "Best fit: Growth · Scale",
     cta: "Explore Growth Solutions",
-    iconColor: "#22d3ee",
-    iconBg: "rgba(34,211,238,0.08)",
-    iconBorder: "rgba(34,211,238,0.2)",
+    href: "/marketing-ops",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
       </svg>
     ),
   },
@@ -34,9 +64,11 @@ const PATHWAYS = [
     description:
       "For organizations managing multiple brands, markets, agencies, regions, products, or approval chains — where brand drift, regional inconsistency, or fragmented standards create risk.",
     tags: ["Brand drift", "Regional inconsistency", "Cross-brand approvals"],
-    tagColor: "#4ade80",
-    tagBg: "rgba(74,222,128,0.08)",
-    tagBorder: "rgba(74,222,128,0.2)",
+    colorScheme: {
+      text: "text-emerald-400",
+      bg: "bg-emerald-400/10",
+      border: "border-emerald-400/20",
+    },
     features: [
       "Full Brand Library with versioned standards and claims",
       "Role scoping by brand, region, and channel",
@@ -45,15 +77,20 @@ const PATHWAYS = [
     ],
     bestFit: "Best fit: Scale · Corporate",
     cta: "Explore Brand Control",
-    iconColor: "#4ade80",
-    iconBg: "rgba(74,222,128,0.08)",
-    iconBorder: "rgba(74,222,128,0.2)",
+    href: "/brand-compliance",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="3" y="3" width="7" height="9" rx="1"/>
-        <rect x="14" y="3" width="7" height="5" rx="1"/>
-        <rect x="14" y="12" width="7" height="9" rx="1"/>
-        <rect x="3" y="16" width="7" height="5" rx="1"/>
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <rect x="3" y="3" width="7" height="9" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="12" width="7" height="9" rx="1" />
+        <rect x="3" y="16" width="7" height="5" rx="1" />
       </svg>
     ),
   },
@@ -62,10 +99,17 @@ const PATHWAYS = [
     title: "Regulated & High-Risk Teams",
     description:
       "For teams operating under advertising, financial, pharmaceutical, public-sector, or reputational risk constraints — where every claim, approval, and exception must be defensible.",
-    tags: ["Claims control", "Audit gaps", "Exception handling", "Crisis controls"],
-    tagColor: "#fb7185",
-    tagBg: "rgba(251,113,133,0.08)",
-    tagBorder: "rgba(251,113,133,0.2)",
+    tags: [
+      "Claims control",
+      "Audit gaps",
+      "Exception handling",
+      "Crisis controls",
+    ],
+    colorScheme: {
+      text: "text-rose-400",
+      bg: "bg-rose-400/10",
+      border: "border-rose-400/20",
+    },
     features: [
       "Policy Engine with regulated-content packs",
       "Validation Desk and Three-Key Approval Protocol",
@@ -74,12 +118,17 @@ const PATHWAYS = [
     ],
     bestFit: "Best fit: Scale · Corporate",
     cta: "Explore Governance Solutions",
-    iconColor: "#fb7185",
-    iconBg: "rgba(251,113,133,0.08)",
-    iconBorder: "rgba(251,113,133,0.2)",
+    href: "/governance",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
   },
@@ -88,10 +137,17 @@ const PATHWAYS = [
     title: "Agencies & Client Service Teams",
     description:
       "For agencies and service providers managing multiple clients, approval routes, deliverables, and reporting expectations — where client governance accountability and delivery speed must coexist.",
-    tags: ["Client approvals", "Scope control", "Performance proof", "Delivery speed"],
-    tagColor: "#a78bfa",
-    tagBg: "rgba(167,139,250,0.08)",
-    tagBorder: "rgba(167,139,250,0.2)",
+    tags: [
+      "Client approvals",
+      "Scope control",
+      "Performance proof",
+      "Delivery speed",
+    ],
+    colorScheme: {
+      text: "text-purple-400",
+      bg: "bg-purple-400/10",
+      border: "border-purple-400/20",
+    },
     features: [
       "Client-scoped workspaces with External Collaborator roles",
       "Per-client Brand Libraries and approval paths",
@@ -100,13 +156,18 @@ const PATHWAYS = [
     ],
     bestFit: "Best fit: Scale · Corporate",
     cta: "Explore Agency Solutions",
-    iconColor: "#a78bfa",
-    iconBg: "rgba(167,139,250,0.08)",
-    iconBorder: "rgba(167,139,250,0.2)",
+    href: "/agencies",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="2" y="7" width="20" height="14" rx="2"/>
-        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
       </svg>
     ),
   },
@@ -118,17 +179,18 @@ export default function SolutionPathways() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold: 0.05 }
+      ([entry]) => {
+        if (entry.isIntersecting) setVisible(true);
+      },
+      { threshold: 0.05 },
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <section className="bg-[#080E1A] py-24 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
-
+    <section id="solution" className="bg-[#080E1A] py-24 px-6 font-sans">
+      <div ref={ref} className="max-w-[1200px] mx-auto">
         {/* Header */}
         <div
           className={`mb-12 transition-all duration-700 ease-out ${
@@ -143,8 +205,9 @@ export default function SolutionPathways() {
             Four paths. One governance model.
           </h2>
           <p className="text-white/40 text-sm leading-relaxed max-w-lg">
-            Choose the operating solution that matches your team structure, risk level, and
-            growth model. Every path runs on the same governed execution platform.
+            Choose the operating solution that matches your team structure, risk
+            level, and growth model. Every path runs on the same governed
+            execution platform.
           </p>
         </div>
 
@@ -161,12 +224,7 @@ export default function SolutionPathways() {
               {/* Top row — icon + number + title */}
               <div className="flex items-start gap-4">
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110"
-                  style={{
-                    background: p.iconBg,
-                    border: `1px solid ${p.iconBorder}`,
-                    color: p.iconColor,
-                  }}
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border transition-transform duration-300 group-hover:scale-110 ${p.colorScheme.bg} ${p.colorScheme.border} ${p.colorScheme.text}`}
                 >
                   {p.icon}
                 </div>
@@ -190,12 +248,7 @@ export default function SolutionPathways() {
                 {p.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-xs px-2.5 py-1 rounded-md border font-medium"
-                    style={{
-                      color: p.tagColor,
-                      background: p.tagBg,
-                      borderColor: p.tagBorder,
-                    }}
+                    className={`text-xs px-2.5 py-1 rounded-md border font-medium ${p.colorScheme.text} ${p.colorScheme.bg} ${p.colorScheme.border}`}
                   >
                     {tag}
                   </span>
@@ -207,17 +260,19 @@ export default function SolutionPathways() {
                 {p.features.map((f) => (
                   <div key={f} className="flex items-start gap-2">
                     <svg
-                      className="shrink-0 mt-0.5"
+                      className={`shrink-0 mt-0.5 ${p.colorScheme.text}`}
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke={p.iconColor}
+                      stroke="currentColor"
                       strokeWidth="2.5"
                     >
-                      <polyline points="20 6 9 17 4 12"/>
+                      <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span className="text-white/50 text-xs leading-relaxed">{f}</span>
+                    <span className="text-white/50 text-xs leading-relaxed">
+                      {f}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -227,22 +282,16 @@ export default function SolutionPathways() {
                 <span className="text-white/25 text-xs font-medium">
                   {p.bestFit}
                 </span>
-                <button
-                  className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg border transition-all duration-300 hover:scale-105"
-                  style={{
-                    color: p.iconColor,
-                    borderColor: p.iconBorder,
-                    background: p.iconBg,
-                  }}
+                <a
+                  href={p.href}
+                  className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg border transition-all duration-300 hover:scale-105 ${p.colorScheme.text} ${p.colorScheme.border} ${p.colorScheme.bg}`}
                 >
                   → {p.cta}
-                </button>
+                </a>
               </div>
-
             </div>
           ))}
         </div>
-
       </div>
     </section>
   );

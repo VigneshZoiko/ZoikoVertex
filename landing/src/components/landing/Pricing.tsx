@@ -224,7 +224,7 @@ export default function Pricing() {
               {p.desc}
             </p>
             <Link
-              href="/signup"
+              href="https://getzoikovertex.com/signup"
               className={`text-center font-bold py-2.5 rounded-xl text-xs transition-all mb-5 flex items-center justify-center gap-2 ${
                 p.ctaStyle === "solid"
                   ? "bg-cyan-400 hover:bg-cyan-300 text-black"
@@ -307,7 +307,7 @@ export default function Pricing() {
         <div className="flex items-center justify-center gap-3 py-5">
           <span className="text-white/40 text-sm">Need help choosing?</span>
           <a
-            href="#"
+            href="https://getzoikovertex.com/signup"
             className="text-cyan-400 hover:text-cyan-300 text-sm font-semibold transition-colors flex items-center gap-1.5"
           >
             Compare all plans <span>→</span>

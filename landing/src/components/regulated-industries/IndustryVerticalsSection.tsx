@@ -97,7 +97,7 @@ export default function IndustryVerticalsSection() {
                 evidence capture for regulatory readiness.
               </p>
               <a
-                href="#"
+                href="/fintech"
                 className="inline-flex items-center gap-2 text-xs font-semibold text-[#C5A059] hover:underline"
               >
                 <span>FinTech solution</span>

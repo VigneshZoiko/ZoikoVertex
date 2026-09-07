@@ -11,12 +11,9 @@ import {
 } from "@/components/audit-engine";
 
 export const metadata = {
-  title: "Audit Engine | ZoikoVertex",
+  title: "AI Auditability Platform | ZoikoVertex",
   description:
-    "A five-layer evidence architecture built into every governed workflow — Audit Trail, Decision Ledger, Evidence Vault, Forensic Hub, and Identity Ledger. Every AI action, approval, and decision completely traceable.",
-  alternates: {
-    canonical: "https://www.zoikovertex.com/audit-engine",
-  },
+    "ZoikoVertex delivers AI auditability with immutable audit trails, approval evidence, policy history, role tracking, and complete records of every AI action.",
 };
 
 export default function AuditEnginePage() {

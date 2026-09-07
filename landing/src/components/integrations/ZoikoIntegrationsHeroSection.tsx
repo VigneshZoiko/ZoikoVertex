@@ -11,8 +11,10 @@ import {
   Sliders,
   ShieldCheck,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ZoikoIntegrationsHeroSection() {
+  const router = useRouter();
   const containerVariants: Variants = {
     hidden: {
       opacity: 0,
@@ -70,7 +72,7 @@ export default function ZoikoIntegrationsHeroSection() {
           >
             <Link href="/">Home</Link>
             <span>/</span>
-            <a href="#">Platform</a>
+            <a href="/platform">Platform</a>
             <span>/</span>
             <span className="text-slate-400">Integrations</span>
           </motion.div>
@@ -109,10 +111,10 @@ export default function ZoikoIntegrationsHeroSection() {
             variants={itemVariants}
             className="flex flex-wrap items-center gap-4 pt-2"
           >
-            <button className="px-6 py-3.5 bg-[#20E7F2] hover:bg-[#1cd2dc] text-[#030914] font-semibold text-sm rounded-lg transition-all shadow-[0_0_20px_rgba(32,231,242,0.25)] hover:shadow-[0_0_25px_rgba(32,231,242,0.4)] active:scale-[0.98]">
+            <button onClick={()=>router.push("/request-demo")} className="px-6 py-3.5 cursor-pointer bg-[#20E7F2] hover:bg-[#1cd2dc] text-[#030914] font-semibold text-sm rounded-lg transition-all shadow-[0_0_20px_rgba(32,231,242,0.25)] hover:shadow-[0_0_25px_rgba(32,231,242,0.4)] active:scale-[0.98]">
               Book Integration Demo
             </button>
-            <button className="px-6 py-3.5 text-white font-medium text-sm rounded-lg border border-slate-800 transition-all active:scale-[0.98]">
+            <button onClick={()=>router.push("/resources-hub")} className="px-6 py-3.5 text-white font-medium text-sm rounded-lg border cursor-pointer border-slate-800 transition-all active:scale-[0.98]">
               Get Stack Assessment
             </button>
           </motion.div>

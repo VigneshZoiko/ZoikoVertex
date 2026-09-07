@@ -13,9 +13,9 @@ import PressFinalCTA from "@/components/Press/PressFinalCTA";
 import PressMiniFooter from "@/components/Press/PressMiniFooter";
 
 export const metadata = {
-  title: "Press & Media | ZoikoVertex",
+  title: "Latest Press Releases & News | Zoiko Vertex",
   description:
-    "Official media resources, approved company descriptions, brand assets, spokesperson access, and newsroom updates for ZoikoVertex.",
+    "Discover the latest Zoiko Vertex press releases, company news, media announcements, and official updates about our innovations, partnerships, and growth.",
 };
 
 export default function PressPage() {

@@ -1,16 +1,22 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 interface CTAButton {
   label: string;
   variant: "primary" | "secondary" | "outline";
+  href: string;
 }
 
 const buttons: CTAButton[] = [
-  { label: "Book a Demo", variant: "primary" },
-  { label: "Start ROI & Governance Audit", variant: "secondary" },
-  { label: "Contact Sales", variant: "outline" },
+  { label: "Book a Demo", variant: "primary", href: "/demo-library" },
+  {
+    label: "Start ROI & Governance Audit",
+    variant: "secondary",
+    href: "/roi-governance-audit",
+  },
+  { label: "Contact Sales", variant: "outline", href: "/support" },
 ];
 
 const fadeUp = {
@@ -43,6 +49,8 @@ const buttonVariants = {
 } as const;
 
 export default function UseCasesCta() {
+  const router = useRouter();
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#060a12] px-6 py-24 sm:px-10 lg:px-16">
       {/* Radial gradient background */}
@@ -63,6 +71,7 @@ export default function UseCasesCta() {
           className="mb-6 flex items-center justify-center gap-3"
         >
           <span className="h-px w-6 bg-cyan-400" />
+
           <span className="text-[11px] font-semibold tracking-[0.25em] text-cyan-400">
             ZOIKOVERTEX USE CASES
           </span>
@@ -102,44 +111,23 @@ export default function UseCasesCta() {
           variants={containerVariants}
           className="flex flex-wrap items-center justify-center gap-3"
         >
-          {buttons.map((btn) => {
-            if (btn.variant === "primary") {
-              return (
-                <motion.button
-                  key={btn.label}
-                  variants={buttonVariants}
-                  type="button"
-                  className="rounded-lg bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] px-5 py-3 text-[13px] font-semibold text-[#0a0e1a] transition-colors hover:bg-cyan-300"
-                >
-                  {btn.label}
-                </motion.button>
-              );
-            }
-
-            if (btn.variant === "secondary") {
-              return (
-                <motion.button
-                  key={btn.label}
-                  variants={buttonVariants}
-                  type="button"
-                  className="rounded-lg bg-gradient-to-r from-[#E8B768] to-[#C8954A] px-5 py-3 text-[13px] font-semibold text-[#0a0e1a] transition-colors hover:bg-amber-300"
-                >
-                  {btn.label}
-                </motion.button>
-              );
-            }
-
-            return (
-              <motion.button
-                key={btn.label}
-                variants={buttonVariants}
-                type="button"
-                className="rounded-lg border border-white/20 bg-transparent px-5 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/5"
-              >
-                {btn.label}
-              </motion.button>
-            );
-          })}
+          {buttons.map((btn) => (
+            <motion.button
+              key={btn.label}
+              variants={buttonVariants}
+              type="button"
+              onClick={() => router.push(btn.href)}
+              className={
+                btn.variant === "primary"
+                  ? "rounded-lg bg-gradient-to-r cursor-pointer from-[#20E7F2] to-[#00C8F0] px-5 py-3 text-[13px] font-semibold text-[#0a0e1a] transition-colors hover:bg-cyan-300"
+                  : btn.variant === "secondary"
+                    ? "rounded-lg bg-gradient-to-r cursor-pointer from-[#E8B768] to-[#C8954A] px-5 py-3 text-[13px] font-semibold text-[#0a0e1a] transition-colors hover:bg-amber-300"
+                    : "rounded-lg border cursor-pointer border-white/20 bg-transparent px-5 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/5"
+              }
+            >
+              {btn.label}
+            </motion.button>
+          ))}
         </motion.div>
       </div>
     </div>

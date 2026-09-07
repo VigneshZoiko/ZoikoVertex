@@ -22,13 +22,13 @@ export default function FooterCTA() {
         </p>
         <div className="flex flex-wrap gap-4 justify-center mb-6">
           <Link
-            href="/signup"
+            href="https://getzoikovertex.com/signup"
             className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold px-8 py-3.5 rounded-xl transition-all text-sm flex items-center gap-2"
           >
             Deploy DMOS Environment →
           </Link>
           <Link
-            href="/signup"
+            href="/request-demo"
             className="border border-white/20 hover:border-white/40 text-white font-semibold px-8 py-3.5 rounded-xl transition-all hover:bg-white/5 text-sm"
           >
             Request Enterprise Demo

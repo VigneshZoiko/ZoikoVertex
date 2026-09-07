@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 
 interface DevAccessItem {
@@ -8,6 +9,7 @@ interface DevAccessItem {
   title: string;
   description: string;
   ctaText: string;
+  href: string;
 }
 
 interface ImplementationPathItem {
@@ -15,6 +17,7 @@ interface ImplementationPathItem {
   title: string;
   description: string;
   buttonText: string;
+  href: string;
 }
 
 const DEV_ACCESS_ITEMS: DevAccessItem[] = [
@@ -24,6 +27,7 @@ const DEV_ACCESS_ITEMS: DevAccessItem[] = [
     description:
       "Programmatic access to workflows, approvals, events, and evidence references.",
     ctaText: "View API docs →",
+    href: "/resources-hub",
   },
   {
     id: "2",
@@ -31,6 +35,7 @@ const DEV_ACCESS_ITEMS: DevAccessItem[] = [
     description:
       "Subscribe to workflow state, approvals, publishing results, and integration errors.",
     ctaText: "Explore webhooks →",
+    href: "/ai-workflow-orchestration",
   },
   {
     id: "3",
@@ -38,18 +43,21 @@ const DEV_ACCESS_ITEMS: DevAccessItem[] = [
     description:
       "Enterprise option for audit, analytics, SIEM, or data warehouse use.",
     ctaText: "Talk to solutions →",
+    href: "/solution",
   },
   {
     id: "4",
     title: "Sandbox",
     description: "Test environment to validate integrations before production.",
     ctaText: "Request sandbox →",
+    href: "/request-demo",
   },
   {
     id: "5",
     title: "Partner program",
     description: "Build certified connectors or vertical workflow packages.",
     ctaText: "Become a partner →",
+    href: "/agencies",
   },
 ];
 
@@ -59,6 +67,7 @@ const IMPLEMENTATION_PATHS: ImplementationPathItem[] = [
     title: "Native connector",
     description: "Connect quickly using approved, governed connectors.",
     buttonText: "Book Demo",
+    href: "/request-demo",
   },
   {
     id: "2",
@@ -66,6 +75,7 @@ const IMPLEMENTATION_PATHS: ImplementationPathItem[] = [
     description:
       "Extend workflows with full control while preserving auditability.",
     buttonText: "View Docs",
+    href: "/resources-hub",
   },
   {
     id: "3",
@@ -73,12 +83,14 @@ const IMPLEMENTATION_PATHS: ImplementationPathItem[] = [
     description:
       "Map data, permissions, workflows, and evidence with our experts.",
     buttonText: "Stack Assessment",
+    href: "/roi-governance-audit",
   },
   {
     id: "4",
     title: "Partner-built",
     description: "Certified integrations from agencies and platform partners.",
     buttonText: "Partnerships",
+    href: "/agencies",
   },
 ];
 
@@ -168,12 +180,12 @@ export default function ApiFirstPath() {
                         </p>
                       </div>
 
-                      <a
-                        href="#"
+                      <Link
+                        href={item.href}
                         className="text-[11px] font-mono text-[#20E7F2] hover:underline whitespace-nowrap pl-4 sm:pl-0 pt-0.5"
                       >
                         {item.ctaText}
-                      </a>
+                      </Link>
                     </div>
 
                     {/* Divider line except after last item */}
@@ -216,12 +228,12 @@ export default function ApiFirstPath() {
                         </p>
                       </div>
 
-                      <button
-                        type="button"
+                      <Link
+                        href={item.href}
                         className="self-start sm:self-center px-3.5 py-1.5 rounded-md border border-[#E8B7684D] text-[#E8B768] text-[11px] font-mono hover:bg-[#20E7F2]/10 transition-colors whitespace-nowrap"
                       >
                         {item.buttonText}
-                      </button>
+                      </Link>
                     </div>
 
                     {/* Divider line except after last item */}

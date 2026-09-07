@@ -89,7 +89,7 @@ export default function MarOpsPlatformModulesSection() {
                 manual orchestration.
               </p>
               <a
-                href="#"
+                href="/ai-workflow-orchestration"
                 className="inline-flex items-center gap-2 text-xs font-semibold text-[#C5A059] hover:underline"
               >
                 <span>Explore Workflow Orchestration</span>

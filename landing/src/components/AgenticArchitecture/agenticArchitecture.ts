@@ -36,7 +36,7 @@ export const LAYERS: Layer[] = [
     color: "#20E7F2",
     colorBg: "rgba(32,231,242,0.10)",
     colorBorder: "rgba(32,231,242,0.22)",
-    image: "/images/agentic-architecture/layer-02.jpg",
+    image: "/images/agentic-architecture/layer-05.png",
   },
   {
     id: "orchestration",
@@ -49,7 +49,7 @@ export const LAYERS: Layer[] = [
     color: "#8B5CF6",
     colorBg: "rgba(139,92,246,0.10)",
     colorBorder: "rgba(139,92,246,0.25)",
-    image: "/images/agentic-architecture/layer-03.jpg",
+    image: "/images/agentic-architecture/layer-01.jpg",
   },
   {
     id: "governance",
@@ -101,6 +101,6 @@ export const LAYERS: Layer[] = [
     color: "#20E7F2",
     colorBg: "rgba(32,231,242,0.08)",
     colorBorder: "rgba(32,231,242,0.20)",
-    image: "/images/agentic-architecture/layer-07.jpg",
+    image: "/images/agentic-architecture/layer-04.png",
   },
 ];

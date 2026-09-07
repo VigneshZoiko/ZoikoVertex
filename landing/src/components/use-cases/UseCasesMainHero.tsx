@@ -2,15 +2,17 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 interface CTAButton {
   label: string;
   variant: "primary" | "outline";
+  href: string;
 }
 
 const buttons: CTAButton[] = [
-  { label: "Find Your Use Case", variant: "primary" },
-  { label: "Book a Demo", variant: "outline" },
+  { label: "Find Your Use Case", variant: "primary", href: "#usecase" },
+  { label: "Book a Demo", variant: "outline", href: "/request-demo" },
 ];
 
 const fadeUp = {
@@ -53,6 +55,8 @@ const imageVariants = {
 } as const;
 
 export default function UseCasesMainHero() {
+  const router = useRouter();
+
   return (
     <div className="relative w-full overflow-hidden bg-[#060a12] px-6 py-24 sm:px-10 lg:px-16">
       {/* Radial gradient background */}
@@ -81,7 +85,6 @@ export default function UseCasesMainHero() {
           </motion.div>
 
           {/* Heading */}
-
           <motion.h1
             variants={fadeUp}
             className="text-4xl sm:text-5xl mb-4 lg:text-[54px] max-w-110 font-bold tracking-tight text-white leading-[1.1]"
@@ -119,7 +122,8 @@ export default function UseCasesMainHero() {
                     key={btn.label}
                     variants={buttonVariants}
                     type="button"
-                    className="rounded-lg bg-cyan-400 px-5 py-3 text-[13px] font-semibold text-[#0a0e1a] transition-colors hover:bg-cyan-300"
+                    onClick={() => router.push(btn.href)}
+                    className="rounded-lg bg-cyan-400 cursor-pointer px-5 py-3 text-[13px] font-semibold text-[#0a0e1a] transition-colors hover:bg-cyan-300"
                   >
                     {btn.label}
                   </motion.button>
@@ -131,7 +135,8 @@ export default function UseCasesMainHero() {
                   key={btn.label}
                   variants={buttonVariants}
                   type="button"
-                  className="rounded-lg border border-white/20 bg-transparent px-5 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/5"
+                  onClick={() => router.push(btn.href)}
+                  className="rounded-lg border border-white/20 cursor-pointer bg-transparent px-5 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/5"
                 >
                   {btn.label}
                 </motion.button>
