@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -22,7 +23,7 @@ export default function BuyerGuidesCtaSection() {
       <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-cyan-950/20 blur-[180px] pointer-events-none rounded-full" />
 
       <motion.div
-        className="max-w-[1000px] w-full  z-10 flex flex-col items-center text-center"
+        className="max-w-[1000px] w-full z-10 flex flex-col items-center text-center"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -50,19 +51,28 @@ export default function BuyerGuidesCtaSection() {
         {/* CTA Buttons Row */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
           {/* Primary Cyan Button */}
-          <button className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer">
+          <Link
+            href="/buyer-guides"
+            className="w-full sm:w-auto text-center px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer"
+          >
             Download the Enterprise Buyer Guide
-          </button>
+          </Link>
 
           {/* Secondary Amber Button */}
-          <button className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#E8B768] to-[#C8954A] text-slate-950 font-bold text-xs sm:text-sm hover:bg-amber-400 transition-all duration-200 shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98] cursor-pointer">
+          <Link
+            href="/roi-governance-audit"
+            className="w-full sm:w-auto text-center px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#E8B768] to-[#C8954A] text-slate-950 font-bold text-xs sm:text-sm hover:bg-amber-400 transition-all duration-200 shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98] cursor-pointer"
+          >
             Run ROI &amp; Governance Audit
-          </button>
+          </Link>
 
           {/* Outline Dark Button */}
-          <button className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-[#070E18]/80 border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer">
+          <Link
+            href="/demo-library"
+            className="w-full sm:w-auto text-center px-6 py-3.5 rounded-xl bg-[#070E18]/80 border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer"
+          >
             Request a Guided Evaluation
-          </button>
+          </Link>
         </div>
       </motion.div>
     </section>

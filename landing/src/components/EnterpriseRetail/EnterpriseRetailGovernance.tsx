@@ -62,9 +62,9 @@ const CONTROLS: Control[] = [
 
 const LINKS: { icon: LucideIcon; label: string; href: string }[] = [
   { icon: ShieldCheck, label: "Compliance & Governance", href: "/governance" },
-  { icon: Bot, label: "Responsible AI", href: "/governance" },
-  { icon: Fingerprint, label: "Auditability", href: "/governance" },
-  { icon: FileText, label: "Data Processing Addendum", href: "/privacy" },
+  { icon: Bot, label: "Responsible AI", href: "/responsible-ai" },
+  { icon: Fingerprint, label: "Auditability", href: "/auditability" },
+  { icon: FileText, label: "Data Processing Addendum", href: "/dpa" },
 ];
 
 export default function EnterpriseRetailGovernance() {

@@ -45,7 +45,7 @@ export default function BookLiveDemoSection() {
   };
 
   return (
-    <section className="relative min-h-screen w-full bg-[#030711] text-white px-6 py-16 md:px-12 lg:px-20 flex items-center justify-center font-sans overflow-hidden">
+    <section id="demo" className="relative min-h-screen w-full bg-[#030711] text-white px-6 py-16 md:px-12 lg:px-20 flex items-center justify-center font-sans overflow-hidden">
       {/* Ambient background glow */}
       <div className="absolute top-1/2 left-1/4 -translate-y-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-cyan-900/10 blur-[160px] pointer-events-none rounded-full" />
 

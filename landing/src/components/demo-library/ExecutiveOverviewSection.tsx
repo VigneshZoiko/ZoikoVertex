@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Play } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,6 +36,7 @@ const cardVariants = {
 } as const;
 
 export default function ExecutiveOverviewSection() {
+  const router = useRouter();
   const tags = ["Governance", "Productivity", "ROI", "Compliance", "Speed"];
 
   return (
@@ -144,7 +146,7 @@ export default function ExecutiveOverviewSection() {
                 <button className="px-7 py-3 rounded-xl bg-[#00E5FF] text-[#050A12] font-bold text-sm hover:bg-[#00D0E6] transition-all duration-200 shadow-[0_4px_30px_rgba(0,229,255,0.3)] hover:shadow-[0_6px_35px_rgba(0,229,255,0.4)]">
                   Watch overview
                 </button>
-                <button className="px-7 py-3 rounded-xl border border-[#1A2635] text-white font-semibold text-sm hover:bg-[#142131] hover:border-[#2C3F54] transition-all duration-200">
+                <button onClick={()=>router.push("#demo")} className="px-7 cursor-pointer py-3 rounded-xl border border-[#1A2635] text-white font-semibold text-sm hover:bg-[#142131] hover:border-[#2C3F54] transition-all duration-200">
                   Book a live demo
                 </button>
               </div>
