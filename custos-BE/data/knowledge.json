@@ -1275,7 +1275,7 @@
         "channel support"
       ],
       "route": "/",
-      "answer_first": "ZoikoVertex supports integration with major social media and marketing platforms including Facebook, Instagram, LinkedIn, X (Twitter), YouTube, TikTok, and others. Channel availability depends on your plan. Free includes 2 channels, Pro and Scale include expanded allowances, and Command supports custom channel limits. Contact Sales for a complete and current list of supported channels."
+      "answer_first": "ZoikoVertex supports integration with major social media and marketing platforms including Facebook, Instagram, LinkedIn, X (Twitter), YouTube, TikTok, and others. Channel availability depends on your plan. Free includes 2 channels, Growth and Scale include expanded allowances, and Corporate supports custom channel limits. Contact Sales for a complete and current list of supported channels."
     },
     {
       "id": "multi_brand",
@@ -1333,7 +1333,7 @@
         "customer success"
       ],
       "route": "/",
-      "answer_first": "ZoikoVertex offers multiple support levels. All plans include email support and access to the knowledge base documentation. Free includes standard email support. Pro includes priority support. Scale includes a named Customer Success Manager and expanded support. Command includes a dedicated Technical Account Manager and an agreed Service Level Agreement (SLA) with priority response times."
+      "answer_first": "ZoikoVertex offers multiple support levels. All plans include email support and access to the knowledge base documentation. Free includes standard email support. Growth includes priority support. Scale includes a named Customer Success Manager and expanded support. Corporate includes a dedicated Technical Account Manager and an agreed Service Level Agreement (SLA) with priority response times."
     },
     {
       "id": "policy_control_matrix",
@@ -1460,7 +1460,7 @@
         "connectors"
       ],
       "route": "/",
-      "answer_first": "ZoikoVertex provides Data Connectors and API Webhooks for integration with external platforms. This includes social media channels for publishing, analytics platforms for performance data, and CRM systems for lead management. Scale and Command include advanced integration capabilities. For specific integration requirements, contact Support or your Customer Success Manager to discuss available options and any custom integration needs."
+      "answer_first": "ZoikoVertex provides Data Connectors and API Webhooks for integration with external platforms. This includes social media channels for publishing, analytics platforms for performance data, and CRM systems for lead management. Scale and Corporate include advanced integration capabilities. For specific integration requirements, contact Support or your Customer Success Manager to discuss available options and any custom integration needs."
     },
     {
       "id": "free_trial",
@@ -1506,7 +1506,7 @@
         "give me all urls"
       ],
       "route": null,
-      "answer_first": "Here are all the ZoikoVertex website URLs:\n\n- **Sales enquiries**: sales@zoikogroup.com\n- **Support**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
+      "answer_first": "Here are all the ZoikoVertex website URLs:\n\n- **Contact**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
     },
     {
       "id": "faq_page",
@@ -1545,7 +1545,7 @@
         "sales email"
       ],
       "route": null,
-      "answer_first": "**Sales enquiries**: sales@zoikogroup.com\n- **Support**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
+      "answer_first": "**Contact**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
     },
     {
       "id": "upgrade_plan",
@@ -1659,7 +1659,7 @@
     "greeting": "Hello \u2014 I'm Custos, the ZoikoVertex assistant. I can help you understand the platform, find trust documents, or reach the right team.",
     "fallback": "I do not have an approved answer for that yet. I can route this question to the ZoikoVertex team, or I can help you find the closest relevant page. Which would you prefer?",
     "out_of_scope": "That's outside what I can help with \u2014 I'm focused on ZoikoVertex. I can help with the platform, governance, pricing, trust documents, demos, or careers.",
-    "handoff_sales": "For Command tier pricing, custom contracts, enterprise terms, or annual billing enquiries, I can connect you to the Sales team. Would you like me to route your enquiry?",
+    "handoff_sales": "For Vertex Corporate tier pricing, custom contracts, enterprise terms, or annual billing enquiries, I can connect you to the Sales team. Would you like me to route your enquiry?",
     "handoff_legal": "For DPA negotiation, contract review, or specific legal commitments, I can escalate to the Legal team. Would you like me to route your enquiry?",
     "handoff_security": "For security questionnaires, vendor assessments, or procurement review, I can escalate to the Security Review team. Would you like me to route your enquiry?",
     "handoff_billing": "For billing disputes, refund requests, or invoice queries, I can escalate to the Billing team. Would you like me to route your enquiry?",
@@ -1853,7 +1853,7 @@
     },
     {
       "q": "What support options are available?",
-      "a": "All plans include email support. Pro has priority support. Scale includes a Customer Success Manager and expanded support. Command includes a Technical Account Manager and SLA."
+      "a": "All plans include email support. Growth has priority support. Scale includes a Customer Success Manager and expanded support. Corporate includes a Technical Account Manager and SLA."
     },
     {
       "q": "Can I export my data?",
@@ -1901,7 +1901,7 @@
     },
     {
       "q": "How do I contact ZoikoVertex?",
-      "a": "**Sales enquiries**: sales@zoikogroup.com\n- **Support**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
+      "a": "**Contact**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
     },
     {
       "q": "What is the ZoikoVertex support email?",
@@ -1909,17 +1909,17 @@
     },
     {
       "q": "What is the ZoikoVertex sales email?",
-      "a": "Sales enquiries can be sent to sales@zoikogroup.com."
+      "a": "You can reach ZoikoVertex at info@zoikovertex.com."
     },
     {
       "q": "How do I get in touch with the ZoikoVertex team?",
-      "a": "**Sales enquiries**: sales@zoikogroup.com\n- **Support**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
+      "a": "**Contact**: info@zoikovertex.com\n- **Home**: https://www.zoikovertex.com\n- **Pricing**: https://www.zoikovertex.com/pricing\n- **Request a demo**: https://www.zoikovertex.com/request-demo\n- **AI Agents**: https://www.zoikovertex.com/ai-agents\n- **Platform**: https://www.zoikovertex.com/platform\n- **Security**: https://www.zoikovertex.com/security\n- **About**: https://www.zoikovertex.com/about\n- **Governance**: https://www.zoikovertex.com/governance\n- **Login**: https://getzoikovertex.com/login\n- **Sign up**: https://getzoikovertex.com/signup"
     }
   ],
   "escalation_categories": [
     {
       "code": "SALES",
-      "description": "Enterprise or custom pricing (Command tier)",
+      "description": "Enterprise or custom pricing (Vertex Corporate)",
       "route": "sales"
     },
     {

@@ -641,6 +641,68 @@ function generateChatReply(message, language = "en") {
     };
   }
 
+  // 1.5 Main menu / restart command
+  if (/^(back to main menu|back to menu|go to main menu|return to main menu|main menu|menu|start over|restart|reset conversation)(\s|$)/.test(normalizedMessage)) {
+    const menuText =
+      knowledgeDocument.templates?.greeting
+      ?? knowledgeDocument._meta?.greeting
+      ?? "Hello — I'm Custos, the ZoikoVertex assistant. I can help you understand the platform, find trust documents, or reach the right team. Here are some things I can help with:";
+    return {
+      id: uuidv4(),
+      answer: personalizeText(menuText),
+      matchedQuestion: "Main menu",
+      confidence: 0.99,
+      suggestions: defaultSuggestions.slice(0, 6),
+      route: null,
+      intent: "menu",
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // 1.6 Capabilities overview
+  if (/^(what can custos help with|what can custos do|what can you help with|what can you do|what do you help with|capabilities)(\s|\?|$)/.test(normalizedMessage)) {
+    return {
+      id: uuidv4(),
+      answer: personalizeText(
+        "Here's what I can help you with:\n\n• Pricing, plans, and comparing ZoikoVertex tiers\n• Governance — the Three-Key Approval Protocol, the Authority Layer Doctrine, and Governed Agentic Execution\n• Trust records — Evidence Vault, Audit Trail, Forensic Hub, Identity Ledger\n• Security, privacy, DPA, and compliance\n• Platform features — Agent Studio, Prompt Governance, Brand Library, Crisis Console, integrations, and more\n\nWhich would you like to explore?",
+      ),
+      matchedQuestion: "Capabilities overview",
+      confidence: 0.99,
+      suggestions: defaultSuggestions.slice(0, 6),
+      route: null,
+      intent: "capabilities",
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // 1.7 Human handoff request
+  if (/(connect me to a human|connect me with a human|transfer me to (a|the) human|talk to a human|speak to a human|talk to a person|speak to a person|help me reach a human|human support)/.test(normalizedMessage)) {
+    return {
+      id: uuidv4(),
+      answer: "Thank you! Please use the mail option to share your details, and our team will get back to you shortly.\n\nThanks for the conversation. If you have more questions about ZoikoVertex, I'm here.",
+      matchedQuestion: "Human handoff request",
+      confidence: 0.99,
+      suggestions: [],
+      route: null,
+      intent: "handoff",
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // 1.8 Rephrase follow-up
+  if (/(rephrase|word it differently|phrase it differently|ask differently|say it differently|say that differently)/.test(normalizedMessage)) {
+    return {
+      id: uuidv4(),
+      answer: "Sure — please rephrase your question and I'll try again.",
+      matchedQuestion: "Rephrase request",
+      confidence: 0.99,
+      suggestions: defaultSuggestions.slice(0, 6),
+      route: null,
+      intent: "rephrase",
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   // 2. Goodbye / thanks
   if (/^(bye|goodbye|see you|thanks|thank you|cheers|ok|okay|yes)(\s|$)/.test(normalizedMessage)) {
     const goodbyeText = knowledgeDocument.templates?.goodbye
@@ -679,17 +741,7 @@ function generateChatReply(message, language = "en") {
   }
 
   // 4. Full-question match against FAQ titles
-  const faqMatch = (knowledgeDocument.faq ?? []).find((entry) => {
-    if (!entry.q) return false;
-    const faqTokens = tokenize(entry.q).filter((t) => !STOP_WORDS.has(t));
-    const msgTokens = new Set(tokenize(message));
-    if (faqTokens.length < 2) return false;
-    const matched = faqTokens.filter((t) => msgTokens.has(t));
-    const distFaQTokens = faqTokens.filter((t) => t !== "zoikovertex" && t !== "support");
-    if (distFaQTokens.length === 0) return matched.length >= faqTokens.length;
-    const distMatched = distFaQTokens.filter((t) => msgTokens.has(t));
-    return distMatched.length >= Math.max(1, distFaQTokens.length * 0.6) && matched.length >= 2;
-  });
+  const faqMatch = findFaqMatch(message);
   if (faqMatch) {
     return {
       id: uuidv4(),
@@ -785,6 +837,20 @@ function hasZoikoVertexTopic(message) {
   return tokens.some((t) => ZOIKOVERTEX_TERMS.has(t));
 }
 
+function findFaqMatch(message) {
+  const msgTokens = new Set(tokenize(message));
+  return (knowledgeDocument.faq ?? []).find((entry) => {
+    if (!entry.q) return false;
+    const faqTokens = tokenize(entry.q).filter((t) => !STOP_WORDS.has(t));
+    if (faqTokens.length < 2) return false;
+    const matched = faqTokens.filter((t) => msgTokens.has(t));
+    const distFaQTokens = faqTokens.filter((t) => t !== "zoikovertex" && t !== "support");
+    if (distFaQTokens.length === 0) return matched.length >= faqTokens.length;
+    const distMatched = distFaQTokens.filter((t) => msgTokens.has(t));
+    return distMatched.length >= Math.max(1, distFaQTokens.length * 0.6) && matched.length >= 2;
+  });
+}
+
 const ADVERSARIAL_PATTERNS = [
   /hack/i, /jailbreak/i, /bypass.*restriction/i, /ignore.*instruction/i,
   /dan\b/i, /unrestricted/i, /no.*restriction/i, /pretend.*(dan|unrestricted)/i,
@@ -799,23 +865,12 @@ function isAdversarial(message) {
 
 function isMatchReliable(message, ruleReply) {
   if (ruleReply.intent === "fallback") return false;
-  if (ruleReply.intent === "greeting" || ruleReply.intent === "goodbye") return true;
+  if (["greeting", "goodbye", "menu", "capabilities", "email_manager", "handoff", "rephrase"].includes(ruleReply.intent)) return true;
 
   const text = normalizeText(message);
 
-  if (!hasZoikoVertexTopic(message)) {
-    return false;
-  }
-
   if (ruleReply.intent === "faq") {
-    const faqSource = (knowledgeDocument.faq ?? []).find(
-      (entry) => entry.q && text.includes(normalizeText(entry.q)),
-    );
-    if (!faqSource) return false;
-    const faqTokens = tokenize(faqSource.q);
-    const msgTokens = tokenize(message);
-    const matched = faqTokens.filter((t) => msgTokens.includes(t));
-    return matched.length >= Math.min(2, faqTokens.length * 0.4);
+    return findFaqMatch(message) !== undefined;
   }
 
   const intent = knowledgeDocument.intents?.find(
@@ -855,7 +910,7 @@ function isMatchReliable(message, ruleReply) {
     }
   }
 
-  return strongMatchCount >= 1;
+  return strongMatchCount >= 1 || hasZoikoVertexTopic(message);
 }
 
 async function generateHybridReply(message, language = "en", history, sessionId, user) {
