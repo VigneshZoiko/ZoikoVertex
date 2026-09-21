@@ -5,6 +5,7 @@ import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { buildAuthContext } from '../../shared/serviceAuth';
 import OpenAI from 'openai';
 import { env } from '../../config/env';
+import { logger } from '../../shared/logger';
 
 function getTenantId(req: AuthRequest): string {
   return req.user?.workspace_id || DEFAULT_TENANT_ID;
@@ -302,14 +303,39 @@ Requirements:
 Return ONLY a valid JSON array with no explanation:
 ["keyword1", "keyword2", ...]`;
 
-    const completion = await groqClient.chat.completions.create({
-      model: 'openai/gpt-oss-120b',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.4,
-      max_tokens: 600,
-    });
+    // Generate with server-side retry + fallback so the FIRST user click succeeds:
+    // a transient Groq failure or a cold/slow large model no longer forces the
+    // user to click Generate 4-5 times. Fall back to the faster gpt-oss-20b.
+    const attempts: Array<{ model: string; timeout: number }> = [
+      { model: 'openai/gpt-oss-120b', timeout: 20_000 },
+      { model: 'openai/gpt-oss-20b',  timeout: 15_000 },
+      { model: 'openai/gpt-oss-20b',  timeout: 15_000 },
+    ];
 
-    const raw = completion.choices[0]?.message?.content || '[]';
+    let raw = '';
+    let lastErr: unknown = null;
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        const completion = await groqClient.chat.completions.create(
+          {
+            model: attempts[i].model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.4,
+            max_tokens: 600,
+          },
+          { timeout: attempts[i].timeout },
+        );
+        const content = completion.choices[0]?.message?.content?.trim();
+        if (content) { raw = content; break; }
+        lastErr = new Error('empty completion');
+      } catch (e) {
+        lastErr = e;
+        logger.warn({ attempt: i + 1, model: attempts[i].model, err: (e as Error).message }, '[AISuggest] keyword generation attempt failed — retrying');
+      }
+      if (i < attempts.length - 1) await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+    if (!raw) throw lastErr || new Error('AI generation failed');
+
     const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
     let keywords: string[] = [];
