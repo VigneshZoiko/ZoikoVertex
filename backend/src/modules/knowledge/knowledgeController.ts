@@ -188,6 +188,21 @@ export class KnowledgeController {
     try {
       const baseId = getParam(req, 'baseId');
       const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
+
+      // Block deletion if any data connector still syncs into this KB — deleting
+      // it would orphan those connectors and make every future sync fail with
+      // "Target Knowledge Base not found".
+      const { data: linkedConnectors } = await supabaseAdmin
+        .from('data_connectors')
+        .select('id, name')
+        .eq('mapping_config->>kb_id', baseId);
+      if (linkedConnectors && linkedConnectors.length > 0) {
+        const names = linkedConnectors.map((c) => c.name).filter(Boolean).slice(0, 5).join(', ');
+        return res.status(409).json({
+          error: `This knowledge base is still used by ${linkedConnectors.length} data connector(s)${names ? ` (${names})` : ''}. Point those connectors to another knowledge base or delete them first.`,
+        });
+      }
+
       const { error } = await supabaseAdmin
         .from('knowledge_bases')
         .delete()

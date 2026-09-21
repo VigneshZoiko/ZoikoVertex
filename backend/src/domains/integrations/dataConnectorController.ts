@@ -235,7 +235,7 @@ export const triggerSync = async (req: AuthRequest, res: Response, next: NextFun
       .single();
 
     if (!kb) {
-      throw new Error(`Target Knowledge Base (ID: ${kbId}) was not found or access is denied.`);
+      throw new Error(`The Knowledge Base this connector syncs into no longer exists (ID: ${kbId}) — it was likely deleted. Recreate this connector pointing to a valid Knowledge Base (or restore the Knowledge Base), then sync again.`);
     }
 
     logMessage(`Target Knowledge Base confirmed: "${kb.name}"`);
