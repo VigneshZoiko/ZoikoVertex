@@ -12,13 +12,27 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+const SUPPORT_EMAIL = 'info@zoikovertex.com';
+
 export default function SupportPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
   // Prefilled from query params (e.g. the billing page's "Contact Sales" → upgrade flow).
   const [category, setCategory] = useState('Authentication Issue');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
+
+  // mailto: still opens the mail client where one is configured, but many machines
+  // have no default mail handler — so also copy the address to the clipboard with
+  // confirmation, guaranteeing the user can always reach support by email.
+  const copySupportEmail = () => {
+    try {
+      navigator.clipboard?.writeText(SUPPORT_EMAIL);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 2500);
+    } catch { /* clipboard unavailable — mailto still fires */ }
+  };
 
   useEffect(() => {
     try {
@@ -71,9 +85,16 @@ export default function SupportPage() {
           <Mail className="w-5 h-5 text-[var(--accent)] mb-2" />
           <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Email Support</h3>
           <p className="text-xs text-[var(--foreground-muted)] mb-2">Response within 24 hours</p>
-          <a href="mailto:info@zoikovertex.com" className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
-            info@zoikovertex.com <ExternalLink className="w-3 h-3" />
+          <a
+            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('ZoikoVertex Support Request')}`}
+            onClick={copySupportEmail}
+            className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1"
+          >
+            {SUPPORT_EMAIL} <ExternalLink className="w-3 h-3" />
           </a>
+          {emailCopied && (
+            <p className="text-[10px] text-success-text mt-1">Copied to clipboard — paste it into your email app.</p>
+          )}
         </div>
 
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 sm:p-4">
