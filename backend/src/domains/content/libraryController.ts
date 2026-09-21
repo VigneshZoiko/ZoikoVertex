@@ -330,6 +330,47 @@ async function scanMediaUpload(
 /**
  * Registers a new asset in the library
  */
+/**
+ * Sniffs the leading bytes of a file to detect a genuine image format.
+ * Returns the format name, or null if the bytes are not a recognized image
+ * (i.e. corrupted, empty, or a non-image renamed with an image extension).
+ */
+function sniffImageFormat(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'gif';
+  if (buf[0] === 0x42 && buf[1] === 0x4d) return 'bmp';
+  if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  if ((buf[0] === 0x49 && buf[1] === 0x49 && buf[2] === 0x2a && buf[3] === 0x00) ||
+      (buf[0] === 0x4d && buf[1] === 0x4d && buf[2] === 0x00 && buf[3] === 0x2a)) return 'tiff';
+  if (/^ftyp(heic|heif|heix|hevc|mif1|avif|avis)/.test(buf.toString('ascii', 4, 12))) return 'heif';
+  const head = buf.toString('utf8', 0, Math.min(buf.length, 512)).trim().toLowerCase();
+  if (head.includes('<svg') || (head.startsWith('<?xml') && head.includes('svg'))) return 'svg';
+  return null;
+}
+
+/**
+ * Verifies a storage URL points to a genuine, decodable image by sniffing its
+ * magic bytes. Fails OPEN on network errors so a transient fetch failure never
+ * blocks a legitimate upload.
+ */
+async function isDecodableImage(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { headers: { Range: 'bytes=0-65535' } });
+    if (!res.ok && res.status !== 206) {
+      logger.warn({ url, status: res.status }, '[LibraryValidate] Could not fetch file for image validation — allowing');
+      return true; // fail open
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0) return false; // empty file is invalid
+    return sniffImageFormat(buf) !== null;
+  } catch (e) {
+    logger.warn({ url, err: (e as Error).message }, '[LibraryValidate] Image validation fetch error — allowing');
+    return true; // fail open on network error
+  }
+}
+
 export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { title, urls, file_type } = req.body;
@@ -348,6 +389,19 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
 
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+
+    // Reject corrupted / non-image files before they ever enter the library.
+    // The client claims file_type; verify the actual bytes are a real image.
+    if (file_type && (String(file_type).startsWith('image/') || file_type === 'image')) {
+      for (const url of validatedUrls) {
+        const ok = await isDecodableImage(url);
+        if (!ok) {
+          return res.status(400).json({
+            error: 'This file is not a valid image — it appears corrupted or is not an image file. It was not added to the library.',
+          });
+        }
+      }
+    }
 
     const mediaId = uuidv4();
 

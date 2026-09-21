@@ -65,6 +65,33 @@ function validateFile(file: File): string | null {
   return null;
 }
 
+/**
+ * Verifies a file is a genuine image by sniffing its magic bytes — catches
+ * corrupted files and non-images renamed with an image extension (the browser
+ * infers image/* from the extension, so validateFile alone can't tell).
+ * Fails OPEN on read errors so it never blocks a legitimate file.
+ */
+async function isValidImageFile(file: File): Promise<boolean> {
+  try {
+    const buf = new Uint8Array(await file.slice(0, 65536).arrayBuffer());
+    if (buf.length < 12) return false;
+    const ascii = (s: number, e: number) => String.fromCharCode(...Array.from(buf.slice(s, e)));
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true;          // jpeg
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return true; // png
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return true;          // gif
+    if (buf[0] === 0x42 && buf[1] === 0x4d) return true;                              // bmp
+    if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return true;              // webp
+    if ((buf[0] === 0x49 && buf[1] === 0x49 && buf[2] === 0x2a && buf[3] === 0x00) ||
+        (buf[0] === 0x4d && buf[1] === 0x4d && buf[2] === 0x00 && buf[3] === 0x2a)) return true; // tiff
+    if (/^ftyp(heic|heif|heix|hevc|mif1|avif|avis)/.test(ascii(4, 12))) return true; // heif/avif
+    const head = new TextDecoder().decode(buf.slice(0, 512)).trim().toLowerCase();
+    if (head.includes('<svg') || (head.startsWith('<?xml') && head.includes('svg'))) return true; // svg
+    return false;
+  } catch {
+    return true; // fail open on read error
+  }
+}
+
 export default function CreatorUploadPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -235,6 +262,13 @@ export default function CreatorUploadPage() {
       const newUrls: string[] = [];
       for (let i = 0; i < entries.length; i++) {
         try {
+          const f = entries[i].file;
+          // Block corrupted / fake images before they reach storage.
+          if (f.type.startsWith('image/') && !(await isValidImageFile(f))) {
+            const msg = 'Not a valid image — the file appears corrupted or is not an image.';
+            setEntries(prev => prev.map((e, j) => j === i ? { ...e, status: 'error', error: msg } : e));
+            throw new Error(`${f.name}: ${msg}`);
+          }
           const url = await uploadSingleFile(i, entries[i].file, user.id);
           newUrls.push(url);
         } catch (uploadErr) {
