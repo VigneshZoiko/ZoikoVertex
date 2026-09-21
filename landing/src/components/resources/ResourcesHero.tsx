@@ -123,7 +123,7 @@ export default function ResourcesHero() {
             >
               Explore Resources →
             </a>
-            <button onClick={()=>router.push("#")} className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
+            <button onClick={()=>router.push("/security")} className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
               Access Trust Center
             </button>
           </div>
