@@ -307,9 +307,11 @@ export default function RequestDemoHero() {
                 {/* Privacy */}
                 <p className="text-white/25 text-xs text-center">
                   We value your privacy. To learn more, visit our{" "}
-                  <button className="text-cyan-400 hover:text-cyan-300 transition-colors underline underline-offset-2">
+                  <Link 
+                  href = "privacy"
+                  className="text-cyan-400 hover:text-cyan-300 transition-colors underline underline-offset-2">
                     Privacy Statement
-                  </button>
+                  </Link>
                 </p>
 
               </div>

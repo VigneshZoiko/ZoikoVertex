@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Users2, ShieldCheck } from "lucide-react";
 
 export default function PartnerHeroSection() {
@@ -30,7 +31,9 @@ export default function PartnerHeroSection() {
   } as const;
 
   return (
-    <section className="relative w-full min-h-screen bg-[#050B14] text-white overflow-hidden flex flex-col justify-center py-20 px-6 sm:px-12 md:px-16 lg:px-24 font-sans antialiased">
+    <section
+    id ="partner"
+     className="relative w-full min-h-screen bg-[#050B14] text-white overflow-hidden flex flex-col justify-center py-20 px-6 sm:px-12 md:px-16 lg:px-24 font-sans antialiased">
       {/* Background Image Layer */}
       <div className="absolute inset-0 z-0">
         <Image
@@ -90,14 +93,14 @@ export default function PartnerHeroSection() {
             className="flex flex-wrap items-center gap-4 mb-10 w-full sm:w-auto"
           >
             <a
-              href="#"
+              href="#partner"
               className="w-full sm:w-auto px-7 py-3.5 bg-[#20E7F2] hover:bg-[#00D0E6] text-[#050B14] font-semibold text-sm rounded-full transition-all duration-200 shadow-lg shadow-[#00E5FF]/20 flex items-center justify-center"
             >
               Become a Partner
             </a>
 
             <a
-              href="#"
+              href="contact-sales"
               className="w-full sm:w-auto px-6 py-3.5 border border-[#334155] hover:border-[#475569] hover:bg-[#1E293B] text-white text-sm font-medium rounded-full transition-all duration-200 flex items-center justify-center gap-2"
             >
               <Users2 className="w-4 h-4 text-[#94A3B8]" />

@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Users, Building2 } from "lucide-react";
+import Link from "next/link";
 
 export default function PartnerCtaSection() {
   return (
@@ -69,30 +70,30 @@ export default function PartnerCtaSection() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto mb-10"
         >
           {/* Primary CTA Button */}
-          <button
-            type="button"
+          <Link
+            href="#partner"
             className="w-full sm:w-auto bg-[#C9A84C] hover:bg-[#B45309] text-black font-medium text-sm py-3.5 px-7 rounded-full transition-all duration-200 shadow-lg shadow-[#D97706]/15 hover:shadow-[#D97706]/25"
           >
             Become a Partner
-          </button>
+          </Link>
 
           {/* Secondary Cyan CTA Button */}
-          <button
-            type="button"
+          <Link
+            href="/contact-sales"
             className="w-full sm:w-auto bg-[#20E7F2] hover:bg-[#00B8D4] text-[#050B14] font-medium text-sm py-3.5 px-7 rounded-full transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#00E5FF]/15 hover:shadow-[#00E5FF]/25"
           >
             <Users className="w-4 h-4 stroke-[2.5]" />
             <span>Talk to Alliances</span>
-          </button>
+          </Link>
 
           {/* Outlined Contact Sales Button */}
-          <button
-            type="button"
+          <Link
+            href="/contact-sales"
             className="w-full sm:w-auto border border-[#334155] hover:border-[#64748B] hover:bg-[#0F172A]/80 text-white font-medium text-sm py-3.5 px-7 rounded-full transition-all duration-200 flex items-center justify-center gap-2 backdrop-blur-sm"
           >
             <Building2 className="w-4 h-4 text-[#94A3B8]" />
             <span>Contact Sales</span>
-          </button>
+          </Link>
         </motion.div>
 
         {/* Footer Fine Print Tag */}

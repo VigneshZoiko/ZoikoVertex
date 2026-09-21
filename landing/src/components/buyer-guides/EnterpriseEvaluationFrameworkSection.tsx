@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -19,16 +20,24 @@ const cardVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1],
+    },
   },
 } as const;
+
+interface PillarLink {
+  name: string;
+  href: string;
+}
 
 interface PillarItem {
   id: string;
   pillarNumber: string;
   title: string;
   question: string;
-  links: string[];
+  links: PillarLink[];
 }
 
 const pillarsData: PillarItem[] = [
@@ -38,123 +47,230 @@ const pillarsData: PillarItem[] = [
     title: "Governed autonomy",
     question:
       '"Can agents act safely within policy, approvals, and human oversight?"',
-    links: ["Agentic Architecture", "Approval Workflows", "Responsible AI"],
+    links: [
+      {
+        name: "Agentic Architecture",
+        href: "/agentic-architecture",
+      },
+      {
+        name: "Approval Workflows",
+        href: "/approval-workflows",
+      },
+      {
+        name: "Responsible AI",
+        href: "/responsible-ai",
+      },
+    ],
   },
+
   {
     id: "pillar-02",
     pillarNumber: "Pillar 02",
     title: "Workflow control",
     question:
       '"Can work move from brief to approval to publishing without losing accountability?"',
-    links: ["AI Workflow Orchestration", "Command Center"],
+    links: [
+      {
+        name: "AI Workflow Orchestration",
+        href: "/ai-workflow-orchestration",
+      },
+      {
+        name: "Command Center",
+        href: "/contact-sales",
+      },
+    ],
   },
+
   {
     id: "pillar-03",
     pillarNumber: "Pillar 03",
     title: "Auditability",
     question:
       '"Can every action, decision, actor, and proof item be reconstructed?"',
-    links: ["Auditability", "Evidence Layer", "Decision Ledger"],
+    links: [
+      {
+        name: "Auditability",
+        href: "/auditability",
+      },
+
+      // {
+      //   name: "Evidence Layer",
+      //   href: "#",
+      // },
+
+      // {
+      //   name: "Decision Ledger",
+      //   href: "#",
+      // },
+    ],
   },
+
   {
     id: "pillar-04",
     pillarNumber: "Pillar 04",
     title: "ROI measurement",
     question:
       '"Can the platform prove time saved, risk avoided, and value created?"',
-    links: ["ROI Engine", "ROI & Governance Audit"],
+    links: [
+      {
+        name: "ROI Engine",
+        href: "/roi-engine",
+      },
+      {
+        name: "ROI & Governance Audit",
+        href: "/roi-governance-audit",
+      },
+    ],
   },
+
   {
     id: "pillar-05",
     pillarNumber: "Pillar 05",
     title: "Integration readiness",
     question:
       '"Can the system connect to existing enterprise tools without brittle workflows?"',
-    links: ["Integrations", "API & Webhooks", "Data Connectors"],
+    links: [
+      {
+        name: "Integrations",
+        href: "/integrations",
+      },
+
+      // {
+      //   name: "API & Webhooks",
+      //   href: "#",
+      // },
+
+      // {
+      //   name: "Data Connectors",
+      //   href: "#",
+      // },
+    ],
   },
+
   {
     id: "pillar-06",
     pillarNumber: "Pillar 06",
     title: "Procurement readiness",
     question:
       '"Can security, legal, privacy, and governance reviewers approve it?"',
-    links: ["Compliance & Governance", "DPA", "Security Pack"],
+    links: [
+      {
+        name: "Compliance & Governance",
+        href: "/governance",
+      },
+      {
+        name: "DPA",
+        href: "/dpa",
+      },
+      {
+        name: "Security Pack",
+        href: "/security",
+      },
+    ],
   },
 ];
 
 export default function EnterpriseEvaluationFrameworkSection() {
   return (
-    <section className="relative min-h-[900px] w-full bg-[#08101F] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
-      {/* Background Ambient Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-cyan-950/15 blur-[180px] pointer-events-none rounded-full" />
-
-      <div className="max-w-[1280px] w-full z-10 flex flex-col items-center">
-        {/* Header Content */}
-        <div className="text-center mb-16 max-w-6xl">
-          {/* Eyebrow Label */}
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="w-4 h-[2px] bg-amber-500"></span>
-            <span className="text-[11px] font-mono font-bold tracking-[0.25em] text-amber-500 uppercase">
-              ENTERPRISE EVALUATION FRAMEWORK
-            </span>
-            <span className="w-4 h-[2px] bg-amber-500"></span>
-          </div>
-
-          {/* Heading */}
-          <h2 className="text-3xl sm:text-4xl md:text-[48px] font-bold tracking-tight text-white mb-4 leading-[1.12]">
-            Six pillars to evaluate any agentic AI platform.
-          </h2>
-
-          {/* Description */}
-          <p className="text-slate-400 text-xs sm:text-sm font-normal leading-relaxed">
-            The questions to ask &mdash; and where ZoikoVertex proves its
-            answer.
-          </p>
-        </div>
-
-        {/* 6 Pillars Grid Cards */}
+    <section className="relative min-h-[900px] w-full bg-[#08101F] px-6 py-20 font-sans text-white md:px-12 lg:px-16">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col items-center justify-center">
+        {/* Header */}
         <motion.div
-          className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left"
+          className="mb-14 flex w-full max-w-[900px] flex-col items-center text-center"
           variants={containerVariants}
           initial="hidden"
-          animate="visible"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          <motion.div
+            variants={cardVariants}
+            className="mb-5 inline-flex items-center rounded-full border border-[#E8B768]/30 bg-[#E8B768]/10 px-4 py-2"
+          >
+            <span className="font-mono text-xs font-semibold uppercase tracking-[2px] text-[#E8B768]">
+              Enterprise Evaluation Framework
+            </span>
+          </motion.div>
+
+          <motion.h2
+            variants={cardVariants}
+            className="text-3xl font-semibold leading-tight tracking-tight text-white md:text-4xl lg:text-5xl"
+          >
+            Evaluate the platform
+            <br />
+            <span className="text-[#E8B768]">across six pillars.</span>
+          </motion.h2>
+
+          <motion.p
+            variants={cardVariants}
+            className="mt-6 max-w-[720px] text-sm leading-7 text-slate-400 md:text-base"
+          >
+            A structured framework for evaluating governance, workflow
+            control, auditability, ROI, integration readiness, and procurement
+            requirements.
+          </motion.p>
+        </motion.div>
+
+        {/* Pillars */}
+        <motion.div
+          className="grid w-full grid-cols-1 gap-6 text-left md:grid-cols-2 lg:grid-cols-3"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.15 }}
         >
           {pillarsData.map((pillar) => (
             <motion.div
               key={pillar.id}
               variants={cardVariants}
-              className="group relative flex flex-col justify-between p-7 rounded-2xl bg-[#131C2B] border border-[#7AA0BE24] hover:border-slate-700 hover:bg-[#162235] transition-all duration-300 backdrop-blur-sm"
+              className="group relative flex min-h-[300px] flex-col justify-between rounded-2xl border border-slate-700/60 bg-[#0D1627] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-[#E8B768]/40"
             >
+              {/* Top Content */}
               <div>
-                {/* Pillar Number */}
-                <span className="text-xs font-mono text-[#00E5FF] tracking-wider uppercase block mb-3">
-                  {pillar.pillarNumber}
-                </span>
+                <div className="mb-5 flex items-center justify-between">
+                  <span className="font-mono text-xs font-semibold uppercase tracking-[2px] text-[#E8B768]">
+                    {pillar.pillarNumber}
+                  </span>
 
-                {/* Pillar Title */}
-                <h3 className="text-xl font-bold text-slate-100 mb-3 tracking-tight group-hover:text-white transition-colors">
+                  <span className="font-mono text-xs text-slate-600">
+                    {pillar.id.replace("pillar-", "#")}
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-semibold text-white md:text-2xl">
                   {pillar.title}
                 </h3>
 
-                {/* Question Quote */}
-                <p className="text-xs sm:text-sm text-slate-400 font-normal italic leading-relaxed mb-6 pb-6 border-b border-slate-800/80">
+                <p className="mt-5 text-sm leading-6 text-slate-400">
                   {pillar.question}
                 </p>
               </div>
 
-              {/* Footer Links */}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              {/* Links */}
+              <div className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-2">
                 {pillar.links.map((link, i) => (
-                  <React.Fragment key={i}>
+                  <React.Fragment key={link.name}>
                     {i > 0 && (
-                      <span className="text-slate-600 text-xs">&bull;</span>
+                      <span className="text-xs text-slate-600">
+                        &bull;
+                      </span>
                     )}
-                    <button className="text-xs font-mono tracking-[1px] font-semibold text-[#E8B768] hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer">
-                      <span className="text-[#E8B768] tracking-[1px]">&rarr;</span> {link}
-                    </button>
+
+                    <Link
+                      href={link.href}
+                      className="flex items-center gap-1 font-mono text-xs font-semibold tracking-[1px] text-[#E8B768] transition-colors hover:text-amber-300"
+                    >
+                      <span className="tracking-[1px] text-[#E8B768]">
+                        &rarr;
+                      </span>
+
+                      {link.name}
+                    </Link>
                   </React.Fragment>
                 ))}
               </div>
+
+              {/* Hover line */}
+              <div className="absolute bottom-0 left-7 right-7 h-px origin-left scale-x-0 bg-[#E8B768] transition-transform duration-300 group-hover:scale-x-100" />
             </motion.div>
           ))}
         </motion.div>

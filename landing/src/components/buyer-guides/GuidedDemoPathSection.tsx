@@ -65,7 +65,9 @@ const stepsData: StepItem[] = [
 
 export default function GuidedDemoPathSection() {
   return (
-    <section className="relative min-h-[600px] w-full bg-[#08101F] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
+    <section 
+    id = "guided-evaluation"
+    className="relative min-h-[600px] w-full bg-[#08101F] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-cyan-950/15 blur-[180px] pointer-events-none rounded-full" />
 
