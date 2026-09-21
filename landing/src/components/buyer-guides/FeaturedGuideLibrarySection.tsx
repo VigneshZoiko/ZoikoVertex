@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 const containerVariants = {
@@ -35,6 +36,7 @@ interface GuideItem {
   metaInfo: string;
   ctaText: string;
   secondaryCta: string;
+  secondaryHref: string;
 }
 
 const guidesData: GuideItem[] = [
@@ -52,6 +54,7 @@ const guidesData: GuideItem[] = [
     metaInfo: "PDF · 18 min · Guide",
     ctaText: "Download Guide",
     secondaryCta: "Executive Command Center →",
+    secondaryHref: "/executive-command-center",
   },
   {
     id: "ai-workflow-orchestration",
@@ -67,6 +70,7 @@ const guidesData: GuideItem[] = [
     metaInfo: "PDF · 22 min · Guide",
     ctaText: "Download Guide",
     secondaryCta: "AI Workflow Orchestration →",
+    secondaryHref: "/ai-workflow-orchestration",
   },
   {
     id: "approval-workflow-modernization",
@@ -82,6 +86,7 @@ const guidesData: GuideItem[] = [
     metaInfo: "PDF · 14 min · Guide",
     ctaText: "Download Guide",
     secondaryCta: "Approval Workflows →",
+    secondaryHref: "/approval-workflows",
   },
   {
     id: "ai-governance-auditability",
@@ -97,6 +102,7 @@ const guidesData: GuideItem[] = [
     metaInfo: "Checklist · 10 min · Checklist",
     ctaText: "Access Checklist",
     secondaryCta: "Auditability →",
+    secondaryHref: "/auditability",
   },
   {
     id: "agentic-ai-roi-business-case",
@@ -111,6 +117,7 @@ const guidesData: GuideItem[] = [
     metaInfo: "Template · 15 min · Template",
     ctaText: "Build ROI Case",
     secondaryCta: "ROI & Governance Audit →",
+    secondaryHref: "/roi-governance-audit",
   },
   {
     id: "enterprise-integration-readiness",
@@ -126,6 +133,7 @@ const guidesData: GuideItem[] = [
     metaInfo: "PDF · 20 min · Guide",
     ctaText: "Download Guide",
     secondaryCta: "Integrations →",
+    secondaryHref: "/integrations",
   },
 ];
 
@@ -350,9 +358,12 @@ export default function FeaturedGuideLibrarySection() {
                     <button className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_20px_rgba(0,229,255,0.3)] active:scale-[0.98]">
                       {guide.ctaText}
                     </button>
-                    <button className="text-xs font-mono font-semibold text-[#00E5FF] hover:text-cyan-300 transition-colors tracking-[1px]">
+                    <Link
+                      href={guide.secondaryHref}
+                      className="text-xs font-mono font-semibold text-[#00E5FF] hover:text-cyan-300 transition-colors tracking-[1px]"
+                    >
                       {guide.secondaryCta}
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </motion.div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Sigma,
@@ -37,6 +38,7 @@ interface MethodologyCard {
   title: string;
   description: string;
   resultLabel: string;
+  href: string;
 }
 
 const cards: MethodologyCard[] = [
@@ -47,6 +49,7 @@ const cards: MethodologyCard[] = [
     description:
       "Current cycle time minus target governed cycle time, multiplied by workflow volume and blended labor cost.",
     resultLabel: "Annual hours & cost recovered",
+    href: "/approval-workflows",
   },
   {
     id: "rework-reduction",
@@ -55,6 +58,7 @@ const cards: MethodologyCard[] = [
     description:
       "Current rework rate multiplied by an estimated reduction range from controlled briefs, approvals, and evidence.",
     resultLabel: "Cost of avoided rework",
+    href: "/audit-engine",
   },
   {
     id: "campaign-velocity-gain",
@@ -62,6 +66,7 @@ const cards: MethodologyCard[] = [
     title: "Campaign velocity gain",
     description: "Monthly campaigns multiplied by approval-cycle compression.",
     resultLabel: "Additional throughput capacity",
+    href: "/ai-workflow-orchestration",
   },
   {
     id: "risk-exposure-reduction",
@@ -70,6 +75,7 @@ const cards: MethodologyCard[] = [
     description:
       "Risk categories scored by control maturity: policy, approval, evidence, identity, retention.",
     resultLabel: "Risk score improvement & gap map",
+    href: "/security",
   },
   {
     id: "governance-maturity",
@@ -78,6 +84,7 @@ const cards: MethodologyCard[] = [
     description:
       "Weighted score across controls, auditability, identity, evidence, workflows, retention, and responsible AI.",
     resultLabel: "0-100 score & maturity tier",
+    href: "/governance",
   },
   {
     id: "payback-period",
@@ -86,6 +93,7 @@ const cards: MethodologyCard[] = [
     description:
       "Estimated annual benefit divided by an estimated subscription and implementation cost range.",
     resultLabel: "Indicative payback range",
+    href: "/roi-engine",
   },
 ];
 
@@ -129,35 +137,36 @@ export default function MethodologyAssumptionsSection() {
           {cards.map((card) => {
             const Icon = card.icon;
             return (
-              <motion.div
-                key={card.id}
-                variants={cardVariants}
-                className="group relative flex flex-col justify-between p-7 rounded-2xl bg-[#131C2B] border border-slate-800/80 hover:border-slate-700 hover:bg-[#162235] transition-all duration-300 cursor-pointer backdrop-blur-sm"
-              >
-                <div>
-                  {/* Icon & Title Row */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <Icon className="w-4 h-4 text-cyan-400 stroke-[2.2] shrink-0" />
-                    <h3 className="text-sm font-bold text-slate-100 tracking-tight group-hover:text-white transition-colors">
-                      {card.title}
-                    </h3>
+              <motion.div key={card.id} variants={cardVariants}>
+                <Link
+                  href={card.href}
+                  className="group relative flex flex-col justify-between p-7 rounded-2xl bg-[#131C2B] border border-slate-800/80 hover:border-slate-700 hover:bg-[#162235] transition-all duration-300 cursor-pointer backdrop-blur-sm h-full"
+                >
+                  <div>
+                    {/* Icon & Title Row */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <Icon className="w-4 h-4 text-cyan-400 stroke-[2.2] shrink-0" />
+                      <h3 className="text-sm font-bold text-slate-100 tracking-tight group-hover:text-white transition-colors">
+                        {card.title}
+                      </h3>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs text-slate-400 font-normal leading-relaxed pl-7 mb-4">
+                      {card.description}
+                    </p>
                   </div>
 
-                  {/* Description */}
-                  <p className="text-xs text-slate-400 font-normal leading-relaxed pl-7 mb-4">
-                    {card.description}
-                  </p>
-                </div>
-
-                {/* Arrow Output / Result Label */}
-                <div className="flex items-center gap-2 pl-7">
-                  <span className="text-amber-400 font-mono text-xs font-semibold">
-                    →
-                  </span>
-                  <span className="text-[12px] text-amber-400 tracking-[1px]">
-                    {card.resultLabel}
-                  </span>
-                </div>
+                  {/* Arrow Output / Result Label */}
+                  <div className="flex items-center gap-2 pl-7">
+                    <span className="text-amber-400 font-mono text-xs font-semibold">
+                      →
+                    </span>
+                    <span className="text-[12px] text-amber-400 tracking-[1px]">
+                      {card.resultLabel}
+                    </span>
+                  </div>
+                </Link>
               </motion.div>
             );
           })}

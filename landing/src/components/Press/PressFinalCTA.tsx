@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Mail, Download } from "lucide-react";
 
 export default function PressFinalCTA() {
@@ -33,10 +34,12 @@ export default function PressFinalCTA() {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-          <button className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-[#080d1a] text-sm font-bold transition">
+          <Link
+         href ="/contact-sales"
+           className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-[#080d1a] text-sm font-bold transition">
             <Mail className="w-4 h-4" />
             Contact Media Relations
-          </button>
+          </Link>
           <button className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border border-white/15 text-white/80 text-sm font-medium hover:bg-white/5 transition">
             <Download className="w-4 h-4" />
             Download Press Kit

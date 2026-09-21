@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { motion, Variants } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 interface FeatureItem {
   title: string;
@@ -152,10 +153,12 @@ export default function ZoikoGovernanceRoiSection() {
 
             {/* CTA Button */}
             <div className="pt-2">
-              <button className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
+              <Link
+              href = "/roi-governance-audit"
+               className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
                 <ShieldCheck className="w-4 h-4" />
                 Run Governance ROI Audit
-              </button>
+              </Link>
             </div>
           </motion.div>
 

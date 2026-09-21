@@ -170,7 +170,9 @@ export default function DemoFinderSection() {
   const [activeFilter, setActiveFilter] = useState("All");
 
   return (
-    <section className="relative min-h-screen w-full bg-[#030711] text-white px-4 py-12 sm:px-8 md:px-12 lg:px-16 flex justify-center font-sans">
+    <section
+    id ="browse-demo"
+     className="relative min-h-screen w-full bg-[#030711] text-white px-4 py-12 sm:px-8 md:px-12 lg:px-16 flex justify-center font-sans">
       <div className="max-w-[1280px] w-full z-10">
         {/* Title Header */}
         <div className="mb-8">

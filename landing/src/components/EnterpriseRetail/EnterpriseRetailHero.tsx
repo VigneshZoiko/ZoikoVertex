@@ -58,7 +58,7 @@ export default function EnterpriseRetailHero() {
             Request Enterprise Retail Demo
           </Link>
           <Link
-            href="/pricing"
+            href="/roi-governance-audit"
             className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full border border-white/[0.14] text-sm text-white/90 hover:bg-white/5 transition font-[family-name:var(--font-jakarta)]"
           >
             <BarChart3 className="w-[14px] h-[14px]" strokeWidth={2} />

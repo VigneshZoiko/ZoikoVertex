@@ -1,4 +1,6 @@
 "use client";
+
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 const STEPS = [
@@ -8,9 +10,16 @@ const STEPS = [
     meta: "Immediate · by size & role",
     highlighted: true,
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#20E7F2" strokeWidth="1.5">
-        <line x1="22" y1="2" x2="11" y2="13"/>
-        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#20E7F2"
+        strokeWidth="1.5"
+      >
+        <line x1="22" y1="2" x2="11" y2="13" />
+        <polygon points="22 2 15 22 11 13 2 9 22 2" />
       </svg>
     ),
   },
@@ -20,11 +29,18 @@ const STEPS = [
     meta: "≤ 4 business hours (enterprise)",
     highlighted: false,
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF80" strokeWidth="1.5">
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-        <path d="M16 3.13a4 4 0 010 7.75"/>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#FFFFFF80"
+        strokeWidth="1.5"
+      >
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
   },
@@ -34,10 +50,17 @@ const STEPS = [
     meta: "45–90 min governed walkthrough",
     highlighted: false,
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF80" strokeWidth="1.5">
-        <rect x="2" y="3" width="20" height="14" rx="2"/>
-        <line x1="8" y1="21" x2="16" y2="21"/>
-        <line x1="12" y1="17" x2="12" y2="21"/>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#FFFFFF80"
+        strokeWidth="1.5"
+      >
+        <rect x="2" y="3" width="20" height="14" rx="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
       </svg>
     ),
   },
@@ -47,8 +70,15 @@ const STEPS = [
     meta: "Free Starter · 14-day Growth trial",
     highlighted: false,
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF80" strokeWidth="1.5">
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#FFFFFF80"
+        strokeWidth="1.5"
+      >
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
       </svg>
     ),
   },
@@ -90,10 +120,18 @@ export default function RequestDemoNext() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+        }
+      },
       { threshold: 0.1 }
     );
-    if (ref.current) observer.observe(ref.current);
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
     return () => observer.disconnect();
   }, []);
 
@@ -104,21 +142,26 @@ export default function RequestDemoNext() {
         {/* Section label */}
         <div
           className={`flex items-center gap-4 mb-8 transition-all duration-700 ease-out ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            visible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-6"
           }`}
         >
           <div className="flex-1 h-px bg-[#FFFFFF3D]" />
+
           <p className="text-[#FFFFFF3D] text-xs font-medium tracking-widest uppercase whitespace-nowrap">
             WHAT HAPPENS AFTER YOU SUBMIT
           </p>
+
           <div className="flex-1 h-px bg-[#FFFFFF3D]" />
         </div>
 
-        {/* 4 Steps — NO gap, shared borders */}
+        {/* 4 Steps */}
         <div
-          className={`grid grid-cols-2 sm:grid-cols-4 border border-white/10 rounded-2xl overflow-hidden mb-5
-            transition-all duration-700 ease-out ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          className={`grid grid-cols-2 sm:grid-cols-4 border border-white/10 rounded-2xl overflow-hidden mb-5 transition-all duration-700 ease-out ${
+            visible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-6"
           }`}
           style={{ transitionDelay: "100ms" }}
         >
@@ -126,45 +169,76 @@ export default function RequestDemoNext() {
             <div
               key={step.number}
               className={`flex flex-col gap-3 p-5 cursor-default transition-colors duration-300
-                ${step.highlighted ? "bg-[#20E7F21A]" : "bg-[#0C1422] hover:bg-white/[0.02]"}
-                ${i < STEPS.length - 1 ? "border-r border-white/10" : ""}
-                ${i < 2 ? "border-b sm:border-b-0 border-white/10" : ""}
+                ${
+                  step.highlighted
+                    ? "bg-[#20E7F21A]"
+                    : "bg-[#0C1422] hover:bg-white/[0.02]"
+                }
+                ${
+                  i < STEPS.length - 1
+                    ? "border-r border-white/10"
+                    : ""
+                }
+                ${
+                  i < 2
+                    ? "border-b sm:border-b-0 border-white/10"
+                    : ""
+                }
               `}
             >
               {/* Number */}
-              <p className={`text-xs font-bold tracking-widest ${
-                step.highlighted ? "text-cyan-400/50" : "text-white/20"
-              }`}>
+              <p
+                className={`text-xs font-bold tracking-widest ${
+                  step.highlighted
+                    ? "text-cyan-400/50"
+                    : "text-white/20"
+                }`}
+              >
                 {step.number}
               </p>
 
               {/* Icon */}
-              <div className={step.highlighted ? "text-cyan-400" : "text-white/25"}>
+              <div
+                className={
+                  step.highlighted
+                    ? "text-cyan-400"
+                    : "text-white/25"
+                }
+              >
                 {step.icon}
               </div>
 
               {/* Title */}
-              <h3 className={`text-sm font-black leading-snug ${
-                step.highlighted ? "text-white" : "text-white/55"
-              }`}>
+              <h3
+                className={`text-sm font-black leading-snug ${
+                  step.highlighted
+                    ? "text-white"
+                    : "text-white/55"
+                }`}
+              >
                 {step.title}
               </h3>
 
               {/* Meta */}
-              <p className={`text-xs leading-relaxed ${
-                step.highlighted ? "text-white/35" : "text-white/20"
-              }`}>
+              <p
+                className={`text-xs leading-relaxed ${
+                  step.highlighted
+                    ? "text-white/35"
+                    : "text-white/20"
+                }`}
+              >
                 {step.meta}
               </p>
             </div>
           ))}
         </div>
 
-        {/* 3 Path cards — NO gap, shared borders */}
+        {/* 3 Path cards */}
         <div
-          className={`grid grid-cols-1 sm:grid-cols-3 border border-white/10 rounded-2xl overflow-hidden
-            transition-all duration-700 ease-out ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          className={`grid grid-cols-1 sm:grid-cols-3 border border-white/10 rounded-2xl overflow-hidden transition-all duration-700 ease-out ${
+            visible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-6"
           }`}
           style={{ transitionDelay: "300ms" }}
         >
@@ -173,7 +247,11 @@ export default function RequestDemoNext() {
               key={path.title}
               className={`flex flex-col gap-4 p-6 bg-[#0a0a18]
                 hover:bg-[#0d0d1f] transition-colors duration-300 cursor-default
-                ${i < PATHS.length - 1 ? "border-b sm:border-b-0 sm:border-r border-white/10" : ""}`}
+                ${
+                  i < PATHS.length - 1
+                    ? "border-b sm:border-b-0 sm:border-r border-white/10"
+                    : ""
+                }`}
             >
               {/* Category */}
               <p
@@ -195,13 +273,24 @@ export default function RequestDemoNext() {
 
               {/* CTA */}
               {path.showCta && (
-                <button className="w-full flex items-center justify-center gap-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black py-3 rounded-xl transition-colors duration-300 mt-1">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="22" y1="2" x2="11" y2="13"/>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                <Link
+                  href="/contact-sales"
+                  className="w-full flex items-center justify-center gap-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black py-3 rounded-xl transition-colors duration-300 mt-1"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
+
                   {path.cta}
-                </button>
+                </Link>
               )}
             </div>
           ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -49,7 +50,7 @@ const stepsData: StepItem[] = [
     description:
       "Watch the demo mapped to your role — governance, workflows, or auditability.",
     ctaText: "Watch a demo",
-    ctaHref: "#",
+    ctaHref: "/request-demo",
   },
   {
     id: "step-03",
@@ -58,13 +59,15 @@ const stepsData: StepItem[] = [
     description:
       "Run the ROI & Governance Audit and book a guided evaluation with our team.",
     ctaText: "Book guided evaluation",
-    ctaHref: "#",
+    ctaHref: "/contact-sales",
   },
 ];
 
 export default function GuidedDemoPathSection() {
   return (
-    <section className="relative min-h-[600px] w-full bg-[#08101F] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
+    <section 
+    id = "guided-evaluation"
+    className="relative min-h-[600px] w-full bg-[#08101F] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-cyan-950/15 blur-[180px] pointer-events-none rounded-full" />
 
@@ -118,7 +121,7 @@ export default function GuidedDemoPathSection() {
 
               {/* Action Link */}
               <div>
-                <a
+                <Link
                   href={step.ctaHref}
                   className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-[#20E7F2] hover:text-cyan-300 transition-colors group/link"
                 >
@@ -126,7 +129,7 @@ export default function GuidedDemoPathSection() {
                   <span className="group-hover/link:translate-x-1 transition-transform">
                     &rarr;
                   </span>
-                </a>
+                </Link>
               </div>
             </motion.div>
           ))}

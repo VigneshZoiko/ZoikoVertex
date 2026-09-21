@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,6 +36,7 @@ const graphicVariants = {
 } as const;
 
 export default function ROIAuditHeroSection() {
+  const router = useRouter();
   return (
     <section className="relative min-h-[540px] w-full bg-[#030711] text-white px-6 py-16 md:px-12 lg:px-20 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
@@ -87,10 +89,10 @@ export default function ROIAuditHeroSection() {
             variants={itemVariants}
             className="flex flex-wrap items-center gap-4"
           >
-            <button className="px-6 py-3.5 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98]">
+            <button onClick={()=>router.push("https://getzoikovertex.com/login")} className="px-6 py-3.5 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs hover:bg-cyan-300 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98]">
               Run ROI &amp; Governance Audit
             </button>
-            <button className="px-6 py-3.5 rounded-xl border border-slate-800/90 bg-[#070E18]/80 text-slate-200 font-semibold text-xs hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-200 active:scale-[0.98] backdrop-blur-sm">
+            <button onClick={()=>router.push("/request-demo")} className="px-6 py-3.5 rounded-xl border border-slate-800/90 bg-[#070E18]/80 text-slate-200 font-semibold text-xs hover:bg-slate-800/80 hover:border-slate-700 transition-all duration-200 active:scale-[0.98] backdrop-blur-sm">
               Book Enterprise Demo
             </button>
           </motion.div>

@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,7 +35,9 @@ const badges = [
 
 export default function BuyerGuidesHeroSection() {
   return (
-    <section className="relative min-h-[640px] w-full bg-gradient-to-r from-[#050A17] to-[#08101F] text-white px-6 py-20 md:px-12 lg:px-20 flex items-center justify-center font-sans overflow-hidden">
+    <section
+    id = "buyer-guides"
+     className="relative min-h-[640px] w-full bg-gradient-to-r from-[#050A17] to-[#08101F] text-white px-6 py-20 md:px-12 lg:px-20 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[900px] h-[450px] bg-cyan-950/20 blur-[180px] pointer-events-none rounded-full" />
 
@@ -82,13 +85,17 @@ export default function BuyerGuidesHeroSection() {
             variants={itemVariants}
             className="flex flex-wrap items-center gap-4 w-full sm:w-auto mb-12"
           >
-            <button className="px-7 py-4 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] w-full sm:w-auto">
+            <Link 
+            href ="#"
+            className="px-7 py-4 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] w-full sm:w-auto">
               Download the Enterprise Buyer Guide
-            </button>
+            </Link>
 
-            <button className="px-7 py-4 rounded-xl bg-[#070E18] text-slate-200 border border-slate-800 font-semibold text-xs sm:text-sm hover:bg-[#0A1422] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] w-full sm:w-auto">
+            <Link 
+            href ="#guided-evaluation"
+            className="px-7 py-4 rounded-xl bg-[#070E18] text-slate-200 border border-slate-800 font-semibold text-xs sm:text-sm hover:bg-[#0A1422] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] w-full sm:w-auto">
               Request a Guided Evaluation
-            </button>
+            </Link>
           </motion.div>
 
           {/* Footer Badges */}

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion, Variants } from "framer-motion";
+import Link from "next/link";
 import { Calculator, Calendar, Download } from "lucide-react";
 
 const containerVariants: Variants = {
@@ -75,16 +76,20 @@ export default function ZoikoBusinessCaseCtaSection() {
           className="flex flex-wrap items-center justify-center gap-4 pt-2"
         >
           {/* Primary Cyan CTA 1 */}
-          <button className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-xs sm:text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
+          <Link
+          href ="#calculate"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-xs sm:text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
             <Calculator className="w-4 h-4" />
             Calculate ROI
-          </button>
+          </Link>
 
           {/* Primary Cyan CTA 2 */}
-          <button className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-xs sm:text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
+          <Link
+          href ="#calculate"
+           className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-xs sm:text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
             <Calendar className="w-4 h-4" />
             Book ROI walkthrough
-          </button>
+          </Link>
 
           {/* Secondary Outline CTA */}
           <button className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-white/20 text-white font-medium text-xs sm:text-sm hover:bg-white/10 transition-colors backdrop-blur-sm">

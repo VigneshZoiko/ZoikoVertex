@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ShieldCheck, FileText, Sparkles, Scale, Database } from "lucide-react";
 
@@ -74,7 +75,7 @@ export default function BusinessCaseAndProcurementSection() {
             className="rounded-2xl bg-[#131C2B] border border-slate-800/80 p-8 md:p-10 backdrop-blur-md shadow-[0_20px_40px_rgba(0,0,0,0.5)] flex flex-col justify-between"
           >
             <div>
-              <span className="text-[10px] font-mono  tracking-[1px] text-[#20E7F2] uppercase block mb-3">
+              <span className="text-[10px] font-mono tracking-[1px] text-[#20E7F2] uppercase block mb-3">
                 ROI BUSINESS CASE BUILDER
               </span>
 
@@ -119,9 +120,12 @@ export default function BusinessCaseAndProcurementSection() {
             </div>
 
             {/* CTA Button */}
-            <button className="w-full py-4 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all shadow-[0_0_25px_rgba(0,229,255,0.3)] active:scale-[0.98]">
+            <Link
+              href="/roi-governance-audit"
+              className="w-full py-4 rounded-xl bg-[#00E5FF] text-slate-950 font-bold text-xs sm:text-sm hover:bg-[#00cce6] transition-all shadow-[0_0_25px_rgba(0,229,255,0.3)] active:scale-[0.98] text-center inline-block"
+            >
               Run ROI &amp; Governance Audit
-            </button>
+            </Link>
           </motion.div>
 
           {/* Right Card: Procurement & Security Pack */}
@@ -168,9 +172,12 @@ export default function BusinessCaseAndProcurementSection() {
             </div>
 
             {/* CTA Button */}
-            <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#E8B768] to-[#C8954A] text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98]">
+            <Link
+              href="/contact-sales"
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-[#E8B768] to-[#C8954A] text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] active:scale-[0.98] text-center inline-block"
+            >
               Contact Sales for Access
-            </button>
+            </Link>
           </motion.div>
         </motion.div>
       </div>

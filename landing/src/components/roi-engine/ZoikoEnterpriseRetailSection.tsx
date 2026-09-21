@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { motion, Variants } from "framer-motion";
+import Link from "next/link";
 import { ArrowRight, Store, ShieldCheck, BarChart3 } from "lucide-react";
 
 interface FeatureCard {
@@ -133,10 +134,12 @@ export default function ZoikoEnterpriseRetailSection() {
 
             {/* CTA Button */}
             <motion.div variants={itemVariants} className="pt-2">
-              <button className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
+              <Link
+              href = "/enterprise-retail"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors shadow-lg shadow-[#20E7F2]/20">
                 <ArrowRight className="w-4 h-4" />
                 See Enterprise Retail
-              </button>
+              </Link>
             </motion.div>
           </motion.div>
         </div>

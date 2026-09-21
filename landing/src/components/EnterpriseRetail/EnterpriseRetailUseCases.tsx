@@ -67,7 +67,7 @@ const USE_CASES: UseCase[] = [
     title: "A clear ROI model, vendor controls, and measurable impact.",
     desc: "Campaign throughput, cycle-time reduction, rework cost, and governance maturity all translate to a measurable executive business case.",
     cta: "Calculate Retail ROI",
-    href: "/pricing",
+    href: "/roi-governance-audit",
     image: "/images/enterprise-retail/Procurement and Finance.png",
   },
   {

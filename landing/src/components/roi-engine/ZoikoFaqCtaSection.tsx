@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   ChevronDown,
@@ -171,25 +172,33 @@ export default function ZoikoFaqCtaSection() {
 
               {/* Action Buttons */}
               <div className="space-y-3 pt-2">
-                <button className="w-full py-3 px-4 rounded-xl bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20E7F2]/20">
+                <Link
+                href= "/#calculate"
+                 className="w-full py-3 px-4 rounded-xl bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20E7F2]/20">
                   <Calendar className="w-4 h-4" />
                   Book ROI walkthrough
-                </button>
+                </Link>
 
-                <button className="w-full py-3 px-4 rounded-xl bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20E7F2]/20">
+                <Link
+                href="/roi-governance-audit"
+                 className="w-full py-3 px-4 rounded-xl bg-[#20E7F2] text-[#0b121e] font-semibold text-sm hover:bg-[#1cd4de] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20E7F2]/20">
                   <ShieldCheck className="w-4 h-4" />
                   Start ROI & Governance Audit
-                </button>
+                </Link>
 
-                <button className="w-full py-3 px-4 rounded-full bg-white/1 border border-white/10 text-white font-semibold text-sm hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
+                <Link
+                href ="/approval-workflows"
+                 className="w-full py-3 px-4 rounded-full bg-white/1 border border-white/10 text-white font-semibold text-sm hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
                   <GitPullRequest className="w-4 h-4 text-[#ffffff80]" />
                   Approval Workflows
-                </button>
+                </Link>
 
-                <button className="w-full py-3 px-4 rounded-full bg-white/1 border border-white/10 text-white font-semibold text-sm hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
+                <Link
+                href ="/executive-command-center"
+                 className="w-full py-3 px-4 rounded-full bg-white/1 border border-white/10 text-white font-semibold text-sm hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
                   <LayoutDashboard className="w-4 h-4 text-[#ffffff80]" />
                   Executive Command Center
-                </button>
+                </Link>
               </div>
             </div>
           </motion.div>
