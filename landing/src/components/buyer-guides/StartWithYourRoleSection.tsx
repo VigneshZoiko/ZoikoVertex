@@ -50,7 +50,7 @@ const roleCards: RoleCard[] = [
     description:
       "Board-level value, risk reduction, ROI, and strategic control.",
     ctaText: "View Executive Buyer Guide",
-    href: "/buyer-guides",
+    href: "#buyer-guides",
   },
   {
     id: "marketing",

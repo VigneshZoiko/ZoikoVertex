@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, Variants } from "framer-motion";
 import { ChevronDown, FileText, BarChart2 } from "lucide-react";
+import Link from "next/link"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -341,10 +342,12 @@ export default function ZoikoRoiCalculatorSection() {
                   Get full executive report
                 </button>
 
-                <button className="w-full py-3.5 px-4 rounded-2xl bg-[#1B273E] border border-white/10 text-white font-semibold text-xs font-mono hover:bg-[#23324f] transition-colors flex items-center justify-center gap-2">
+                <Link
+                href ="/roi-governance-audit"
+                 className="w-full py-3.5 px-4 rounded-2xl bg-[#1B273E] border border-white/10 text-white font-semibold text-xs font-mono hover:bg-[#23324f] transition-colors flex items-center justify-center gap-2">
                   <BarChart2 className="w-4 h-4 text-slate-300" />
                   Start ROI & Governance Audit
-                </button>
+                </Link>
               </div>
             </div>
           </motion.div>

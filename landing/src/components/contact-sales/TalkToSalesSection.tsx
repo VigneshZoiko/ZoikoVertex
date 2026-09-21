@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function TalkToSalesSection() {
   const [selectedInterest, setSelectedInterest] = useState<string>(
@@ -58,21 +59,21 @@ export default function TalkToSalesSection() {
           {/* CTA Buttons */}
           <div className="space-y-6 pt-2">
             <div>
-              <a
-                href="#book-demo"
+              <Link
+                href="/request-demo"
                 className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-10 py-3 rounded-xl bg-[#20E7F2] text-slate-950 font-bold text-xs hover:bg-[#20E7F2] transition-all shadow-lg shadow-[#00D2B4]/10 active:scale-95"
               >
                 <span>Book an Enterprise Demo</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </a>
+              </Link>
             </div>
             <div>
-              <a
-                href="#view-roi"
+              <Link
+                href="/roi-governance-audit"
                 className="inline-flex items-center justify-center w-full sm:w-auto px-15 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold text-xs hover:text-white hover:border-slate-700 transition-all"
               >
                 View ROI & Governance
-              </a>
+              </Link>
             </div>
           </div>
 

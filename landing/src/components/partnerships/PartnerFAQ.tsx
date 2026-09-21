@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Users } from "lucide-react";
+import Link from "next/link";
 
 interface FAQItem {
   question: string;
@@ -193,20 +194,20 @@ export default function PartnerFAQ() {
 
               {/* Action Buttons */}
               <div className="space-y-3">
-                <button
-                  type="button"
+                <Link
+                  href="#partner"
                   className="w-full bg-[#C9A84C] text-start hover:bg-[#B45309] text-black font-medium text-sm py-3 px-6 rounded-full transition-colors duration-200 text-center block shadow-lg shadow-[#D97706]/10"
                 >
                   Become a Partner
-                </button>
+                </Link>
 
-                <button
-                  type="button"
+                <Link
+                  href="contact-sales"
                   className="w-full bg-[#20E7F2] hover:bg-[#00B8D4] text-black font-medium text-sm py-3 px-6 rounded-full transition-colors duration-200 flex items-center justify-start gap-2 shadow-lg shadow-[#00E5FF]/10"
                 >
                   <Users className="w-4 h-4 stroke-[2.5]" />
                   <span>Talk to Alliances</span>
-                </button>
+                </Link>
               </div>
             </div>
           </motion.div>
