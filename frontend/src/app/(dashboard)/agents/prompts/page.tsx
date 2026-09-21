@@ -2814,6 +2814,19 @@ export default function PromptsPage() {
   // Only the 5 system-governed prompts are visible in the registry.
   // All custom/legacy prompts are hidden but not deleted — they remain in backend tables.
   const systemPrompts = prompts.filter(isSystemGoverned);
+
+  // Apply the registry search box (name / description / type). Previously the
+  // search state was captured but never used to filter, so the bar did nothing.
+  const q = search.trim().toLowerCase();
+  const filteredPrompts = q
+    ? systemPrompts.filter((p) =>
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.description || "").toLowerCase().includes(q) ||
+        String(p.prompt_type || "").toLowerCase().includes(q) ||
+        (p.owner || "").toLowerCase().includes(q) ||
+        (p.linked_agent || "").toLowerCase().includes(q),
+      )
+    : systemPrompts;
   // Computed health metrics
   const productionCount = systemPrompts.filter((p) => p.status === "PRODUCTION_ACTIVE").length;
   // Pending review = prompts explicitly awaiting review OR whose last runtime
@@ -2910,7 +2923,7 @@ export default function PromptsPage() {
       <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
         {activeTab === "registry" && (
           <RegistryTab
-            prompts={systemPrompts}
+            prompts={filteredPrompts}
             onViewPrompt={setSelectedPrompt}
             onRetirePrompt={(p) => handleLifecycleAction(p.id, "retire")}
             onActivatePrompt={(p) => handleLifecycleAction(p.id, "reactivate")}
