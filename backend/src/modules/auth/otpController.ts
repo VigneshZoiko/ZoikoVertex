@@ -15,6 +15,27 @@ const VerifySchema = z.object({
   fullName: z.string().optional(),
 });
 
+/**
+ * Locate an existing Supabase Auth user id by email — covers the case where an
+ * auth user exists but has no public.users row (which made createUser fail with
+ * "already registered" and left signup stuck in a verify loop).
+ */
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  const target = email.toLowerCase().trim();
+  try {
+    for (let page = 1; page <= 20; page++) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+      if (error || !data?.users?.length) break;
+      const match = data.users.find((u) => (u.email || '').toLowerCase() === target);
+      if (match) return match.id;
+      if (data.users.length < 200) break; // last page
+    }
+  } catch (e) {
+    logger.warn(`[OTP] findAuthUserIdByEmail failed: ${(e as Error).message}`);
+  }
+  return null;
+}
+
 export const sendOtpCode = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = EmailSchema.safeParse(req.body);
@@ -55,7 +76,10 @@ export const verifyOtpCode = async (req: Request, res: Response, next: NextFunct
     const { newPassword, fullName } = parsed.data;
 
     if (newPassword) {
-      // Check if user already has a Supabase Auth account
+      const name = fullName || email.split('@')[0];
+
+      // Resolve an existing user id — prefer public.users, then fall back to the
+      // auth directory (an auth user can exist without a public.users row).
       let existingUserId: string | null = null;
       try {
         const { data: userRecord } = await supabaseAdmin
@@ -63,43 +87,58 @@ export const verifyOtpCode = async (req: Request, res: Response, next: NextFunct
           .select('id')
           .eq('email', email)
           .maybeSingle();
-        if (userRecord?.id) {
-          existingUserId = userRecord.id;
-        }
+        existingUserId = userRecord?.id ?? null;
       } catch {}
+      if (!existingUserId) {
+        existingUserId = await findAuthUserIdByEmail(email);
+      }
 
       if (existingUserId) {
-        // Update existing user's password
+        // OTP is verified — safe to (re)set the password so the user can sign in.
         const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUserId, {
           password: newPassword,
           email_confirm: true,
         });
-
-        if (!updateError) {
-          userId = existingUserId;
-        }
+        if (updateError) logger.error(`[OTP] updateUserById error: ${updateError.message}`);
+        else userId = existingUserId;
       } else {
-        // Create new auth user with the provided password
-        const name = fullName || email.split('@')[0];
+        // Create new auth user with the provided password.
         const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email,
           password: newPassword,
           email_confirm: true,
           user_metadata: { full_name: name },
         });
-
-        if (createError) {
-          logger.error(`[OTP] createUser error: ${createError.message}`);
-        } else if (createData?.user) {
+        if (createData?.user) {
           userId = createData.user.id;
-          // Create public.users record
-          await supabaseAdmin.from('users').upsert({
-            id: userId,
-            email,
-            full_name: name,
-            is_superadmin: false,
-          });
+        } else if (createError) {
+          // Race, or an auth user that wasn't found above — locate and update it.
+          logger.error(`[OTP] createUser error: ${createError.message}`);
+          const foundId = await findAuthUserIdByEmail(email);
+          if (foundId) {
+            const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(foundId, {
+              password: newPassword,
+              email_confirm: true,
+            });
+            if (!updErr) userId = foundId;
+          }
         }
+      }
+
+      if (userId) {
+        // Keep the public.users row in sync with the resolved auth id.
+        await supabaseAdmin.from('users').upsert({
+          id: userId,
+          email,
+          full_name: name,
+          is_superadmin: false,
+        });
+      } else {
+        // Never report success when the account isn't actually usable — otherwise
+        // the client attempts a sign-in that can never work (the OTP verify loop).
+        return res.status(500).json({
+          error: 'We verified your email but could not finish creating your account. Please try signing in, or contact support.',
+        });
       }
     }
 

@@ -209,7 +209,9 @@ export default function SignupPage() {
           password,
         });
         if (signInError) {
-          setVerifyError("Account created but sign-in failed. Please try logging in.");
+          // Account is created — don't dead-end on this screen. Send them to
+          // login with the email prefilled so they can sign in with their password.
+          router.push(`/login?email=${encodeURIComponent(email.trim())}`);
           return;
         }
         document.cookie = "zv_auth=1; path=/; SameSite=Lax; max-age=3600";
