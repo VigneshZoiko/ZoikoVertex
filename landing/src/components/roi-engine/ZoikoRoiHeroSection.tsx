@@ -39,7 +39,7 @@ const itemVariants: Variants = {
 export default function ZoikoRoiHeroSection() {
   return (
     <section
-      id="calculate"
+    
       className="relative w-full min-h-[600px] lg:min-h-[680px] flex items-center bg-[#0d0f12] overflow-hidden py-16 px-6 font-sans text-white"
     >
       {/* Background Image Container */}
@@ -137,7 +137,9 @@ export default function ZoikoRoiHeroSection() {
           >
             <div className="rounded-2xl bg-[#0f1723]/90 border border-white/10 p-6 shadow-2xl backdrop-blur-md space-y-6">
               {/* Header / Tabs */}
-              <div className="flex items-center justify-between text-xs text-[#858d9a]">
+              <div
+                id="calculate"
+               className="flex items-center justify-between text-xs text-[#858d9a]">
                 <span className="font-mono uppercase tracking-wider text-[10px]">
                   ROI PREVIEW - 500-PERSON TEAM
                 </span>

@@ -78,13 +78,15 @@ const featuredData: FeaturedCardItem[] = [
     primaryLinkText: "Read update",
     primaryLinkHref: "#",
     secondaryLinkText: "Contact sales",
-    secondaryLinkHref: "#",
+    secondaryLinkHref: "/contact-sales",
   },
 ];
 
 export default function FeaturedUpdatesSection() {
   return (
-    <section className="relative min-h-[750px] w-full bg-[#030711] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
+    <section 
+    id ="product-updates"
+    className="relative min-h-[750px] w-full bg-[#030711] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-cyan-950/15 blur-[180px] pointer-events-none rounded-full" />
 

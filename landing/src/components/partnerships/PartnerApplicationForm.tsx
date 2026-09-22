@@ -39,7 +39,9 @@ export default function PartnerApplicationForm() {
   } as const;
 
   return (
-    <section className="w-full bg-[#F2F4F9] text-[#050B14] py-24 px-6 sm:px-12 md:px-16 lg:px-24 font-sans antialiased">
+    <section
+     id ="partner"
+     className="w-full bg-[#F2F4F9] text-[#050B14] py-24 px-6 sm:px-12 md:px-16 lg:px-24 font-sans antialiased">
       <div className="max-w-6xl mx-auto w-full">
         {/* Header Section */}
         <motion.div

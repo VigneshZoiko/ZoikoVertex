@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   Download,
   Mail,
@@ -1084,20 +1085,20 @@ export default function DpaDocumentationLayout() {
 
               {/* Bottom Action Buttons */}
               <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
+                <Link
+                  href="/security"
                   className="bg-[#0A0F1D] hover:bg-[#151D30] text-white font-medium text-xs px-4 py-2.5 rounded-xl inline-flex items-center gap-2 transition-all shadow-sm cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4 text-[#00D2B4]" />
                   <span>View Security Page</span>
-                </button>
-                <button
-                  type="button"
+                </Link>
+                <Link
+                  href="/auditability"
                   className="bg-[#0A0F1D] hover:bg-[#151D30] text-white font-medium text-xs px-4 py-2.5 rounded-xl inline-flex items-center gap-2 transition-all shadow-sm cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-[#00D2B4]" />
                   <span>View Auditability</span>
-                </button>
+                </Link>
               </div>
             </motion.div>
           </section>

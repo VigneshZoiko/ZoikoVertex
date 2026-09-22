@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Briefcase, Users2, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -66,21 +67,21 @@ export default function GovernedAgenticHero() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-4 mb-8">
-            <button
-              type="button"
+            <Link
+              href="#open-roles"
               className="bg-[#20E7F2] hover:bg-[#1CD0DA] text-[#06090F] font-bold text-xs sm:text-sm px-6 py-3.5 rounded-xl inline-flex items-center gap-2 transition-all duration-150 shadow-lg shadow-[#20E7F2]/10 cursor-pointer"
             >
               <Briefcase className="w-4 h-4" />
               <span>View Open Roles</span>
-            </button>
+            </Link>
 
-            <button
-              type="button"
+            <Link
+              href="#talent-network"
               className="bg-[#0D1524] hover:bg-[#142036] border border-slate-800 text-white font-medium text-xs sm:text-sm px-6 py-3.5 rounded-xl inline-flex items-center gap-2 transition-colors duration-150 cursor-pointer"
             >
               <Users2 className="w-4 h-4 text-[#64748B]" />
               <span>Join Talent Network</span>
-            </button>
+            </Link>
           </div>
 
           {/* Footer Note Link */}
