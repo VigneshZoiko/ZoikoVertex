@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Download, Mail } from "lucide-react";
+import Link from "next/link";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -115,13 +116,13 @@ export default function DataProcessingAddendumHero() {
             <span>Download DPA</span>
           </button>
 
-          <button
-            type="button"
+          <Link
+            href="/privacy"
             className="hover:bg-[#142036] border border-[#FFFFFF14] text-[#FFFFFF8C] font-medium text-xs sm:text-sm px-15 py-3.5 rounded-full inline-flex items-center gap-2 transition-colors duration-150 cursor-pointer"
           >
             <Mail className="w-4 h-4 text-[#FFFFFF8C]" />
             <span>Contact Privacy & Security Team</span>
-          </button>
+          </Link>
         </motion.div>
       </motion.div>
     </section>

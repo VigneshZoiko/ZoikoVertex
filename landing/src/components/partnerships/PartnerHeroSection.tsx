@@ -32,7 +32,7 @@ export default function PartnerHeroSection() {
 
   return (
     <section
-    id ="partner"
+   
      className="relative w-full min-h-screen bg-[#050B14] text-white overflow-hidden flex flex-col justify-center py-20 px-6 sm:px-12 md:px-16 lg:px-24 font-sans antialiased">
       {/* Background Image Layer */}
       <div className="absolute inset-0 z-0">

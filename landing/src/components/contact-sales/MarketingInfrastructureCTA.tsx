@@ -61,7 +61,7 @@ export default function MarketingInfrastructureCTA() {
         >
           {/* Primary CTA Button */}
           <a
-            href="#"
+            href="request-demo"
             className="w-full sm:w-auto px-6 py-3.5 bg-[#20E7F2] hover:bg-[#1FD0DE] text-white font-mono text-xs tracking-wider uppercase font-semibold rounded-[10px] transition-colors duration-200 flex items-center justify-center gap-2"
           >
             Book an Enterprise Demo &rarr;
@@ -69,7 +69,7 @@ export default function MarketingInfrastructureCTA() {
 
           {/* Secondary CTA Button */}
           <a
-            href="#"
+            href="roi-governance-audit"
             className="w-full sm:w-auto px-6 py-3.5 border border-[#1E2D42] hover:border-[#334766] bg-[#07111E]/60 text-white font-mono text-xs tracking-wider uppercase font-medium rounded-[10px] transition-colors duration-200 flex items-center justify-center"
           >
             View ROI & Governance
