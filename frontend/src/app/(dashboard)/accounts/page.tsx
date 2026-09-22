@@ -28,6 +28,12 @@ interface ConnectedAccount {
 interface MetaAdAcct { id: string; name: string; currency: string; amount_spent: string; }
 
 /* ─── Platform Config ────────────────────────────────────────────────────── */
+/* Only pass http(s) or local paths to next/image — malformed stored values
+   (e.g. a literal "null") would otherwise throw during render. */
+function isRenderableSrc(src: string | null | undefined): src is string {
+  return !!src && (/^https?:\/\//i.test(src) || src.startsWith("/"));
+}
+
 const PLATFORMS = [
   {
     id: "facebook",
@@ -176,6 +182,7 @@ export default function AccountsPage() {
   const [selectedPageIds, setSelectedPageIds]           = useState<Set<string>>(new Set());
   const [savingPages, setSavingPages]                   = useState(false);
   const [expandedPlatforms, setExpandedPlatforms]       = useState<Record<string, boolean>>({});
+  const [brokenAvatars, setBrokenAvatars]               = useState<Record<string, boolean>>({});
   const hasCachedData = useRef(readAccountsCache().length > 0);
 
   // Meta ad account linking (for Facebook accounts)
@@ -629,19 +636,20 @@ export default function AccountsPage() {
                         className="flex items-center gap-3 px-4 sm:px-5 py-3 pl-12 sm:pl-20"
                       >
                         {/* Avatar */}
-                        {account.avatar_url ? (
+                        {isRenderableSrc(account.avatar_url) && !brokenAvatars[account.id] ? (
                           <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--border)] shrink-0">
                             <Image
                               src={account.avatar_url}
                               alt={account.account_name}
                               width={32} height={32}
                               className="object-cover w-full h-full"
+                              onError={() => setBrokenAvatars((prev) => ({ ...prev, [account.id]: true }))}
                             />
                           </div>
                         ) : (
                           <div className={`w-8 h-8 rounded-full ${platform.lightBg} border ${platform.border} flex items-center justify-center shrink-0`}>
-                            <span className={`text-xs font-bold ${platform.text}`}>
-                              {account.account_name.charAt(0).toUpperCase()}
+                            <span className={platform.text}>
+                              <platform.Icon />
                             </span>
                           </div>
                         )}

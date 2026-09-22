@@ -180,6 +180,24 @@ export const createApiKey = async (req: AuthRequest, res: Response, next: NextFu
     const { name, scopes = ['read:content'], expires_at } = req.body;
     if (!name?.trim()) return next(makeError('Key name is required', 400));
 
+    // BUG-02: validate expiry — must parse as a date and lie in the future.
+    // Date-only values (YYYY-MM-DD from the UI picker) expire at the end of
+    // that day (UTC) so the key stays usable through the selected date.
+    let normalizedExpiry: string | null = null;
+    if (expires_at !== undefined && expires_at !== null && expires_at !== '') {
+      const expiryDate = new Date(expires_at);
+      if (Number.isNaN(expiryDate.getTime())) {
+        return next(makeError('Invalid expiry date format', 400));
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(expires_at))) {
+        expiryDate.setUTCHours(23, 59, 59, 999);
+      }
+      if (expiryDate.getTime() <= Date.now()) {
+        return next(makeError('Expiry date must be in the future', 400));
+      }
+      normalizedExpiry = expiryDate.toISOString();
+    }
+
     const plan   = (req.user?.workspace_plan ?? 'FREE').toUpperCase();
     const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
 
@@ -216,7 +234,7 @@ export const createApiKey = async (req: AuthRequest, res: Response, next: NextFu
         key_hash: hash,
         scopes,
         created_by: userId,
-        expires_at: expires_at || null,
+        expires_at: normalizedExpiry,
       })
       .select('id, name, key_prefix, scopes, is_active, created_at, expires_at')
       .single();

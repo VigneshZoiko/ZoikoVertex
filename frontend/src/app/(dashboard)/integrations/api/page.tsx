@@ -83,6 +83,17 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// BUG-02: expiry must be a future date — earliest selectable day is tomorrow
+function tomorrowLocalISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+const MIN_EXPIRY_DATE = tomorrowLocalISO();
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function CopyButton({ text }: { text: string }) {
@@ -142,6 +153,12 @@ function ApiKeysTab() {
   const handleCreate = async () => {
     if (!newName.trim()) { setError("Key name is required"); return; }
     if (newScopes.length === 0) { setError("Select at least one scope"); return; }
+    if (newExpiry) {
+      const expiryEnd = new Date(`${newExpiry}T23:59:59`).getTime();
+      const minExpiry = new Date(`${MIN_EXPIRY_DATE}T00:00:00`).getTime();
+      if (Number.isNaN(expiryEnd)) { setError("Expiry date is invalid"); return; }
+      if (expiryEnd < minExpiry) { setError("Expiry date must be a future date"); return; }
+    }
     setCreating(true);
     setError("");
     const res = await api.post("/api/v1/integrations/api-keys", {
@@ -259,6 +276,7 @@ function ApiKeysTab() {
             <input
               type="date"
               value={newExpiry}
+              min={MIN_EXPIRY_DATE}
               onChange={e => setNewExpiry(e.target.value)}
               className="bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-border"
             />

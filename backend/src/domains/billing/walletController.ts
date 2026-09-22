@@ -552,15 +552,29 @@ export const stripeWebhook = async (req: Request, res: Response) => {
             payment_failure_count: (wallet.payment_failure_count ?? 0) + 1,
             updated_at: new Date().toISOString(),
           }).eq('id', wallet.id);
-          await supabaseAdmin.from('notifications').insert({
-            workspace_id: wallet.workspace_id,
-            type: 'PAYMENT_FAILED',
-            title: 'Payment failed',
-            body: 'Your subscription payment failed. Please update your payment method to keep your plan active.',
-            link: '/admin/billing',
-            is_read: false,
-            created_at: new Date().toISOString(),
-          });
+          // `notifications` is user-scoped (user_id UUID NOT NULL) — there are
+          // no workspace_id/is_read columns. Notify the workspace admins so the
+          // alert actually reaches someone's Notifications section.
+          const { data: billingAdmins } = await supabaseAdmin
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', wallet.workspace_id)
+            .in('role', ['ADMIN', 'WORKSPACE_OWNER']);
+          if (billingAdmins?.length) {
+            await supabaseAdmin.from('notifications').insert(
+              billingAdmins.map((a: { user_id: string }) => ({
+                user_id: a.user_id,
+                type: 'PAYMENT_FAILED',
+                category: 'SYSTEM',
+                priority: 'HIGH',
+                title: 'Payment failed',
+                body: 'Your subscription payment failed. Please update your payment method to keep your plan active.',
+                link: '/admin/billing',
+                read: false,
+                created_at: new Date().toISOString(),
+              })),
+            );
+          }
           logger.warn({ customerId, invoiceId: invoice.id }, '[Billing] Payment failed — notification sent');
         }
       } catch { /* non-fatal */ }

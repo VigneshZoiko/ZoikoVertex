@@ -60,6 +60,11 @@ const fmtDur = (s: number) =>
 
 // ── Intelligence Engine — per-platform format definitions ──────────────────────
 
+/* Only pass http(s) or local paths to next/image — malformed stored values
+   (e.g. a literal "null") would otherwise throw during render. */
+const isRenderableSrc = (src?: string | null): src is string =>
+  !!src && (/^https?:\/\//i.test(src) || src.startsWith('/'));
+
 export const ALL_FORMATS: Record<string, FormatDef[]> = {
   instagram: [
     {
@@ -493,6 +498,7 @@ function PlatformDropdown({
   onFormatsChange?: (formats: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
   const meta = PLATFORM_META[platformId] ?? { label: platformId, color: '#52525b', Icon: () => <Globe className="w-3.5 h-3.5" /> };
   const Icon = meta.Icon;
@@ -597,9 +603,11 @@ function PlatformDropdown({
               key={acc.id}
               className="flex items-center gap-1 px-2 py-0.5 bg-info-text/15 border border-info-border/30 rounded-full text-[10px] font-semibold text-info-text max-w-[120px]"
             >
-              {acc.avatar_url && (
-                <span className="w-3 h-3 rounded-full overflow-hidden inline-block shrink-0 relative">
-                  <Image src={acc.avatar_url} alt="" fill className="object-cover" />
+              {isRenderableSrc(acc.avatar_url) && (
+                <span className="w-3 h-3 rounded-full overflow-hidden inline-block shrink-0 relative flex items-center justify-center">
+                  {brokenAvatars[acc.id]
+                    ? <span className="flex items-center justify-center" style={{ color: meta.color }}><Icon className="w-2.5 h-2.5" /></span>
+                    : <Image src={acc.avatar_url} alt="" fill className="object-cover" onError={() => setBrokenAvatars((prev) => ({ ...prev, [acc.id]: true }))} />}
                 </span>
               )}
               <span className="truncate">
@@ -704,9 +712,15 @@ function PlatformDropdown({
                     className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--surface)] transition-colors text-left ${isSelected ? 'bg-info-text/8' : ''}`}
                   >
                     <div className="w-7 h-7 rounded-full overflow-hidden border border-[var(--border)] shrink-0 relative bg-[var(--surface)] flex items-center justify-center">
-                      {account.avatar_url
-                        ? <Image src={account.avatar_url} alt="" fill className="object-cover" />
-                        : <span className="text-xs font-bold text-[var(--foreground-muted)]">{account.account_name.charAt(0).toUpperCase()}</span>
+                      {isRenderableSrc(account.avatar_url) && !brokenAvatars[account.id]
+                        ? <Image
+                            src={account.avatar_url}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            onError={() => setBrokenAvatars((prev) => ({ ...prev, [account.id]: true }))}
+                          />
+                        : <span className="flex items-center justify-center" style={{ color: meta.color }}><Icon className="w-3.5 h-3.5" /></span>
                       }
                     </div>
                     <div className="flex-1 min-w-0">

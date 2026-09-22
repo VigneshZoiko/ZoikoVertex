@@ -252,6 +252,11 @@ import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemet
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
+import {
+  submitDemoRequest, submitContactSales, submitAuditRequest,
+  submitDemoLibraryRequest, submitResourceRequest, submitPrivacyRequest,
+  submitCookieConsent,
+} from './domains/identity/websiteLeadController';
 import { setupWorkspace, completeOnboarding } from './domains/identity/onboardingController';
 import { sendOtpCode, verifyOtpCode, resendOtpCode } from './modules/auth/otpController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
@@ -410,6 +415,9 @@ const ALLOWED_ORIGINS = [
   env.FRONTEND_URL,
   'https://getzoikovertex.com',
   'https://www.getzoikovertex.com',
+  // Marketing site (landing forms: request-demo, contact-sales, audit, demo-library…)
+  'https://zoikovertex.com',
+  'https://www.zoikovertex.com',
   'http://localhost:3000',
   'http://localhost:3001',
 ].filter(Boolean) as string[];
@@ -481,6 +489,18 @@ app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/onboarding/complete', authenticate, completeOnboarding);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 app.post('/api/v1/users/resend-verification', authenticate, resendVerificationEmail);
+
+// ─── Public marketing-site form endpoints (no auth; IP rate-limited) ─────────
+// Backing the landing-site forms: /request-demo, /contact-sales, /about (48-hr
+// audit), /demo-library, /resources-hub (toolkit gate), /privacy (DSAR intake).
+app.post('/api/v1/website/leads/demo',          authRateLimit, submitDemoRequest);
+app.post('/api/v1/website/leads/contact-sales', authRateLimit, submitContactSales);
+app.post('/api/v1/website/leads/audit',         authRateLimit, submitAuditRequest);
+app.post('/api/v1/website/leads/demo-library',  authRateLimit, submitDemoLibraryRequest);
+app.post('/api/v1/website/leads/resource',      authRateLimit, submitResourceRequest);
+app.post('/api/v1/website/leads/privacy',       authRateLimit, submitPrivacyRequest);
+// Cookie consent evidence (item 13) — records Save Preference / Accept All / Reject Non-Essential
+app.post('/api/v1/website/cookie-consent',      authRateLimit, submitCookieConsent);
 
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'REVIEWER', 'SECURITY_ADMIN');

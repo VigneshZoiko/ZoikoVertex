@@ -112,7 +112,7 @@ function typeToPriority(t: string, cat: string): NotificationPriority {
   return 'LOW';
 }
 
-function formatNotification(n: any): Notification {
+export function formatNotification(n: any): Notification {
   const isRejection = n.type === 'POST_REJECTED';
   const category = n.category || (isRejection ? 'SECURITY' : typeToCategory(n.type || ''));
   const priority = n.priority || (isRejection ? 'URGENT' : typeToPriority(n.type || '', n.sub_type || ''));

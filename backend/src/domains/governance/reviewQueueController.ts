@@ -8,6 +8,7 @@ import * as validationService from '../../services/validationDesk.service';
 import * as reviewEvidence from '../../services/reviewEvidence.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { buildAuthContext } from '../../shared/serviceAuth';
+import { alertSecOpsAuditFailure } from '../../shared/alertSecOps';
 
 async function getTenantId(req: AuthRequest): Promise<string> {
   return req.user?.workspace_id || DEFAULT_TENANT_ID;
@@ -791,7 +792,22 @@ async function logReviewAuditEvent(params: {
       evidence_state: 'not_preserved',
       retention_class: 'REGULATED',
     });
-  } catch {
-    // Silent fail for audit logging
+  } catch (err) {
+    // Never fail the main action because of audit logging — but do NOT swallow
+    // the failure either. Silent swallowing is exactly how BUG-06 happened:
+    // the create_audit_event RPC rejected unregistered review.item.* event
+    // types while the UI confirmed the action had been logged.
+    alertSecOpsAuditFailure({
+      alert_type: 'audit_write_failure',
+      severity: 'critical',
+      message: 'Review Queue audit event write failed',
+      source: 'reviewQueueController',
+      details: {
+        item_id: params.itemId,
+        action: params.action,
+        workspace_id: params.workspaceId,
+        error: (err as { message?: string })?.message || String(err),
+      },
+    });
   }
 }

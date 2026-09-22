@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Bell, CheckCheck, Trash2, Loader2, AlertCircle, Info, Shield, Workflow, MessageSquare, ExternalLink, X, Clock, Filter } from "lucide-react";
-import { useNotifications } from "@/lib/context/NotificationContext";
+import { useNotifications, formatNotification } from "@/lib/context/NotificationContext";
 import type { NotificationCategory } from "@/lib/context/NotificationContext";
 
 const CATEGORY_CONFIG: Record<NotificationCategory, { label: string; icon: typeof Bell; color: string }> = {
@@ -30,10 +30,10 @@ export default function NotificationsPage() {
         const { api } = await import("@/lib/api");
         const res = await api.get("/api/v1/notifications");
         if (res.success) {
-          dispatch({ type: "SET_NOTIFICATIONS", payload: (res.data || []).map((n: any) => ({
-            ...n,
-            timestamp: new Date(n.created_at || n.timestamp),
-          })) });
+          // Use the shared formatter — raw rows carry `body`/`type`, not the
+          // `message`/`category`/`priority` shape the UI renders. Dispatching
+          // raw rows wiped messages and broke the category filters.
+          dispatch({ type: "SET_NOTIFICATIONS", payload: (res.data || []).map(formatNotification) });
         }
       } catch { /* silent */ }
       finally { setLoading(false) }

@@ -1462,7 +1462,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                 <div className="border-t border-border pt-5 space-y-4">
                   <div>
                     <p className="text-sm font-bold text-foreground mb-0.5">Is your ad in a special category?</p>
-                    <p className="text-xs text-foreground-muted">If you are based in or targeting an audience in the United States and your ad relates to credit, employment, or housing, you must identify it to comply with Meta&apos;s advertising policies. Special ad categories have restricted targeting options. <span className="text-foreground-muted underline cursor-pointer">Learn more</span></p>
+                    <p className="text-xs text-foreground-muted">If you are based in or targeting an audience in the United States and your ad relates to credit, employment, or housing, you must identify it to comply with Meta&apos;s advertising policies. Special ad categories have restricted targeting options. <a href="https://www.facebook.com/business/help/298000447747885" target="_blank" rel="noopener noreferrer" className="text-foreground-muted underline cursor-pointer hover:text-foreground">Learn more</a></p>
                   </div>
 
                   <label className="flex items-start gap-3 cursor-pointer group">
@@ -1908,7 +1908,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     <h4 className="text-sm font-bold text-foreground mb-1">Do your ads target audiences in the EU?</h4>
                     <p className="text-xs text-foreground-muted">
                       Due to regulatory requirements in the European Union (EU), you will need to provide beneficiary and payer information if your ads target the EU or EU-associated territories. Please make sure to provide accurate information to keep your ads from being rejected by Meta.{" "}
-                      <span className="text-foreground-muted underline cursor-pointer">Learn more about EU requirements</span>
+                      <a href="https://www.facebook.com/business/help/605021638170961" target="_blank" rel="noopener noreferrer" className="text-foreground-muted underline cursor-pointer hover:text-foreground">Learn more about EU requirements</a>
                     </p>
                   </div>
 
@@ -1980,7 +1980,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     <p className="text-xs text-foreground-muted">
                       The automatic placements option is enabled by default, so that Facebook can show your ad where it performs best.
                       The automatic placements option maximises your budget and ensures that more people see your ad.{" "}
-                      <span className="text-foreground-muted underline cursor-pointer">Learn more about placements</span>
+                      <a href="https://www.facebook.com/business/help/196554084569964" target="_blank" rel="noopener noreferrer" className="text-foreground-muted underline cursor-pointer hover:text-foreground">Learn more about placements</a>
                     </p>
                   </div>
 
@@ -2155,7 +2155,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         <p className="text-xs text-foreground-muted">
                           Use conversion tracking pixels to track and understand the actions people take on your website.
                           You can track actions or conversion events such as viewing or purchasing a product.{" "}
-                          <span className="text-foreground-muted underline cursor-pointer">Learn more about conversion tracking</span>
+                          <a href="https://www.facebook.com/business/help/390524895098736" target="_blank" rel="noopener noreferrer" className="text-foreground-muted underline cursor-pointer hover:text-foreground">Learn more about conversion tracking</a>
                         </p>
                       </div>
 
@@ -2428,7 +2428,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                   <h4 className="text-sm font-bold text-foreground mb-1">Payment</h4>
                   <p className="text-xs text-foreground-muted">
                     Meta will bill your ad account when your ad is published. Review your payment method on Meta.{" "}
-                    <span className="text-blue-400 underline cursor-pointer">Learn more <ArrowRight className="w-3 h-3 inline-block ml-0.5" /></span>
+                    <a href="https://www.facebook.com/business/help/716180208457684" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline cursor-pointer hover:text-blue-300">Learn more <ArrowRight className="w-3 h-3 inline-block ml-0.5" /></a>
                   </p>
                 </div>
               </div>
@@ -3130,7 +3130,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     })()}
                     <p className="text-[10px] text-foreground-muted text-center px-4 max-w-xs">
                       Social networks regularly make updates to formatting, so your post may appear slightly different when published.{" "}
-                      <span className="underline cursor-pointer">Learn more</span>
+                      <a href="https://www.facebook.com/business/help/" target="_blank" rel="noopener noreferrer" className="underline cursor-pointer hover:text-foreground">Learn more</a>
                     </p>
                   </div>
                 </div>
