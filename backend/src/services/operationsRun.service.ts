@@ -223,7 +223,24 @@ export async function listAgentRuns(params: {
   if (params.search) {
     const safe = sanitizeSearchTerm(params.search);
     if (safe) {
-      query = query.or(`task_objective.ilike.%${safe}%,agent_name.ilike.%${safe}%`);
+      // Search every visible text identifier a user might type — previously only
+      // task_objective + agent_name were matched, so searching by agent type,
+      // brand, campaign, owner, workflow, or Run ID returned nothing.
+      const orParts = [
+        `task_objective.ilike.%${safe}%`,
+        `agent_name.ilike.%${safe}%`,
+        `task_name.ilike.%${safe}%`,
+        `agent_type.ilike.%${safe}%`,
+        `brand_name.ilike.%${safe}%`,
+        `campaign_name.ilike.%${safe}%`,
+        `owner_name.ilike.%${safe}%`,
+        `workflow_name.ilike.%${safe}%`,
+      ];
+      // Run ID is a uuid column (can't be ILIKE'd) — support a full-id exact match.
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(safe)) {
+        orParts.push(`id.eq.${safe}`);
+      }
+      query = query.or(orParts.join(','));
     }
   }
 
