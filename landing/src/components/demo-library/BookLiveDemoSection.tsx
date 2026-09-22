@@ -265,11 +265,11 @@ export default function BookLiveDemoSection() {
                 className="text-[11px] font-mono text-slate-400 leading-snug cursor-pointer"
               >
                 I agree to be contacted about this request and accept the{" "}
-                <a href="#" className="text-cyan-400 hover:underline">
+                <a href="/privacy" className="text-cyan-400 hover:underline">
                   Privacy Policy
                 </a>{" "}
                 &amp;{" "}
-                <a href="#" className="text-cyan-400 hover:underline">
+                <a href="/dpa" className="text-cyan-400 hover:underline">
                   DPA
                 </a>
                 . Prototype — no data is submitted.

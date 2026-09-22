@@ -226,7 +226,9 @@ const containerVariants = {
 
 export default function BenchmarkMatrixTable() {
   return (
-    <section className="w-full bg-[#F4F6FB] py-16 px-4 sm:px-8 md:px-12 lg:px-20 font-sans text-white">
+    <section
+    id ="benchmark"
+     className="w-full bg-[#F4F6FB] py-16 px-4 sm:px-8 md:px-12 lg:px-20 font-sans text-white">
       <motion.div
         className="max-w-6xl w-full mx-auto"
         variants={containerVariants}

@@ -72,7 +72,9 @@ export default function TalentNetworkPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-100 px-6 py-16 sm:py-24">
+    <div
+    id ="talent-network"
+     className="min-h-screen w-full bg-slate-100 px-6 py-16 sm:py-24">
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-8 lg:grid-cols-[1fr_1fr]">
         {/* Left Card - Form */}
         <motion.div

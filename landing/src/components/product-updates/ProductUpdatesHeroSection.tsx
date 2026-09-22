@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 15 },
@@ -155,18 +156,22 @@ export default function ProductUpdatesHeroSection() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6 w-full sm:w-auto">
-              <button className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:opacity-95 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer">
+              <Link
+              href ="#product-updates"
+              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:opacity-95 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer">
                 Subscribe to Product Updates
-              </button>
+              </Link>
 
-              <button className="px-6 py-3.5 rounded-xl bg-[#070E18]/80 border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer">
+              <Link
+              href = "#release-notes"
+               className="px-6 py-3.5 rounded-xl bg-[#070E18]/80 border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer">
                 View Latest Release Notes
-              </button>
+              </Link>
             </div>
 
             {/* Secondary Text Link */}
             <a
-              href="#"
+              href="request-demo"
               className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group"
             >
               <span>Book a demo</span>

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -192,7 +193,7 @@ export default function TrustCriticalImprovementsSection() {
 
         {/* Bottom Text Link CTA */}
         <a
-          href="#"
+          href="/governance"
           className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-amber-400 hover:text-amber-300 transition-colors group"
         >
           <span>View all governance updates</span>

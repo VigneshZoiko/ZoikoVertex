@@ -231,7 +231,7 @@ export default function SecurityPage() {
 
             <div className="flex flex-wrap gap-4">
               <a
-                href="mailto:enterprise@zoikogroup.com"
+                href="/contact-sales"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#20E7F2] text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -591,7 +591,7 @@ export default function SecurityPage() {
               </div>
 
               <a
-                href="mailto:enterprise@zoikogroup.com"
+                href="/contact-sales"
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#20E7F2] text-[#080d1a] text-sm font-bold hover:bg-[#20E7F2]/90 transition"
               >
                 <MessageSquare className="w-4 h-4" />

@@ -218,7 +218,7 @@ export default function RoadmapTransparencySection() {
 
         {/* Bottom CTA Link */}
         <a
-          href="#"
+          href="/contact-sales"
           className="inline-flex tracking-[1px] items-center gap-1.5 text-xs font-mono font-semibold text-[#20E7F2] hover:text-cyan-300 transition-colors group"
         >
           <span>Discuss the roadmap with sales</span>

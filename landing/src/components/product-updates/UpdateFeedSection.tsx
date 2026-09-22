@@ -296,7 +296,9 @@ export default function UpdateFeedSection() {
   }, [selectedCategory, searchQuery]);
 
   return (
-    <section className="relative w-full bg-[#0B1524] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
+    <section
+    id ="release-notes"
+     className="relative w-full bg-[#0B1524] text-white px-6 py-20 md:px-12 lg:px-16 flex items-center justify-center font-sans overflow-hidden">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/3 left-1/2 -translate-y-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-cyan-950/10 blur-[200px] pointer-events-none rounded-full" />
 

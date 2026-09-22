@@ -185,7 +185,9 @@ export default function OpenRoles() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <section className="w-full bg-[#F2F4F8] py-20 px-4 sm:px-8 md:px-12 lg:px-20 font-sans text-[#0F172A]">
+    <section
+    id = "open-roles"
+     className="w-full bg-[#F2F4F8] py-20 px-4 sm:px-8 md:px-12 lg:px-20 font-sans text-[#0F172A]">
       <motion.div
         className="max-w-6xl w-full mx-auto"
         variants={containerVariants}

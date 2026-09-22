@@ -256,10 +256,12 @@ export default function PrivacyPage() {
               <FileText className="w-4 h-4" />
               Submit a Privacy Request
             </button>
-            <button className="inline-flex items-center justify-center gap-2 border border-white/25 text-white/80 font-semibold px-6 py-3 rounded-full text-[13px] hover:border-white/50 transition-colors">
+            <Link
+            href ="/cookie-preferences"
+             className="inline-flex items-center justify-center gap-2 border border-white/25 text-white/80 font-semibold px-6 py-3 rounded-full text-[13px] hover:border-white/50 transition-colors">
               <Cookie className="w-4 h-4" />
               Manage Cookie Preferences
-            </button>
+            </Link>
           </div>
           <div className="border border-amber-400/30 bg-amber-400/[0.08] rounded-xl px-5 py-4 flex gap-3">
             <span className="text-amber-400 shrink-0 mt-0.5 text-base">⚠</span>
@@ -450,9 +452,11 @@ export default function PrivacyPage() {
               ]}
             />
             <div className="mt-5">
-              <button className="inline-flex items-center gap-2 bg-[#20E7F2] text-[#080d1a] font-bold px-6 py-3 rounded-full text-[13px] hover:bg-[#20E7F2]/90 transition-colors cursor-pointer">
+              <Link
+              href = "/cookie-preferences"
+               className="inline-flex items-center gap-2 bg-[#20E7F2] text-[#080d1a] font-bold px-6 py-3 rounded-full text-[13px] hover:bg-[#20E7F2]/90 transition-colors cursor-pointer">
                 <Cookie className="w-4 h-4" />Manage Cookie Preferences
-              </button>
+              </Link>
             </div>
 
             <Divider />
@@ -603,9 +607,9 @@ export default function PrivacyPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { icon: Lock,     title: "Security",                 desc: "Access controls, audit logs, data protection, and enterprise security review.",    href: "/security" },
-                  { icon: Cookie,   title: "Cookie Preferences",       desc: "Manage cookie categories and non-essential tracking preferences.",                 href: "#" },
-                  { icon: FileText, title: "Data Processing Addendum", desc: "Enterprise data processing terms for customer personal information.",              href: "#" },
-                  { icon: Globe,    title: "Responsible AI",           desc: "AI-assisted workflows, human oversight, and governance posture.",                  href: "#" },
+                  { icon: Cookie,   title: "Cookie Preferences",       desc: "Manage cookie categories and non-essential tracking preferences.",                 href: "/cookie-preferences" },
+                  { icon: FileText, title: "Data Processing Addendum", desc: "Enterprise data processing terms for customer personal information.",              href: "/dpa" },
+                  { icon: Globe,    title: "Responsible AI",           desc: "AI-assisted workflows, human oversight, and governance posture.",                  href: "/responsible-ai" },
                 ].map(({ icon: Icon, title, desc, href }) => (
                   <Link key={title} href={href} className="flex flex-col gap-3 p-4 rounded-xl hover:bg-[#20E7F2]/5 transition-colors group">
                     <div className="w-8 h-8 rounded-lg bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center">

@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   LayoutGrid,
   Calendar,
@@ -120,13 +121,13 @@ export default function CompetitorBenchmarkHero() {
           variants={itemVariants}
           className="flex flex-wrap items-center gap-4 mb-12"
         >
-          <a
-            href="#platform"
+          <Link
+            href="/platform"
             className="inline-flex  rounded-full items-center gap-2 bg-[#20E7F2] hover:bg-[#00BFA3] text-[#090D16] font-mono text-xs sm:text-sm font-semibold tracking-wide px-5 py-3 rounded transition-colors duration-200"
           >
             <LayoutGrid className="w-4 h-4" />
             <span>View the platform</span>
-          </a>
+          </Link>
 
           <a
             href="#benchmark"
