@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 export default function WhatToExpectNext() {
   const containerVariants = {
@@ -158,41 +159,41 @@ export default function WhatToExpectNext() {
               <div className="space-y-4">
                 {/* Link 1 */}
                 <div className="pb-4 border-b border-[#1E293B]/60">
-                  <a
-                    href="#"
+                  <Link
+                    href="/governance"
                     className="flex items-center gap-2 text-[#94A3B8] hover:text-white transition-colors duration-200 text-sm group"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4BF] group-hover:scale-125 transition-transform" />
                     <span className="underline underline-offset-4 decoration-[#334155] group-hover:decoration-white">
                       Compliance & Governance
                     </span>
-                  </a>
+                  </Link>
                 </div>
 
                 {/* Link 2 */}
                 <div className="pb-4 border-b border-[#1E293B]/60">
-                  <a
-                    href="#"
+                  <Link
+                    href="dpa"
                     className="flex items-center gap-2 text-[#94A3B8] hover:text-white transition-colors duration-200 text-sm group"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4BF] group-hover:scale-125 transition-transform" />
                     <span className="underline underline-offset-4 decoration-[#334155] group-hover:decoration-white">
                       Data Processing Addendum
                     </span>
-                  </a>
+                  </Link>
                 </div>
 
                 {/* Link 3 */}
                 <div className="pt-1">
-                  <a
-                    href="#"
+                  <Link
+                    href="security"
                     className="flex items-center gap-2 text-[#94A3B8] hover:text-white transition-colors duration-200 text-sm group"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4BF] group-hover:scale-125 transition-transform" />
                     <span className="underline underline-offset-4 decoration-[#334155] group-hover:decoration-white">
                       Security whitepaper
                     </span>
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>

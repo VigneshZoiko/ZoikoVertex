@@ -28,7 +28,7 @@ const deepDiveCards: DeepDiveCard[] = [
     description:
       "AI copilots produce drafts, summaries, and suggestions. They do not route work through approval chains, enforce policy rules against brand or legal requirements, seal evidence records, or connect outputs to ROI measurement. For teams that need AI to execute with accountability—not just assist—copilots leave a governance gap at exactly the point where enterprise risk begins. When AI moves from assistance to execution, governance must move from a policy document into the operating layer.",
     ctaText: "Explore Agentic Architecture",
-    ctaHref: "#agentic-architecture",
+    ctaHref: "/agentic-architecture",
     imageSrc: "/images/competeter-benchmark/ai.png",
     featured: true,
   },

@@ -81,15 +81,17 @@ const timelineData: ReleaseItem[] = [
 const getStatusBadgeStyle = (type: ReleaseItem["statusType"]) => {
   switch (type) {
     case "released":
-      return "bg-emerald-950/60 text-emerald-400 border-emerald-800/50 dot-emerald-400";
+      return "bg-emerald-950/60 text-emerald-400 border-emerald-800/50";
     case "rolling":
-      return "bg-cyan-950/60 text-cyan-400 border-cyan-800/50 dot-cyan-400";
+      return "bg-cyan-950/60 text-cyan-400 border-cyan-800/50";
     case "action":
-      return "bg-amber-950/60 text-amber-400 border-amber-800/50 dot-amber-400";
+      return "bg-amber-950/60 text-amber-400 border-amber-800/50";
     case "governance":
-      return "bg-yellow-950/60 text-amber-300 border-yellow-800/50 dot-yellow-300";
+      return "bg-yellow-950/60 text-amber-300 border-yellow-800/50";
     case "preview":
-      return "bg-purple-950/60 text-purple-300 border-purple-800/50 dot-purple-300";
+      return "bg-purple-950/60 text-purple-300 border-purple-800/50";
+    default:
+      return "";
   }
 };
 
@@ -105,6 +107,8 @@ const getDotColor = (type: ReleaseItem["statusType"]) => {
       return "bg-amber-300";
     case "preview":
       return "bg-purple-400";
+    default:
+      return "bg-slate-400";
   }
 };
 
@@ -122,20 +126,35 @@ export default function ProductUpdatesHeroSection() {
           initial="hidden"
           animate="visible"
         >
-          {/* Left Column: Title & Hero Content */}
+          {/* Left Column */}
           <div className="lg:col-span-7 flex flex-col items-start pt-2">
             {/* Breadcrumb Navigation */}
             <div className="flex items-center gap-2 text-xs font-mono text-slate-500 mb-8">
-              <span>Home</span>
+              <Link
+                href="/"
+                className="hover:text-slate-300 transition-colors"
+              >
+                Home
+              </Link>
+
               <span>/</span>
-              <span>Resources</span>
+
+              <Link
+                href="/resources"
+                className="hover:text-slate-300 transition-colors"
+              >
+                Resources
+              </Link>
+
               <span>/</span>
+
               <span className="text-slate-300">Product Updates</span>
             </div>
 
             {/* Eyebrow Label */}
             <div className="flex items-center gap-2 mb-6">
-              <span className="w-4 h-[2px] bg-cyan-400"></span>
+              <span className="w-4 h-[2px] bg-cyan-400" />
+
               <span className="text-[11px] font-mono font-bold tracking-[0.2em] text-cyan-400 uppercase">
                 PRODUCT UPDATES &bull; RELEASE NOTES &bull; PLATFORM MOMENTUM
               </span>
@@ -156,29 +175,34 @@ export default function ProductUpdatesHeroSection() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-6 w-full sm:w-auto">
-              <Link
-              href ="#product-updates"
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:opacity-95 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer">
+              {/* Product Updates */}
+              <a
+                href="#product-updates"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:opacity-95 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer text-center"
+              >
                 Subscribe to Product Updates
-              </Link>
+              </a>
 
-              <Link
-              href = "#release-notes"
-               className="px-6 py-3.5 rounded-xl bg-[#070E18]/80 border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer">
+              {/* Release Notes */}
+              <a
+                href="#release-notes"
+                className="px-6 py-3.5 rounded-xl bg-[#070E18]/80 border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer text-center"
+              >
                 View Latest Release Notes
-              </Link>
+              </a>
             </div>
 
-            {/* Secondary Text Link */}
-            <a
-              href="request-demo"
+            {/* Book a Demo */}
+            <Link
+              href="/request-demo"
               className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group"
             >
               <span>Book a demo</span>
+
               <span className="group-hover:translate-x-1 transition-transform">
                 &rarr;
               </span>
-            </a>
+            </Link>
           </div>
 
           {/* Right Column: Release Timeline Card */}
@@ -199,16 +223,18 @@ export default function ProductUpdatesHeroSection() {
                     className="py-3.5 flex items-center justify-between gap-4 group cursor-pointer"
                   >
                     <div className="flex items-start gap-3 min-w-0">
-                      {/* Timeline Dot Indicator */}
+                      {/* Timeline Dot */}
                       <span
                         className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${getDotColor(
-                          item.statusType,
+                          item.statusType
                         )}`}
                       />
+
                       <div className="truncate">
                         <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover:text-white transition-colors truncate">
                           {item.title}
                         </h4>
+
                         <p className="text-[11px] tracking-[1px] font-mono text-slate-500">
                           {item.category} &bull; {item.date}
                         </p>
@@ -218,11 +244,14 @@ export default function ProductUpdatesHeroSection() {
                     {/* Status Badge */}
                     <div
                       className={`px-2.5 py-1 rounded-full border text-[10px] font-mono font-medium flex items-center gap-1.5 shrink-0 ${getStatusBadgeStyle(
-                        item.statusType,
+                        item.statusType
                       )}`}
                     >
                       <span className="w-1 h-1 rounded-full bg-current" />
-                      <span className="tracking-[1px]">{item.status}</span>
+
+                      <span className="tracking-[1px]">
+                        {item.status}
+                      </span>
                     </div>
                   </motion.div>
                 ))}
@@ -244,26 +273,29 @@ export default function ProductUpdatesHeroSection() {
           initial="hidden"
           animate="visible"
         >
-          {/* Box 1: Latest Release */}
+          {/* Box 1 */}
           <div className="p-5 flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-[1px] block mb-3">
               LATEST RELEASE
             </span>
+
             <div>
               <div className="text-base sm:text-lg font-bold text-[#00E5FF] tracking-tight mb-1">
                 Jan 14, 2026
               </div>
-              <p className=" tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
+
+              <p className="tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
                 Evidence Vault controls
               </p>
             </div>
           </div>
 
-          {/* Box 2: This Quarter */}
+          {/* Box 2 */}
           <div className="p-5 flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-[1px] block mb-3">
               THIS QUARTER
             </span>
+
             <div>
               <div className="text-xl sm:text-2xl font-bold text-[#20E7F2] tracking-tight mb-1">
                 14{" "}
@@ -271,52 +303,59 @@ export default function ProductUpdatesHeroSection() {
                   updates
                 </span>
               </div>
-              <p className=" tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
+
+              <p className="tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
                 shipped &amp; rolling out
               </p>
             </div>
           </div>
 
-          {/* Box 3: Governance Updates */}
+          {/* Box 3 */}
           <div className="p-5 flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-[1px] block mb-3">
               GOVERNANCE UPDATES
             </span>
+
             <div>
               <div className="text-xl sm:text-2xl font-bold text-amber-400 tracking-tight mb-1">
                 6
               </div>
-              <p className=" tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
+
+              <p className="tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
                 audit &bull; policy &bull; security &bull; ROI
               </p>
             </div>
           </div>
 
-          {/* Box 4: New Integrations */}
+          {/* Box 4 */}
           <div className="p-5 flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-[1px] block mb-3">
               NEW INTEGRATIONS
             </span>
+
             <div>
               <div className="text-xl sm:text-2xl font-bold text-cyan-400 tracking-tight mb-1">
                 3
               </div>
-              <p className=" tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
+
+              <p className="tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
                 connectors &amp; APIs
               </p>
             </div>
           </div>
 
-          {/* Box 5: Admin Action */}
+          {/* Box 5 */}
           <div className="p-5 col-span-2 md:col-span-1 flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-[1px] block mb-3">
               ADMIN ACTION
             </span>
+
             <div>
               <div className="text-xl sm:text-2xl font-bold text-amber-400 tracking-tight mb-1">
                 4
               </div>
-              <p className=" tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
+
+              <p className="tracking-[1px] text-[12px] font-mono text-[#5F6D7E] max-w-40">
                 require configuration
               </p>
             </div>
