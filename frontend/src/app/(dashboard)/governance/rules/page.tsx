@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus, Search, RefreshCcw, Trash2, CheckCircle2, AlertCircle,
   Tag, X, SlidersHorizontal, Sparkles, Zap, ChevronDown, ChevronUp,
@@ -330,7 +331,7 @@ export default function ApprovalRulesPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  // When true, the rule editor is shown as a centered modal (used for "New Rule").
+  // When true, the "New Rule" create modal is shown.
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Mobile navigation state
@@ -443,23 +444,49 @@ export default function ApprovalRulesPage() {
     setAiContext("");
   }
 
-  async function handleCreate() {
+  // Open the editor as a blank "create" modal — nothing is persisted until Save.
+  function openCreateModal() {
+    setSelectedId(null);
+    setEditName("");
+    setEditAction("BLOCK");
+    setEditKeywords([]);
+    setKwInput("");
+    setShowAiPanel(false);
+    setAiSuggested([]);
+    setAiSelected(new Set());
+    setAiTopic("");
+    setAiContext("");
+    setMessage(null);
+    setCreateModalOpen(true);
+  }
+
+  function closeCreateModal() {
+    setCreateModalOpen(false);
+  }
+
+  // Persist a new rule — requires a non-empty name.
+  async function handleCreateSave() {
+    if (!editName.trim()) {
+      setMessage({ type: "error", text: "Please enter a rule name before creating." });
+      return;
+    }
     setActionLoading("create");
     try {
       const res = await api.post("/api/v1/governance/rules", {
-        rule_name: "New Keyword Rule",
+        rule_name: editName.trim(),
         rule_description: "",
         rule_priority: 5,
         risk_classification: "MEDIUM",
-        keyword_rules: [{ keywords: [], action: "BLOCK", scopes: ["title", "description"] }],
+        keyword_rules: [{ keywords: editKeywords, action: editAction, scopes: ["title", "description", "image"] }],
       });
       if (res.success && res.data) {
         const mapped = mapRule(res.data);
         setRules(prev => [mapped, ...prev]);
+        closeCreateModal();
         selectRule(mapped);
-        setMobileView("edit");
-        setCreateModalOpen(true); // open the editor as a modal on desktop
         setMessage({ type: "success", text: "Rule created." });
+      } else {
+        setMessage({ type: "error", text: res.error || "Failed to create rule." });
       }
     } catch {
       setMessage({ type: "error", text: "Failed to create rule." });
@@ -581,7 +608,7 @@ export default function ApprovalRulesPage() {
             <div className="flex items-center gap-2 shrink-0">
               {canManage && (
                 <button
-                  onClick={handleCreate}
+                  onClick={openCreateModal}
                   disabled={actionLoading === "create"}
                   className="flex items-center gap-1.5 px-3 py-2 bg-foreground text-background text-xs font-bold rounded-lg disabled:opacity-40 transition-all"
                 >
@@ -637,7 +664,7 @@ export default function ApprovalRulesPage() {
               <p className="text-sm font-semibold text-foreground">No rules yet</p>
               <p className="text-xs">Create a rule to start filtering content by keyword.</p>
               {canManage && (
-                <button onClick={handleCreate} className="mt-2 flex items-center gap-2 px-4 py-2.5 bg-foreground text-background text-sm font-bold rounded-xl">
+                <button onClick={openCreateModal} className="mt-2 flex items-center gap-2 px-4 py-2.5 bg-foreground text-background text-sm font-bold rounded-xl">
                   <Plus className="w-4 h-4" /> Create first rule
                 </button>
               )}
@@ -778,7 +805,7 @@ export default function ApprovalRulesPage() {
           <div className="flex items-center gap-2">
             {canManage && (
               <button
-                onClick={handleCreate}
+                onClick={openCreateModal}
                 disabled={actionLoading === "create"}
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-foreground hover:opacity-90 disabled:opacity-40 text-background text-xs font-bold rounded-lg transition-all"
               >
@@ -836,7 +863,7 @@ export default function ApprovalRulesPage() {
                   <SlidersHorizontal className="w-6 h-6 text-foreground-muted opacity-30 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-foreground-muted">No rules yet</p>
                   {canManage && (
-                    <button onClick={handleCreate} className="mt-3 text-[10px] text-info-text hover:underline">
+                    <button onClick={openCreateModal} className="mt-3 text-[10px] text-info-text hover:underline">
                       Create the first rule →
                     </button>
                   )}
@@ -849,20 +876,8 @@ export default function ApprovalRulesPage() {
             </div>
           </div>
 
-          {/* ── Right: editor (becomes a centered modal for "New Rule") ──── */}
-          {createModalOpen && (
-            <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setCreateModalOpen(false)} />
-          )}
-          <div className={`${createModalOpen ? "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92vw] max-w-2xl max-h-[85vh] shadow-2xl" : "flex-1 min-w-0"} bg-surface border border-border rounded-xl overflow-y-auto`}>
-            {createModalOpen && (
-              <button
-                onClick={() => setCreateModalOpen(false)}
-                className="absolute right-4 top-4 z-10 p-1.5 rounded-lg bg-surface border border-border text-foreground-muted hover:text-foreground transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          {/* ── Right: editor (edits an existing rule inline) ───────────── */}
+          <div className="flex-1 min-w-0 bg-surface border border-border rounded-xl overflow-y-auto">
             {!selectedRule ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-12 text-foreground-muted">
                 <SlidersHorizontal className="w-9 h-9 opacity-15 mb-3" />
@@ -870,7 +885,7 @@ export default function ApprovalRulesPage() {
                 <p className="text-xs mt-1">Choose a rule from the list, or create a new one.</p>
                 {canManage && (
                   <button
-                    onClick={handleCreate}
+                    onClick={openCreateModal}
                     disabled={actionLoading === "create"}
                     className="mt-5 flex items-center gap-2 px-4 py-2.5 bg-foreground text-background text-xs font-bold rounded-lg disabled:opacity-40 transition-all"
                   >
@@ -982,6 +997,94 @@ export default function ApprovalRulesPage() {
 
         </div>
       </div>
+
+      {/* ── New Rule — create modal (portal, escapes the layout stacking context) ── */}
+      {createModalOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4 sm:py-10"
+          onClick={closeCreateModal}
+        >
+          <div
+            className="relative w-full max-w-2xl my-auto bg-surface border border-border rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-border bg-surface">
+              <p className="text-sm font-bold text-foreground">New Approval Rule</p>
+              <button onClick={closeCreateModal} className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-background transition-colors" aria-label="Close">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-6">
+              {/* Rule name (required) */}
+              <div>
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-foreground-muted block mb-2">
+                  Rule Name <span className="text-error-text">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Name this rule..."
+                  autoFocus
+                  className="w-full bg-transparent text-xl font-extrabold text-foreground tracking-tight focus:outline-none border-b-2 border-border focus:border-info-border transition-colors pb-1"
+                />
+                {!editName.trim() && (
+                  <p className="text-[10px] text-foreground-muted mt-1.5">A name is required to create the rule.</p>
+                )}
+              </div>
+
+              {/* Action */}
+              <div>
+                <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-foreground-muted block mb-2.5">Action When Triggered</label>
+                <ActionPicker editAction={editAction} canManage={canManage} setEditAction={setEditAction} />
+              </div>
+
+              {/* AI generator */}
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-foreground-muted flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3" /> AI Keyword Generator
+                  </label>
+                  {canManage && !showAiPanel && (
+                    <button onClick={() => { setShowAiPanel(true); setAiSuggested([]); setAiSelected(new Set()); setAiTopic(""); }} className="text-[10px] font-bold text-info-text hover:brightness-110 flex items-center gap-1">
+                      Open <ChevronDown className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                {canManage && showAiPanel && <AiPanel aiTopic={aiTopic} setAiTopic={setAiTopic} aiContext={aiContext} setAiContext={setAiContext} aiGenerating={aiGenerating} handleAiGenerate={handleAiGenerate} aiSuggested={aiSuggested} setAiSuggested={setAiSuggested} aiSelected={aiSelected} setAiSelected={setAiSelected} editKeywords={editKeywords} toggleAiKeyword={toggleAiKeyword} addAiKeywords={addAiKeywords} showAiContext={showAiContext} setShowAiContext={setShowAiContext} setShowAiPanel={setShowAiPanel} />}
+              </div>
+
+              {/* Keywords */}
+              <div>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <label className="font-mono text-[9px] font-bold uppercase tracking-widest text-foreground-muted flex items-center gap-1.5">
+                    <Tag className="w-3 h-3" /> Keywords
+                  </label>
+                  {editKeywords.length > 0 && (
+                    <span className="font-mono text-[8px] font-bold px-1.5 py-0.5 bg-info-bg text-info-text border border-info-border rounded">{editKeywords.length}</span>
+                  )}
+                </div>
+                <KeywordsSection editKeywords={editKeywords} canManage={canManage} removeKeyword={removeKeyword} kwInput={kwInput} setKwInput={setKwInput} addKeyword={addKeyword} />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-surface">
+              <button onClick={closeCreateModal} className="px-4 py-2 text-xs font-bold text-foreground-muted hover:text-foreground transition-colors">Cancel</button>
+              <button
+                onClick={handleCreateSave}
+                disabled={actionLoading === "create" || !editName.trim()}
+                className="px-5 py-2 bg-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-background text-xs font-bold rounded-lg transition-all"
+              >
+                {actionLoading === "create" ? "Creating..." : "Create Rule"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
