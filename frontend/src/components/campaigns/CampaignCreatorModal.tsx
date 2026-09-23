@@ -3130,7 +3130,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     })()}
                     <p className="text-[10px] text-foreground-muted text-center px-4 max-w-xs">
                       Social networks regularly make updates to formatting, so your post may appear slightly different when published.{" "}
-                      <a href="https://www.facebook.com/business/help/" target="_blank" rel="noopener noreferrer" className="underline cursor-pointer hover:text-foreground">Learn more</a>
+                      <a href="https://www.facebook.com/business/help/832459417176147" target="_blank" rel="noopener noreferrer" className="underline cursor-pointer hover:text-foreground">Learn more</a>
                     </p>
                   </div>
                 </div>

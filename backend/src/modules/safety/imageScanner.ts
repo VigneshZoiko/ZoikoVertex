@@ -1,7 +1,8 @@
 // ============================================================
 // Image Safety Scanner
-// Provider: Groq Vision (Llama 4 Scout / Llama 3.2 Vision)
-// Fails open — if all models unavailable the image is safe.
+// Provider: Gemini Vision (primary) with Groq Vision fallback.
+// Returns skipped:true when no model produces a result; the
+// caller (libraryController) fails CLOSED and routes to review.
 // ============================================================
 
 import OpenAI from 'openai';
@@ -112,6 +113,41 @@ async function tryGroq(base64: string, mimeType: string): Promise<{ text: string
   return { text: '', modelUsed: '', tokensUsed: 0 };
 }
 
+// Groq removed its vision models, so Gemini is now the primary image classifier.
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-3.6-flash'];
+
+async function tryGemini(base64: string, mimeType: string): Promise<{ text: string; modelUsed: string; tokensUsed: number }> {
+  const key = env.GEMINI_API_KEY;
+  if (!key) return { text: '', modelUsed: '', tokensUsed: 0 };
+  for (const model of GEMINI_MODELS) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: VISION_PROMPT }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+          generationConfig: { temperature: 0, maxOutputTokens: 512, responseMimeType: 'application/json' },
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!r.ok) {
+        logger.warn(`[imageScanner] gemini/${model} failed: HTTP ${r.status} — trying next`);
+        continue;
+      }
+      const j = await r.json() as any;
+      const text: string = (j?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || '').join('');
+      const tokensUsed: number = j?.usageMetadata?.totalTokenCount ?? 0;
+      if (text) {
+        logger.info({ model, chars: text.length }, '[imageScanner] Gemini Vision response received');
+        return { text, modelUsed: `gemini/${model}`, tokensUsed };
+      }
+    } catch (e: unknown) {
+      logger.warn(`[imageScanner] gemini/${model} vision failed: ${(e instanceof Error ? e.message : String(e)).slice(0, 100)} — trying next`);
+    }
+  }
+  return { text: '', modelUsed: '', tokensUsed: 0 };
+}
+
 export async function scanImage(
   imageUrl: string,
   keywordRules: KeywordRule[] = [],
@@ -121,8 +157,8 @@ export async function scanImage(
   const empty: ImageScanResult = { violations: [], extractedText: '', sensitiveCategories: {}, safe: true };
   const startMs = Date.now();
 
-  if (!env.GROQ_API_KEY) {
-    logger.warn('[imageScanner] No GROQ_API_KEY set — scan skipped');
+  if (!env.GEMINI_API_KEY && !env.GROQ_API_KEY) {
+    logger.warn('[imageScanner] No vision provider key (GEMINI/GROQ) — scan skipped');
     return { ...empty, skipped: true };
   }
 
@@ -136,12 +172,14 @@ export async function scanImage(
     const base64 = Buffer.from(buffer).toString('base64');
     const mimeType = (fetchRes.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
 
-    logger.info({ imageUrl: imageUrl.slice(0, 80), mimeType, bytes: buffer.byteLength }, '[imageScanner] Sending image to Groq Vision');
+    logger.info({ imageUrl: imageUrl.slice(0, 80), mimeType, bytes: buffer.byteLength }, '[imageScanner] Sending image to vision model');
 
-    const { text: rawText, modelUsed, tokensUsed } = await tryGroq(base64, mimeType);
+    // Gemini first (Groq no longer offers vision models); Groq as a fallback.
+    let { text: rawText, modelUsed, tokensUsed } = await tryGemini(base64, mimeType);
+    if (!rawText) ({ text: rawText, modelUsed, tokensUsed } = await tryGroq(base64, mimeType));
 
     if (!rawText) {
-      logger.warn('[imageScanner] All Groq vision models unavailable — treating as safe');
+      logger.warn('[imageScanner] No vision model produced a result — scan skipped');
       return { ...empty, skipped: true };
     }
 

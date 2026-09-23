@@ -148,6 +148,9 @@ async function scanMediaUpload(
   mediaId: string,
 ): Promise<ScanResult> {
   const imageScanNotes: string[] = [];
+  // When an image can't be auto-scanned, we fail CLOSED (route to human review)
+  // rather than auto-approving — so sensitive content is never published unscanned.
+  let imageScanUnavailable = false;
   const isAudioType = file_type.startsWith('audio/') || file_type === 'audio';
   const isVideoType = file_type.startsWith('video/') || file_type === 'video' || file_type === 'mixed';
 
@@ -270,7 +273,8 @@ async function scanMediaUpload(
         const imgResult = await scanImage(url, keywordRules, mediaId, workspaceId);
 
         if (imgResult.skipped) {
-          imageScanNotes.push(`[${label}] Scan skipped (Gemini unavailable or fetch failed). URL: ${url.slice(0, 80)}`);
+          imageScanUnavailable = true;
+          imageScanNotes.push(`[${label}] Automated scan unavailable (no vision model or fetch failed) — routing to human review. URL: ${url.slice(0, 80)}`);
           continue;
         }
 
@@ -318,10 +322,25 @@ async function scanMediaUpload(
           }
         }
       } catch (err) {
+        imageScanUnavailable = true;
         logger.error({ err, url }, '[LibraryScan] scanImage threw unexpectedly');
-        imageScanNotes.push(`[${label}] Scan error: ${err instanceof Error ? err.message : String(err)}`);
+        imageScanNotes.push(`[${label}] Scan error — routing to human review: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
+  }
+
+  // Fail closed: if any image could not be scanned, send it for human review
+  // instead of auto-approving it into the library.
+  if (imageScanUnavailable) {
+    return {
+      safe: false,
+      isVideo: false,
+      isAudio: false,
+      needsReview: true,
+      reason: 'Automated image safety scan was unavailable — routed to human review.',
+      violations: ['image_scan_unavailable'],
+      imageScanNotes,
+    };
   }
 
   return { safe: true, isVideo: false, isAudio: false, imageScanNotes };

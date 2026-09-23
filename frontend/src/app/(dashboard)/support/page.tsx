@@ -23,15 +23,18 @@ export default function SupportPage() {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
 
-  // mailto: still opens the mail client where one is configured, but many machines
-  // have no default mail handler — so also copy the address to the clipboard with
-  // confirmation, guaranteeing the user can always reach support by email.
-  const copySupportEmail = () => {
+  // Open Gmail's web compose window directly (works on any machine, no mail
+  // handler needed). Also copy the address to the clipboard as a fallback so the
+  // user can always reach support by email even if the popup is blocked.
+  const GMAIL_COMPOSE = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SUPPORT_EMAIL)}&su=${encodeURIComponent('ZoikoVertex Support Request')}`;
+  const copySupportEmail = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
     try {
       navigator.clipboard?.writeText(SUPPORT_EMAIL);
       setEmailCopied(true);
       setTimeout(() => setEmailCopied(false), 2500);
-    } catch { /* clipboard unavailable — mailto still fires */ }
+    } catch { /* clipboard unavailable — Gmail compose still opens */ }
+    window.open(GMAIL_COMPOSE, '_blank', 'noopener,noreferrer');
   };
 
   useEffect(() => {
@@ -86,14 +89,16 @@ export default function SupportPage() {
           <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Email Support</h3>
           <p className="text-xs text-[var(--foreground-muted)] mb-2">Response within 24 hours</p>
           <a
-            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('ZoikoVertex Support Request')}`}
+            href={GMAIL_COMPOSE}
             onClick={copySupportEmail}
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1"
           >
             {SUPPORT_EMAIL} <ExternalLink className="w-3 h-3" />
           </a>
           {emailCopied && (
-            <p className="text-[10px] text-success-text mt-1">Copied to clipboard — paste it into your email app.</p>
+            <p className="text-[10px] text-success-text mt-1">Opening Gmail — address also copied to your clipboard.</p>
           )}
         </div>
 
