@@ -264,6 +264,36 @@ export const markRuleInvalid = async (req: AuthRequest, res: Response, next: Nex
   } catch (error) { next(error); }
 };
 
+// System role that keeps the model on-task and stops it refusing benign
+// moderation topics (the reason keyword generation intermittently failed and
+// sometimes returned "i'm sorry, but i can't help with that" as "keywords").
+const KEYWORD_SYSTEM_PROMPT =
+  'You are a keyword-list generator for an enterprise content-moderation SAFETY filter. ' +
+  'Your only job is to output a JSON array of lowercase keyword strings the filter watches for so it can BLOCK or flag matching content. ' +
+  'These keywords protect users — producing them is safe and required, even for sensitive topics (that is exactly why they are needed). ' +
+  'Never refuse, never apologize, never add commentary. Output ONLY a JSON array, e.g. ["term one","term two"].';
+
+const REFUSAL_RE = /\b(i'?m sorry|i am sorry|i can'?t help|i cannot help|i can'?t assist|i cannot assist|as an ai|i'?m unable|i am unable|help with that|against my)\b/i;
+
+/** Parse a model response into clean keywords; returns [] for refusals/sentences. */
+function parseKeywordResponse(raw: string): string[] {
+  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  let arr: string[] = [];
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) arr = parsed.map((k: unknown) => String(k));
+  } catch {
+    // Not JSON — only split into items if it doesn't look like a refusal sentence.
+    if (!REFUSAL_RE.test(cleaned)) {
+      arr = cleaned.replace(/["[\]]/g, '').split(/[,\n]/).map((s) => s.trim());
+    }
+  }
+  return [...new Set(
+    arr.map((k) => k.toLowerCase().trim())
+       .filter((k) => k.length > 0 && k.length <= 40 && !REFUSAL_RE.test(k)),
+  )];
+}
+
 export const suggestKeywords = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { topic, context, existing_keywords = [], action = 'BLOCK' } = req.body;
@@ -303,49 +333,51 @@ Requirements:
 Return ONLY a valid JSON array with no explanation:
 ["keyword1", "keyword2", ...]`;
 
-    // Generate with server-side retry + fallback so the FIRST user click succeeds:
-    // a transient Groq failure or a cold/slow large model no longer forces the
-    // user to click Generate 4-5 times. Fall back to the faster gpt-oss-20b.
-    const attempts: Array<{ model: string; timeout: number }> = [
-      { model: 'openai/gpt-oss-120b', timeout: 20_000 },
-      { model: 'openai/gpt-oss-20b',  timeout: 15_000 },
-      { model: 'openai/gpt-oss-20b',  timeout: 15_000 },
+    // Generate with server-side retry + fallback so the FIRST click succeeds.
+    // A refusal ("i'm sorry, i can't help…") or unusable response is retried and
+    // NEVER shown as keywords; we also fall back to the faster gpt-oss-20b and
+    // nudge temperature so a stuck model produces a valid list.
+    const attempts: Array<{ model: string; temperature: number; timeout: number }> = [
+      { model: 'openai/gpt-oss-120b', temperature: 0.4, timeout: 20_000 },
+      { model: 'openai/gpt-oss-20b',  temperature: 0.5, timeout: 15_000 },
+      { model: 'openai/gpt-oss-120b', temperature: 0.7, timeout: 20_000 },
     ];
 
-    let raw = '';
+    let keywords: string[] = [];
     let lastErr: unknown = null;
     for (let i = 0; i < attempts.length; i++) {
       try {
         const completion = await groqClient.chat.completions.create(
           {
             model: attempts[i].model,
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.4,
+            messages: [
+              { role: 'system', content: KEYWORD_SYSTEM_PROMPT },
+              { role: 'user', content: prompt },
+            ],
+            temperature: attempts[i].temperature,
             max_tokens: 600,
           },
           { timeout: attempts[i].timeout },
         );
         const content = completion.choices[0]?.message?.content?.trim();
-        if (content) { raw = content; break; }
-        lastErr = new Error('empty completion');
+        if (content) {
+          const kws = parseKeywordResponse(content);
+          if (kws.length > 0) { keywords = kws; break; }
+          lastErr = new Error('model refused or returned no usable keywords');
+          logger.warn({ attempt: i + 1, model: attempts[i].model, sample: content.slice(0, 80) }, '[AISuggest] non-keyword response — retrying');
+        } else {
+          lastErr = new Error('empty completion');
+        }
       } catch (e) {
         lastErr = e;
         logger.warn({ attempt: i + 1, model: attempts[i].model, err: (e as Error).message }, '[AISuggest] keyword generation attempt failed — retrying');
       }
       if (i < attempts.length - 1) await new Promise((r) => setTimeout(r, 400 * (i + 1)));
     }
-    if (!raw) throw lastErr || new Error('AI generation failed');
 
-    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-
-    let keywords: string[] = [];
-    try {
-      const parsed = JSON.parse(cleaned);
-      keywords = Array.isArray(parsed)
-        ? parsed.map((k: any) => String(k).toLowerCase().trim()).filter(Boolean)
-        : [];
-    } catch {
-      keywords = cleaned.replace(/["\[\]]/g, '').split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+    if (keywords.length === 0) {
+      logger.error({ err: (lastErr as Error)?.message }, '[AISuggest] all attempts failed to produce keywords');
+      return res.status(502).json({ error: 'The AI could not generate keywords for this topic. Please rephrase and try again.' });
     }
 
     const unique = [...new Set(keywords)].slice(0, 30);
