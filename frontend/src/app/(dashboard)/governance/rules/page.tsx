@@ -330,6 +330,8 @@ export default function ApprovalRulesPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // When true, the rule editor is shown as a centered modal (used for "New Rule").
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Mobile navigation state
   const [mobileView, setMobileView] = useState<"list" | "edit">("list");
@@ -369,6 +371,7 @@ export default function ApprovalRulesPage() {
   useEffect(() => { fetchRules(); }, []);
 
   function selectRule(rule: Rule) {
+    setCreateModalOpen(false);
     setSelectedId(rule.id);
     setEditName(rule.name);
     setEditAction(rule.action);
@@ -455,6 +458,7 @@ export default function ApprovalRulesPage() {
         setRules(prev => [mapped, ...prev]);
         selectRule(mapped);
         setMobileView("edit");
+        setCreateModalOpen(true); // open the editor as a modal on desktop
         setMessage({ type: "success", text: "Rule created." });
       }
     } catch {
@@ -475,6 +479,7 @@ export default function ApprovalRulesPage() {
       if (res.success) {
         setMessage({ type: "success", text: "Saved." });
         setRules(prev => prev.map(r => r.id === selectedId ? { ...r, name: editName, keywords: editKeywords, action: editAction } : r));
+        setCreateModalOpen(false); // close the modal once the new rule is saved
       } else {
         setMessage({ type: "error", text: res.error || "Save failed." });
       }
@@ -844,8 +849,20 @@ export default function ApprovalRulesPage() {
             </div>
           </div>
 
-          {/* ── Right: editor ────────────────────────────────────────────── */}
-          <div className="flex-1 min-w-0 bg-surface border border-border rounded-xl overflow-y-auto">
+          {/* ── Right: editor (becomes a centered modal for "New Rule") ──── */}
+          {createModalOpen && (
+            <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setCreateModalOpen(false)} />
+          )}
+          <div className={`${createModalOpen ? "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92vw] max-w-2xl max-h-[85vh] shadow-2xl" : "flex-1 min-w-0"} bg-surface border border-border rounded-xl overflow-y-auto`}>
+            {createModalOpen && (
+              <button
+                onClick={() => setCreateModalOpen(false)}
+                className="absolute right-4 top-4 z-10 p-1.5 rounded-lg bg-surface border border-border text-foreground-muted hover:text-foreground transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             {!selectedRule ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-12 text-foreground-muted">
                 <SlidersHorizontal className="w-9 h-9 opacity-15 mb-3" />
