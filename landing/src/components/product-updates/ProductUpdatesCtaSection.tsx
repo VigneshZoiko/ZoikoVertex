@@ -51,11 +51,11 @@ export default function ProductUpdatesCtaSection() {
         {/* CTA Buttons Row */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
           {/* Primary Cyan Gradient Button */}
-          <Link
+          <a
            href ="#product-updates"
            className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#20E7F2] to-[#00C8F0] text-slate-950 font-bold text-xs sm:text-sm hover:opacity-95 transition-all duration-200 shadow-[0_0_25px_rgba(0,229,255,0.35)] active:scale-[0.98] cursor-pointer">
             Subscribe to Product Updates
-          </Link>
+          </a>
 
           {/* Secondary Amber Gradient Button */}
           <Link
@@ -65,11 +65,11 @@ export default function ProductUpdatesCtaSection() {
           </Link>
 
           {/* Outline Dark Button */}
-          <Link
+          <a
           href ="#release-notes"
            className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-800 text-slate-200 font-bold text-xs sm:text-sm hover:bg-[#131C2B] hover:border-slate-700 transition-all duration-200 active:scale-[0.98] cursor-pointer">
             Read Release Notes
-          </Link>
+          </a>
         </div>
       </motion.div>
     </section>

@@ -48,7 +48,7 @@ const actionData: ActionItem[] = [
     primaryCtaText: "Open setup guide",
     primaryCtaHref: "#",
     secondaryCtaText: "Contact support",
-    secondaryCtaHref: "#",
+    secondaryCtaHref: "/contact-sales",
   },
   {
     id: "action-2",
