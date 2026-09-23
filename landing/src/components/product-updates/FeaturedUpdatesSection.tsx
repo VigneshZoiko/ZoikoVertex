@@ -64,7 +64,7 @@ const featuredData: FeaturedCardItem[] = [
     primaryLinkText: "Read update",
     primaryLinkHref: "#",
     secondaryLinkText: "Watch demo",
-    secondaryLinkHref: "#",
+    secondaryLinkHref: "request-demo",
   },
   {
     id: "featured-3",
