@@ -451,7 +451,7 @@ export default function ApprovalRulesPage() {
     setEditAction("BLOCK");
     setEditKeywords([]);
     setKwInput("");
-    setShowAiPanel(false);
+    setShowAiPanel(true); // AI keyword generator expanded by default
     setAiSuggested([]);
     setAiSelected(new Set());
     setAiTopic("");
@@ -462,6 +462,7 @@ export default function ApprovalRulesPage() {
 
   function closeCreateModal() {
     setCreateModalOpen(false);
+    setMessage(null);
   }
 
   // Persist a new rule — requires a non-empty name.
@@ -1015,6 +1016,19 @@ export default function ApprovalRulesPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* In-modal message (so AI/validation feedback shows over the modal, not behind it) */}
+            {message && (
+              <div className={`mx-6 mt-4 p-3 rounded-xl flex items-center gap-2.5 text-xs font-semibold ${
+                message.type === "success"
+                  ? "bg-success-bg border border-success-border text-success-text"
+                  : "bg-error-bg border border-error-border text-error-text"
+              }`}>
+                {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+                <span className="flex-1">{message.text}</span>
+                <button onClick={() => setMessage(null)} className="opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
+              </div>
+            )}
 
             <div className="p-6 flex flex-col gap-6">
               {/* Rule name (required) */}
