@@ -75,45 +75,59 @@ async function enrichRunsWithPostedBy(runs: any[], workspaceId: string): Promise
   if (taskIds.length === 0) return runs;
 
   const intentById = new Map<string, any>();
-  try {
+  // Both publish_intents reads are independent round trips, so they run
+  // concurrently; the merge below keeps the original sequential semantics.
+  const [baseIntents, reviewMarkers] = await Promise.all([
     // Note: no workspace_id filter here — task_ids already came from workspace-scoped
     // agent_runs, so the IDs themselves are the scope guard. The workspace_id column
     // may also be absent in some migration states; removing it prevents a silent
     // catch that would leave intentById empty and break Posted By attribution.
-    const { data } = await supabaseAdmin
-      .from('publish_intents')
-      .select('id, status, agent_id, reviewer_id')
-      .in('id', taskIds as string[]);
-    for (const it of data || []) intentById.set(it.id, it);
-  } catch { /* some task_ids aren't publish_intents — fine */ }
-  // Manual-review markers live on later-migration columns; select separately so a
-  // missing column doesn't drop the agent_id/reviewer_id resolved above.
-  try {
-    const { data } = await supabaseAdmin
-      .from('publish_intents')
-      .select('id, reviewed_at, reviewer_feedback')
-      .in('id', taskIds as string[]);
-    for (const r of data || []) { const e = intentById.get(r.id); if (e) Object.assign(e, r); }
-  } catch { /* columns not present in this env */ }
+    (async () => {
+      try {
+        const { data } = await supabaseAdmin
+          .from('publish_intents')
+          .select('id, status, agent_id, reviewer_id')
+          .in('id', taskIds as string[]);
+        return data || [];
+      } catch { return []; /* some task_ids aren't publish_intents — fine */ }
+    })(),
+    // Manual-review markers live on later-migration columns; select separately so a
+    // missing column doesn't drop the agent_id/reviewer_id resolved above.
+    (async () => {
+      try {
+        const { data } = await supabaseAdmin
+          .from('publish_intents')
+          .select('id, reviewed_at, reviewer_feedback')
+          .in('id', taskIds as string[]);
+        return data || [];
+      } catch { return []; /* columns not present in this env */ }
+    })(),
+  ]);
+  for (const it of baseIntents) intentById.set(it.id, it);
+  for (const r of reviewMarkers) { const e = intentById.get(r.id); if (e) Object.assign(e, r); }
 
   const intents = Array.from(intentById.values());
   const agentIds = Array.from(new Set(intents.map((i) => i.agent_id).filter((x) => isUuid(x))));
   const reviewerIds = Array.from(new Set(intents.map((i) => i.reviewer_id).filter((x) => isUuid(x))));
 
   const agentNameById = new Map<string, string>();
-  if (agentIds.length > 0) {
-    try {
-      const { data } = await supabaseAdmin.from('agents').select('id, name').eq('workspace_id', workspaceId).in('id', agentIds as string[]);
-      for (const a of data || []) agentNameById.set(a.id, a.name);
-    } catch { /* ignore */ }
-  }
   const userNameById = new Map<string, string>();
-  if (reviewerIds.length > 0) {
-    try {
-      const { data } = await supabaseAdmin.from('users').select('id, full_name, email').in('id', reviewerIds as string[]);
-      for (const u of data || []) userNameById.set(u.id, u.full_name || u.email || u.id);
-    } catch { /* ignore */ }
-  }
+  await Promise.all([
+    (async () => {
+      if (agentIds.length === 0) return;
+      try {
+        const { data } = await supabaseAdmin.from('agents').select('id, name').eq('workspace_id', workspaceId).in('id', agentIds as string[]);
+        for (const a of data || []) agentNameById.set(a.id, a.name);
+      } catch { /* ignore */ }
+    })(),
+    (async () => {
+      if (reviewerIds.length === 0) return;
+      try {
+        const { data } = await supabaseAdmin.from('users').select('id, full_name, email').in('id', reviewerIds as string[]);
+        for (const u of data || []) userNameById.set(u.id, u.full_name || u.email || u.id);
+      } catch { /* ignore */ }
+    })(),
+  ]);
 
   // Statuses where feedback exists but the post was NOT approved — just returned
   const RETURNED_STATUSES = new Set(['RETURNED', 'AWAITING_REVISION', 'REJECTED', 'GOVERNANCE_BLOCKED']);
@@ -181,6 +195,33 @@ function sanitizeSearchTerm(term: string): string {
   return term.replace(/[,()*%\\]/g, ' ').trim();
 }
 
+// Workflow-execution runs do not carry a post_id column — the Operations list
+// resolves one from workflow_instances.trigger_source (see below) and shows it
+// as the run's id. Searching by that id therefore has to be resolved in
+// reverse: find the instances carrying it so their ids can be matched against
+// agent_runs.task_id. Callers must pass a validated uuid.
+async function findWorkflowInstanceIdsByPostId(postId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('workflow_instances')
+      .select('id, trigger_source')
+      .ilike('trigger_source', `%${postId}%`)
+      .limit(100);
+    if (error) return [];
+    const ids: string[] = [];
+    for (const inst of data || []) {
+      if (typeof inst.trigger_source !== 'string') continue;
+      try {
+        const meta = JSON.parse(inst.trigger_source);
+        if (meta?.src === 'publish_hub' && meta.post_id === postId) ids.push(inst.id);
+      } catch { /* not our JSON */ }
+    }
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
 export async function listAgentRuns(params: {
   workspace_id: string;
   status?: string;
@@ -223,30 +264,40 @@ export async function listAgentRuns(params: {
   if (params.search) {
     const safe = sanitizeSearchTerm(params.search);
     if (safe) {
-      // Search every visible text identifier a user might type — previously only
-      // task_objective + agent_name were matched, so searching by agent type,
-      // brand, campaign, owner, workflow, or Run ID returned nothing.
-      const orParts = [
-        `task_objective.ilike.%${safe}%`,
-        `agent_name.ilike.%${safe}%`,
-        `task_name.ilike.%${safe}%`,
-        `agent_type.ilike.%${safe}%`,
-        `brand_name.ilike.%${safe}%`,
-        `campaign_name.ilike.%${safe}%`,
-        `owner_name.ilike.%${safe}%`,
-        `workflow_name.ilike.%${safe}%`,
-      ];
-      // Run ID is a uuid column (can't be ILIKE'd) — support a full-id exact match.
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(safe)) {
-        orParts.push(`id.eq.${safe}`);
+      if (isUuid(safe)) {
+        // A pasted Run ID is an exact lookup, not a fuzzy match. The Operations
+        // list shows — and its copy button copies — the run's *display* id,
+        // which is post_id ?? task_id ?? id, so all three have to be matched or
+        // pasting the id the user can actually see returns nothing. The
+        // free-text columns are deliberately left out so an id search returns
+        // that run alone.
+        const orParts = [`id.eq.${safe}`, `task_id.eq.${safe}`];
+        const instanceIds = await findWorkflowInstanceIdsByPostId(safe);
+        if (instanceIds.length > 0) {
+          orParts.push(`task_id.in.(${instanceIds.join(',')})`);
+        }
+        query = query.or(orParts.join(','));
+      } else {
+        // Search every visible text identifier a user might type — previously only
+        // task_objective + agent_name were matched, so searching by agent type,
+        // brand, campaign, owner or workflow returned nothing.
+        query = query.or([
+          `task_objective.ilike.%${safe}%`,
+          `agent_name.ilike.%${safe}%`,
+          `task_name.ilike.%${safe}%`,
+          `agent_type.ilike.%${safe}%`,
+          `brand_name.ilike.%${safe}%`,
+          `campaign_name.ilike.%${safe}%`,
+          `owner_name.ilike.%${safe}%`,
+          `workflow_name.ilike.%${safe}%`,
+        ].join(','));
       }
-      query = query.or(orParts.join(','));
     }
   }
 
   const { data, error, count } = await query;
   if (error) throw error;
-  const enriched = await enrichRunsWithPostedBy(data || [], params.workspace_id);
+  const rows = data || [];
 
   // For publisher-type runs, task_id IS the publish_intent.id — use it directly.
   // For workflow-execution runs, task_id is the workflow_instance.id. Look up
@@ -255,13 +306,14 @@ export async function listAgentRuns(params: {
   // the same post.
   const workflowTaskIds = Array.from(
     new Set(
-      enriched
+      rows
         .filter((r: any) => r.agent_type !== 'publisher' && isUuid(r.task_id))
         .map((r: any) => r.task_id as string),
     ),
   );
   const postIdByInstanceId = new Map<string, string>();
-  if (workflowTaskIds.length > 0) {
+  const resolvePostIds = async () => {
+    if (workflowTaskIds.length === 0) return;
     try {
       const { data: instances } = await supabaseAdmin
         .from('workflow_instances')
@@ -278,19 +330,20 @@ export async function listAgentRuns(params: {
         } catch { /* not our JSON */ }
       }
     } catch { /* non-blocking */ }
-  }
+  };
 
   // Back-fill owner_name for runs where it was never stored (owner_id present but
   // owner_name null). Batch-look up display names from the users table.
   const missingNameIds = Array.from(
     new Set(
-      enriched
+      rows
         .filter((r: any) => !r.owner_name && isUuid(r.owner_id))
         .map((r: any) => r.owner_id as string),
     ),
   );
   const ownerNameById = new Map<string, string>();
-  if (missingNameIds.length > 0) {
+  const resolveOwnerNames = async () => {
+    if (missingNameIds.length === 0) return;
     try {
       const { data: users } = await supabaseAdmin
         .from('users')
@@ -300,7 +353,16 @@ export async function listAgentRuns(params: {
         ownerNameById.set(u.id, u.full_name || u.email || u.id);
       }
     } catch { /* non-blocking */ }
-  }
+  };
+
+  // The three look-ups only read columns enrichRunsWithPostedBy never rewrites
+  // (task_id, agent_type, owner_id, owner_name), so they run concurrently —
+  // sequentially they were the bulk of this endpoint's latency.
+  const [enriched] = await Promise.all([
+    enrichRunsWithPostedBy(rows, params.workspace_id),
+    resolvePostIds(),
+    resolveOwnerNames(),
+  ]);
 
   const runs = enriched.map((run: any) => ({
     ...run,

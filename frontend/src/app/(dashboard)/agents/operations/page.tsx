@@ -972,6 +972,19 @@ export default function AgentOperationsPage() {
 
   // ── Context bar state ──
   const [searchQuery, setSearchQuery] = useState("");
+  // The input updates instantly; the fetch waits for typing to pause so each
+  // keystroke no longer fires three API calls. A pasted full Run ID (or a
+  // cleared box) applies at once.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const term = searchQuery.trim();
+    if (!term || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(term)) {
+      setDebouncedSearch(searchQuery);
+      return;
+    }
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [brandFilter, setBrandFilter] = useState("");
   const [envFilter, setEnvFilter] = useState("");
 
@@ -1056,9 +1069,13 @@ export default function AgentOperationsPage() {
 
   // ── Stale state check ──
   const staleCheckRef = useRef<Record<string, string>>({});
+  // Poll, live-stream and search fetches overlap; only the newest may apply its
+  // results, or a slow unfiltered refresh overwrites a pasted-Run-ID search.
+  const fetchSeqRef = useRef(0);
 
   // ── Fetch ──
   const fetchData = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     if (initialLoad.current) setLoading(true);
     setError(null);
     try {
@@ -1073,7 +1090,7 @@ export default function AgentOperationsPage() {
         sort_dir: sortDir,
       };
       if (statusFilter) params.status = statusFilter;
-      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (dateFrom) params.date_from = new Date(dateFrom).toISOString();
       if (dateTo) {
         // include the whole "to" day
@@ -1087,6 +1104,7 @@ export default function AgentOperationsPage() {
         api.listAgentRuns(params).catch(() => null),
         api.listQueues(scopedParams).catch(() => null),
       ]);
+      if (seq !== fetchSeqRef.current) return;
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
       if (runsRes.status === "fulfilled" && runsRes.value?.runs) {
@@ -1106,18 +1124,21 @@ export default function AgentOperationsPage() {
       setError("Failed to load operations data.");
       setRealtimeDegraded(true);
     } finally {
-      if (initialLoad.current) {
+      // The fetch effect raises `loading` on every filter/search change, so the
+      // newest request must always lower it — clearing it only on the first
+      // load left the spinner up over the results after any search.
+      if (seq === fetchSeqRef.current) {
         setLoading(false);
         initialLoad.current = false;
       }
     }
-  }, [statusFilter, brandFilter, envFilter, searchQuery, page, sortBy, sortDir, dateFrom, dateTo]);
+  }, [statusFilter, brandFilter, envFilter, debouncedSearch, page, sortBy, sortDir, dateFrom, dateTo]);
 
   // Reset to the first page whenever a filter, search, sort, or date range
   // changes so the user never lands on an out-of-range offset.
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, brandFilter, envFilter, searchQuery, sortBy, sortDir, dateFrom, dateTo]);
+  }, [statusFilter, brandFilter, envFilter, debouncedSearch, sortBy, sortDir, dateFrom, dateTo]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1128,12 +1149,27 @@ export default function AgentOperationsPage() {
     return () => { cancelled = true; clearInterval(interval); };
   }, [fetchData]);
 
+  // The live stream reads the newest fetchData through a ref, so changing a
+  // filter or the search no longer tears down and reconnects the SSE stream.
+  const fetchDataRef = useRef(fetchData);
+  useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+
   useEffect(() => {
     const controller = new AbortController();
     let closed = false;
     let attempt = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     let buffer = "";
+
+    // A burst of operations events collapses into one refresh.
+    const scheduleRefresh = () => {
+      if (refreshTimer) return;
+      refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
+        if (!closed) void fetchDataRef.current();
+      }, 300);
+    };
 
     const scheduleReconnect = () => {
       if (closed || controller.signal.aborted) return;
@@ -1153,7 +1189,7 @@ export default function AgentOperationsPage() {
       for (const frame of frames) {
         const eventLine = frame.split("\n").find((l) => l.startsWith("event:"));
         const eventName = eventLine?.slice("event:".length).trim();
-        if (eventName === "operations") void fetchData();
+        if (eventName === "operations") scheduleRefresh();
       }
     };
 
@@ -1201,9 +1237,10 @@ export default function AgentOperationsPage() {
     return () => {
       closed = true;
       if (retryTimer) clearTimeout(retryTimer);
+      if (refreshTimer) clearTimeout(refreshTimer);
       controller.abort();
     };
-  }, [fetchData]);
+  }, []);
 
   // ── Open run drawer ──
   const handleViewRun = async (run: AgentRun) => {
