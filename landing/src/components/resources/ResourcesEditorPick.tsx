@@ -46,6 +46,7 @@ const TOP_CARDS = [
     tagBorder: "#C9A84C4D",
     meta: "PDF · UNGATED",
     cta: "Download Toolkit ↓",
+    file: "/downloads/ai-marketing-governance-checklist.pdf",
     ctaColor: "#f59e0b",
   },
   {
@@ -170,12 +171,23 @@ export default function ResourcesEditorPick() {
                 <span className="text-gray-400 text-xs font-medium">
                   {card.meta}
                 </span>
-                <button
-                  className="text-xs font-bold transition-opacity duration-300 hover:opacity-70"
-                  style={{ color: card.ctaColor }}
-                >
-                  {card.cta}
-                </button>
+                {card.file ? (
+                  <a
+                    href={card.file}
+                    download
+                    className="text-xs font-bold transition-opacity duration-300 hover:opacity-70"
+                    style={{ color: card.ctaColor }}
+                  >
+                    {card.cta}
+                  </a>
+                ) : (
+                  <button
+                    className="text-xs font-bold transition-opacity duration-300 hover:opacity-70"
+                    style={{ color: card.ctaColor }}
+                  >
+                    {card.cta}
+                  </button>
+                )}
               </div>
             </div>
           ))}

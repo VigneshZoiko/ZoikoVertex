@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 const FILTER_TABS = ["All Formats", "Executive Brief", "Toolkit", "Guide", "Field Note"];
@@ -79,7 +79,6 @@ export default function ResourcesHero() {
   const [visible, setVisible] = useState(false);
   const [activeTab, setActiveTab] = useState("All Formats");
   const ref = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -123,9 +122,9 @@ export default function ResourcesHero() {
             >
               Explore Resources →
             </a>
-            <button onClick={()=>router.push("/security")} className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
+            <Link href="/trust" className="border border-[#FFFFFF40] text-[#FFFFFF] hover:text-white hover:border-white/30 text-sm font-medium px-6 py-3 rounded-lg transition-colors duration-300">
               Access Trust Center
-            </button>
+            </Link>
           </div>
 
           <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
