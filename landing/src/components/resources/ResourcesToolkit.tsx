@@ -12,6 +12,7 @@ const TOOLKITS = [
       "43-item pre-deployment checklist covering approval workflows, AI autonomy thresholds, audit trail requirements, and brand control validation.",
     cta: "Download Toolkit",
     ctaIcon: "download",
+    file: "/downloads/ai-marketing-governance-checklist.pdf",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -30,6 +31,7 @@ const TOOLKITS = [
       "Legal review framework including hallucination risk assessment, jurisdictional ad compliance checklist, brand claim validation workflow, and pre-publication approval guide.",
     cta: "Download Toolkit",
     ctaIcon: "download",
+    file: "/downloads/compliance-review-toolkit.pdf",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -48,6 +50,7 @@ const TOOLKITS = [
       "Board-ready ROI reporting templates, multi-touch attribution methodology guide, contribution margin tracking spreadsheet, and CFO brief template.",
     cta: "Download Toolkit",
     ctaIcon: "download",
+    file: "/downloads/roi-attribution-toolkit.pdf",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5">
         <line x1="18" y1="20" x2="18" y2="10"/>
@@ -64,8 +67,9 @@ const TOOLKITS = [
     title: "Enterprise Procurement Review Toolkit",
     description:
       "Full vendor assessment pack for IT procurement: security questionnaire, DPA, SLA template, insurance summary, and executive sign-off brief.",
-    cta: "Request Toolkit",
-    ctaIcon: "mail",
+    cta: "Download Toolkit",
+    ctaIcon: "download",
+    file: "/downloads/enterprise-procurement-toolkit.pdf",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5">
         <rect x="2" y="3" width="20" height="18" rx="2"/>
@@ -83,6 +87,7 @@ const TOOLKITS = [
       "Pre-launch verification checklist, channel permission matrix, brand voice configuration guide, and post-launch governance monitoring protocol.",
     cta: "Download Toolkit",
     ctaIcon: "download",
+    file: "/downloads/ai-agent-deployment-kit.pdf",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5">
         <circle cx="12" cy="12" r="3"/>
@@ -100,6 +105,7 @@ const TOOLKITS = [
       "Editable governance architecture diagram, brand isolation policy template, cross-brand approval matrix, and portfolio reporting framework.",
     cta: "Download Toolkit",
     ctaIcon: "download",
+    file: "/downloads/multi-brand-governance-template.pdf",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5">
         <rect x="2" y="7" width="6" height="6" rx="1"/>
@@ -204,10 +210,14 @@ export default function ResourcesToolkit() {
               </p>
 
               {/* CTA Button — always at bottom */}
-              <button className="w-full flex items-center justify-center gap-2 border border-[#C9A84C66] text-[#C9A84C] hover:text-white hover:border-white/30 text-xs font-semibold py-2.5 rounded-xl transition-all duration-300 hover:bg-white/5">
+              <a
+                href={card.file}
+                download
+                className="w-full flex items-center justify-center gap-2 border border-[#C9A84C66] text-[#C9A84C] hover:text-white hover:border-white/30 text-xs font-semibold py-2.5 rounded-xl transition-all duration-300 hover:bg-white/5"
+              >
                 <CtaIcon type={card.ctaIcon} />
                 {card.cta}
-              </button>
+              </a>
             </div>
           ))}
         </div>

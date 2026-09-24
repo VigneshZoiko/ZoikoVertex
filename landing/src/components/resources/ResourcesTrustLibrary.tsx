@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const TOP_CARDS = [
   {
@@ -140,12 +141,13 @@ export default function ResourcesTrustLibrary() {
       </p>
 
       {/* CTA */}
-      <button
+      <Link
+        href="/trust"
         className="self-start text-sm font-semibold transition-opacity duration-300 hover:opacity-70"
         style={{ color: card.accentColor }}
       >
         {card.cta}
-      </button>
+      </Link>
     </div>
   );
 
@@ -193,12 +195,12 @@ export default function ResourcesTrustLibrary() {
           }`}
           style={{ transitionDelay: "650ms" }}
         >
-          <button className="flex items-center gap-3 bg-cyan-400 hover:bg-cyan-300 text-black text-sm font-black px-10 py-4 rounded-xl transition-colors duration-300">
+          <Link href="/trust" className="flex items-center gap-3 bg-cyan-400 hover:bg-cyan-300 text-black text-sm font-black px-10 py-4 rounded-xl transition-colors duration-300">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
             Access Full Trust Center
-          </button>
+          </Link>
         </div>
 
       </div>
