@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Zap,
   History,
-  Search,
   Clock,
   Lock,
   ShieldAlert,
@@ -2587,7 +2586,6 @@ export default function PromptsPage() {
   const { role } = useRoleContext();
   const [prompts, setPrompts] = useState<PromptRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
   const [activeTab, setActiveTab] = useState<ActiveTab>("registry");
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
@@ -2815,18 +2813,6 @@ export default function PromptsPage() {
   // All custom/legacy prompts are hidden but not deleted — they remain in backend tables.
   const systemPrompts = prompts.filter(isSystemGoverned);
 
-  // Apply the registry search box (name / description / type). Previously the
-  // search state was captured but never used to filter, so the bar did nothing.
-  const q = search.trim().toLowerCase();
-  const filteredPrompts = q
-    ? systemPrompts.filter((p) =>
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.description || "").toLowerCase().includes(q) ||
-        String(p.prompt_type || "").toLowerCase().includes(q) ||
-        (p.owner || "").toLowerCase().includes(q) ||
-        (p.linked_agent || "").toLowerCase().includes(q),
-      )
-    : systemPrompts;
   // Computed health metrics
   const productionCount = systemPrompts.filter((p) => p.status === "PRODUCTION_ACTIVE").length;
   // Pending review = prompts explicitly awaiting review OR whose last runtime
@@ -2862,18 +2848,6 @@ export default function PromptsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {activeTab === "registry" && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                <input
-                  type="text"
-                  placeholder="Search prompts…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-56 bg-background border border-border rounded-2xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
-                />
-              </div>
-            )}
             <button
               onClick={handleAuditExport}
               className="px-6 py-3 bg-surface border border-border hover:border-slate-600 text-foreground hover:text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
@@ -2923,7 +2897,7 @@ export default function PromptsPage() {
       <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
         {activeTab === "registry" && (
           <RegistryTab
-            prompts={filteredPrompts}
+            prompts={systemPrompts}
             onViewPrompt={setSelectedPrompt}
             onRetirePrompt={(p) => handleLifecycleAction(p.id, "retire")}
             onActivatePrompt={(p) => handleLifecycleAction(p.id, "reactivate")}
