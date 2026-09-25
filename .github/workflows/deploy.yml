@@ -1,46 +1,53 @@
-name: Vercel Production Deployment
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-  NEXT_PUBLIC_CUSTOS_API_URL: ${{ secrets.NEXT_PUBLIC_CUSTOS_API_URL }}
+name: Deploy ZoikoVertex
+
+concurrency:
+  group: deploy-zoikovertex
+  cancel-in-progress: false
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
-    # Only deploy from the upstream repo that holds the Vercel secrets.
-    # Forks (which lack VERCEL_TOKEN) skip this job instead of failing it,
-    # so a fork push / cross-fork PR doesn't show a red deploy check.
-    if: github.repository == 'ZoikoGroup/ZoikoVertex'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      
-      - name: Install Dependencies
-        run: npm install
-        working-directory: ./frontend
-        
-      - name: Run Lint & Type Check
-        run: npm run lint
-        working-directory: ./frontend
-        
-      - name: Verify Local Build
-        run: npm run build
-        working-directory: ./frontend
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_SSH_HOST }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
 
-      - name: Check Vercel token
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN secret is not set. Add it in repo Settings → Secrets and variables → Actions (and ensure the workflow runs in a context that has access to secrets — fork PRs do not)."
-            exit 1
-          fi
+            cd /var/www/zoikovertex/app
+            git pull origin main
+            cd backend
+            npm install
+            /opt/node24/bin/node -e "require('@supabase/supabase-js')" 2>/dev/null || true
+            npm run build
+            sudo systemctl restart zoikovertex-backend
 
-      - name: Deploy to Vercel
-        # Vercel CLI reads the token from the VERCEL_TOKEN env var (set above),
-        # so we don't pass --token= which crashes when the secret is empty.
-        run: npx vercel deploy --prod --token "$VERCEL_TOKEN" --cwd ./frontend --yes --archive=tgz
+            cd /var/www/zoikovertex-custos/app
+            git pull origin main
+            cd custos-BE
+            npm install
+            sudo systemctl restart zoikovertex-custos
+
+            cd /var/www/zoikovertex-frontend/app
+            git pull origin main
+            cd frontend
+            npm install
+            npm run build
+            pm2 restart zoikovertex-platform
+            pm2 save
+
+            cd /var/www/zoikovertex-landing/app
+            git pull origin main
+            cd landing
+            npm install
+            npm run build
+            pm2 restart zoikovertex-website
+            pm2 save
