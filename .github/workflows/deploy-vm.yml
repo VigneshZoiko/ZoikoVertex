@@ -1,0 +1,52 @@
+name: Deploy to GCP VM
+
+concurrency:
+  group: deploy-vm-zoikovertex
+  cancel-in-progress: false
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_SSH_HOST }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+
+            cd /var/www/zoikovertex/app
+            git pull origin main
+            cd backend
+            npm install
+            npm run build
+            sudo systemctl restart zoikovertex-backend
+
+            cd /var/www/zoikovertex-custos/app
+            git pull origin main
+            cd custos-BE
+            npm install
+            sudo systemctl restart zoikovertex-custos
+
+            cd /var/www/zoikovertex-frontend/app
+            git pull origin main
+            cd frontend
+            npm install
+            npm run build
+            pm2 restart zoikovertex-platform
+            pm2 save
+
+            cd /var/www/zoikovertex-landing/app
+            git pull origin main
+            cd landing
+            npm install
+            npm run build
+            pm2 restart zoikovertex-website
+            pm2 save
